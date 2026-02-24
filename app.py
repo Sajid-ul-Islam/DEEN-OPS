@@ -109,8 +109,8 @@ def main():
                         'tel', 'mobile no', 'phone number'
                     ],
                     'name_col': [
-                        'full name (billing)', 'billing name', 'customer name', 'receiver', 'full name', 
-                        'name', 'customer', 'client'
+                        'first name (shipping)', 'shipping name', 'full name (billing)', 'billing name', 
+                        'customer name', 'receiver', 'full name', 'name', 'customer', 'client'
                     ],
                     'order_id_col': [
                         'order id', 'order no', 'invoice', 'invoice no', 'id', 'order number', '#'
