@@ -306,5 +306,12 @@
         "error": "expected an indented block after 'with' statement on line 753 (sales_dashboard.py, line 755)",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 147, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 38, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab, render_stock_analytics_tab\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\sales_dashboard.py\", line 755\n    with col5:\nIndentationError: expected an indented block after 'with' statement on line 753\n",
         "details": {}
+    },
+    {
+        "timestamp": "2026-04-06 20:22:21",
+        "context": "Pathao Processor",
+        "error": "unsupported operand type(s) for +=: 'int' and 'str'",
+        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-BI\\app_modules\\pathao_tab.py\", line 104, in render_pathao_tab\n    result_df = process_orders_dataframe(preview_df)\n  File \"E:\\DEEN-BI\\app_modules\\processor.py\", line 253, in process_orders_dataframe\n    record = process_single_order_group(phone, group, data_cols)\n  File \"E:\\DEEN-BI\\app_modules\\processor.py\", line 128, in process_single_order_group\n    total_to_collect += order_total\nTypeError: unsupported operand type(s) for +=: 'int' and 'str'\n",
+        "details": {}
     }
 ]

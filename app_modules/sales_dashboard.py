@@ -180,16 +180,9 @@ def get_category(name):
         "Flannel Shirt": ["flannel"],
         "Polo Shirt": ["polo"],
         "Panjabi": ["panjabi", "punjabi"],
-        "Trousers": [
-            "trousers",
-            "pant",
-            "cargo",
-            "trouser",
-            "joggers",
-            "track pant",
-            "jogger",
-        ],
-        "Twill Chino": ["twill chino"],
+        "Trousers": ["trousers", "trouser"],
+        "Joggers": ["joggers", "jogger", "track pant"],
+        "Twill Chino": ["twill chino", "chino", "twill"],
         "Mask": ["mask"],
         "Leather Bag": ["bag", "backpack"],
         "Water Bottle": ["water bottle"],
@@ -205,6 +198,7 @@ def get_category(name):
         "Belt": ["belt"],
         "Sweater": ["sweater", "cardigan", "knitwear"],
         "Passport Holder": ["passport holder"],
+        "Card Holder": ["card holder"],
         "Cap": ["cap"],
     }
 
