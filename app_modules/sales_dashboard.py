@@ -1101,7 +1101,7 @@ def render_manual_tab():
                     top,
                     timeframe,
                     basket,
-                    uploaded_file.name,
+                    source_name,
                     manual_updated,
                 )
 
