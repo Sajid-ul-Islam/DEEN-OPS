@@ -10,20 +10,21 @@ from app_modules.ui_config import APP_TITLE, APP_VERSION
 
 def inject_base_styles():
     st.markdown(
-        """
+        f"""
         <style>
-        :root {
+        :root {{
             --primary: var(--primary-color, #1d4ed8);
             --surface: var(--background-color, #f8fafc);
-            --border: var(--secondary-background-color, #e2e8f0);
+            --border: rgba(128, 128, 128, 0.2);
             --text-muted: var(--text-color, #64748b);
             --step-surface: var(--background-color, #ffffff);
             --step-text: var(--text-color, #0f172a);
-            --step-active-bg: var(--secondary-background-color, #eff6ff);
-            --action-surface: var(--background-color, rgba(255, 255, 255, 0.96));
-            --card-shadow: rgba(0, 0, 0, 0.15);
-        }
-        .hub-footer {
+            --step-active-bg: var(--secondary-background-color, rgba(29, 78, 216, 0.05));
+            --action-surface: var(--secondary-background-color, rgba(255, 255, 255, 0.96));
+            --card-shadow: rgba(0, 0, 0, 0.1);
+        }}
+        
+        .hub-footer {{
             position: fixed;
             bottom: 0;
             left: 0;
@@ -37,22 +38,22 @@ def inject_base_styles():
             font-size: 0.8rem;
             border-top: 1px solid rgba(128, 128, 128, 0.2);
             z-index: 999;
-        }
-        .hub-footer a {
+        }}
+        .hub-footer a {{
             color: inherit;
             text-decoration: none;
             font-weight: 500;
-        }
+        }}
         /* Extra padding for main content so it doesn't get hidden by fixed footer */
-        .main .block-container {
+        .main .block-container {{
             padding-bottom: 80px !important;
-        }
-        .deen-logo-small {
+        }}
+        .deen-logo-small {{
             vertical-align: middle;
             margin-right: 6px;
             border-radius: 4px;
-        }
-        .hub-title-row {
+        }}
+        .hub-title-row {{
             display: flex;
             align-items: center;
             justify-content: center;
@@ -63,23 +64,23 @@ def inject_base_styles():
             margin-bottom: 0px;
             border-radius: 0 4px 4px 0;
             text-align: center;
-        }
+        }}
         /* Remove the top gap without touching the sidebar toggle */
-        .main .block-container {
+        .main .block-container {{
             padding-top: 0 !important;
             margin-top: -1.75rem !important;
             padding-bottom: 80px !important;
-        }
-        .hub-title {
+        }}
+        .hub-title {{
             margin: 0;
             font-weight: 700;
-        }
-        .hub-subtitle {
+        }}
+        .hub-subtitle {{
             margin: 0;
             color: var(--text-muted);
             font-size: 0.95rem;
-        }
-        .hub-card {
+        }}
+        .hub-card {{
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 12px;
@@ -87,49 +88,49 @@ def inject_base_styles():
             margin-bottom: 4px;
             box-shadow: 0 4px 12px var(--card-shadow);
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .hub-welcome-banner {
+        }}
+        .hub-welcome-banner {{
             background-color: transparent;
             border: 1px solid rgba(128, 128, 128, 0.2);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 15px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-        .hub-welcome-banner a, .hub-welcome-banner b {
+        }}
+        .hub-welcome-banner a, .hub-welcome-banner b {{
             color: inherit !important;
-        }
-        .hub-card:hover {
+        }}
+        .hub-card:hover {{
             transform: translateY(-2px);
             box-shadow: 0 12px 32px var(--card-shadow);
             border-color: var(--primary);
-        }
+        }}
         
         /* 3. Action Glow for success/primary steps */
-        @keyframes success-pulse {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-        }
-        div[data-testid="stDownloadButton"] button {
+        @keyframes success-pulse {{
+            0% {{ box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }}
+            70% {{ box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }}
+            100% {{ box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }}
+        }}
+        div[data-testid="stDownloadButton"] button {{
             animation: success-pulse 2s infinite;
             border: 1px solid #10b981 !important;
             transition: all 0.2s ease !important;
-        }
-        div[data-testid="stDownloadButton"] button:hover {
+        }}
+        div[data-testid="stDownloadButton"] button:hover {{
             transform: scale(1.02);
             background: #059669 !important;
             color: white !important;
-        }
+        }}
         
         /* Global button hover scaling */
-        button[kind="secondary"]:hover, button[kind="primary"]:hover {
+        button[kind="secondary"]:hover, button[kind="primary"]:hover {{
             transform: scale(1.01);
             transition: all 0.2s ease !important;
-        }
+        }}
         
         /* Premium Tab Styling */
-        div[data-testid="stTab"] button {
+        div[data-testid="stTab"] button {{
             font-size: 0.9rem !important;
             font-weight: 600 !important;
             color: #64748b !important;
@@ -137,54 +138,54 @@ def inject_base_styles():
             border: none !important;
             background: transparent !important;
             padding: 10px 20px !important;
-        }
-        div[data-testid="stTab"] button:hover {
+        }}
+        div[data-testid="stTab"] button:hover {{
             color: #1d4ed8 !important;
             background: rgba(29, 78, 216, 0.04) !important;
             border-radius: 8px 8px 0 0 !important;
-        }
-        div[data-testid="stTab"] button[aria-selected="true"] {
+        }}
+        div[data-testid="stTab"] button[aria-selected="true"] {{
             color: #1d4ed8 !important;
             border-bottom: 2px solid #1d4ed8 !important;
-        }
+        }}
         
-        @media (max-width: 900px) {
-            .block-container {
+        @media (max-width: 900px) {{
+            .block-container {{
                 padding-left: 0.5rem !important;
                 padding-right: 0.5rem !important;
                 margin-top: -2.5rem !important;
-            }
-            .hub-title {
+            }}
+            .hub-title {{
                 font-size: 1.2rem !important;
                 line-height: 1.2;
-            }
-            .hub-subtitle {
+            }}
+            .hub-subtitle {{
                 font-size: 0.8rem !important;
-            }
-            .hub-card {
+            }}
+            .hub-card {{
                 padding: 10px;
                 border-radius: 8px;
-            }
+            }}
             /* Metric Font Scaling for Small Screens */
-            div[data-testid="stMetricValue"] {
+            div[data-testid="stMetricValue"] {{
                 font-size: 1.2rem !important;
-            }
-            div[data-testid="stMetricLabel"] {
+            }}
+            div[data-testid="stMetricLabel"] {{
                 font-size: 0.75rem !important;
-            }
+            }}
             /* Compact Tabs on Mobile */
-            div[data-testid="stTab"] button {
+            div[data-testid="stTab"] button {{
                 padding: 8px 12px !important;
                 font-size: 0.8rem !important;
-            }
-        }
+            }}
+        }}
         
         /* Hide Plotly legends on mobile and small screens */
-        @media (max-width: 900px) {
-            .js-plotly-plot .legend, .js-plotly-plot .legendtoggle, .js-plotly-plot .legend-bg, .js-plotly-plot .legend-layer {
+        @media (max-width: 900px) {{
+            .js-plotly-plot .legend, .js-plotly-plot .legendtoggle, .js-plotly-plot .legend-bg, .js-plotly-plot .legend-layer {{
                 display: none !important;
-            }
-        }
+            }}
+        }}
         </style>
         """,
         unsafe_allow_html=True,
