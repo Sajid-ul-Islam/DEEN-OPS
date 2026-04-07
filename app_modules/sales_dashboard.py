@@ -478,15 +478,15 @@ def load_from_woocommerce():
         }
 
         def get_operational_sync_window(ref_time):
-            # Thursday 5 PM to Saturday 5 PM is the weekend slot (Bangladesh)
-            anchor_5pm = ref_time.replace(hour=17, minute=0, second=0, microsecond=0)
+            # Thursday 5:30 PM to Saturday 5:30 PM is the weekend slot (Bangladesh)
+            anchor_5_30pm = ref_time.replace(hour=17, minute=30, second=0, microsecond=0)
             
-            # RULE: Active shift starts yesterday 5 PM and stays active until MIDNIGHT TONIGHT
-            start = anchor_5pm - timedelta(days=1)
+            # RULE: Active shift starts yesterday 5:30 PM and stays active until MIDNIGHT TONIGHT
+            start = anchor_5_30pm - timedelta(days=1)
             
             # Weekend adjustment: Friday is covered by the Thu-Sat slot
             if start.weekday() == 4: # Friday
-                start -= timedelta(days=1) # Back to Thu 17:00
+                start -= timedelta(days=1) # Back to Thu 17:30
             
             # The window for fetch needs to be broad enough to capture the entire active shift
             # We set end to TONIGHT 23:59:59 to capture evening orders
@@ -583,9 +583,9 @@ def load_from_woocommerce():
         if sync_mode == "Operational Cycle":
             df_full["dt_parsed"] = pd.to_datetime(df_full["Order Date"], errors="coerce").dt.tz_localize(None)
             
-            # Classification based on 17:00 CUTOFF
+            # Classification based on 17:30 CUTOFF
             now_dt = datetime.now()
-            cutoff_today = now_dt.replace(hour=17, minute=0, second=0, microsecond=0)
+            cutoff_today = now_dt.replace(hour=17, minute=30, second=0, microsecond=0)
             cutoff_prev = cutoff_today - timedelta(days=1)
             cutoff_day_before = cutoff_prev - timedelta(days=1)
             
@@ -605,7 +605,7 @@ def load_from_woocommerce():
             st.session_state.wc_curr_df = scrub_raw_dataframe(df_live)
             
             # SNAPSHOT 2: YESTERDAY (Historical Performance)
-            # Status: Shipped orders from Day-before-Yesterday 5 PM to Yesterday 5 PM
+            # Status: Shipped orders from Day-before-Yesterday 5:30 PM to Yesterday 5:30 PM
             df_prev = df_full[
                 (df_full["dt_parsed"] >= cutoff_day_before) & 
                 (df_full["dt_parsed"] < cutoff_prev) & 
@@ -751,13 +751,13 @@ def render_dashboard_output(
                     nav_mode = st.session_state.get("wc_nav_mode", "Today")
                     if nav_mode == "Prev":
                         st.caption(f"⏪ **ACTIVE: Yesterday**")
-                        st.caption(f"{prev_s.strftime('%a %d %b, %I%p')} - {prev_e.strftime('%a %d %b, %I%p')}")
+                        st.caption(f"{prev_s.strftime('%a %d %b, %I:%M %p')} - {prev_e.strftime('%a %d %b, %I:%M %p')}")
                     elif nav_mode == "Backlog":
                         st.caption(f"⏩ **ACTIVE: Incoming Backlog**")
                         st.caption(f"Waiting / On-Hold Stock")
                     else:
                         st.caption(f"📍 **ACTIVE: Today**")
-                        st.caption(f"{curr_s.strftime('%a %d %b, %I%p')} - {curr_e.strftime('%a %d %b, %I%p')}")
+                        st.caption(f"{curr_s.strftime('%a %d %b, %I:%M %p')} - {curr_e.strftime('%a %d %b, %I:%M %p')}")
                     st.markdown('<div style="margin-top:2px;"></div>', unsafe_allow_html=True)
                     nav_mode = st.session_state.get("wc_nav_mode", "Today")
                     btn_prev, btn_curr, btn_back = st.columns(3)
@@ -1156,7 +1156,7 @@ def render_live_tab():
         <div style="font-size: 0.85rem; opacity: 0.9;">
             Powered by <a href="https://deencommerce.com/" target="_blank" style="text-decoration:none;">
                 <img src="{logo_src}" width="16" style="vertical-align:middle; margin: 0 3px; border-radius:2px;" onerror="this.style.display='none'">
-                <b>DEEN commerce</b>
+                <b>DEEN Commerce Ltd.</b>
             </a>
         </div>
     </div>
