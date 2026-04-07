@@ -46,10 +46,15 @@ def render_pathao_tab():
 
     if fetch_live_clicked:
         try:
-            from app_modules.sales_dashboard import load_live_source
-
-            with st.spinner("Pulling WooCommerce data..."):
-                df_live, source_name, _ = load_live_source()
+            # v9.8 Rapid In-Memory Pull
+            if st.session_state.get("wc_curr_df") is not None:
+                df_live = st.session_state.wc_curr_df
+                source_name = "Dashboard_Live_Today"
+                st.info("⚡ Instant Pull: Using Today's Active Shift data from Dashboard.")
+            else:
+                from app_modules.sales_dashboard import load_live_source
+                with st.spinner("Connecting to WooCommerce API..."):
+                    df_live, source_name, _ = load_live_source()
 
             preview_df = df_live
             st.session_state.pathao_preview_df = preview_df
@@ -58,11 +63,11 @@ def render_pathao_tab():
 
             missing = [c for c in REQUIRED_COLUMNS if c not in preview_df.columns]
             valid_file = len(missing) == 0
-            st.success("Fetched from WooCommerce perfectly. Processing...")
+            st.success(f"Successfully pulled {len(df_live)} records.")
 
         except Exception as exc:
             log_error(exc, context="Pathao WooCommerce Pull")
-            st.error(f"Failed to fetch WooCommerce data: {exc}")
+            st.error(f"Failed to fetch data: {exc}")
     elif up_pathao:
         try:
             preview_df = _read_uploaded(up_pathao)

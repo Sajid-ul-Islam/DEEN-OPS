@@ -53,8 +53,18 @@ def run_app():
 
     with st.sidebar:
         render_sidebar_branding()
-        st.subheader("Global Settings")
+        
+        st.subheader("🚀 Navigation")
+        selected_nav = st.sidebar.radio(
+            "Select Workspace", 
+            PRIMARY_NAV, 
+            label_visibility="collapsed",
+            index=PRIMARY_NAV.index("📈 Live Dashboard") if "📈 Live Dashboard" in PRIMARY_NAV else 0
+        )
+        st.divider()
 
+        st.subheader("Global Settings")
+        
         st.session_state.show_animation = st.toggle(
             "Show motion effects",
             value=st.session_state.get("show_animation", True),
@@ -117,28 +127,21 @@ def run_app():
     if st.session_state.get("show_animation"):
         render_bike_animation()
 
-    nav_tabs = st.tabs(PRIMARY_NAV)
-
-    with nav_tabs[0]:
+    # Main content rendering based on sidebar selection
+    if selected_nav == "📈 Live Dashboard":
         render_live_tab()
-
-    with nav_tabs[1]:
-        render_manual_tab()
-
-    with nav_tabs[2]:
-        render_stock_analytics_tab()
-
-    with nav_tabs[3]:
+    elif selected_nav == "📦 Bulk Order Processer":
         render_pathao_tab()
-
-    with nav_tabs[4]:
-        render_distribution_tab(search_q=st.session_state.get("inv_matrix_search", ""))
-
-    with nav_tabs[5]:
+    elif selected_nav == "💬 WhatsApp Messaging":
         render_wp_tab()
-
-    with nav_tabs[6]:
+    elif selected_nav == "📊 Inventory Distribution":
+        render_distribution_tab(search_q=st.session_state.get("inv_matrix_search", ""))
+    elif selected_nav == "📦 Current Stock Analytics":
+        render_stock_analytics_tab()
+    elif selected_nav == "🧩 Delivery Data Parser":
         render_fuzzy_parser_tab()
+    elif selected_nav == "📥 Sales Data Ingestion":
+        render_manual_tab()
 
     render_footer()
 

@@ -79,10 +79,15 @@ def render_wp_tab():
 
     if fetch_live_clicked:
         try:
-            from app_modules.sales_dashboard import load_live_source
-
-            with st.spinner("Pulling WooCommerce data..."):
-                df_live, source_name, _ = load_live_source()
+            # v9.8 Rapid In-Memory Pull
+            if st.session_state.get("wc_curr_df") is not None:
+                df_live = st.session_state.wc_curr_df
+                source_name = "Dashboard_Live_Today"
+                st.info("⚡ Instant Pull: Using Today's Active Shift data from Dashboard.")
+            else:
+                from app_modules.sales_dashboard import load_live_source
+                with st.spinner("Connecting to WooCommerce API..."):
+                    df_live, source_name, _ = load_live_source()
 
             preview_df = df_live
             st.session_state.wp_preview_df = preview_df
@@ -91,14 +96,14 @@ def render_wp_tab():
 
             valid_file, missing_fields = _validate_wp_columns(preview_df)
             if valid_file:
-                st.success("Fetched from WooCommerce perfectly. Processing...")
+                st.success(f"Successfully pulled {len(df_live)} records.")
             else:
                 st.error(
-                    f"WooCommerce dataset missing required fields: {', '.join(missing_fields)}"
+                    f"Required fields missing in dataset: {', '.join(missing_fields)}"
                 )
         except Exception as exc:
             log_error(exc, context="WP WooCommerce Pull")
-            st.error(f"Failed to fetch WooCommerce data: {exc}")
+            st.error(f"Failed to fetch data: {exc}")
     elif wp_file:
         try:
             preview_df = _read_uploaded(wp_file)

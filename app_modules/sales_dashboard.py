@@ -521,9 +521,26 @@ def load_from_woocommerce():
                     for order in batch_data:
                         oid, d_val, status = order.get("id"), order.get("date_created"), order.get("status")
                         bill = order.get("billing", {})
+                        ship = order.get("shipping", {})
                         c_name = f"{bill.get('first_name','')} {bill.get('last_name','')}".strip()
+                        pmt = order.get("payment_method_title", "")
                         for item in order.get("line_items", []):
-                            b_rows.append({"Order ID": oid, "Order Date": d_val, "Order Status": status, "Full Name (Billing)": c_name, "Phone (Billing)": bill.get("phone",""), "Item Name": item.get("name"), "Item Cost": item.get("price"), "Quantity": item.get("quantity"), "Order Total Amount": item.get("total")})
+                            b_rows.append({
+                                "Order ID": oid, 
+                                "Order Date": d_val, 
+                                "Order Status": status, 
+                                "Full Name (Billing)": c_name, 
+                                "Phone (Billing)": bill.get("phone",""),
+                                "Shipping Address 1": ship.get("address_1", ""),
+                                "Shipping City": ship.get("city", ""),
+                                "State Name (Billing)": bill.get("state", ""),
+                                "Item Name": item.get("name"), 
+                                "SKU": item.get("sku", ""),
+                                "Item Cost": item.get("price"), 
+                                "Quantity": item.get("quantity"), 
+                                "Order Total Amount": order.get("total"),
+                                "Payment Method Title": pmt
+                            })
                     if len(batch_data) < 100: break
                     page += 1
                 return b_rows
@@ -569,9 +586,26 @@ def load_from_woocommerce():
                 for order in batch_data:
                     oid, d_val, status = order.get("id"), order.get("date_created"), order.get("status")
                     bill = order.get("billing", {})
+                    ship = order.get("shipping", {})
                     c_name = f"{bill.get('first_name','')} {bill.get('last_name','')}".strip()
+                    pmt = order.get("payment_method_title", "")
                     for item in order.get("line_items", []):
-                        rows.append({"Order ID": oid, "Order Date": d_val, "Order Status": status, "Full Name (Billing)": c_name, "Phone (Billing)": bill.get("phone",""), "Item Name": item.get("name"), "Item Cost": item.get("price"), "Quantity": item.get("quantity"), "Order Total Amount": item.get("total")})
+                        rows.append({
+                            "Order ID": oid, 
+                            "Order Date": d_val, 
+                            "Order Status": status, 
+                            "Full Name (Billing)": c_name, 
+                            "Phone (Billing)": bill.get("phone",""),
+                            "Shipping Address 1": ship.get("address_1", ""),
+                            "Shipping City": ship.get("city", ""),
+                            "State Name (Billing)": bill.get("state", ""),
+                            "Item Name": item.get("name"), 
+                            "SKU": item.get("sku", ""),
+                            "Item Cost": item.get("price"), 
+                            "Quantity": item.get("quantity"), 
+                            "Order Total Amount": order.get("total"),
+                            "Payment Method Title": pmt
+                        })
                 if len(batch_data) < 100: break
                 page += 1
 
@@ -770,26 +804,12 @@ def render_dashboard_output(
                 with col1:
                     l1 = "Backlog Items" if nav_mode == "Backlog" else "Items sold"
                     st.metric(l1, f"{m_qty:,.0f}", delta=dq_str)
-                    if nav_mode == "Today":
-                        st.caption(f"📦 {ship_count} Shipped")
-                    elif nav_mode == "Backlog":
-                        st.caption(f"⏳ {wait_count} Pending")
                 with col2:
                     l2 = "Backlog Rev" if nav_mode == "Backlog" else "Revenue"
                     st.metric(l2, f"TK {m_rev:,.0f}", delta=dr_str)
-                    if nav_mode == "Today":
-                        st.caption(f"⚙️ {proc_count} Processing")
-                    elif nav_mode == "Backlog":
-                        st.caption(f"⏸️ {hold_count} On-Hold")
                 with col3:
                     l3 = "Backlog Orders" if nav_mode == "Backlog" else "Orders"
                     st.metric(l3, f"{m_ord:,.0f}", delta=do_str)
-                    if nav_mode == "Today":
-                        confirmed_count = proc_count # Processing is effectively confirmed
-                        if confirmed_count > 0:
-                            st.caption(f"✅ {confirmed_count} Confirmed")
-                    elif nav_mode == "Backlog":
-                        st.caption(f"🆕 {proc_count} New Intake")
                 with col4:
                     st.metric("Avg Basket", f"TK {m_bv:,.0f}", delta=db_str)
                 
@@ -801,12 +821,18 @@ def render_dashboard_output(
                     if nav_mode == "Prev":
                         st.caption(f"⏪ **ACTIVE: Yesterday**")
                         st.caption(f"{prev_s.strftime('%a %d %b, %I:%M %p')} - {prev_e.strftime('%a %d %b, %I:%M %p')}")
+                        st.caption(f"📦 {ship_count} Shipped | ⚙️ {proc_count} Processing")
                     elif nav_mode == "Backlog":
                         st.caption(f"⏩ **ACTIVE: Incoming Backlog**")
                         st.caption(f"Waiting / On-Hold / Late Ops")
+                        st.caption(f"⏳ {wait_count} Pending | ⏸️ {hold_count} On-Hold | 🆕 {proc_count} New")
                     else:
                         st.caption(f"📍 **ACTIVE: Today**")
                         st.caption(f"{curr_s.strftime('%a %d %b, %I:%M %p')} - {curr_e.strftime('%a %d %b, %I:%M %p')}")
+                        st.caption(f"📦 {ship_count} Shipped | ⚙️ {proc_count} Processing")
+                        confirmed_count = proc_count
+                        if confirmed_count > 0:
+                            st.caption(f"✅ {confirmed_count} Confirmed")
                     st.markdown('<div style="margin-top:2px;"></div>', unsafe_allow_html=True)
                     nav_mode = st.session_state.get("wc_nav_mode", "Today")
                     btn_prev, btn_curr, btn_back = st.columns(3)

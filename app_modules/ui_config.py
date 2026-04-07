@@ -3,12 +3,12 @@ APP_VERSION = "v9.5"
 
 PRIMARY_NAV = [
     "📈 Live Dashboard",
-    "📥 Sales Data Ingestion",
-    "📦 Current Stock Analytics",
     "📦 Bulk Order Processer",
-    "📊 Inventory Distribution",
     "💬 WhatsApp Messaging",
+    "📊 Inventory Distribution",
+    "📦 Current Stock Analytics",
     "🧩 Delivery Data Parser",
+    "📥 Sales Data Ingestion",
 ]
 
 MORE_TOOLS = [
