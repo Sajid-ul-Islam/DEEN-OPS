@@ -908,7 +908,7 @@ def render_dashboard_output(
         )
         fig_pie.update_traces(
             textposition=pos_array,
-            textinfo="percent",
+            textinfo="label+percent",
             textfont_size=11,
             pull=0.01,
             rotation=270,
