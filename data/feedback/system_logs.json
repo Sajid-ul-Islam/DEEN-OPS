@@ -3444,5 +3444,15 @@
         "timestamp": "2026-04-08 11:45:34",
         "type": "LIVE_FILE_ERROR",
         "details": "WooCommerce integration requires WC_URL, WC_KEY, and WC_SECRET (or [woocommerce] table in secrets.toml)."
+    },
+    {
+        "timestamp": "2026-04-08 17:22:16",
+        "type": "WC_API_ERROR",
+        "details": "name 'df_to_return' is not defined"
+    },
+    {
+        "timestamp": "2026-04-08 17:22:16",
+        "type": "LIVE_FILE_ERROR",
+        "details": "Failed to fetch data from WooCommerce: name 'df_to_return' is not defined"
     }
 ]

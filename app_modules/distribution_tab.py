@@ -72,7 +72,6 @@ def render_distribution_tab(search_q):
                     loc_files[loc] = st.session_state.get(f"inv_l_{loc}_df")
                 
                 # Instruction
-                st.caption("Auto-pulls from WooCommerce during analysis if no file provided.")
 
             uploaded = st.file_uploader(
                 f"{loc}", key=f"inv_l_{loc}", type=["xlsx", "csv"]

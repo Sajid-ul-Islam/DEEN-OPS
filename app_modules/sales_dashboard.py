@@ -1,4 +1,5 @@
 import re
+import functools
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -13,7 +14,6 @@ from email.utils import parsedate_to_datetime
 from urllib.request import Request, urlopen
 from urllib.parse import parse_qs, urlparse
 from requests.auth import HTTPBasicAuth
-from streamlit_autorefresh import st_autorefresh
 from app_modules.ui_components import (
     section_card,
     render_action_bar,
@@ -162,56 +162,62 @@ def get_gcp_service_account_info():
     return None
 
 
+# v9.5 Expert Rules - Professional Categorization Patterns
+SPECIFIC_CATS = {
+    "Tank Top": ["tank top"],
+    "Boxer": ["boxer"],
+    "Jeans": ["jeans"],
+    "Denim Shirt": ["denim"],
+    "Flannel Shirt": ["flannel"],
+    "Polo Shirt": ["polo"],
+    "Panjabi": ["panjabi", "punjabi"],
+    "Trousers": ["trousers", "trouser"],
+    "Joggers": ["joggers", "jogger", "track pant"],
+    "Twill Chino": ["twill chino", "chino", "twill"],
+    "Mask": ["mask"],
+    "Leather Bag": ["bag", "backpack"],
+    "Water Bottle": ["water bottle"],
+    "Contrast Shirt": ["contrast"],
+    "Turtleneck": ["turtleneck", "mock neck"],
+    "Drop Shoulder": ["drop", "shoulder"],
+    "Wallet": ["wallet"],
+    "Kaftan Shirt": ["kaftan"],
+    "Active Wear": ["active wear"],
+    "Jersy": ["jersy"],
+    "Sweatshirt": ["sweatshirt", "hoodie", "pullover"],
+    "Jacket": ["jacket", "outerwear", "coat"],
+    "Belt": ["belt"],
+    "Sweater": ["sweater", "cardigan", "knitwear"],
+    "Passport Holder": ["passport holder"],
+    "Card Holder": ["card holder"],
+    "Cap": ["cap"],
+}
+
+# Pre-compile patterns for maximum speed
+CAT_PATTERNS = {
+    cat: [re.compile(rf"\b{re.escape(kw.lower())}\b", re.IGNORECASE) for kw in keywords]
+    for cat, keywords in SPECIFIC_CATS.items()
+}
+FS_KEYWORDS = [re.compile(rf"\b{re.escape(kw.lower())}\b", re.IGNORECASE) for kw in ["full sleeve", "long sleeve", "fs", "l/s"]]
+TSHIRT_KEYWORDS = [re.compile(rf"\b{re.escape(kw.lower())}\b", re.IGNORECASE) for kw in ["t-shirt", "t shirt", "tee"]]
+SHIRT_KEYWORDS = [re.compile(rf"\b{re.escape(kw.lower())}\b", re.IGNORECASE) for kw in ["shirt"]]
+
+@functools.lru_cache(maxsize=1024)
 def get_category(name):
-    """Categorizes products based on keywords in their names (v9.5 Expert Rules)."""
+    """Categorizes products based on keywords in their names (Optimized v9.5)."""
+    if not name: return "Others"
     name_str = str(name).lower()
 
-    def has_any(keywords, text):
-        return any(
-            re.search(rf"\b{re.escape(kw.lower())}\b", text, re.IGNORECASE)
-            for kw in keywords
-        )
-
-    specific_cats = {
-        "Tank Top": ["tank top"],
-        "Boxer": ["boxer"],
-        "Jeans": ["jeans"],
-        "Denim Shirt": ["denim"],
-        "Flannel Shirt": ["flannel"],
-        "Polo Shirt": ["polo"],
-        "Panjabi": ["panjabi", "punjabi"],
-        "Trousers": ["trousers", "trouser"],
-        "Joggers": ["joggers", "jogger", "track pant"],
-        "Twill Chino": ["twill chino", "chino", "twill"],
-        "Mask": ["mask"],
-        "Leather Bag": ["bag", "backpack"],
-        "Water Bottle": ["water bottle"],
-        "Contrast Shirt": ["contrast"],
-        "Turtleneck": ["turtleneck", "mock neck"],
-        "Drop Shoulder": ["drop", "shoulder"],
-        "Wallet": ["wallet"],
-        "Kaftan Shirt": ["kaftan"],
-        "Active Wear": ["active wear"],
-        "Jersy": ["jersy"],
-        "Sweatshirt": ["sweatshirt", "hoodie", "pullover"],
-        "Jacket": ["jacket", "outerwear", "coat"],
-        "Belt": ["belt"],
-        "Sweater": ["sweater", "cardigan", "knitwear"],
-        "Passport Holder": ["passport holder"],
-        "Card Holder": ["card holder"],
-        "Cap": ["cap"],
-    }
-
-    for cat, keywords in specific_cats.items():
-        if has_any(keywords, name_str):
+    for cat, patterns in CAT_PATTERNS.items():
+        if any(p.search(name_str) for p in patterns):
             return cat
 
-    fs_keywords = ["full sleeve", "long sleeve", "fs", "l/s"]
-    if has_any(["t-shirt", "t shirt", "tee"], name_str):
-        return "FS T-Shirt" if has_any(fs_keywords, name_str) else "T-Shirt"
+    is_fs = any(p.search(name_str) for p in FS_KEYWORDS)
+    if any(p.search(name_str) for p in TSHIRT_KEYWORDS):
+        return "FS T-Shirt" if is_fs else "T-Shirt"
 
-    if has_any(["shirt"], name_str):
-        return "FS Shirt" if has_any(fs_keywords, name_str) else "HS Shirt"
+    if any(p.search(name_str) for p in SHIRT_KEYWORDS):
+        return "FS Shirt" if is_fs else "HS Shirt"
 
     return "Others"
 
@@ -291,32 +297,23 @@ def scrub_raw_dataframe(df):
     # 1. Drop completely empty rows
     df = df.dropna(how="all")
 
-    # 2. Heuristic: If a row has extremely few non-null values compared to the max, it's likely a summary or title
-    # We'll keep rows that have at least 30% of the columns filled
+    # 2. Heuristic: Sparsity Check
+    # Keep rows that have at least 30% of the columns filled
     min_threshold = max(1, int(len(df.columns) * 0.3))
     df = df.dropna(thresh=min_threshold)
 
-    # 3. Filter out rows containing common summary keywords in any column
-    summary_keywords = [
-        "total",
-        "grand total",
-        "summary",
-        "analytics",
-        "chart",
-        "metric",
-    ]
-    mask = (
-        df.stack()
-        .astype(str)
-        .str.lower()
-        .str.contains("|".join(summary_keywords))
-        .unstack()
-        .any(axis=1)
-    )
-    # Only drop if the row is mostly text (summary rows) - be careful not to drop product names with "total"
-    # Actually, a better indicator of summary rows is that they are sparse.
-    # Let's stick to sparsity and dropping based on ID if we have it later.
-
+    # 3. Optimized Summary Filter (Avoid stacking)
+    # Target common text columns instead of the entire dataframe
+    summary_keywords = ["total", "grand total", "summary", "analytics", "chart", "metric"]
+    pattern = "|".join(summary_keywords)
+    
+    # Check specifically for Order Number or ID being 'Total' or similar
+    # If we find a column that looks like an ID, use it as a primary filter
+    id_cols = [c for c in df.columns if any(k in c.lower() for k in ["id", "number", "invoice", "#"])]
+    if id_cols:
+        col = id_cols[0]
+        df = df[~df[col].astype(str).str.lower().str.contains(pattern, na=False)]
+    
     return df
 
 
@@ -363,7 +360,10 @@ def process_data(df, selected_cols):
             log_system_event("DATA_ISSUE", "Found negative quantities, converted to 0.")
             df.loc[df["Internal_Qty"] < 0, "Internal_Qty"] = 0
 
-        df["Category"] = df["Internal_Name"].apply(get_category)
+        # Optimized Categorization: Map unique names to avoid redundant processing
+        unique_names = df["Internal_Name"].unique()
+        name_cat_map = {name: get_category(name) for name in unique_names}
+        df["Category"] = df["Internal_Name"].map(name_cat_map)
         df["Total Amount"] = df["Internal_Cost"] * df["Internal_Qty"]
 
         others = df[df["Category"] == "Others"]
@@ -498,8 +498,6 @@ def load_from_woocommerce():
             now_bd = datetime.now(tz_bd)
             curr_start, curr_end = get_operational_sync_window(now_bd)
             prev_start, prev_end = get_operational_sync_window(curr_start - timedelta(seconds=1))
-            st.session_state.wc_curr_slot = (curr_start, curr_end)
-            st.session_state.wc_prev_slot = (prev_start, prev_end)
             
             # Request 1: All relevant statuses within the broad operational window
             # (since prev_start, to catch both current and previous slots)
@@ -653,7 +651,6 @@ def load_from_woocommerce():
                 ( (df_full["dt_parsed"] >= prev_cutoff) & (df_full["dt_parsed"] <= shipped_limit) & (is_shipped | is_waiting) ) |
                 ( is_processing & (df_full["dt_parsed"] <= proc_limit) )
             ].copy()
-            st.session_state.wc_curr_df = scrub_raw_dataframe(df_live)
             
             # SNAPSHOT 2: YESTERDAY (Historical Performance)
             df_prev = df_full[
@@ -661,19 +658,12 @@ def load_from_woocommerce():
                 (df_full["dt_parsed"] < prev_cutoff) & 
                 is_shipped
             ].copy()
-            st.session_state.wc_prev_df = scrub_raw_dataframe(df_prev)
 
             # SNAPSHOT 3: BACKLOG (Hold + Waiting + Late Ops)
             df_backlog = df_full[
                 is_hold | is_waiting | 
                 (is_processing & (df_full["dt_parsed"] > proc_limit))
             ].copy()
-            st.session_state.wc_backlog_df = scrub_raw_dataframe(df_backlog)
-            
-            # Persist slots for label indexing
-            st.session_state.wc_curr_slot = (prev_cutoff, cutoff_today)
-            st.session_state.wc_prev_slot = (day_before_prev, prev_cutoff)
-            st.session_state.wc_backlog_slot = (cutoff_today, cutoff_today + timedelta(days=1))
             
             # v9.8 Selective Slot Return
             current_hour = now_bd.hour
@@ -686,12 +676,28 @@ def load_from_woocommerce():
         else:
             df_to_return = df_full
             slot_label = "Custom"
+            df_live, df_prev, df_backlog = None, None, None
+            prev_cutoff, cutoff_today, day_before_prev = None, None, None
 
         df_to_return = scrub_raw_dataframe(df_to_return)
         
-        sync_desc = f"WooCommerce_{slot_label}_API_{len(df_to_return)}_Orders"
-        modified_at = datetime.now(tz_bd).strftime("%Y-%m-%d %H:%M:%S")
-        return df_to_return, sync_desc, modified_at
+        # Package results for caller to handle session state (v9.8 Stateless Cache)
+        results = {
+            "df_to_return": df_to_return,
+            "sync_desc": f"WooCommerce_{slot_label}_API_{len(df_to_return)}_Orders",
+            "modified_at": datetime.now(tz_bd).strftime("%Y-%m-%d %H:%M:%S"),
+            "partitions": {
+                "wc_curr_df": scrub_raw_dataframe(df_live) if df_live is not None else None,
+                "wc_prev_df": scrub_raw_dataframe(df_prev) if df_prev is not None else None,
+                "wc_backlog_df": scrub_raw_dataframe(df_backlog) if df_backlog is not None else None,
+            },
+            "slots": {
+                "wc_curr_slot": (prev_cutoff, cutoff_today) if prev_cutoff else None,
+                "wc_prev_slot": (day_before_prev, prev_cutoff) if day_before_prev else None,
+                "wc_backlog_slot": (cutoff_today, cutoff_today + timedelta(days=1)) if cutoff_today else None,
+            }
+        }
+        return results
 
     except Exception as e:
         log_system_event("WC_API_ERROR", str(e))
@@ -699,11 +705,32 @@ def load_from_woocommerce():
 
 
 def load_live_source():
-    """Always use WooCommerce as live source."""
-    res = load_from_woocommerce()
-    if res:
+    """Stateless fetch with stateful session update."""
+    results = load_from_woocommerce()
+    if results and isinstance(results, dict):
+        # 1. Update Partitioned State
+        partitions = results.get("partitions", {})
+        for key, df in partitions.items():
+            if df is not None:
+                st.session_state[key] = df
+        
+        # 2. Update Slot Metadata
+        slots = results.get("slots", {})
+        for key, val in slots.items():
+            if val is not None:
+                st.session_state[key] = val
+        
+        # 3. Update Sync Metadata
         st.session_state.live_sync_time = datetime.now()
-        return res
+        
+        # 4. Return tuple for legacy unpacking
+        return results["df_to_return"], results["sync_desc"], results["modified_at"]
+    
+    # Handle legacy return if any (for safety)
+    if results:
+        st.session_state.live_sync_time = datetime.now()
+        return results
+        
     raise ValueError("Failed to load WooCommerce live data.")
 
 
@@ -1261,7 +1288,6 @@ def render_live_tab():
     st.session_state["wc_sync_mode"] = "Operational Cycle"
 
     # Standardize autorefresh for Live Dashboard
-    st_autorefresh(interval=30000, key="live_autorefresh")
 
     try:
         df_live, source_name, modified_at = load_live_source()

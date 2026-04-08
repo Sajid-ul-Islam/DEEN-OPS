@@ -1,83 +1,64 @@
 import re
+import functools
 
 
-# --- Category Logic ---
+# Pre-compiled Operational Patterns for Shared Utils
+UTILS_CAT_RULES = {
+    "Boxer": ["boxer"],
+    "Jeans": ["jeans"],
+    "Denim": ["denim"],
+    "Flannel": ["flannel"],
+    "Polo": ["polo"],
+    "Panjabi": ["panjabi"],
+    "Trousers": ["trouser"],
+    "Twill": ["twill", "chino"],
+    "Sweatshirt": ["sweatshirt"],
+    "Tank Top": ["tank top"],
+    "Drop Shoulder": ["drop shoulder"],
+    "Pants": ["gabardine", "pant"],
+    "Contrast": ["contrast"],
+    "Turtleneck": ["turtleneck"],
+    "Wallet": ["wallet"],
+    "Kaftan": ["kaftan"],
+    "Active": ["Active"],
+    "1 Pack Mask": ["mask"],
+    "Bag": ["Bag"],
+    "Bottle": ["bottle"],
+}
+
+# Pre-compile for bulk speed
+UTILS_PATTERNS = {
+    cat: [re.compile(rf"\b{re.escape(kw.lower())}\b", re.IGNORECASE) for kw in keywords]
+    for cat, keywords in UTILS_CAT_RULES.items()
+}
+UTILS_FS_KW = re.compile(rf"\b{re.escape('full sleeve')}\b", re.IGNORECASE)
+UTILS_TSHIRT_KW = re.compile(rf"\b(t-shirt|t shirt)\b", re.IGNORECASE)
+UTILS_SHIRT_KW = re.compile(rf"\bshirt\b", re.IGNORECASE)
+
+@functools.lru_cache(maxsize=1024)
 def get_category_from_name(name):
-    """
-    Determines the category of an item based on its name using keyword matching.
-    """
-    name_str = str(name)
+    """Determines the category of an item based on its name using optimized matching."""
+    if not name: return "Items"
+    name_str = str(name).lower()
 
-    def has_keyword(sub, text):
-        return bool(re.search(rf"\b{re.escape(sub.lower())}\b", text, re.IGNORECASE))
+    # 1. Match Specific Categories
+    for cat, patterns in UTILS_PATTERNS.items():
+        if any(p.search(name_str) for p in patterns):
+            return cat
 
-    # --- Category Rules ---
-    # Specific items
-    if has_keyword("boxer", name_str):
-        return "Boxer"
-    if has_keyword("jeans", name_str):
-        return "Jeans"
-    if has_keyword("denim", name_str):
-        return "Denim"
-    if has_keyword("flannel", name_str):
-        return "Flannel"
-    if has_keyword("polo", name_str):
-        return "Polo"
-    if has_keyword("panjabi", name_str):
-        return "Panjabi"
-    if has_keyword("trouser", name_str):
-        return "Trousers"
-    if has_keyword("twill", name_str) or has_keyword("chino", name_str):
-        return "Twill"
-    if has_keyword("sweatshirt", name_str):
-        return "Sweatshirt"
-    if has_keyword("tank top", name_str):
-        return "Tank Top"
-    if has_keyword("drop shoulder", name_str):
-        return "Drop Shoulder"
-    if has_keyword("gabardine", name_str) or has_keyword("pant", name_str):
-        return "Pants"
+    # 2. Logic-based Categories (Shirts/T-Shirts)
+    is_fs = bool(UTILS_FS_KW.search(name_str))
+    
+    if UTILS_TSHIRT_KW.search(name_str):
+        return "FS T-Shirt" if is_fs else "T-Shirt"
+    
+    if UTILS_SHIRT_KW.search(name_str):
+        return "FS Shirt" if is_fs else "HS Shirt"
 
-    # Accessories & Misc
-    if has_keyword("contrast", name_str):
-        return "Contrast"
-    if has_keyword("turtleneck", name_str):
-        return "Turtleneck"
-    if has_keyword("wallet", name_str):
-        return "Wallet"
-    if has_keyword("kaftan", name_str):
-        return "Kaftan"
-    if has_keyword("Active", name_str):
-        return "Active"
-    if has_keyword("mask", name_str):
-        return "1 Pack Mask"
-    if has_keyword("Bag", name_str):
-        return "Bag"
-    if has_keyword("bottle", name_str):
-        return "Bottle"
-
-    # Common Attributes
-    is_full_sleeve = has_keyword("full sleeve", name_str)
-
-    # T-Shirts
-    is_tshirt = has_keyword("t-shirt", name_str) or has_keyword("t shirt", name_str)
-    if is_full_sleeve and is_tshirt:
-        return "FS T-Shirt"
-    if is_tshirt and not is_full_sleeve:
-        return "T-Shirt"
-
-    # Shirts
-    is_shirt = has_keyword("shirt", name_str)
-
-    if is_full_sleeve and is_shirt:
-        return "FS Shirt"
-    if is_shirt and not is_full_sleeve:
-        return "HS Shirt"
-
-    # Fallback: Use first two words
+    # 3. Fallback: Dynamic grouping
     words = name_str.split()
     if len(words) >= 2:
-        return f"{words[0]} {words[1]}"
+        return f"{words[0].title()} {words[1].title()}"
     return "Items"
 
 

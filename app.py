@@ -61,7 +61,7 @@ def run_app():
 
     with st.sidebar:
         render_sidebar_branding()
-        render_dynamic_clock()
+        # Clock relocated to header
 
         st.link_button("🌐 Launch Cloud BI", CLOUD_APP_URL, use_container_width=True, type="primary")
         st.divider()
@@ -154,7 +154,16 @@ def run_app():
 
     # After tool execution, re-render the header with any injected content
     with header_container:
-        render_header(st.session_state.get("header_status_banner", ""))
+        def render_header_right():
+            from app_modules.clock import render_dynamic_clock
+            # 1. Show dynamic clock + sync status
+            render_dynamic_clock(st.session_state.get("live_sync_time"))
+            # 2. Show tool-specific banners
+            banner = st.session_state.get("header_status_banner", "")
+            if banner:
+                st.markdown(f'<div style="margin-top:8px;">{banner}</div>', unsafe_allow_html=True)
+
+        render_header(render_header_right)
         
     # Reset banner for next run to avoid bleeding into other pages
     st.session_state.header_status_banner = ""

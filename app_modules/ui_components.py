@@ -227,38 +227,23 @@ def render_sidebar_branding():
     except:
         pass
 
-    # Add Last Synced info if available
-    sync_html = ""
-    if st.session_state.get("live_sync_time"):
-        diff = datetime.now() - st.session_state.live_sync_time
-        mins = int(diff.total_seconds() / 60)
-        sync_label = "Just now" if mins < 1 else f"{mins}m ago"
-        sync_html = f'<div style="font-size:0.75rem; color:#64748b; margin-top:10px;">🔄 Last Synced: {sync_label}</div>'
-
-    # Render exactly as previous vertical stack
-    st.markdown(
-        f"""<div style="padding:10px 16px; border-bottom:1px solid rgba(128,128,128,0.1); margin-bottom:15px;">
-            <div style="font-weight:700; font-size:1.1rem; line-height:1.2;">
-                DEEN OPS Terminal<br>
-                <span style="font-size:0.85rem; font-weight:400; color:#64748b;">{APP_VERSION}</span>
-            </div>
-            {sync_html}
-        </div>""",
-        unsafe_allow_html=True,
-    )
+    # Sidebar branding now only shows the logo if requested, 
+    # but the user requested removing the header text entirely.
+    # We'll just leave this as a logo placeholder or remove the div.
+    pass
 
 
-def render_header(right_content=""):
-    """Minimal header for the main page content area."""
-    st.markdown(
-        f"""
-        <div class="hub-title-row">
-            <h1 class="hub-title" style="margin:0;">{APP_TITLE} <span style="color:#1d4ed8;">{APP_VERSION}</span></h1>
-            <div style="flex-shrink: 0;">{right_content}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def render_header(right_slot_callback=None):
+    """Minimal header with flexible right-hand slots."""
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        st.markdown(
+            f'<h1 class="hub-title" style="margin:0;">{APP_TITLE} <span style="color:#1d4ed8;">{APP_VERSION}</span></h1>',
+            unsafe_allow_html=True
+        )
+    with c2:
+        if right_slot_callback:
+            right_slot_callback()
 
 
 def section_card(title: str, help_text: str = ""):
