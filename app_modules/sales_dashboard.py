@@ -1400,9 +1400,12 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
                             
                             if not is_relevant: continue
 
-                        v_r = requests.get(f"{endpoint}/{p_id}/variations", params={"per_page": 100}, auth=HTTPBasicAuth(wc_key, wc_secret), timeout=15)
+                        v_r = requests.get(f"{endpoint}/{p_id}/variations", params={"per_page": 100, "status": "publish"}, auth=HTTPBasicAuth(wc_key, wc_secret), timeout=15)
                         if v_r.status_code == 200:
                             for v in v_r.json():
+                                # Skip non-published variations (private, draft, etc.)
+                                if v.get("status", "publish") != "publish":
+                                    continue
                                 full_name = f"{p_name} - {v.get('attributes',[{}])[0].get('option','N/A')}"
                                 stock_data.append({
                                     "Category": get_category(p_name), # Map by base product name for broad categorization
