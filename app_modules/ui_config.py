@@ -9,7 +9,10 @@ PRIMARY_NAV = [
     "📊 Inventory Distribution",
     "💬 WhatsApp Messaging",
     "🧩 Delivery Data Parser",
+    "🌐 Cloud BI",
 ]
+
+CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"
 
 MORE_TOOLS = [
     "System Logs",
@@ -30,6 +33,7 @@ DEFAULT_GSHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOiRkybNz
 
 # Pathao API Configuration
 def get_pathao_config():
+    """Load configuration from Streamlit secrets or local fallback."""
     try:
         import streamlit as st
         if "pathao" in st.secrets:
@@ -37,12 +41,25 @@ def get_pathao_config():
     except:
         pass
     
-    # Fallback to local placeholders
+    # Fallback: Load from .streamlit/secrets.toml if running locally/offline
+    try:
+        import os
+        import toml
+        secrets_path = os.path.join(".streamlit", "secrets.toml")
+        if os.path.exists(secrets_path):
+            with open(secrets_path, "r") as f:
+                data = toml.load(f)
+                if "pathao" in data:
+                    return data["pathao"]
+    except:
+        pass
+    
+    # Ultimate hardcoded fallback
     return {
         "base_url": "https://courier-api-sandbox.pathao.com",
         "client_id": "7N1aMJQbWm",
         "client_secret": "wRcaibZkUdSNz2EI9ZyuXLlNrnAv0TdPUPXMnD39",
-        "username": "test@pathao.com",
+        "username": "",
         "password": "lovePathao"
     }
 

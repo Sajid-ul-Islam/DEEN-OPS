@@ -43,7 +43,7 @@ def run_app():
         render_sidebar_branding,
         section_card,
     )
-    from app_modules.ui_config import PRIMARY_NAV
+    from app_modules.ui_config import PRIMARY_NAV, CLOUD_APP_URL
     from app_modules.error_handler import ERROR_LOG_FILE
     import os
     from app_modules.wp_tab import render_wp_tab
@@ -142,6 +142,14 @@ def run_app():
         render_fuzzy_parser_tab()
     elif selected_nav == "📥 Sales Data Ingestion":
         render_manual_tab()
+    elif selected_nav == "🌐 Cloud BI":
+        st.subheader("🌐 Cloud Business Intelligence")
+        st.info("Experience real-time cross-platform analytics on the Cloud Dashboard.")
+        st.link_button("Launch Cloud BI (New Tab)", CLOUD_APP_URL, use_container_width=True, type="primary")
+        st.caption("A new tab should have opened automatically. If not, please click the button above.")
+        
+        # Immediate auto-open script
+        st.markdown(f'<script>window.open("{CLOUD_APP_URL}", "_blank");</script>', unsafe_allow_html=True)
 
     render_footer()
 
