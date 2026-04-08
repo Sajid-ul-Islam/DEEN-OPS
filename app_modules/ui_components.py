@@ -240,7 +240,7 @@ def render_sidebar_branding():
     st.markdown(
         f"""<div style="padding:10px 16px; border-bottom:1px solid rgba(128,128,128,0.1); margin-bottom:15px;">
             <div style="font-weight:700; font-size:1.1rem; line-height:1.2;">
-                DEEN BI OPS<br>
+                DEEN OPS Terminal<br>
                 <span style="font-size:0.85rem; font-weight:400; color:#64748b;">{APP_VERSION}</span>
             </div>
             {sync_html}

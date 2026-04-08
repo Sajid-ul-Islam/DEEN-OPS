@@ -20,7 +20,7 @@ def _numbered_dataframe(data, *args, **kwargs):
 st.dataframe = _numbered_dataframe
 
 st.set_page_config(
-    page_title="DEEN BI OPS",
+    page_title="DEEN OPS Terminal",
     page_icon="AH",
     layout="wide",
     initial_sidebar_state="expanded",
