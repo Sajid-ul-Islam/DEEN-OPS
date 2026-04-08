@@ -243,6 +243,7 @@ def render_sidebar_branding():
                 DEEN BI OPS<br>
                 <span style="font-size:0.85rem; font-weight:400; color:#64748b;">{APP_VERSION}</span>
             </div>
+            {sync_html}
         </div>""",
         unsafe_allow_html=True,
     )

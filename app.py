@@ -29,6 +29,7 @@ st.set_page_config(
 
 def run_app():
     # Lazy imports keep bootstrap resilient on cloud when a module has runtime incompatibilities.
+    from app_modules.clock import render_dynamic_clock
     from app_modules.bike_animation import render_bike_animation
     from app_modules.distribution_tab import render_distribution_tab
     from app_modules.error_handler import get_logs, log_error
@@ -53,6 +54,10 @@ def run_app():
 
     with st.sidebar:
         render_sidebar_branding()
+        render_dynamic_clock()
+
+        st.link_button("🌐 Launch Cloud BI", CLOUD_APP_URL, use_container_width=True, type="primary")
+        st.divider()
         
         st.subheader("🚀 Navigation")
         selected_nav = st.sidebar.radio(
@@ -63,21 +68,18 @@ def run_app():
         )
         st.divider()
 
-        st.subheader("Global Settings")
-        
-        st.session_state.show_animation = st.toggle(
-            "Show motion effects",
-            value=st.session_state.get("show_animation", True),
-        )
+        with st.sidebar.expander("🛠️ Maintenance & Settings", expanded=False):
+            st.session_state.show_animation = st.toggle(
+                "Show motion effects",
+                value=st.session_state.get("show_animation", True),
+            )
 
-        if st.button("Save session state", use_container_width=True):
-            save_state()
-            st.success("Session state saved.")
+            if st.button("Save session state", use_container_width=True):
+                save_state()
+                st.success("Session state saved.")
 
-        # Unified Workspace Control Hub
-        st.divider()
-        st.subheader("Workspace Control")
-        with st.expander("Reset Active Tool Data", expanded=True):
+            st.divider()
+            st.caption("Workspace Control")
             registered = st.session_state.get("registered_resets", {})
             if not registered:
                 st.info("No active tool data found.")
@@ -91,33 +93,31 @@ def run_app():
                     st.success("Cleaned!")
                     st.rerun()
 
-        st.divider()
-        if st.button("Full System Reset", use_container_width=True, type="secondary"):
-            st.session_state.confirm_app_reset = True
+            if st.button("Full System Reset", use_container_width=True, type="secondary"):
+                st.session_state.confirm_app_reset = True
 
-        if st.session_state.get("confirm_app_reset"):
-            st.warning("⚠️ Wipe EVERYTHING?")
-            c1, c2 = st.columns(2)
-            if c1.button("Yes", type="primary", use_container_width=True):
-                from app_modules.persistence import STATE_FILE
+            if st.session_state.get("confirm_app_reset"):
+                st.warning("⚠️ Wipe EVERYTHING?")
+                c1, c2 = st.columns(2)
+                if c1.button("Yes", type="primary", use_container_width=True):
+                    from app_modules.persistence import STATE_FILE
+                    if os.path.exists(STATE_FILE):
+                        os.remove(STATE_FILE)
+                    st.session_state.clear()
+                    st.rerun()
+                if c2.button("No", use_container_width=True):
+                    st.session_state.confirm_app_reset = False
+                    st.rerun()
 
-                if os.path.exists(STATE_FILE):
-                    os.remove(STATE_FILE)
-                st.session_state.clear()
-                st.rerun()
-            if c2.button("No", use_container_width=True):
-                st.session_state.confirm_app_reset = False
-                st.rerun()
-
-        with st.expander("System Logs", expanded=False):
+            st.divider()
+            st.caption("System Logs")
             logs = get_logs()
             if not logs:
                 st.info("No system events logged.")
             else:
-                for log in reversed(logs[-20:]):
+                for log in reversed(logs[-10:]):
                     st.caption(f"**{log.get('timestamp')}** | {log.get('context')}")
                     st.text(log.get("error"))
-                    st.divider()
                 if st.button("Clear logs", use_container_width=True):
                     if os.path.exists(ERROR_LOG_FILE):
                         os.remove(ERROR_LOG_FILE)
@@ -142,14 +142,6 @@ def run_app():
         render_fuzzy_parser_tab()
     elif selected_nav == "📥 Sales Data Ingestion":
         render_manual_tab()
-    elif selected_nav == "🌐 Cloud BI":
-        st.subheader("🌐 Cloud Business Intelligence")
-        st.info("Experience real-time cross-platform analytics on the Cloud Dashboard.")
-        st.link_button("Launch Cloud BI (New Tab)", CLOUD_APP_URL, use_container_width=True, type="primary")
-        st.caption("A new tab should have opened automatically. If not, please click the button above.")
-        
-        # Immediate auto-open script
-        st.markdown(f'<script>window.open("{CLOUD_APP_URL}", "_blank");</script>', unsafe_allow_html=True)
 
     render_footer()
 

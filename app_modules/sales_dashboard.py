@@ -844,74 +844,36 @@ def render_dashboard_output(
                 mins = int(diff.total_seconds() / 60)
                 sync_label = "Just now" if mins < 1 else f"{mins}m ago"
 
-            with st.container(border=True):
-                # Top Row: Welcome & Clock
-                c_top_left, c_top_right = st.columns([3, 1])
-                with c_top_left:
-                    st.markdown(f"""
-                        <div style="font-weight: 800; font-size: 1.35rem; color: var(--text-color); margin-bottom: 4px; letter-spacing: -0.5px;">Welcome! Today's Actionable Insights</div>
-                        <div style="font-size: 0.85rem; color: var(--text-color); opacity: 0.85; display: flex; align-items: center;">
-                            Powered by 
-                            <a href="https://deencommerce.com/" target="_blank" style="text-decoration:none; display: flex; align-items: center; margin-left: 6px; color: var(--text-color); opacity: 0.95;">
-                                <img src="{logo_src}" width="16" style="margin-right: 4px; border-radius:2px;" onerror="this.style.display='none'">
-                                <b>DEEN Commerce Ltd.</b>
-                            </a>
+            # v9.8 Compact Operational Header
+            c_head_left, c_head_right = st.columns([3.2, 1.8])
+            with c_head_left:
+                st.markdown(f"""
+                    <div style="background: rgba(128, 128, 128, 0.05); border-radius: 8px; padding: 10px 16px; display: flex; gap: 14px; align-items: center; border: 1px solid rgba(128,128,128,0.1);">
+                        <div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-color);">{title_html}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-color); opacity: 0.8; margin-top:2px;">{time_html}</div>
                         </div>
-                    """, unsafe_allow_html=True)
-                with c_top_right:
-                    tz_bd = timezone(timedelta(hours=6))
-                    now_bd = datetime.now(tz_bd)
-                    st.markdown(f"""
-                        <div style="text-align: right;">
-                            <div id="dynamic-clock-unified" style="font-size: 1.3rem; font-weight: 800; color: var(--primary-color); letter-spacing: -0.5px;">
-                                {now_bd.strftime('%I:%M:%S %p')}
-                            </div>
-                            <div id="dynamic-date-unified" style="font-size: 0.8rem; color: var(--text-color); opacity: 0.8; font-weight: 500;">
-                                {now_bd.strftime('%A, %B %d')} • Local
-                            </div>
+                        <div style="width: 1px; height: 32px; background: rgba(128,128,128,0.2);"></div>
+                        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-color);">
+                            {status_html}
                         </div>
-                        <script>
-                            (function() {{
-                                if (window.clockIntervalUnified) clearInterval(window.clockIntervalUnified);
-                                function update() {{
-                                    const timeEl = document.getElementById('dynamic-clock-unified');
-                                    const dateEl = document.getElementById('dynamic-date-unified');
-                                    const now = new Date();
-                                    if (timeEl) timeEl.innerHTML = now.toLocaleTimeString('en-US', {{ hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }});
-                                    if (dateEl) dateEl.innerHTML = now.toLocaleDateString('en-US', {{ weekday: 'long', month: 'long', day: '2-digit' }}) + ' • Local';
-                                }}
-                                update();
-                                window.clockIntervalUnified = setInterval(update, 1000);
-                            }})();
-                        </script>
-                    """, unsafe_allow_html=True)
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            with c_head_right:
+                sync_label = "Pending"
+                if st.session_state.get("live_sync_time"):
+                    diff = datetime.now() - st.session_state.live_sync_time
+                    mins = int(diff.total_seconds() / 60)
+                    sync_label = "Just now" if mins < 1 else f"{mins}m ago"
                 
-                st.markdown('<hr style="margin: 8px 0; border: none; border-top: 1px solid rgba(128,128,128,0.2);">', unsafe_allow_html=True)
-
-                # Bottom Row: Stats & Button
-                c_bot_left, c_bot_right = st.columns([3.5, 1.5])
-                with c_bot_left:
-                    st.markdown(f"""
-                        <div style="background: rgba(128, 128, 128, 0.05); border-radius: 8px; padding: 10px 16px; display: flex; gap: 14px; align-items: center;">
-                            <div>
-                                <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-color);">{title_html}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-color); opacity: 0.8; margin-top:2px;">{time_html}</div>
-                            </div>
-                            <div style="width: 1px; height: 32px; background: rgba(128,128,128,0.2);"></div>
-                            <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-color);">
-                                {status_html}
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                with c_bot_right:
-                    st.markdown('<div style="margin-top: 6px;"></div>', unsafe_allow_html=True)
-                    if st.button(f"🔄 Synced: {sync_label}", help="Purge memory & force API fetch", use_container_width=True, type="primary"):
-                        try:
-                            from app_modules.sales_dashboard import load_from_woocommerce, fetch_woocommerce_stock
-                            load_from_woocommerce.clear()
-                            fetch_woocommerce_stock.clear()
-                        except: pass
-                        st.rerun()
+                if st.button(f"🔄 Sync: {sync_label}", help="Purge memory & force API fetch", use_container_width=True, type="primary"):
+                    try:
+                        from app_modules.sales_dashboard import load_from_woocommerce, fetch_woocommerce_stock
+                        load_from_woocommerce.clear()
+                        fetch_woocommerce_stock.clear()
+                    except: pass
+                    st.rerun()
             
             nav_mode = st.session_state.get("wc_nav_mode", "Today")
             st.markdown('<div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: #475569;">Shift Navigation</div>', unsafe_allow_html=True)
