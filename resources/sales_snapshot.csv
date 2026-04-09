@@ -1,5 +1,9 @@
 Order ID,Order Date,Order Status,Full Name (Billing),Phone (Billing),Shipping Address 1,Shipping City,State Name (Billing),Item Name,SKU,Item Cost,Quantity,Order Total Amount,Payment Method Title
-196029,2026-04-09T14:14:14,processing,Md. Shahadat Hossain,01815379267,"Demra, Konapara, Dhaka",,BD-13,Dark Blue Denim Shirt- Double Pocket - M,102-0402-035,1260.0,1,1310,Cash on delivery
+196031,2026-04-09T14:35:40,shipped,Rahatul Mahmud,01844591133,"House 274, Road 20,",,BD-31,Essential White T-shirt - XL,105-0101-379,640.0,1,1370,Cash on delivery
+196031,2026-04-09T14:35:40,shipped,Rahatul Mahmud,01844591133,"House 274, Road 20,",,BD-31,Essential Black T-shirt - L,105-0101-380,640.0,1,1370,Cash on delivery
+196030,2026-04-09T14:27:10,shipped,আনসার আল ইসলাম,01714369492,রসুলগঞ্জ বাজারের পশ্চিমে,,BD-31,City Slate T-shirt - XL,105-0101-376,640.0,1,1520,Cash on delivery
+196030,2026-04-09T14:27:10,shipped,আনসার আল ইসলাম,01714369492,রসুলগঞ্জ বাজারের পশ্চিমে,,BD-31,Deep Violet Drop Shoulder T-Shirt - XL,105-0301-009,790.0,1,1520,Cash on delivery
+196029,2026-04-09T14:14:14,shipped,Md. Shahadat Hossain,01815379267,"Demra, Konapara, Dhaka",,BD-13,Dark Blue Denim Shirt- Double Pocket - M,102-0402-035,1260.0,1,1310,Cash on delivery
 196028,2026-04-09T12:24:32,shipped,Ovey,01670656164,"Near Ashambosti bazar Cng Station, Ashambosti.",,BD-56,Lavender Semi Formal Panjabi - 44,106-0101-105,2590.0,1,2680,Cash on delivery
 196025,2026-04-09T11:39:23,shipped,Ushan Ahmed,01341709054,"ঢাকা, মিরপুর-১৪, মনিপুর স্কুল ব্রাঞ্চ-০২, আলি আহমেদ রোড, লুসাকা গার্মেন্টসের পিছনে, বাড়ি নং:৩৩৬/১",,BD-13,White Relaxed Graphic Tank Top - M,105-0401-008,540.0,1,1130,Cash on delivery
 196025,2026-04-09T11:39:23,shipped,Ushan Ahmed,01341709054,"ঢাকা, মিরপুর-১৪, মনিপুর স্কুল ব্রাঞ্চ-০২, আলি আহমেদ রোড, লুসাকা গার্মেন্টসের পিছনে, বাড়ি নং:৩৩৬/১",,BD-13,White Relaxed Graphic Tank Top - L,105-0401-008,540.0,1,1130,Cash on delivery
@@ -30,7 +34,7 @@ Order ID,Order Date,Order Status,Full Name (Billing),Phone (Billing),Shipping Ad
 196005,2026-04-08T20:25:01,shipped,SANJAY DAS SHRABON,01917141257,"Noagaon Bazar,LabonnoTelecom&Studio",,BD-31,Rust Bloom T-shirt - XL,105-0101-373,640.0,1,1370,Cash on delivery
 196004,2026-04-08T20:20:10,processing,Bicrom Kumar,01797465050,"Shyampur, saraswatipur -6500, mohadevpur, naogaon.",,BD-48,Retro Car Print Drop Shoulder T-Shirt - XL,105-0301-003,790.0,1,880,Cash on delivery
 196003,2026-04-08T19:21:41,shipped,Iftekhar,01713538793,"Gazipur, Gazipur sadar,",,BD-18,White Relaxed Graphic Tank Top - 2XL,105-0401-008,540.0,1,630,Cash on delivery
-196002,2026-04-08T17:53:05,processing,মো: সুমন ভূঁইয়া,01682638616,"৯/৭/১ পশ্চিম রাজারবাগ, ঝিলবাগান সোসাইটি, কদমতলা ব্রিজ সংলগ্ন ঝিলপাড় রোড, সবুজবাগ থানা, ঢাকা- ১২১৪.",,BD-13,Blue Raven Drop Shoulder T-Shirt - L,105-0301-004,840.0,1,890,Cash on delivery
+196002,2026-04-08T17:53:05,shipped,মো: সুমন ভূঁইয়া,01682638616,"৯/৭/১ পশ্চিম রাজারবাগ, ঝিলবাগান সোসাইটি, কদমতলা ব্রিজ সংলগ্ন ঝিলপাড় রোড, সবুজবাগ থানা, ঢাকা- ১২১৪.",,BD-13,Blue Raven Drop Shoulder T-Shirt - L,105-0301-004,840.0,1,890,Cash on delivery
 195997,2026-04-08T16:40:18,shipped,Shah Mohammad jooy,01733627144,"Housing estate,maijdee court,Noakhali",,BD-47,High-End Whisker Faded Jeans - Regular Fit - 30,101-0200-151,2490.0,1,5170,Cash on delivery
 195997,2026-04-08T16:40:18,shipped,Shah Mohammad jooy,01733627144,"Housing estate,maijdee court,Noakhali",,BD-47,High-End Vintage Wash Jeans - Regular Fit - 30,101-0200-149,2590.0,1,5170,Cash on delivery
 195991,2026-04-08T16:18:06,shipped,সাইফুল,01819473258,N A M Tower Matlab South Chandpur,,BD-09,Blue Raven Drop Shoulder T-Shirt - L,105-0301-004,840.0,1,930,Cash on delivery

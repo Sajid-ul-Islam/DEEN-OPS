@@ -345,6 +345,10 @@ def prepare_granular_data(df, selected_cols):
         # v10.6 Size Extraction
         df["Size"] = df["Product Name"].apply(get_size_from_name)
         
+        # v11.4 High-Density Filter Intelligence
+        df["Clean_Product"] = df["Product Name"].apply(get_base_product_name)
+        df["Filter_Identity"] = df["Clean_Product"] + " [" + df["SKU"].astype(str) + "]"
+        
         df["Total Amount"] = df["Item Cost"] * df["Quantity"]
 
 
@@ -891,74 +895,121 @@ def render_dashboard_output(
             st.divider()
 
     else:
-        # Standard Fallback for non-operational modes (Manual Ingestion)
-        if granular_df is not None:
-             # Standardize for re-aggregation
-             working_df = granular_df.copy()
-             if "Category" not in working_df.columns:
-                  working_df, _ = prepare_granular_data(working_df, dummy_mapping)
-             
+        # v11.4 High-Density Intelligence: Acquisition and Filtering in a single horizontal bar
+        is_manual = st.session_state.get("manual_tab_active", False)
+        
+        if granular_df is not None or is_manual:
              with st.expander("🛠️ Filter Intelligence", expanded=True):
-                f1, f2, f3, f4 = st.columns([1, 1, 1, 1.2])
-                with f1:
-                    all_cats_fb = sorted(working_df["Category"].unique().tolist())
-                    sel_cats_fb = st.multiselect("Select Category", all_cats_fb, placeholder="All Categories", key="fallback_filter_cat")
+                # 🧠 Predefined logic for high-density bar
+                COMMON_CATS = [
+                    "Tank Top", "Boxer", "Jeans", "Denim Shirt", "Flannel Shirt", 
+                    "Polo Shirt", "Panjabi", "Trousers", "Joggers", "Twill Chino", 
+                    "Mask", "Leather Bag", "Water Bottle", "Contrast Shirt", 
+                    "Turtleneck", "Drop Shoulder", "Wallet", "Kaftan Shirt", 
+                    "Active Wear", "Jersy", "Sweatshirt", "Jacket", "Belt", 
+                    "Sweater", "Passport Holder", "Card Holder", "Cap",
+                    "HS T-Shirt", "FS T-Shirt", "HS Shirt", "FS Shirt"
+                ]
+
+                # Setup Data Containers
+                working_df = granular_df.copy() if granular_df is not None else pd.DataFrame(columns=["Category", "Product Name", "Size", "Date"])
+                if not working_df.empty and "Category" not in working_df.columns:
+                     working_df, _ = prepare_granular_data(working_df, dummy_mapping)
+
+                # 🧬 High-Density Bar Columns
+                c1, c2, c3, c4, c5 = st.columns([1.2, 1, 1, 1, 0.3])
                 
-                # 1. Cascade: Category -> Item
-                df_cat = working_df[working_df["Category"].isin(sel_cats_fb)] if sel_cats_fb else working_df
+                with c1:
+                    sel_range = st.date_input(
+                        "Acquisition Range", 
+                        value=st.session_state.get("ingest_range", ((datetime.now() - timedelta(days=7)).date(), datetime.now().date())),
+                        min_value=datetime(2022, 8, 1).date(),
+                        max_value=datetime.now().date(),
+                        key="ingest_range"
+                    )
+                    # v11.4: Sync view with Acquisition Range immediately
+                    if not working_df.empty and isinstance(sel_range, tuple) and len(sel_range) == 2:
+                         sd, ed = pd.to_datetime(sel_range[0]), pd.to_datetime(sel_range[1])
+                         working_df = working_df[(working_df["Date"] >= sd) & (working_df["Date"] <= (ed + timedelta(days=1)))]
                 
-                with f2:
-                    all_items_fb = sorted(df_cat["Product Name"].unique().tolist())
-                    sel_items_fb = st.multiselect("Select Item", all_items_fb, placeholder="All Products", key="fallback_filter_prod")
+                with c2:
+                    all_cats = sorted(list(set(COMMON_CATS + working_df["Category"].unique().tolist()))) if not working_df.empty else sorted(COMMON_CATS)
+                    sel_cats = st.multiselect("Select Category", all_cats, placeholder="All Categories", key="fallback_filter_cat")
+                    if not working_df.empty:
+                        working_df = working_df[working_df["Category"].isin(sel_cats)] if sel_cats else working_df
                 
-                # 2. Cascade: Item -> Size
-                df_item = df_cat[df_cat["Product Name"].isin(sel_items_fb)] if sel_items_fb else df_cat
+                with c3:
+                    # v11.4: Use Filter_Identity (Name + SKU) without size redundancy
+                    all_prods = sorted(working_df["Filter_Identity"].unique().tolist()) if not working_df.empty else []
+                    sel_prods = st.multiselect("Select Item", all_prods, placeholder="All Products", key="fallback_filter_prod")
+                    if not working_df.empty:
+                        working_df = working_df[working_df["Filter_Identity"].isin(sel_prods)] if sel_prods else working_df
+                
+                with c4:
+                    all_sizes = sorted(working_df["Size"].unique().tolist()) if not working_df.empty and "Size" in working_df.columns else []
+                    sel_sizes = st.multiselect("Select Size", all_sizes, placeholder="All Sizes", key="fallback_filter_size")
+                    if not working_df.empty and "Size" in working_df.columns:
+                        working_df = working_df[working_df["Size"].isin(sel_sizes)] if sel_sizes else working_df
 
-                with f3:
-                    if "Size" in df_item.columns:
-                        all_sizes_fb = sorted(df_item["Size"].unique().tolist())
-                        sel_sizes_fb = st.multiselect("Select Size", all_sizes_fb, placeholder="All Sizes", key="fallback_filter_size")
-                        working_df = df_item[df_item["Size"].isin(sel_sizes_fb)] if sel_sizes_fb else df_item
-                    else:
-                        st.info("No size data")
-                        working_df = df_item
+                with c5:
+                    st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True) 
+                    if st.button("🔄", use_container_width=True, type="primary", help="Sync Fresh Data"):
+                         if isinstance(sel_range, tuple) and len(sel_range) == 2:
+                            s_d, e_d = sel_range
+                            st.session_state["wc_sync_mode"] = "Custom Range"
+                            st.session_state["wc_sync_start_date"] = s_d
+                            st.session_state["wc_sync_start_time"] = datetime.strptime("00:00", "%H:%M").time()
+                            st.session_state["wc_sync_end_date"] = e_d
+                            st.session_state["wc_sync_end_time"] = datetime.strptime("23:59", "%H:%M").time()
+                            
+                            try:
+                                with st.spinner("🔄 Fetching..."):
+                                    wc_res = load_from_woocommerce()
+                                    df_res = wc_res["df_to_return"]
+                                    if not df_res.empty:
+                                        # Apply Multiselect Filters immediately to the fetch results
+                                        if sel_cats:
+                                            df_res["_TmpCat"] = df_res["Item Name"].apply(get_category)
+                                            df_res = df_res[df_res["_TmpCat"].isin(sel_cats)].drop(columns=["_TmpCat"])
+                                        if sel_prods:
+                                            df_res["_TmpIdent"] = df_res.apply(lambda r: f"{get_base_product_name(r['Item Name'])} [{r['SKU']}]", axis=1)
+                                            df_res = df_res[df_res["_TmpIdent"].isin(sel_prods)].drop(columns=["_TmpIdent"])
+                                        if sel_sizes:
+                                            df_res["_TmpSize"] = df_res["Item Name"].apply(get_size_from_name)
+                                            df_res = df_res[df_res["_TmpSize"].isin(sel_sizes)].drop(columns=["_TmpSize"])
 
+                                        if not df_res.empty:
+                                            st.session_state.manual_df = df_res
+                                            st.session_state.manual_source_name = wc_res["sync_desc"]
+                                            save_sales_snapshot(df_res)
+                                            st.toast("✅ API Sync Complete!")
+                                            st.rerun()
+                                        else:
+                                            st.warning("No data found for the selected Category/Item/Size combination.")
+                                    else:
+                                        st.warning("No data found for the selected range.")
+                            except Exception as e:
+                                st.error(f"Ingestion failed: {e}")
+                         else:
+                            st.error("Please select both a start and end date.")
+                
+                # Re-calculate visualization state
+                if not working_df.empty:
+                    drill, summ, top, basket = aggregate_data(working_df, dummy_mapping)
+                else:
+                    drill, summ, top, basket = None, None, None, None
 
-                with f4:
-                    if "Date" in working_df.columns and not working_df["Date"].dropna().empty:
-                        pk_min = datetime(2022, 8, 1).date()
-                        pk_max = datetime.now().date()
-                        
-                        dt_min = working_df["Date"].min().date()
-                        dt_max = working_df["Date"].max().date()
-
-                        sel_range_fb = st.date_input(
-                            "Date Range", 
-                            value=(max(pk_min, dt_min), min(pk_max, dt_max)),
-                            min_value=pk_min,
-                            max_value=pk_max, 
-                            key="fallback_filter_date"
-                        )
-
-                        if isinstance(sel_range_fb, tuple) and len(sel_range_fb) == 2:
-                            s_dfb, e_dfb = sel_range_fb
-                            working_df = working_df[(working_df["Date"].dt.date >= s_dfb) & (working_df["Date"].dt.date <= e_dfb)]
-                    else:
-                        st.info("No date data available")
-            
-             # Re-calculate
-             drill, summ, top, basket = aggregate_data(working_df, dummy_mapping)
-
-        with st.container():
-            st.markdown('<div id="snapshot-target-main"></div>', unsafe_allow_html=True)
-            st.subheader("Core Metrics")
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric(get_items_sold_label(last_updated), f"{summ['Total Qty'].sum():,.0f}")
-            total_orders = basket.get("total_orders", 0)
-            m2.metric("Number of Orders", f"{total_orders:,.0f}" if total_orders else "-")
-            m3.metric("Revenue", f"TK {summ['Total Amount'].sum():,.0f}")
-            m4.metric("Basket Value (TK)", f"TK {basket.get('avg_basket_value', 0):,.0f}")
-            st.divider()
+        if granular_df is not None:
+             with st.container():
+                st.markdown('<div id="snapshot-target-main"></div>', unsafe_allow_html=True)
+                st.subheader("Core Metrics")
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric(get_items_sold_label(last_updated), f"{summ['Total Qty'].sum():,.0f}")
+                total_orders = basket.get("total_orders", 0)
+                m2.metric("Number of Orders", f"{total_orders:,.0f}" if total_orders else "-")
+                m3.metric("Revenue", f"TK {summ['Total Amount'].sum():,.0f}")
+                m4.metric("Basket Value (TK)", f"TK {basket.get('avg_basket_value', 0):,.0f}")
+                st.divider()
 
     st.subheader("Performance Outlook")
     # ... rest of visuals continue using 'summ', 'top', 'drill' which are now filtered ...
@@ -1007,6 +1058,14 @@ def render_manual_tab():
         st.session_state.manual_generate = False
         st.session_state.manual_df = None
 
+    # v11.3 State Enforcement: Prioritize Ingestion UI over Live defaults
+    st.session_state["manual_tab_active"] = True
+    st.session_state["wc_sync_mode"] = "Custom Range"
+    
+    # Initialize default 7-day range if not present
+    if "ingest_range" not in st.session_state:
+        st.session_state.ingest_range = ((datetime.now() - timedelta(days=7)).date(), datetime.now().date())
+
     render_reset_confirm("Sales Data Ingestion", "manual", _reset_manual_state)
     
     st.info("📊 Consolidate and analyze sales data. WooCommerce pull is active by default.")
@@ -1019,6 +1078,7 @@ def render_manual_tab():
         if snap_df is not None:
             st.session_state.manual_df = snap_df
             st.session_state.manual_source_name = "Last_Synced_Snapshot (7 Days)"
+            st.session_state["wc_sync_mode"] = "Custom Range"
             st.toast("⚡ Loaded Sales from Snapshot")
             st.rerun()
         else:
@@ -1046,96 +1106,9 @@ def render_manual_tab():
                     pass
 
 
-    # Main UI: Filter Intelligence (Default Fetcher)
-    st.subheader("🛠️ Filter Intelligence")
-    st.caption("Refine your data acquisition or trigger a fresh pull.")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        sel_range = st.date_input(
-            "Acquisition Range", 
-            value=((datetime.now() - timedelta(days=7)).date(), datetime.now().date()),
-            min_value=datetime(2022, 8, 1).date(),
-            max_value=datetime.now().date(),
-            key="ingest_range"
-        )
-    with c2:
-        common_cats = [
-            "Tank Top", "Boxer", "Jeans", "Denim Shirt", "Flannel Shirt", 
-            "Polo Shirt", "Panjabi", "Trousers", "Joggers", "Twill Chino", 
-            "Mask", "Leather Bag", "Water Bottle", "Contrast Shirt", 
-            "Turtleneck", "Drop Shoulder", "Wallet", "Kaftan Shirt", 
-            "Active Wear", "Jersy", "Sweatshirt", "Jacket", "Belt", 
-            "Sweater", "Passport Holder", "Card Holder", "Cap",
-            "HS T-Shirt", "FS T-Shirt", "HS Shirt", "FS Shirt"
-        ]
-        acq_cats = st.multiselect("Filter by Category (Optional)", sorted(common_cats), key="acq_filter_cat")
-    
-    # v10.9 Correct Initialization 
+    # v11.3 Sync State
     df = st.session_state.get("manual_df")
     source_name = st.session_state.get("manual_source_name", "")
-
-    if df is not None:
-        df["Base_Product"] = df["Item Name"].apply(get_base_product_name)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        # 1. Filter by Base Item
-        base_options = sorted(df["Base_Product"].unique().tolist()) if df is not None else []
-        acq_items = st.multiselect("Filter by Item / SKU (Optional)", base_options, key="acq_filter_base")
-    
-    with col2:
-        # 2. Filter by Size (Dependent on base item)
-        df_base = df[df["Base_Product"].isin(acq_items)] if acq_items and df is not None else df
-        size_options = sorted(df_base["Item Name"].apply(get_size_from_name).unique().tolist()) if df is not None else []
-        acq_sizes = st.multiselect("Filter by Size (Optional)", size_options, key="acq_filter_size")
-
-    # Ingestion Trigger
-    if st.button("📩 Fetch & Review Data", use_container_width=True, type="primary"):
-        # ... logic ...
-        if isinstance(sel_range, tuple) and len(sel_range) == 2:
-            s_d, e_d = sel_range
-            st.session_state["wc_sync_mode"] = "Custom Range"
-            st.session_state["wc_sync_start_date"] = s_d
-            st.session_state["wc_sync_start_time"] = datetime.strptime("00:00", "%H:%M").time()
-            st.session_state["wc_sync_end_date"] = e_d
-            st.session_state["wc_sync_end_time"] = datetime.strptime("23:59", "%H:%M").time()
-            
-            try:
-                with st.spinner("Connecting to WooCommerce API..."):
-                    wc_res = load_from_woocommerce()
-                    df_res = wc_res["df_to_return"]
-                    src_res = wc_res["sync_desc"]
-                    if not df_res.empty:
-                        if acq_cats:
-                            df_res["_AcqCat"] = df_res["Item Name"].apply(get_category)
-                            df_res = df_res[df_res["_AcqCat"].isin(acq_cats)].drop(columns=["_AcqCat"])
-                        
-                        # Hierarchical Filtering (Base Item + Size)
-                        if acq_items:
-                            df_res["_Base"] = df_res["Item Name"].apply(get_base_product_name)
-                            df_res = df_res[df_res["_Base"].isin(acq_items)].drop(columns=["_Base"])
-                        
-                        if acq_sizes:
-                            df_res["_Size"] = df_res["Item Name"].apply(get_size_from_name)
-                            df_res = df_res[df_res["_Size"].isin(acq_sizes)].drop(columns=["_Size"])
-
-                        if not df_res.empty:
-                            st.session_state.manual_df = df_res
-                            st.session_state.manual_source_name = src_res
-                            save_sales_snapshot(df_res) # v10.7 Save for instant reloading
-                            st.success(f"Successfully ingested {len(df_res)} records.")
-                            df = df_res
-                            source_name = src_res
-
-                        else:
-                            st.warning("No data matches your Category/SKU filters.")
-                    else:
-                        st.warning("No data found for the selected range.")
-            except Exception as e:
-                st.error(f"Ingestion failed: {e}")
-        else:
-            st.error("Please select both a start and end date.")
 
     # Optional Sources Expander
     with st.expander("📤 Optional: External Source (Upload / GSheet)"):
@@ -1169,16 +1142,19 @@ def render_manual_tab():
             source_name = st.session_state.get("manual_source_name", "WooCommerce_Custom_Pull")
 
     if df is None:
+        # v11.3 Call unified dashboard with None to show ingestion expander
+        render_dashboard_output(None, None, None, None, None, "None", granular_df=None)
         return
 
     try:
         # v10.7+ Direct Intelligence (Bypass mapping for WooCommerce and Snapshots)
         if "WooCommerce" in str(source_name) or "Snapshot" in str(source_name):
+            # v11.4 Fix: WooCommerce fetch produces 'Order Date', ensure mapping aligns
             final_mapping = {
                 "name": "Item Name",
                 "cost": "Item Cost",
                 "qty": "Quantity",
-                "date": "Date",
+                "date": "Order Date" if "Date" not in df.columns else "Date",
                 "order_id": "Order Number",
                 "phone": "Phone (Billing)",
                 "sku": "SKU"
@@ -1295,6 +1271,7 @@ def render_live_tab():
         st.session_state.wc_sync_mode = "Operational Cycle"
 
     render_reset_confirm("Live Dashboard", "live", _reset_live_state)
+    st.session_state.manual_tab_active = False # v11.3 Flag Reset
     """Always running dashboard from selected source."""
     tz_bd = timezone(timedelta(hours=6))
     current_t = datetime.now(tz_bd).strftime("%B %d, %Y %I:%M %p")
@@ -1607,6 +1584,10 @@ def render_stock_analytics_tab():
     # 🧼 Normalize Base Products (Strip sizes for cleaner filtering)
     if "Base_Product" not in df_raw.columns:
         df_raw["Base_Product"] = df_raw["Product"].apply(get_base_product_name)
+    
+    # v11.4: Professional Filter Identity [Name + SKU]
+    if "Filter_Identity" not in df_raw.columns:
+        df_raw["Filter_Identity"] = df_raw["Base_Product"] + " [" + df_raw["SKU"].astype(str) + "]"
 
     # v10.6 Interactive Filters (Dependent Cascading Logic)
     with st.expander("🛠️ Filter Intelligence", expanded=True):
@@ -1619,11 +1600,11 @@ def render_stock_analytics_tab():
         df_cat = df_raw[df_raw["Category"].isin(sel_cats)] if sel_cats else df_raw
             
         with f2:
-            # 2. Filter by Base Item (Clean groupings)
-            base_options = sorted([str(x) for x in df_cat["Base_Product"].unique().tolist() if x is not None])
+            # 2. Filter by Base Item (Clean groupings with SKU identification)
+            base_options = sorted([str(x) for x in df_cat["Filter_Identity"].unique().tolist() if x is not None])
             sel_bases = st.multiselect("Select Item / Product", base_options, placeholder="All Items")
         
-        df_base = df_cat[df_cat["Base_Product"].isin(sel_bases)] if sel_bases else df_cat
+        df_base = df_cat[df_cat["Filter_Identity"].isin(sel_bases)] if sel_bases else df_cat
 
         with f3:
             # 3. Filter by Size (Show only sizes for selected items)

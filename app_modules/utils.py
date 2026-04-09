@@ -38,12 +38,10 @@ def get_category_for_sales(name) -> str:
         "Active Wear": ["active wear"],
         "Jersy": ["jersy"],
         "Sweatshirt": ["sweatshirt", "hoodie", "pullover"],
-        "Jacket": ["jacket", "outerwear", "coat"],
         "Belt": ["belt"],
         "Sweater": ["sweater", "cardigan", "knitwear"],
         "Passport Holder": ["passport holder"],
         "Card Holder": ["card holder"],
-        "Cap": ["cap"],
     }
 
     for cat, keywords in specific_cats.items():
