@@ -3614,5 +3614,20 @@
         "timestamp": "2026-04-11 10:18:28",
         "type": "LIVE_FILE_ERROR",
         "details": "cannot access local variable 'var_primary' where it is not associated with a value"
+    },
+    {
+        "timestamp": "2026-04-11 15:46:49",
+        "type": "FILE_ERROR",
+        "details": "'NoneType' object is not subscriptable"
+    },
+    {
+        "timestamp": "2026-04-11 15:56:09",
+        "type": "FILE_ERROR",
+        "details": "'NoneType' object has no attribute 'get'"
+    },
+    {
+        "timestamp": "2026-04-11 16:12:17",
+        "type": "STOCK_RENDER_ERROR",
+        "details": "'Column not found: Product Name'"
     }
 ]
