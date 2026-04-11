@@ -3629,5 +3629,15 @@
         "timestamp": "2026-04-11 16:12:17",
         "type": "STOCK_RENDER_ERROR",
         "details": "'Column not found: Product Name'"
+    },
+    {
+        "timestamp": "2026-04-11 16:13:28",
+        "type": "STOCK_RENDER_ERROR",
+        "details": "'Column not found: Product Name'"
+    },
+    {
+        "timestamp": "2026-04-11 16:14:16",
+        "type": "STOCK_RENDER_ERROR",
+        "details": "'Product Name'"
     }
 ]

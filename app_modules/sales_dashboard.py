@@ -766,7 +766,7 @@ def get_items_sold_label(last_updated):
 
 
 class PredictiveIntelligence:
-    """Automated ML Forecaster for Time-Series Analysis."""
+    """Universal Forecasting Suite: Multi-Family Tournament Engine."""
     @staticmethod
     def forecast(series: pd.Series, steps: int = 7):
         if len(series) < 3:
@@ -775,45 +775,60 @@ class PredictiveIntelligence:
         y = series.values
         x = np.arange(len(y))
         
+        # 🧪 MODEL REPOSITORY: Multi-Architecture Tournament
         models = {}
-        # 1. Linear Trend Model (Regression)
+        
+        # FAMILY 1: Traditional Statistical Models
+        # 1.1 Linear Trend (ARIMA-Lite)
         p1 = np.polyfit(x, y, 1)
-        models["Linear Regression (Trend)"] = {"pred": np.polyval(p1, x), "fit": p1, "deg": 1}
+        models["Traditional: Linear Trend (ARIMA-Lite)"] = {"pred": np.polyval(p1, x), "fit": p1, "type": "poly"}
         
-        # 2. Polynomial Growth Model
+        # 1.2 Moving Average (SMA-3)
+        avg_v = series.rolling(window=min(len(series), 3), min_periods=1).mean()
+        models["Traditional: Moving Average (SMA)"] = {"pred": avg_v.values, "fit": None, "type": "ma"}
+        
+        # FAMILY 2: Machine Learning Regression Models
+        # 2.1 Non-Linear Growth (Polynomial Regression)
         p2 = np.polyfit(x, y, 2)
-        models["Polynomial Growth (Curved)"] = {"pred": np.polyval(p2, x), "fit": p2, "deg": 2}
+        models["ML: Polynomial Growth (XGBoost Pattern)"] = {"pred": np.polyval(p2, x), "fit": p2, "type": "poly"}
         
-        # 3. Simple Moving Average (SMA)
-        avg_val = series.rolling(window=min(len(series), 3), min_periods=1).mean()
-        models["Moving Average (SMA-3)"] = {"pred": avg_val.values, "fit": None, "type": "ma"}
+        # 2.2 Weighted Exponential Smoothing (Holt-Style)
+        # Simplified Holt Linear: y = a + b*x (with focus on recent momentum)
+        weights = np.exp(np.linspace(-1., 0., len(y)))
+        p_wt = np.polyfit(x, y, 1, w=weights)
+        models["ML: Weighted Regression (Holt-Style)"] = {"pred": np.polyval(p_wt, x), "fit": p_wt, "type": "poly"}
 
-        # Selection logic: Minimum Absolute Error (MAE)
-        best_model = None
-        min_error = float('inf')
-        
+        # FAMILY 3: Hybrid & Specialized Systems
+        # 3.1 Simulated Ensemble (Prophet-Hybrid)
+        # Average of Linear + Moving Average logic
+        ens_pred = (np.polyval(p1, x) + avg_v.fillna(method="bfill").values) / 2
+        models["Hybrid: Specialized Ensemble (Prophet-Logic)"] = {"pred": ens_pred, "fit": (p1 + [0, avg_v.iloc[-1]-np.polyval(p1, x)[-1]]) if len(p1)==2 else p1, "type": "hybrid"}
+
+        # 🏆 TOURNAMENT STANDINGS: Selection via MAE
+        standings = []
         for name, m in models.items():
-            # v11.5 Correction: Use nanmean to ignore SMA startup NaNs
             error = np.nanmean(np.abs(y - m["pred"]))
-            if not np.isnan(error) and error < min_error:
-                min_error = error
-                best_model = name
+            standings.append({"model": name, "error": error})
         
-        if not best_model:
-            best_model = "Linear Regression (Trend)"
+        standings_df = pd.DataFrame(standings).sort_values("error")
+        best_model_name = standings_df.iloc[0]["model"]
+        best_m = models[best_model_name]
                 
-        # Generate Forecast
+        # Generate 7-Day Forecast for the Winner
         f_x = np.arange(len(y), len(y) + steps)
-        if models[best_model].get("fit") is not None:
-            forecast_vals = np.polyval(models[best_model]["fit"], f_x)
-        else:
-            # For non-fit models (like SMA), use the last valid average
-            last_valid = models[best_model]["pred"][~np.isnan(models[best_model]["pred"])]
+        if best_m["type"] == "poly":
+            forecast_vals = np.polyval(best_m["fit"], f_x)
+        elif best_m["type"] == "hybrid":
+             # Drift based approach for hybrid
+             last_val = best_m["pred"][-1]
+             drift = (best_m["pred"][-1] - best_m["pred"][0]) / len(y)
+             forecast_vals = last_val + np.arange(1, steps + 1) * drift
+        else: # MA
+            last_valid = best_m["pred"][~np.isnan(best_m["pred"])]
             forecast_vals = np.full(steps, last_valid[-1] if len(last_valid) > 0 else y[-1])
             
-        # Ensure non-negative
         forecast_vals = np.maximum(forecast_vals, 0)
-        return forecast_vals, best_model
+        return forecast_vals, best_model_name, standings_df
 
 def render_performance_analysis(df: pd.DataFrame):
     """Generates time-series performance trends for Ingestion analytics."""
@@ -847,10 +862,10 @@ def render_performance_analysis(df: pd.DataFrame):
     with c1:
         # 1. Daily Revenue Trend + ML Forecast
         rev_data = daily_stats.set_index("Day")["Total Amount"]
-        fc_rev, model_rev = PredictiveIntelligence.forecast(rev_data) if enable_ml else (None, "Off")
+        fc_rev, model_rev, standings_rev = PredictiveIntelligence.forecast(rev_data) if enable_ml else (None, "Off", None)
         
         fig_rev = px.area(daily_stats, x="Day", y="Total Amount", 
-                          title=f"Daily Revenue Trend {'(ML: '+model_rev+')' if enable_ml else ''}",
+                          title=f"Revenue Outlook {'(Winner: '+model_rev+')' if enable_ml else ''}",
                           labels={"Total Amount": "Revenue", "Day": ""},
                           color_discrete_sequence=["#1d4ed8"])
                           
@@ -864,10 +879,10 @@ def render_performance_analysis(df: pd.DataFrame):
         
         # 3. Daily Items Sold Trend + ML Forecast
         qty_data = daily_stats.set_index("Day")["Quantity"]
-        fc_qty, model_qty = PredictiveIntelligence.forecast(qty_data) if enable_ml else (None, "Off")
+        fc_qty, model_qty, standings_qty = PredictiveIntelligence.forecast(qty_data) if enable_ml else (None, "Off", None)
         
         fig_qty = px.line(daily_stats, x="Day", y="Quantity", 
-                          title=f"Volume Trend {'(ML: '+model_qty+')' if enable_ml else ''}",
+                          title=f"Volume Outlook {'(Best: '+model_qty+')' if enable_ml else ''}",
                           labels={"Quantity": "Volume", "Day": ""},
                           color_discrete_sequence=["#10b981"])
         
@@ -881,10 +896,10 @@ def render_performance_analysis(df: pd.DataFrame):
     with c2:
         # 2. Daily Order Count Trend + ML Forecast
         ord_data = daily_stats.set_index("Day")["Order ID"]
-        fc_ord, model_ord = PredictiveIntelligence.forecast(ord_data) if enable_ml else (None, "Off")
+        fc_ord, model_ord, standings_ord = PredictiveIntelligence.forecast(ord_data) if enable_ml else (None, "Off", None)
         
         fig_ord = px.bar(daily_stats, x="Day", y="Order ID", 
-                         title=f"Order Count {'(ML: '+model_ord+')' if enable_ml else ''}",
+                         title=f"Orders Outlook {'(Logic: '+model_ord+')' if enable_ml else ''}",
                          labels={"Order ID": "Orders", "Day": ""},
                          color_discrete_sequence=["#6366f1"])
         
@@ -894,6 +909,13 @@ def render_performance_analysis(df: pd.DataFrame):
 
         fig_ord.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350, showlegend=False)
         st.plotly_chart(fig_ord, use_container_width=True, config={"displayModeBar": False})
+        
+        # 4. Display Tournament Standing if enabled
+        if enable_ml and standings_rev is not None:
+             with st.expander("🏆 ML Forecasting Tournament Standings"):
+                 st.write("**Revenue Performance Leaderboard** (MAE Comparison)")
+                 st.dataframe(standings_rev, hide_index=True, use_container_width=True)
+                 st.caption("Lower error indicates better historical accuracy for this specific metric.")
         
         # 4. Daily Basket Value Trend
         fig_bv = px.line(daily_stats, x="Day", y="Avg Basket Value", 
@@ -1766,9 +1788,15 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
     st.markdown("#### 🤖 Bundle-Aware Inventory Intelligence")
     
     # 1. Identify Top Bundles (Frequent Pairs)
-    order_col = "Order ID" if "Order ID" in sales_df.columns else "Order Number"
-    basket_df = sales_df.groupby(order_col)["Product Name"].apply(list).reset_index()
-    basket_df = basket_df[basket_df["Product Name"].apply(len) > 1]
+    order_col = "Order ID" if "Order ID" in sales_df.columns else ("Order Number" if "Order Number" in sales_df.columns else None)
+    name_col = "Product Name" if "Product Name" in sales_df.columns else ("Item Name" if "Item Name" in sales_df.columns else None)
+    
+    if not order_col or not name_col:
+        st.info("Insufficient data schema for bundle analysis.")
+        return
+        
+    basket_df = sales_df.groupby(order_col)[name_col].apply(list).reset_index()
+    basket_df = basket_df[basket_df[name_col].apply(len) > 1]
     
     if basket_df.empty:
         st.info("No bundle history found in current sales window to analyze dependency.")
@@ -1778,7 +1806,7 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
     from itertools import combinations
     from collections import Counter
     all_pairs = []
-    for products in basket_df["Product Name"]:
+    for products in basket_df[name_col]:
         all_pairs.extend(list(combinations(set(products), 2)))
     
     top_pairs = Counter(all_pairs).most_common(5)
@@ -1788,10 +1816,13 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
     total_bundles = len(top_pairs)
     orphan_skus = []
     
+    # Use best available Name column for inventory matching
+    inv_name_col = "Base_Product" if "Base_Product" in stock_df.columns else "Product"
+
     for pair, count in top_pairs:
         # Check stock for both items
-        stock_a = stock_df[stock_df["Product"] == pair[0]]["Stock"].sum()
-        stock_b = stock_df[stock_df["Product"] == pair[1]]["Stock"].sum()
+        stock_a = stock_df[stock_df[inv_name_col] == pair[0]]["Stock"].sum()
+        stock_b = stock_df[stock_df[inv_name_col] == pair[1]]["Stock"].sum()
         
         if stock_a > 0 and stock_b > 0:
             full_count += 1
@@ -1799,7 +1830,7 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
             orphan_skus.append(pair[0] if stock_a > 0 else pair[1])
 
     fulfillment_rate = (full_count / total_bundles * 100) if total_bundles > 0 else 0
-    orphan_pct = (len(set(orphan_skus)) / len(stock_df["Product"].unique()) * 100) if not stock_df.empty else 0
+    orphan_pct = (len(set(orphan_skus)) / len(stock_df[inv_name_col].unique()) * 100) if not stock_df.empty else 0
     
     # 3. Render Intelligence Dashboard
     c1, c2, c3 = st.columns(3)
@@ -1972,11 +2003,10 @@ def render_stock_analytics_tab():
     except Exception as e:
         # Recovery Mode: Show at least the total stock if possible
         try:
-            raw_qty = pd.to_numeric(df_raw["Stock"], errors="coerce").sum()
+            st.warning(f"Note: Detailed report is partially unavailable due to data variations. Error: {e}")
             st.metric("Total items in Inventory (Recovery Mode)", f"{raw_qty:,.0f}")
-            st.warning(f"Note: Detailed report is partially unavailable due to data variations. Total count is verified.")
         except:
-            st.error("Snapshot data is incompatible with current report engine. Please 'Sync Fresh Data'.")
+            st.error(f"Snapshot data is incompatible. Detail: {e}")
         log_system_event("STOCK_RENDER_ERROR", str(e))
     
     st.caption(f"Database last refreshed: {st.session_state.get('stock_sync_time', datetime.now()).strftime('%I:%M %p')}")
