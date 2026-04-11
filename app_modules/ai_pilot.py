@@ -84,22 +84,36 @@ class AIDataAgent:
 # ------------------------------
 def render_sidebar_controls():
     with st.sidebar:
-        st.markdown("### ⚙️ Engine Control")
+        # Cloud/Local Detection
+        is_cloud = init_llm_controller().is_cloud
+        
+        engines = ["🛡️ Smart Failover (Free Tiers)", "OpenAI", "Google Gemini"]
+        if not is_cloud:
+            engines.append("Ollama (Local)")
+        
         provider = st.selectbox(
             "Intelligence Engine",
-            ["🛡️ Smart Failover (Free Tiers)", "OpenAI", "Google Gemini", "Ollama (Local)"],
+            engines,
             index=0
         )
         
         api_key, model_name = None, None
         if provider == "🛡️ Smart Failover (Free Tiers)":
-            st.caption("Active Nodes: " + ", ".join([p.capitalize() for p in init_llm_controller().key_manager.keys if len(init_llm_controller().key_manager.keys[p])>0]))
+            active_nodes = [p.capitalize() for p in init_llm_controller().key_manager.keys if len(init_llm_controller().key_manager.keys[p])>0]
+            st.caption("Active Nodes: " + (", ".join(active_nodes) if active_nodes else "None"))
         elif provider in ["OpenAI", "Google Gemini"]:
             api_key = st.text_input(f"{provider} Key", type="password")
             model_name = "gpt-4o" if provider == "OpenAI" else "gemini-1.5-flash"
         elif provider == "Ollama (Local)":
             models = init_llm_controller().key_manager.get_local_models()
-            model_name = st.selectbox("Local Model", models) if models else st.text_input("Model Name", value="llama3")
+            if models:
+                model_name = st.selectbox("Local Model", models)
+            else:
+                st.warning("Ollama unreachable. Run `ollama serve`.")
+                model_name = st.text_input("Manual Model Name", value="llama3")
+
+        if is_cloud:
+            st.warning("☁️ **Cloud Mode**: Personal GPU engines (Ollama) restricted. Use Cloud Failover.")
 
         st.divider()
         st.markdown("### 📁 Knowledge Base")
@@ -149,15 +163,37 @@ def render_ai_pilot_page():
             
             agent = AIDataAgent(provider, api_key, model_name)
             
-            # Use asyncio to run the generator
+            # Optimized Async Bridge for Streamlit
             async def run_streaming():
                 nonlocal full_response
-                async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):
-                    full_response += chunk
-                    response_placeholder.markdown(full_response + "▌")
-                response_placeholder.markdown(full_response)
-            
-            asyncio.run(run_streaming())
+                try:
+                    async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):
+                        full_response += chunk
+                        response_placeholder.markdown(full_response + "▌")
+                    response_placeholder.markdown(full_response)
+                except Exception as e:
+                    st.error(f"Streaming Error: {e}")
+
+            # Safe Loop Execution
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If loop is running, we need to bridge it. 
+                    # Streamlit usually doesn't run the main script in the loop, but some components do.
+                    # Best approach: Use a new thread or loop if nested doesn't work.
+                    import threading
+                    def thread_run():
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        new_loop.run_until_complete(run_streaming())
+                    
+                    t = threading.Thread(target=thread_run)
+                    t.start()
+                    t.join()
+                else:
+                    loop.run_until_complete(run_streaming())
+            except Exception:
+                asyncio.run(run_streaming())
         
         # 3. Save assistant message
         st.session_state.agent_messages.append({"role": "assistant", "content": full_response})

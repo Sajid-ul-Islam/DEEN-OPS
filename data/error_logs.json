@@ -1,33 +1,5 @@
 [
     {
-        "timestamp": "2026-04-06 13:01:36",
-        "context": "Pathao Processor",
-        "error": "unsupported operand type(s) for +=: 'int' and 'str'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\pathao_tab.py\", line 104, in render_pathao_tab\n    result_df = process_orders_dataframe(preview_df)\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\processor.py\", line 253, in process_orders_dataframe\n    record = process_single_order_group(phone, group, data_cols)\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\processor.py\", line 128, in process_single_order_group\n    total_to_collect += order_total\nTypeError: unsupported operand type(s) for +=: 'int' and 'str'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-06 13:04:09",
-        "context": "Pathao Processor",
-        "error": "unsupported operand type(s) for +=: 'int' and 'str'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\pathao_tab.py\", line 104, in render_pathao_tab\n    result_df = process_orders_dataframe(preview_df)\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\processor.py\", line 253, in process_orders_dataframe\n    record = process_single_order_group(phone, group, data_cols)\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\processor.py\", line 128, in process_single_order_group\n    total_to_collect += order_total\nTypeError: unsupported operand type(s) for +=: 'int' and 'str'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-06 14:04:51",
-        "context": "App Bootstrap",
-        "error": "unexpected indent (sales_dashboard.py, line 956)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 144, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 38, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\sales_dashboard.py\", line 956\n    st.subheader(\"Visual Analytics\")\nIndentationError: unexpected indent\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-06 14:05:22",
-        "context": "App Bootstrap",
-        "error": "unexpected indent (sales_dashboard.py, line 1010)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 144, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 38, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\sales_dashboard.py\", line 1010\n    fig_pie.update_traces(\nIndentationError: unexpected indent\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-06 14:26:36",
         "context": "Pathao Processor",
         "error": "unsupported operand type(s) for +=: 'int' and 'str'",
@@ -697,6 +669,34 @@
         "context": "App Bootstrap",
         "error": "'APIKeyManager' object has no attribute 'get_local_models'",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 195, in render_ai_pilot_page\n    local_models = controller.key_manager.get_local_models()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'APIKeyManager' object has no attribute 'get_local_models'\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-04-11 15:03:55",
+        "context": "App Bootstrap",
+        "error": "DynamicLLMController.get_response_sync() missing 1 required positional argument: 'context'",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 160, in render_ai_pilot_page\n    asyncio.run(run_streaming())\n    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\runners.py\", line 204, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\runners.py\", line 127, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\base_events.py\", line 719, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 155, in run_streaming\n    async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):\n        full_response += chunk\n        response_placeholder.markdown(full_response + \"\u258c\")\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 80, in get_response_stream\n    yield self.controller.get_response_sync(messages)\n          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^\nTypeError: DynamicLLMController.get_response_sync() missing 1 required positional argument: 'context'\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-04-11 15:04:53",
+        "context": "App Bootstrap",
+        "error": "DynamicLLMController.get_response_sync() missing 1 required positional argument: 'context'",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 160, in render_ai_pilot_page\n    asyncio.run(run_streaming())\n    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\runners.py\", line 204, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\runners.py\", line 127, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\base_events.py\", line 719, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 155, in run_streaming\n    async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):\n        full_response += chunk\n        response_placeholder.markdown(full_response + \"\u258c\")\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 80, in get_response_stream\n    yield self.controller.get_response_sync(messages)\n          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^\nTypeError: DynamicLLMController.get_response_sync() missing 1 required positional argument: 'context'\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-04-11 15:06:27",
+        "context": "App Bootstrap",
+        "error": "argument of type 'bool' is not a container or iterable",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 142, in render_ai_pilot_page\n    provider, api_key, model_name = render_sidebar_controls()\n                                    ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 88, in render_sidebar_controls\n    is_cloud = init_llm_controller().is_cloud\n               ~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 247, in init_llm_controller\n    st.session_state.llm_controller = DynamicLLMController()\n                                      ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 165, in __init__\n    self.is_cloud = \"STREAMLIT_SERVER_PORT\" in st.context.headers or \".streamlit.app\" in st.get_option(\"browser.gatherUsageStats\") if hasattr(st, \"get_option\") else False\n                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: argument of type 'bool' is not a container or iterable\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-04-11 15:06:42",
+        "context": "App Bootstrap",
+        "error": "argument of type 'bool' is not a container or iterable",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 142, in render_ai_pilot_page\n    provider, api_key, model_name = render_sidebar_controls()\n                                    ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 88, in render_sidebar_controls\n    is_cloud = init_llm_controller().is_cloud\n               ~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 264, in init_llm_controller\n    st.session_state.llm_controller = DynamicLLMController()\n                                      ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 165, in __init__\n    self.is_cloud = \"STREAMLIT_SERVER_PORT\" in st.context.headers or \".streamlit.app\" in st.get_option(\"browser.gatherUsageStats\") if hasattr(st, \"get_option\") else False\n                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: argument of type 'bool' is not a container or iterable\n",
         "details": {}
     }
 ]

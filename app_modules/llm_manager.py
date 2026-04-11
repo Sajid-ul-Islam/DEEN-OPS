@@ -162,6 +162,18 @@ class DynamicLLMController:
     def __init__(self):
         self.key_manager = APIKeyManager()
         self.load_balancer = AdaptiveLoadBalancer()
+        # Robust Cloud Detection
+        try:
+            # Check for Streamlit Cloud specific secrets or environment markers
+            is_on_cloud = st.secrets.get("is_cloud", False)
+            if not is_on_cloud:
+                # Check for platform-specific env vars
+                import os
+                is_on_cloud = os.getenv("STREAMLIT_CLOUD_ID") is not None or \
+                              os.getenv("HOSTNAME") == "streamlit"
+            self.is_cloud = is_on_cloud
+        except:
+             self.is_cloud = False
 
     async def _call_provider_stream_async(self, provider: str, api_key: str, messages: List[Dict[str, str]]) -> Any:
         config = PROVIDERS[provider]
@@ -225,15 +237,33 @@ class DynamicLLMController:
             
         try:
             loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        return loop.run_until_complete(_run())
+            if loop.is_running():
+                import threading
+                result = []
+                def thread_run():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    result.append(new_loop.run_until_complete(_run()))
+                
+                t = threading.Thread(target=thread_run)
+                t.start()
+                t.join()
+                return result[0] if result else ""
+            else:
+                return loop.run_until_complete(_run())
+        except Exception:
+            # Last resort
+            try:
+                loop = asyncio.new_event_loop()
+                return loop.run_until_complete(_run())
+            except:
+                return "Error: Async bridge failed."
 
 def init_llm_controller():
-    # Safety: Re-initialize if the stored object is from an old class definition
+    # Force re-init if old controller is detected
     if "llm_controller" in st.session_state:
-        if not hasattr(st.session_state.llm_controller.key_manager, "get_local_models"):
+        # Check for the latest method/signature change indicator
+        if not hasattr(st.session_state.llm_controller, "is_cloud"):
             del st.session_state.llm_controller
             
     if "llm_controller" not in st.session_state:
