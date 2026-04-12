@@ -56,6 +56,22 @@ def get_category_for_sales(name) -> str:
         return "FS Shirt" if _has_any(fs_keywords, name_str) else "HS Shirt"
 
     return "Others"
+    
+def get_sub_category_for_sales(name, category) -> str:
+    """Extracts sub-category (like fit types for Jeans) based on product name."""
+    name_str = _normalize(name)
+    if not name_str:
+        return "All"
+
+    if category == "Jeans":
+        # v11.8: Fit types restricted strictly to the 'Jeans' category
+        if _has_any(["regular fit", "regular"], name_str): return "Regular Fit Jeans"
+        if _has_any(["slim fit", "slim"], name_str): return "Slim Fit Jeans"
+        if _has_any(["straight fit", "straight"], name_str): return "Straight Fit Jeans"
+        return "Other Jeans"
+        
+    # Potential for other sub-categories here if needed in future
+    return "All"
 
 
 @functools.lru_cache(maxsize=1024)

@@ -26,7 +26,8 @@ from app_modules.insights_service import get_business_insights
 from app_modules.utils import (
     get_category_for_sales,
     get_base_product_name,
-    get_size_from_name
+    get_size_from_name,
+    get_sub_category_for_sales
 )
 
 def render_snapshot_button(marker_id="snapshot-target"):
@@ -344,6 +345,9 @@ def prepare_granular_data(df, selected_cols):
         name_cat_map = {name: get_category(name) for name in unique_names}
         df["Category"] = df["Product Name"].map(name_cat_map)
         
+        # v11.7 Sub-Category Extraction
+        df["Sub-Category"] = df.apply(lambda r: get_sub_category_for_sales(r["Product Name"], r["Category"]), axis=1)
+        
         # v10.6 Size Extraction
         df["Size"] = df["Product Name"].apply(get_size_from_name)
         
@@ -371,12 +375,20 @@ def prepare_granular_data(df, selected_cols):
 def aggregate_data(df, selected_cols):
     """Generates dashboard aggregates from granular standardized data."""
     try:
+        # v11.7 Grouping by Category + Sub-Category for granular reports
+        group_keys = ["Category"]
+        if "Sub-Category" in df.columns:
+            group_keys.append("Sub-Category")
+            
         summary = (
-            df.groupby("Category")
+            df.groupby(group_keys)
             .agg({"Quantity": "sum", "Total Amount": "sum"})
             .reset_index()
         )
-        summary.columns = ["Category", "Total Qty", "Total Amount"]
+        if "Sub-Category" in summary.columns:
+            summary.columns = ["Category", "Sub-Category", "Total Qty", "Total Amount"]
+        else:
+            summary.columns = ["Category", "Total Qty", "Total Amount"]
 
         total_rev = summary["Total Amount"].sum()
         total_qty = summary["Total Qty"].sum()
@@ -1083,18 +1095,19 @@ def render_dashboard_output(
 
                 # Setup Data Containers
                 working_df = granular_df.copy() if granular_df is not None else pd.DataFrame(columns=["Category", "Product Name", "Size", "Date"])
-                if not working_df.empty and "Category" not in working_df.columns:
-                     working_df, _ = prepare_granular_data(working_df, dummy_mapping)
+                if not working_df.empty:
+                     if "Category" not in working_df.columns or "Sub-Category" not in working_df.columns:
+                         working_df, _ = prepare_granular_data(working_df, dummy_mapping)
 
                 # 🧬 High-Density Bar Columns
-                c1, c2, c3, c4, c5 = st.columns([1.2, 1, 1, 1, 0.3])
+                c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 1, 1, 0.3])
                 
                 with c1:
                     last_range = st.session_state.get("last_synced_range")
                     sel_range = st.date_input(
                         "Acquisition Range", 
                         value=st.session_state.get("ingest_range", ((datetime.now() - timedelta(days=7)).date(), datetime.now().date())),
-                        min_value=datetime(2022, 8, 1).date(),
+                        min_value=datetime(2021, 8, 31).date(),
                         max_value=datetime.now().date(),
                         key="ingest_range"
                     )
@@ -1136,10 +1149,30 @@ def render_dashboard_output(
                 active_df = working_df
                 
                 with c2:
-                    all_cats = sorted(list(set(COMMON_CATS + working_df["Category"].unique().tolist()))) if not working_df.empty else sorted(COMMON_CATS)
-                    sel_cats = st.multiselect("Select Category", all_cats, placeholder="All Categories", key="fallback_filter_cat")
+                    # v11.8 Unified Hierarchical Filter
+                    unified_options = []
                     if not working_df.empty:
-                        working_df = working_df[working_df["Category"].isin(sel_cats)] if sel_cats else working_df
+                        for cat in sorted(working_df["Category"].unique().tolist()):
+                            unified_options.append(cat)
+                            subs = sorted(working_df[working_df["Category"] == cat]["Sub-Category"].unique().tolist())
+                            for s in subs:
+                                if s not in ["All", "N/A", cat]:
+                                    unified_options.append(f"  ↳ {s}")
+                    else:
+                        unified_options = sorted(COMMON_CATS)
+
+                    sel_unified = st.multiselect("Select Category / Fit", unified_options, placeholder="All Categories", key="fallback_filter_unified")
+                    
+                    if not working_df.empty and sel_unified:
+                        from pandas import Index
+                        mask = pd.Series(False, index=working_df.index)
+                        for opt in sel_unified:
+                            if "  ↳ " in opt:
+                                sub_name = opt.replace("  ↳ ", "")
+                                mask |= (working_df["Sub-Category"] == sub_name)
+                            else:
+                                mask |= (working_df["Category"] == opt)
+                        working_df = working_df[mask]
                 
                 with c3:
                     # v11.4: Use Filter_Identity (Name + SKU) without size redundancy
@@ -1171,9 +1204,23 @@ def render_dashboard_output(
                                     df_res = wc_res["df_to_return"]
                                     if not df_res.empty:
                                         # Apply Multiselect Filters immediately to the fetch results
-                                        if sel_cats:
+                                        # v11.8 Unified Filtering Logic for Sync
+                                        if sel_unified:
                                             df_res["_TmpCat"] = df_res["Item Name"].apply(get_category)
-                                            df_res = df_res[df_res["_TmpCat"].isin(sel_cats)].drop(columns=["_TmpCat"])
+                                            df_res["_TmpSub"] = df_res.apply(lambda r: get_sub_category_for_sales(r["Item Name"], r["_TmpCat"]), axis=1)
+                                            
+                                            mask = pd.Series(False, index=df_res.index)
+                                            for opt in sel_unified:
+                                                if "  ↳ " in opt:
+                                                    sub_name = opt.replace("  ↳ ", "")
+                                                    mask |= (df_res["_TmpSub"] == sub_name)
+                                                else:
+                                                    mask |= (df_res["_TmpCat"] == opt)
+                                            
+                                            df_res = df_res[mask]
+                                            if "_TmpCat" in df_res.columns: df_res = df_res.drop(columns=["_TmpCat"])
+                                            if "_TmpSub" in df_res.columns: df_res = df_res.drop(columns=["_TmpSub"])
+                                            
                                         if sel_prods:
                                             df_res["_TmpIdent"] = df_res.apply(lambda r: f"{get_base_product_name(r['Item Name'])} [{r['SKU']}]", axis=1)
                                             df_res = df_res[df_res["_TmpIdent"].isin(sel_prods)].drop(columns=["_TmpIdent"])
