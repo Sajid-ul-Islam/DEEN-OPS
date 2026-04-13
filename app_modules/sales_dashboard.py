@@ -2058,23 +2058,41 @@ def render_stock_analytics_tab():
     df_raw["Stock"] = pd.to_numeric(df_raw["Stock"], errors="coerce").fillna(0).astype(float)
     df_raw["Price"] = pd.to_numeric(df_raw["Price"], errors="coerce").fillna(0).astype(float)
     
-    # 🧼 Normalize Base Products (Strip sizes for cleaner filtering)
-    if "Base_Product" not in df_raw.columns:
-        df_raw["Base_Product"] = df_raw["Product"].apply(get_base_product_name)
-    
-    # v11.4: Professional Filter Identity [Name + SKU]
-    if "Filter_Identity" not in df_raw.columns:
-        df_raw["Filter_Identity"] = df_raw["Base_Product"] + " [" + df_raw["SKU"].astype(str) + "]"
+    # v14.6: Universal Hierarchical Categorization for Stock (Consistency)
+    if "Sub-Category" not in df_raw.columns or "Clean_Product" not in df_raw.columns:
+        # Re-Categorize to ensure same rules as Sales Dashboard
+        df_raw["Category"] = df_raw["Product"].apply(get_category_for_sales)
+        df_raw["Sub-Category"] = df_raw.apply(lambda r: get_sub_category_for_sales(r["Product"], r["Category"]), axis=1)
+        df_raw["Clean_Product"] = df_raw["Product"].apply(get_base_product_name)
+        df_raw["Filter_Identity"] = df_raw["Clean_Product"] + " [" + df_raw["SKU"].astype(str) + "]"
 
     # v10.6 Interactive Filters (Dependent Cascading Logic)
     with st.expander("🛠️ Filter Intelligence", expanded=True):
         f1, f2, f3 = st.columns(3)
         with f1:
-            all_cats = sorted([str(x) for x in df_raw["Category"].unique().tolist() if x is not None])
-            sel_cats = st.multiselect("Select Category", all_cats, placeholder="All Categories")
+            # v14.6 Unified Hierarchical Filter for Stock
+            unified_options = []
+            for cat in sorted(df_raw["Category"].unique().tolist()):
+                unified_options.append(cat)
+                subs = sorted(df_raw[df_raw["Category"] == cat]["Sub-Category"].unique().tolist())
+                for s in subs:
+                    if s not in ["All", "N/A", cat]:
+                        unified_options.append(f"  ↳ {s}")
+
+            sel_unified = st.multiselect("Select Category / Fit", unified_options, placeholder="All Categories", key="stock_filter_unified")
         
-        # 1. Filter by Category
-        df_cat = df_raw[df_raw["Category"].isin(sel_cats)] if sel_cats else df_raw
+        # 1. Filter by Category / Sub-Category
+        if sel_unified:
+            mask = pd.Series(False, index=df_raw.index)
+            for opt in sel_unified:
+                if "  ↳ " in opt:
+                    sub_name = opt.replace("  ↳ ", "")
+                    mask |= (df_raw["Sub-Category"] == sub_name)
+                else:
+                    mask |= (df_raw["Category"] == opt)
+            df_cat = df_raw[mask]
+        else:
+            df_cat = df_raw
             
         with f2:
             # 2. Filter by Base Item (Clean groupings with SKU identification)
@@ -2124,17 +2142,24 @@ def render_stock_analytics_tab():
 
         st.divider()
 
-        # Category Volume Table
-        st.subheader("Inventory by Product Category")
-        cat_summ = df.groupby("Category")["Stock"].sum().reset_index()
-        cat_summ["Stock"] = pd.to_numeric(cat_summ["Stock"], errors="coerce").fillna(0)
+        # v14.6: Categorical Resolution Intelligence for Stock
+        is_sub_filtering = any("  ↳ " in opt for opt in st.session_state.get("stock_filter_unified", []))
+        display_label = "Sub-Category" if is_sub_filtering else "Category"
+
+        st.subheader(f"Inventory by {display_label}")
+        cat_summ = df.groupby(display_label)["Stock"].sum().reset_index()
+        cat_summ["Stock"] = pd.to_numeric(cat_summ["Stock"], errors="coerce").fillna(0).astype(float)
         cat_summ = cat_summ.sort_values("Stock", ascending=False)
         
         v1, v2 = st.columns([2, 3])
         with v1:
             st.dataframe(cat_summ, use_container_width=True, hide_index=True, column_config={"Stock": st.column_config.NumberColumn(format="%d")})
         with v2:
-            fig = px.bar(cat_summ.head(15), x="Stock", y="Category", orientation="h", title="Top 15 Categories by Volume", color="Stock", color_continuous_scale="Viridis")
+            # v14.6: Top-to-Less chronology for horizontal bars
+            fig_data = cat_summ.head(15).sort_values("Stock", ascending=True)
+            fig = px.bar(fig_data, x="Stock", y=display_label, orientation="h", 
+                         title=f"Top Volume: {display_label}", 
+                         color="Stock", color_continuous_scale="Plasma")
             fig.update_layout(margin=dict(l=0, r=0, t=30, b=0), showlegend=False, coloraxis_showscale=False)
             st.plotly_chart(fig, use_container_width=True)
 
