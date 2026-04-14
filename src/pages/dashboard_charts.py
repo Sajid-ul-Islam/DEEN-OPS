@@ -121,7 +121,7 @@ def render_spotlight(
     spotlight["Display_Name"] = spotlight.apply(
         lambda r: f"{r['Product Name']} [{r['SKU']}]", axis=1
     )
-    spotlight["Label"] = spotlight["Display_Name"].apply(lambda x: truncate_label(x, max_len=30))
+    spotlight["Label"] = spotlight["Display_Name"]
 
     if not ascending:
         top_indices = spotlight.tail(3).index if len(spotlight) >= 3 else spotlight.index

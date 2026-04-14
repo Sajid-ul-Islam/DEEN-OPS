@@ -10,6 +10,7 @@ python-Levenshtein
 
 # Machine Learning / Fuzzy Matching
 rapidfuzz
+kaleido
 
 # Google Cloud / Drive Integration
 google-api-python-client

@@ -75,26 +75,8 @@ def render_operational_metrics(
         mins = int(diff.total_seconds() / 60)
         sync_label = "Just now" if mins < 1 else f"{mins}m ago"
 
-    # Operation mode radio
-    if st.session_state.get("wc_sync_mode") == "Operational Cycle":
-        mode_options = ["History", "Active", "Queue"]
-        mode_to_state = {"History": "Prev", "Active": "Today", "Queue": "Backlog"}
-        state_to_mode = {v: k for k, v in mode_to_state.items()}
-        current_idx = mode_options.index(state_to_mode.get(nav_mode, "Active"))
-
-        selected_mode = st.radio(
-            "Operation Mode",
-            mode_options,
-            index=current_idx,
-            horizontal=True,
-            key="op_mode_radio",
-        )
-        st.caption(f"Last sync: {sync_label}")
-
-        new_nav = mode_to_state[selected_mode]
-        if new_nav != nav_mode:
-            st.session_state.wc_nav_mode = new_nav
-            st.rerun()
+    # Radio logic moved to dashboard_output for layout reasons
+    pass
 
     # KPI cards
     with st.container():

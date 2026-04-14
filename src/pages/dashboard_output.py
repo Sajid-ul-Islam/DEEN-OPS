@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from itertools import combinations
 
-from src.components.snapshot import render_snapshot_button
 from src.pages.dashboard_charts import render_category_charts, render_spotlight
 from src.pages.dashboard_filters import render_ingestion_filters
 from src.pages.dashboard_metrics import render_operational_metrics
@@ -124,9 +123,6 @@ def render_dashboard_output(
     dummy_mapping = {"name":"Product Name", "cost":"Item Cost", "qty":"Quantity", "date":"Date", "order_id":"Order ID", "phone":"Phone", "sku":"SKU"}
     wc_raw_mapping = {"name":"Item Name", "cost":"Item Cost", "qty":"Quantity", "date":"Order Date", "order_id":"Order ID", "phone":"Phone (Billing)", "sku":"SKU"}
 
-    # JSON metric snapshot
-    render_snapshot_button(granular_df=granular_df, basket_metrics=basket)
-
     active_df = granular_df
 
     if st.session_state.get("wc_sync_mode") == "Operational Cycle":
@@ -145,6 +141,41 @@ def render_dashboard_output(
             c_df = st.session_state.get("wc_prev_df")
 
         if m_df is not None:
+            c_header, c_mode = st.columns([1, 1])
+            with c_header:
+                st.subheader("Core Metrics")
+            
+            with c_mode:
+                # Sync label calculation
+                sync_label = "Just now"
+                if st.session_state.get("live_sync_time"):
+                    diff = datetime.now() - st.session_state.live_sync_time
+                    mins = int(diff.total_seconds() / 60)
+                    sync_label = "Just now" if mins < 1 else f"{mins}m ago"
+
+                c_radio, c_sync = st.columns([2.5, 1])
+                with c_radio:
+                    mode_options = ["Last Day", "Active", "Queue"]
+                    mode_to_state = {"Last Day": "Prev", "Active": "Today", "Queue": "Backlog"}
+                    state_to_mode = {v: k for k, v in mode_to_state.items()}
+                    current_idx = mode_options.index(state_to_mode.get(nav_mode, "Active"))
+
+                    selected_mode = st.radio(
+                        "Operation Mode",
+                        mode_options,
+                        index=current_idx,
+                        horizontal=True,
+                        key="op_mode_radio",
+                        label_visibility="collapsed"
+                    )
+                with c_sync:
+                    st.markdown(f'<div style="margin-top:5px; font-size:0.8rem; color:gray;">🔄 {sync_label}</div>', unsafe_allow_html=True)
+                
+                new_nav = mode_to_state[selected_mode]
+                if new_nav != nav_mode:
+                    st.session_state.wc_nav_mode = new_nav
+                    st.rerun()
+
             drill, summ, top, basket, active_df = render_operational_metrics(
                 m_df, c_df, nav_mode, dummy_mapping, wc_raw_mapping
             )

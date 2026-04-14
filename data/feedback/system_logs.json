@@ -3699,5 +3699,30 @@
         "timestamp": "2026-04-14 16:57:40",
         "type": "LIVE_FILE_ERROR",
         "details": "\nUnable to convert object of type `<class 'str'>` to `pandas.DataFrame`.\nOffending object:\n```py\nInsufficient Evidence\n```"
+    },
+    {
+        "timestamp": "2026-04-14 18:56:50",
+        "type": "STOCK_RENDER_ERROR",
+        "details": "Rendering fell back to recovery mode"
+    },
+    {
+        "timestamp": "2026-04-14 19:09:20",
+        "type": "WC_API_ERROR",
+        "details": "HTTPSConnectionPool(host='deencommerce.com', port=443): Max retries exceeded with url: /wp-json/wc/v3/orders?per_page=100&status=processing%2Ccompleted%2Cshipped%2Con-hold%2Cpending%2Cconfirmed&orderby=date&order=desc&after=2026-04-12T17%3A30%3A00%2B06%3A00&before=2026-04-14T23%3A59%3A59.618843%2B06%3A00&page=1 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000024AF394EF90>, 'Connection to deencommerce.com timed out. (connect timeout=15)'))"
+    },
+    {
+        "timestamp": "2026-04-14 19:09:20",
+        "type": "LIVE_FILE_ERROR",
+        "details": "Failed to fetch data from WooCommerce: HTTPSConnectionPool(host='deencommerce.com', port=443): Max retries exceeded with url: /wp-json/wc/v3/orders?per_page=100&status=processing%2Ccompleted%2Cshipped%2Con-hold%2Cpending%2Cconfirmed&orderby=date&order=desc&after=2026-04-12T17%3A30%3A00%2B06%3A00&before=2026-04-14T23%3A59%3A59.618843%2B06%3A00&page=1 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000024AF394EF90>, 'Connection to deencommerce.com timed out. (connect timeout=15)'))"
+    },
+    {
+        "timestamp": "2026-04-14 19:09:29",
+        "type": "STOCK_RENDER_ERROR",
+        "details": "Rendering fell back to recovery mode"
+    },
+    {
+        "timestamp": "2026-04-14 19:22:15",
+        "type": "STOCK_RENDER_ERROR",
+        "details": "Rendering fell back to recovery mode"
     }
 ]
