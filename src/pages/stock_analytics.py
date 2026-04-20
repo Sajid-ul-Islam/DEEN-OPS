@@ -12,6 +12,7 @@ from src.utils.logging import log_system_event
 from src.utils.snapshots import load_stock_snapshot
 from src.utils.display import truncate_label
 from src.utils.safe_ops import safe_filter, safe_render
+from src.config.constants import COMMON_CATS
 
 
 def render_bundle_inventory_intelligence(sales_df, stock_df):
@@ -130,21 +131,15 @@ def render_stock_analytics_tab():
     with st.expander("🛠️ Filter Intelligence", expanded=True):
         f1, f2, f3 = st.columns(3)
         with f1:
-            unified_options = []
-            for cat in sorted(df_raw["Category"].unique().tolist()):
-                unified_options.append(cat)
-                subs = sorted(df_raw[df_raw["Category"] == cat]["Sub-Category"].unique().tolist())
-                for s in subs:
-                    if s not in ["All", "N/A", cat]:
-                        unified_options.append(f"  ↳ {s}")
+            unified_options = COMMON_CATS
             sel_unified = st.multiselect("Select Category / Fit", unified_options, placeholder="All Categories", key="stock_filter_unified")
 
         if sel_unified:
             def _cat_filter(d):
                 mask = pd.Series(False, index=d.index)
                 for opt in sel_unified:
-                    if "  ↳ " in opt:
-                        sub_name = opt.replace("  ↳ ", "")
+                    if "  \u21b3 " in opt:
+                        sub_name = opt.replace("  \u21b3 ", "")
                         mask |= (d["Sub-Category"] == sub_name)
                     else:
                         mask |= (d["Category"] == opt)
@@ -198,7 +193,7 @@ def render_stock_analytics_tab():
             )
 
         st.divider()
-        is_sub_filtering = any("  ↳ " in opt for opt in st.session_state.get("stock_filter_unified", []))
+        is_sub_filtering = any("  \u21b3 " in opt for opt in st.session_state.get("stock_filter_unified", []))
         display_label = "Sub-Category" if is_sub_filtering else "Category"
 
         st.subheader(f"Inventory by {display_label}")

@@ -1,5 +1,5 @@
 import re
-import functools
+import pandas as pd
 
 def _normalize(name):
     """Normalizes names for matching."""
@@ -11,58 +11,53 @@ def _has_any(keywords, text):
     return any(kw in text for kw in keywords)
 
 def get_category_for_sales(name) -> str:
-    """Categorizes products based on keywords in their names (v14.1 Robust Rules)."""
+    """Categorizes products based on keywords in their names (Unified v16.0 Rules)."""
     name_str = _normalize(name)
     if not name_str: return "Others"
 
-    # v14.0 High-Priority Unique Categories
+    # 1. HIGH PRIORITY SPECIAL CATEGORIES
     if _has_any(["sweatshirt", "hoodie", "pullover"], name_str): return "Sweatshirt"
     if "polo" in name_str: return "Polo Shirt"
     if _has_any(["turtleneck", "turtle-neck", "mock neck"], name_str): return "Turtle-Neck"
     if "bundle" in name_str: return "Bundles"
 
-    # v14.1 T-Shirt Cluster Redirection (Active Wear, Tank Top, etc.)
-    if _has_any(["active wear", "activewear", "jersy", "jersey", "tank top"], name_str):
+    # 2. MAIN CLUSTERS
+    if _has_any(["jeans"], name_str): return "Jeans"
+    
+    if _has_any(["t-shirt", "t shirt", "tee"], name_str):
         return "T-Shirt"
+
+    fs_keywords = ["full sleeve", "long sleeve", "fs", "l/s", "fullsleeve", "full-sleeve"]
+    is_shirt = _has_any(["shirt"], name_str)
+    
+    if is_shirt:
+        if _has_any(fs_keywords, name_str) or _has_any(["denim", "flannel", "oxford", "kaftan"], name_str):
+            return "FS Shirt"
+        return "HS Shirt"
 
     specific_cats = {
         "Boxer": ["boxer"],
-        "Jeans": ["jeans"],
         "Panjabi": ["panjabi", "punjabi"],
-        "Twill Chino": ["twill chino", "chino", "twill"],
-        "Trousers": ["trousers", "trouser"],
+        "Twill": ["twill", "chino"],
+        "Trousers": ["trousers", "trouser", "jogger", "pants", "gabardine"],
         "Mask": ["mask"],
-        "Leather Bag": ["bag", "backpack"],
-        "Water Bottle": ["water bottle"],
-        "Wallet": ["wallet"],
+        "Leather Bag": ["bag", "backpack", "tote"],
+        "Water Bottle": ["water bottle", "bottle"],
+        "Wallet": ["wallet", "card holder", "passport holder"],
         "Belt": ["belt"],
+        "Jacket": ["jacket", "outerwear", "coat"],
         "Sweater": ["sweater", "cardigan", "knitwear"],
+        "Cap": ["cap"],
     }
 
     for cat, keywords in specific_cats.items():
         if _has_any(keywords, name_str):
             return cat
 
-    fs_keywords = ["full sleeve", "long sleeve", "fs", "l/s", "fullsleeve"]
-    if _has_any(["t-shirt", "t shirt", "tee"], name_str):
-        return "T-Shirt"
-
-    if _has_any(["shirt"], name_str):
-        if _has_any(["denim", "flannel", "oxford", "kaftan"], name_str):
-            return "FS Shirt"
-        return "FS Shirt" if _has_any(fs_keywords, name_str) else "HS Shirt"
-
-    # v14.1: Typo Resilience (Fuzzy Logic Fallback)
-    from fuzzywuzzy import process
-    all_targets = list(specific_cats.keys()) + ["Sweatshirt", "Polo Shirt", "Turtle-Neck", "T-Shirt", "FS Shirt", "HS Shirt"]
-    match = process.extractOne(name_str, all_targets)
-    if match and match[1] > 85:
-        return match[0]
-
     return "Others"
 
 def get_sub_category_for_sales(name, category) -> str:
-    """Extracts sub-category based on v14.1 Hierarchical Rules."""
+    """Extracts sub-category based on Unified v16.0 Hierarchical Rules."""
     name_str = _normalize(name)
     if not name_str: return category
 
@@ -101,7 +96,7 @@ def get_sub_category_for_sales(name, category) -> str:
         return "Wallet"
 
     elif category == "Panjabi":
-        if "embroidered cotton panjabi" in name_str: return "Embroidered Cotton Panjabi"
+        if _has_any(["embroidered cotton"], name_str): return "Embroidered Cotton Panjabi"
         return "Panjabi"
 
     elif category == "Sweatshirt":
@@ -111,7 +106,7 @@ def get_sub_category_for_sales(name, category) -> str:
 
     elif category == "Twill":
         if "joggers" in name_str: return "Twill Joggers"
-        if "five pockets" in name_str: return "Twill Five Pockets"
+        if _has_any(["five pocket", "5 pocket", "5-pocket"], name_str): return "Twill Five Pockets"
         return "Twill Chino"
 
     elif category == "Trousers":
