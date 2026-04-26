@@ -4024,5 +4024,10 @@
         "timestamp": "2026-04-26 10:42:53",
         "type": "AGGREGATE_ERROR",
         "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-26 13:52:55",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
     }
 ]

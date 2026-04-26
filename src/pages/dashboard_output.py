@@ -218,6 +218,57 @@ def render_dashboard_output(
     from src.pages.dashboard_charts import render_spotlight
     render_spotlight(top, color_map, prev_top=prev_top)
 
+    # ── Executive Briefing & Power BI Export ──
+    st.divider()
+    st.subheader("📱 Executive Briefing & Analytics Export")
+    with st.expander("Generate WhatsApp Briefing & Power BI Report", expanded=False):
+        today_rev = summ['Total Amount'].sum() if summ is not None else 0
+        today_qty = summ['Total Qty'].sum() if summ is not None else 0
+        today_orders = basket.get('total_orders', 0) if basket else 0
+        today_aov = basket.get('avg_basket_value', 0) if basket else 0
+
+        report_lines = [
+            f"📊 *DEEN-OPS Executive Briefing*",
+            f"📅 {datetime.now().strftime('%A, %d %B %Y')}",
+            "",
+            f"💰 *Revenue:* ৳{today_rev:,.0f}",
+            f"📦 *Gross Items Sold:* {today_qty:,.0f}",
+            f"🛒 *Total Orders:* {today_orders:,.0f}",
+            f"💎 *Avg Basket Value:* ৳{today_aov:,.0f}",
+            "",
+            "🔥 *Top Performing Products:*"
+        ]
+        if top is not None and not top.empty:
+            top_3 = top.head(3)
+            for _, row in top_3.iterrows():
+                report_lines.append(f"• {row['Product Name']} ({row['Total Qty']} pcs)")
+
+        report_lines.extend(["", "💻 _Access the full dashboard at your DEEN-OPS Terminal._"])
+        report_text = "\n".join(report_lines)
+
+        st.markdown("**1. Copy for WhatsApp:**")
+        st.code(report_text, language="markdown")
+
+        buf_pbi = BytesIO()
+        with pd.ExcelWriter(buf_pbi, engine="xlsxwriter") as wr:
+            pd.DataFrame({"Executive Summary": report_lines}).to_excel(wr, sheet_name="Executive Briefing", index=False)
+            if summ is not None and not summ.empty:
+                summ.to_excel(wr, sheet_name="Category Summary", index=False)
+            if top is not None and not top.empty:
+                top.to_excel(wr, sheet_name="Top Products", index=False)
+            if active_df is not None and not active_df.empty:
+                active_df.to_excel(wr, sheet_name="Raw Shift Data", index=False)
+
+        st.markdown("**2. Download for Power BI / Tableau:**")
+        st.download_button(
+            label="💾 Download Multi-Sheet Excel",
+            data=buf_pbi.getvalue(),
+            file_name=f"DEEN_OPS_Daily_Report_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
+            use_container_width=True
+        )
+
     # ── Data tables ──
     st.subheader("Deep Dive Data")
     tabs = st.tabs(["Summary", "Rankings", "Drilldown"])
