@@ -31,7 +31,7 @@ def get_category_for_sales(name) -> str:
     is_shirt = _has_any(["shirt"], name_str)
     
     if is_shirt:
-        if _has_any(fs_keywords, name_str) or _has_any(["denim", "flannel", "oxford", "kaftan"], name_str):
+        if _has_any(fs_keywords, name_str) or _has_any(["denim", "flannel", "oxford", "kaftan", "executive", "formal"], name_str):
             return "FS Shirt"
         return "HS Shirt"
 
@@ -80,6 +80,7 @@ def get_sub_category_for_sales(name, category) -> str:
         if "oxford" in name_str: return "Oxford Shirt"
         if "kaftan" in name_str: return "Kaftan Shirt"
         if "casual" in name_str: return "FS Casual Shirt"
+        if _has_any(["executive", "formal"], name_str): return "Executive Formal Shirt"
         return "FS Shirt"
 
     elif category == "HS Shirt":
