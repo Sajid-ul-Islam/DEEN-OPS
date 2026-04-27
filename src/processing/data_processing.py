@@ -167,3 +167,45 @@ def aggregate_data(df, selected_cols):
     except Exception as e:
         log_system_event("AGGREGATE_ERROR", str(e))
         return None, None, None, {}
+
+def get_dispatch_metrics(active_df, total_orders=0):
+    """Calculates dispatch, exchange, and freebie metrics from active shift data."""
+    metrics = {
+        "outlet_dispatch": 0,
+        "exchange_dispatch": 0,
+        "free_tshirts": 0,
+        "free_bottles": 0,
+        "last_shipped_order": "N/A",
+        "last_pathao_print": "N/A",
+        "ecom_dispatch": 0
+    }
+    
+    if active_df is not None and not active_df.empty:
+        status_col = "Order Status" if "Order Status" in active_df.columns else None
+        order_col = "Order ID" if "Order ID" in active_df.columns else "Order Number" if "Order Number" in active_df.columns else None
+        date_col = "Date" if "Date" in active_df.columns else "Order Date" if "Order Date" in active_df.columns else None
+        pmt_col = "Payment Method Title" if "Payment Method Title" in active_df.columns else None
+
+        if order_col:
+            if "Total Amount" in active_df.columns:
+                order_totals = active_df.groupby(order_col)["Total Amount"].sum()
+                metrics["free_tshirts"] = (order_totals > 3499).sum()
+                metrics["free_bottles"] = ((order_totals > 2499) & (order_totals < 3500)).sum()
+                
+            if status_col:
+                metrics["exchange_dispatch"] = active_df[active_df[status_col].astype(str).str.lower().str.contains("exchange", na=False)][order_col].nunique()
+                
+                outlet_mask = active_df[status_col].astype(str).str.lower().str.contains("outlet", na=False)
+                if pmt_col:
+                    outlet_mask = outlet_mask | active_df[pmt_col].astype(str).str.lower().str.contains("outlet", na=False)
+                metrics["outlet_dispatch"] = active_df[outlet_mask][order_col].nunique()
+
+        if status_col and order_col:
+            shipped_df = active_df[active_df[status_col].astype(str).str.lower().isin(["shipped", "completed"])]
+            if not shipped_df.empty:
+                latest_shipped = shipped_df.sort_values(date_col, ascending=False).iloc[0] if date_col else shipped_df.iloc[0]
+                metrics["last_shipped_order"] = str(latest_shipped[order_col])
+                metrics["last_pathao_print"] = str(latest_shipped[order_col])
+
+    metrics["ecom_dispatch"] = max(0, total_orders - metrics["outlet_dispatch"] - metrics["exchange_dispatch"])
+    return metrics

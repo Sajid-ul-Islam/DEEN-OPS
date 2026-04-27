@@ -4029,5 +4029,80 @@
         "timestamp": "2026-04-26 13:52:55",
         "type": "AGGREGATE_ERROR",
         "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 15:58:47",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:06:00",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:10:54",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:13:48",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:15:10",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:15:16",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:15:46",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:17:55",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:18:49",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:20:24",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:22:25",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:23:03",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:26:24",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:31:36",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
+    },
+    {
+        "timestamp": "2026-04-27 16:35:14",
+        "type": "AGGREGATE_ERROR",
+        "details": "'Category'"
     }
 ]

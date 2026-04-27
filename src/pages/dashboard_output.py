@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from itertools import combinations
 
+from src.processing.data_processing import get_dispatch_metrics
 from src.pages.dashboard_charts import render_category_charts, render_spotlight
 from src.pages.dashboard_filters import render_ingestion_filters
 from src.pages.dashboard_metrics import render_operational_metrics
@@ -173,7 +174,7 @@ def render_dashboard_output(
                     f'<div class="metric-card"><div><div class="metric-label">{label1}</div><div class="metric-value">{m_qty:,.0f}</div></div><div class="metric-icon">📦</div></div>'
                     f'<div class="metric-card"><div><div class="metric-label">REVENUE</div><div class="metric-value">TK {m_rev:,.0f}</div></div><div class="metric-icon">৳</div></div>'
                     f'<div class="metric-card"><div><div class="metric-label">NUMBER OF ORDERS</div><div class="metric-value">{m_ord:,.0f}</div></div><div class="metric-icon">🛒</div></div>'
-                    f'<div class="metric-card"><div><div class="metric-label">MARKET BASKET VALUE</div><div class="metric-value">TK {m_bv:,.0f}</div></div><div class="metric-icon">💎</div></div>'
+                    f'<div class="metric-card"><div><div class="metric-label">MARKET BASKET VALUE</div><div class="metric-value">TK {m_bv:,.0f}</div></div><div class="metric-icon">🛍️</div></div>'
                     '</div>'
                 )
                 st.markdown(ingestion_html, unsafe_allow_html=True)
@@ -221,20 +222,30 @@ def render_dashboard_output(
     # ── Executive Briefing & Power BI Export ──
     st.divider()
     st.subheader("📱 Executive Briefing & Analytics Export")
-    with st.expander("Generate WhatsApp Briefing & Power BI Report", expanded=False):
+    with st.expander("Generate Power BI Report", expanded=False):
         today_rev = summ['Total Amount'].sum() if summ is not None else 0
         today_qty = summ['Total Qty'].sum() if summ is not None else 0
         today_orders = basket.get('total_orders', 0) if basket else 0
         today_aov = basket.get('avg_basket_value', 0) if basket else 0
+        
+        dm = get_dispatch_metrics(active_df, today_orders)
 
         report_lines = [
             f"📊 *DEEN-OPS Executive Briefing*",
-            f"📅 {datetime.now().strftime('%A, %d %B %Y')}",
+            f"📅 {datetime.now(timezone(timedelta(hours=6))).strftime('%A, %d %B %Y')}",
             "",
             f"💰 *Revenue:* ৳{today_rev:,.0f}",
             f"📦 *Gross Items Sold:* {today_qty:,.0f}",
-            f"🛒 *Total Orders:* {today_orders:,.0f}",
-            f"💎 *Avg Basket Value:* ৳{today_aov:,.0f}",
+            f"🛍️ *Avg Basket Value:* ৳{today_aov:,.0f}",
+            "",
+            f"🚚 *Last Shipped Order:* {dm['last_shipped_order']}",
+            f"🖨️ *Last Pathao Print:* {dm['last_pathao_print']}",
+            "",
+            f"🛒 *Total Orders:* {today_orders:,.0f}, 🔄 *Exchange:* {dm['exchange_dispatch']:,.0f} ||",
+            f"🚀 *Ecom Dispatch:* {dm['ecom_dispatch']:,.0f}, 🏪 *Outlet Dispatch:* {dm['outlet_dispatch']:,.0f}",
+            "",
+            f"🎁 *Free T-Shirts (>3499 TK):* {dm['free_tshirts']:,.0f}",
+            f"💧 *Free Water Bottles (>2499 TK):* {dm['free_bottles']:,.0f}",
             "",
             "🔥 *Top Performing Products:*"
         ]
@@ -243,11 +254,12 @@ def render_dashboard_output(
             for _, row in top_3.iterrows():
                 report_lines.append(f"• {row['Product Name']} ({row['Total Qty']} pcs)")
 
-        report_lines.extend(["", "💻 _Access the full dashboard at your DEEN-OPS Terminal._"])
+        report_lines.extend(["", "💻 _Access the full dashboard at your DEEN-OPS Terminal: https://deen-ops.streamlit.app/_"])
         report_text = "\n".join(report_lines)
 
-        st.markdown("**1. Copy for WhatsApp:**")
+        st.markdown("**1. Copy for Quick Briefing:**")
         st.code(report_text, language="markdown")
+        
 
         buf_pbi = BytesIO()
         with pd.ExcelWriter(buf_pbi, engine="xlsxwriter") as wr:
@@ -259,11 +271,11 @@ def render_dashboard_output(
             if active_df is not None and not active_df.empty:
                 active_df.to_excel(wr, sheet_name="Raw Shift Data", index=False)
 
-        st.markdown("**2. Download for Power BI / Tableau:**")
+        st.markdown("**Download for Power BI / Tableau:**")
         st.download_button(
             label="💾 Download Multi-Sheet Excel",
             data=buf_pbi.getvalue(),
-            file_name=f"DEEN_OPS_Daily_Report_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            file_name=f"DEEN_OPS_Daily_Report_{datetime.now(timezone(timedelta(hours=6))).strftime('%Y-%m-%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary",
             use_container_width=True

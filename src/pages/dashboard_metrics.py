@@ -182,7 +182,7 @@ def render_operational_metrics(
     extra_metric_label = "Avg Basket"
     extra_metric_value = v_bv
     extra_metric_delta = html_db
-    extra_metric_icon = "💎"
+    extra_metric_icon = "🛍️"
 
     if nav_mode == "Backlog" and not m_df.empty:
         try:

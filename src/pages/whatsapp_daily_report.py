@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-DEEN-OPS Daily WhatsApp Insights Report Generator
+DEEN-OPS Daily Insights Report Generator
 
 This script extracts the active operational shift data from the WooCommerce API
 using DEEN-OPS internal services, generates a predictive forecast and top products
@@ -13,7 +13,7 @@ Usage:
 import os
 import sys
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # Ensure DEEN-OPS root is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -27,6 +27,7 @@ if "operational_holidays" not in st.session_state:
 
 from src.services.woocommerce.client import load_from_woocommerce
 from src.processing.data_processing import prepare_granular_data, aggregate_data
+from src.processing.data_processing import get_dispatch_metrics
 from src.processing.forecasting import PredictiveIntelligence
 
 def generate_report_data():
@@ -67,7 +68,8 @@ def generate_report_data():
         prev_orders = basket_prev.get('total_orders', 0) if basket_prev else 0
 
     rev_trend = "📈" if today_rev >= prev_rev else "📉"
-    
+    dm = get_dispatch_metrics(df_live, today_orders)
+
     # Predictive Intelligence (Forecast next day)
     forecast_str = ""
     if df_full_raw is not None and not df_full_raw.empty:
@@ -89,12 +91,22 @@ def generate_report_data():
     # Build Narrative
     report_lines = [
         f"📊 *DEEN-OPS Executive Briefing*",
-        f"📅 {datetime.now().strftime('%A, %d %B %Y')}",
+        f"📅 {datetime.now(timezone(timedelta(hours=6))).strftime('%A, %d %B %Y')}",
         "",
         f"💰 *Today's Revenue:* ৳{today_rev:,.0f} {rev_trend}",
         f"📦 *Gross Items Sold:* {today_qty:,.0f}",
-        f"🛒 *Total Orders:* {today_orders:,.0f}",
-        f"💎 *Avg Basket Value:* ৳{today_aov:,.0f}",
+        f"🛍️ *Avg Basket Value:* ৳{today_aov:,.0f}",
+        "",
+        f"🚚 *Last Shipped Order:* {dm['last_shipped_order']}",
+        f"🖨️ *Last Pathao Print:* {dm['last_pathao_print']}",
+        "",
+        f"🛒 *Total Orders:* {today_orders:,.0f}", 
+        f"🔄 *Exchange:* {dm['exchange_dispatch']:,.0f}",
+        f"🚀 *Ecom Dispatch:* {dm['ecom_dispatch']:,.0f}", 
+        f"🏪 *Outlet Dispatch:* {dm['outlet_dispatch']:,.0f}",
+        "",
+        f"🎁 *Free T-Shirts (>3499 TK):* {dm['free_tshirts']:,.0f}",
+        f"💧 *Free Water Bottles (>2499 TK):* {dm['free_bottles']:,.0f}",
         f"",
         f"📉 *Yesterday's Revenue:* ৳{prev_rev:,.0f} ({prev_orders} orders)",
         forecast_str,
@@ -102,7 +114,7 @@ def generate_report_data():
         "🔥 *Top Performing Products:*",
         top_products_str,
         "",
-        "💻 _Access the full dashboard at your DEEN-OPS Terminal._"
+        "💻 _Access the full dashboard at your DEEN-OPS Terminal: https://deen-ops.streamlit.app/_"
     ]
 
     report_text = "\n".join([line for line in report_lines if line is not None])
@@ -111,7 +123,7 @@ def generate_report_data():
 if __name__ == "__main__":
     report_text, df_live, summ, top = generate_report_data()
     
-    export_filename = f"DEEN_OPS_Daily_Report_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    export_filename = f"DEEN_OPS_Daily_Report_{datetime.now(timezone(timedelta(hours=6))).strftime('%Y-%m-%d')}.xlsx"
     print("💾 Exporting data to Excel for Power BI / Tableau...")
     
     df_narrative = pd.DataFrame({"Executive Summary": report_text.split('\n')})
