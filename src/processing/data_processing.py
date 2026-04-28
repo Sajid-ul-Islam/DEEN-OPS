@@ -108,8 +108,8 @@ def prepare_granular_data(df, selected_cols):
             else:
                 df["Order Status"] = "completed"
 
-        # Exclude pending payment orders from all analytics
-        df = df[~df["Order Status"].astype(str).str.lower().isin(["pending", "pending payment"])]
+        # Exclude pending payments, cancelled, and failed orders from all analytics
+        df = df[~df["Order Status"].astype(str).str.lower().isin(["pending", "pending payment", "cancelled", "failed", "refunded", "trash"])]
 
         return df, timeframe_suffix
     except Exception as e:

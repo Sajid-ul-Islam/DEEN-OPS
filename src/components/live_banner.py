@@ -16,10 +16,8 @@ def render_live_banner() -> None:
     if df is None or df.empty:
         return
 
-    # Exclude pending payments from live banner totals
     # Exclude pending payments, cancelled, and failed orders from live banner totals
     if "Order Status" in df.columns:
-        df = df[~df["Order Status"].astype(str).str.lower().isin(["pending", "pending payment"])]
         df = df[~df["Order Status"].astype(str).str.lower().isin(["pending", "pending payment", "cancelled", "failed", "refunded", "trash"])]
 
     try:
