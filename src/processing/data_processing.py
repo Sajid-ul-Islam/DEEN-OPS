@@ -160,7 +160,8 @@ def aggregate_data(df, selected_cols):
         top_aggs = [
             pl.col("Quantity").sum().alias("Total Qty"),
             pl.col("Total Amount").sum().alias("Total Amount"),
-            pl.col("Category").first().alias("Category")
+            pl.col("Category").first().alias("Category"),
+            pl.col("Clean_Product").first().alias("Clean_Product")
         ]
         if "Sub-Category" in df.columns:
             top_aggs.append(pl.col("Sub-Category").first().alias("Sub-Category"))
@@ -293,9 +294,18 @@ def generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, d
     report_lines.extend(["", "🔥 *Top Performing Products:*"])
 
     if top is not None and not top.empty:
-        top_3 = top.head(3)
-        for _, row in top_3.iterrows():
-            report_lines.append(f"• {row['Product Name']} ({row['Total Qty']} pcs)")
+        if "Clean_Product" in top.columns:
+            group_cols = ["Clean_Product", "SKU"] if "SKU" in top.columns else ["Clean_Product"]
+            top_summary = top.groupby(group_cols, as_index=False).agg({"Total Qty": "sum", "Total Amount": "sum"})
+            top_summary = top_summary.sort_values("Total Amount", ascending=False)
+            top_3 = top_summary.head(3)
+            for _, row in top_3.iterrows():
+                sku_str = f" [{row['SKU']}]" if "SKU" in top.columns and str(row['SKU']) not in ['N/A', '', 'None', 'nan'] else ""
+                report_lines.append(f"• {row['Clean_Product']}{sku_str} ({row['Total Qty']} pcs)")
+        else:
+            top_3 = top.head(3)
+            for _, row in top_3.iterrows():
+                report_lines.append(f"• {row['Product Name']} ({row['Total Qty']} pcs)")
     else:
         report_lines.append("No product data available.")
 
