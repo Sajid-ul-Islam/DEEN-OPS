@@ -23,11 +23,26 @@ def render_performance_analysis(df: pd.DataFrame):
         return
 
     st.divider()
-    c_hdr, c_toggle = st.columns([3, 1])
+    c_hdr, c_window, c_toggle = st.columns([2, 1, 1])
     with c_hdr:
         st.subheader("\U0001f4c8 Time-Series Performance Analysis")
+    with c_window:
+        if "perf_zoom_window" not in st.session_state:
+            st.session_state.perf_zoom_window = "7 Days"
+        zoom_opt = st.selectbox(
+            "Zoom Window", 
+            ["7 Days", "14 Days", "30 Days", "All Time"], 
+            key="perf_zoom_window", 
+            label_visibility="collapsed"
+        )
     with c_toggle:
-        enable_ml = st.checkbox("\U0001f680 Enable ML Forecasting", value=False, help="Apply Predictive Intelligence models to forecast future trends.")
+        if "perf_enable_ml" not in st.session_state:
+            st.session_state.perf_enable_ml = False
+        enable_ml = st.checkbox(
+            "\U0001f680 Enable ML Forecasting", 
+            key="perf_enable_ml", 
+            help="Apply Predictive Intelligence models to forecast future trends."
+        )
 
     df_day = df.copy()
     df_day["Day"] = pd.to_datetime(df_day["Date"]).dt.date
@@ -41,6 +56,27 @@ def render_performance_analysis(df: pd.DataFrame):
     daily_stats["Avg Basket Value"] = (daily_stats["Total Amount"] / daily_stats["Order ID"]).fillna(0)
     daily_stats = daily_stats.sort_values("Day")
 
+    # Add 7-Day Rolling Averages for Trend Lines
+    daily_stats["Revenue Trend"] = daily_stats["Total Amount"].rolling(window=7, min_periods=1).mean()
+    daily_stats["Volume Trend"] = daily_stats["Quantity"].rolling(window=7, min_periods=1).mean()
+    daily_stats["Orders Trend"] = daily_stats["Order ID"].rolling(window=7, min_periods=1).mean()
+
+    if not daily_stats.empty:
+        last_date = daily_stats["Day"].max()
+        first_date = daily_stats["Day"].min()
+        
+        if zoom_opt == "All Time":
+            window_start = first_date
+        else:
+            window_days = int(zoom_opt.split()[0])
+            window_start = last_date - timedelta(days=window_days) if (last_date - first_date).days > window_days else first_date
+            
+        window_end = last_date + timedelta(days=7) if enable_ml else last_date
+        # Convert to strings so Plotly reliably updates the axis range dynamically
+        x_axis_range = [window_start.strftime("%Y-%m-%d"), window_end.strftime("%Y-%m-%d")]
+    else:
+        x_axis_range = None
+
     c1, c2 = st.columns(2)
 
     with c1:
@@ -48,9 +84,13 @@ def render_performance_analysis(df: pd.DataFrame):
         fc_res_rev, standings_rev = PredictiveIntelligence.forecast(rev_data) if enable_ml else (None, None)
 
         fig_rev = px.area(daily_stats, x="Day", y="Total Amount",
-                          title=f"Revenue Outlook {'(Best 3 Strategy Ensemble)' if enable_ml else ''}",
+                          title=f"Revenue Outlook {'(Best 3 Strategy Ensemble)' if enable_ml else '(with 7-Day Trend)'}",
                           labels={"Total Amount": "Revenue", "Day": ""},
-                          color_discrete_sequence=["#1d4ed8"])
+                          color_discrete_sequence=["#1d4ed8"],
+                          hover_data={"Total Amount": ":,.0f", "Revenue Trend": ":,.0f"})
+
+        if not enable_ml:
+            fig_rev.add_scatter(x=daily_stats["Day"], y=daily_stats["Revenue Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"))
 
         if enable_ml and fc_res_rev:
             fc_dates = [daily_stats["Day"].iloc[-1] + timedelta(days=i+1) for i in range(7)]
@@ -61,15 +101,20 @@ def render_performance_analysis(df: pd.DataFrame):
                                    line=dict(dash="dot" if i > 0 else "dash", color=forecast_colors[i], width=2 if i == 0 else 1))
 
         fig_rev.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350, showlegend=False)
+        fig_rev.update_xaxes(rangeslider_visible=True, range=x_axis_range, autorange=False)
         st.plotly_chart(fig_rev, use_container_width=True, config={"displayModeBar": False})
 
         qty_data = daily_stats.set_index("Day")["Quantity"]
         fc_res_qty, _ = PredictiveIntelligence.forecast(qty_data) if enable_ml else (None, None)
 
         fig_qty = px.line(daily_stats, x="Day", y="Quantity",
-                          title=f"Volume Outlook {'(Top Models Displayed)' if enable_ml else ''}",
+                          title=f"Volume Outlook {'(Top Models Displayed)' if enable_ml else '(with 7-Day Trend)'}",
                           labels={"Quantity": "Volume", "Day": ""},
-                          color_discrete_sequence=["#10b981"])
+                          color_discrete_sequence=["#10b981"],
+                          hover_data={"Quantity": ":,.0f", "Volume Trend": ":,.0f"})
+
+        if not enable_ml:
+            fig_qty.add_scatter(x=daily_stats["Day"], y=daily_stats["Volume Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"))
 
         if enable_ml and fc_res_qty:
             fc_dates = [daily_stats["Day"].iloc[-1] + timedelta(days=i+1) for i in range(7)]
@@ -80,6 +125,7 @@ def render_performance_analysis(df: pd.DataFrame):
                                    line=dict(dash="dot" if i > 0 else "dash", color=forecast_colors[i], width=2 if i == 0 else 1))
 
         fig_qty.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350, showlegend=False)
+        fig_qty.update_xaxes(rangeslider_visible=True, range=x_axis_range, autorange=False)
         st.plotly_chart(fig_qty, use_container_width=True, config={"displayModeBar": False})
 
     with c2:
@@ -87,9 +133,13 @@ def render_performance_analysis(df: pd.DataFrame):
         fc_res_ord, _ = PredictiveIntelligence.forecast(ord_data) if enable_ml else (None, None)
 
         fig_ord = px.bar(daily_stats, x="Day", y="Order ID",
-                         title=f"Orders Outlook {'(Multi-Model Mode)' if enable_ml else ''}",
+                         title=f"Orders Outlook {'(Multi-Model Mode)' if enable_ml else '(with 7-Day Trend)'}",
                          labels={"Order ID": "Orders", "Day": ""},
-                         color_discrete_sequence=["#6366f1"])
+                         color_discrete_sequence=["#6366f1"],
+                         hover_data={"Order ID": ":,.0f", "Orders Trend": ":,.1f"})
+
+        if not enable_ml:
+            fig_ord.add_scatter(x=daily_stats["Day"], y=daily_stats["Orders Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"))
 
         if enable_ml and fc_res_ord:
              fc_dates = [daily_stats["Day"].iloc[-1] + timedelta(days=i+1) for i in range(7)]
@@ -100,6 +150,7 @@ def render_performance_analysis(df: pd.DataFrame):
                                     line=dict(dash="dot" if i > 0 else "solid", color=forecast_colors[i], width=2 if i == 0 else 1))
 
         fig_ord.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350, showlegend=False)
+        fig_ord.update_xaxes(rangeslider_visible=True, range=x_axis_range, autorange=False)
         st.plotly_chart(fig_ord, use_container_width=True, config={"displayModeBar": False})
 
         if enable_ml and standings_rev is not None and not isinstance(standings_rev, str):
@@ -113,6 +164,7 @@ def render_performance_analysis(df: pd.DataFrame):
                          labels={"Avg Basket Value": "Avg Value", "Day": ""},
                          color_discrete_sequence=["#f59e0b"])
         fig_bv.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350)
+        fig_bv.update_xaxes(rangeslider_visible=True, range=x_axis_range, autorange=False)
         st.plotly_chart(fig_bv, use_container_width=True, config={"displayModeBar": False})
 
 
