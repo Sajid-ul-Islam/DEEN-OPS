@@ -1,25 +1,11 @@
-# Core App
 streamlit
 pandas
+polars
+numpy
 plotly
+requests
 openpyxl
 xlsxwriter
-pillow
-fuzzywuzzy==0.18.0
+fuzzywuzzy
 python-Levenshtein
-
-# Machine Learning / Fuzzy Matching
-rapidfuzz
-kaleido
-
-# Google Cloud / Drive Integration
-google-api-python-client
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-# AI & Networking
-requests
-aiohttp
-openai
-google-generativeai
-streamlit-autorefresh
+toml

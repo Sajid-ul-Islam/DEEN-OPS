@@ -24,7 +24,7 @@ The project follows a strict layered architecture. **Never introduce circular im
 
 ## 3. Technology Stack
 - **Frontend Framework:** Streamlit (with extensive custom CSS injected via `st.markdown`).
-- **Data Engine:** Pandas (vectorized operations) & Plotly (charting).
+- **Data Engine:** Pandas & Polars (vectorized operations & lazy evaluation) & Plotly (charting).
 - **AI Integrations:** Multi-provider LLM wrappers (OpenRouter, Gemini, Groq, Ollama) via `services/llm/`.
 - **APIs:** WooCommerce REST, Pathao Courier API.
 
@@ -50,6 +50,8 @@ The following items are identified for future cleanup to maintain project health
 - **Pandas Type Safety:** Fixed `AttributeError: Can only use .dt accessor with datetimelike values` by ensuring explicit `pd.to_datetime` conversion and handling empty DataFrames in `src/processing/` and `src/state/insights.py`.
 - **Stock Analytics Recovery:** Fixed `raw_qty` undefined error by replacing it with `total_qty` in recovery mode.
 - **Data Integrity:** Replaced fake Association Rules (which used `np.random.rand()`) with actual co-occurrence calculation logic in the dashboard.
+- **Performance Optimization:** Migrated WhatsApp Bulk Processing to use Polars (`pl.LazyFrame`) for significantly faster execution and lower memory footprint.
+- **Fuzzy Matching Integration:** Implemented `fuzzywuzzy` for resilient location detection (Thana/Area/Zone mapping).
 
 ## 9. Development Roadmap & Best Practices
 - **New Workspace Page:** Follow the 4-step guide in `DEVELOPMENT.md` (Create page -> Update Nav -> Add Routing -> Register Reset).
