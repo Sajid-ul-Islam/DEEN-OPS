@@ -255,36 +255,48 @@ def render_dashboard_output(
 
     # ── Executive Briefing & Power BI Export ──
     st.subheader("📱 Executive Briefing & Analytics Export")
-    with st.expander("Generate Power BI Report", expanded=False):
-        today_rev = summ['Total Amount'].sum() if summ is not None else 0
-        today_qty = summ['Total Qty'].sum() if summ is not None else 0
-        today_orders = basket.get('total_orders', 0) if basket else 0
-        today_aov = basket.get('avg_basket_value', 0) if basket else 0
-        
-        dm = get_dispatch_metrics(active_df, today_orders)
+    today_rev = summ['Total Amount'].sum() if summ is not None else 0
+    today_qty = summ['Total Qty'].sum() if summ is not None else 0
+    today_orders = basket.get('total_orders', 0) if basket else 0
+    today_aov = basket.get('avg_basket_value', 0) if basket else 0
+    
+    dm = get_dispatch_metrics(active_df, today_orders)
 
-        report_text = generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, dm, top)
+    report_text = generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, dm, top)
 
-        st.markdown("**1. Copy for Quick Briefing:**")
-        st.code(report_text, language="markdown")
-        
+    buf_pbi = BytesIO()
+    with pd.ExcelWriter(buf_pbi, engine="xlsxwriter") as wr:
+        pd.DataFrame({"Executive Summary": report_text.split('\n')}).to_excel(wr, sheet_name="Executive Briefing", index=False)
+        if summ is not None and not summ.empty:
+            summ.to_excel(wr, sheet_name="Category Summary", index=False)
+        if top is not None and not top.empty:
+            top.to_excel(wr, sheet_name="Top Products", index=False)
+        if active_df is not None and not active_df.empty:
+            active_df.to_excel(wr, sheet_name="Raw Shift Data", index=False)
 
-        buf_pbi = BytesIO()
-        with pd.ExcelWriter(buf_pbi, engine="xlsxwriter") as wr:
-            pd.DataFrame({"Executive Summary": report_text.split('\n')}).to_excel(wr, sheet_name="Executive Briefing", index=False)
-            if summ is not None and not summ.empty:
-                summ.to_excel(wr, sheet_name="Category Summary", index=False)
-            if top is not None and not top.empty:
-                top.to_excel(wr, sheet_name="Top Products", index=False)
-            if active_df is not None and not active_df.empty:
-                active_df.to_excel(wr, sheet_name="Raw Shift Data", index=False)
-
-        st.markdown("**Download for Power BI / Tableau:**")
+    exp1, exp2 = st.columns(2)
+    with exp1:
         st.download_button(
-            label="💾 Download Multi-Sheet Excel",
+            label="💾 Download Full Analytics Report (Excel)",
             data=buf_pbi.getvalue(),
-            file_name="Executive_Briefing.xlsx"
+            file_name=f"DEEN_Analytics_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            type="primary",
+            use_container_width=True
         )
+    
+    with exp2:
+        if active_df is not None and not active_df.empty:
+            st.download_button(
+                label="📄 Download Raw Data (CSV)",
+                data=active_df.to_csv(index=False).encode('utf-8'),
+                file_name=f"DEEN_Raw_Data_{datetime.now().strftime('%Y%m%d')}.csv",
+                type="secondary",
+                use_container_width=True
+            )
+    
+    with st.expander("📋 View/Copy Executive Briefing Text", expanded=False):
+        st.markdown("**Copy for Quick Briefing:**")
+        st.code(report_text, language="markdown")
 
     st.divider()
 

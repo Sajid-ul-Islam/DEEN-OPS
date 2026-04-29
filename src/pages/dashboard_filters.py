@@ -53,6 +53,14 @@ def render_ingestion_filters(
             if "Category" not in working_df.columns or "Sub-Category" not in working_df.columns or "Clean_Product" not in working_df.columns:
                 working_df, _ = prepare_granular_data(working_df, dummy_mapping)
 
+            # Clean trailing spaces from string columns to prevent filter mismatches
+            for col in ["Category", "Sub-Category", "Filter_Identity", "Size"]:
+                if col in working_df.columns:
+                    try:
+                        working_df[col] = working_df[col].str.strip()
+                    except AttributeError:
+                        pass
+
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 1, 1, 0.3])
 
         with c1:

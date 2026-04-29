@@ -37,7 +37,7 @@ COMMON_CATS = [
     "  \u21b3 Oxford Shirt",
     "  \u21b3 Kaftan Shirt",
     "  \u21b3 FS Casual Shirt",
-    "  \u21b3 Executive Formal Shirt",
+    "  \u21b3 Formal Shirt",
     "HS Shirt",
     "  \u21b3 Contrast Shirt",
     "  \u21b3 HS Casual Shirt",
