@@ -83,7 +83,6 @@ def load_from_woocommerce():
                         for item in order.get("line_items", []):
                             processed.append({
                                 "Order ID": oid,
-                                "Order ID": oid,
                                 "Order Date": d_val,
                                 "Order Status": status,
                                 "Full Name (Billing)": c_name,

@@ -325,12 +325,16 @@ def add_stock_columns_from_inventory(
                 # We only fuzzy match against non-SKU keys (Title-Size keys)
                 name_keys = [k for k in inventory.keys() if k not in sku_to_inv_key]
                 if name_keys:
-                    best_match, score = process.extractOne(pl_key, name_keys)
-                    if score >= 85:  # Require high confidence for auto-match
-                        inv_key = best_match
-                        status = f"Fuzzy Match ({score}%) -> {best_match}"
+                    match_result = process.extractOne(pl_key, name_keys)
+                    if match_result:
+                        best_match, score = match_result
+                        if score >= 85:  # Require high confidence for auto-match
+                            inv_key = best_match
+                            status = f"Fuzzy Match ({score}%) -> {best_match}"
+                        else:
+                            status = f"No Match (Closest: {best_match} @ {score}%)"
                     else:
-                        status = f"No Match (Closest: {best_match} @ {score}%)"
+                        status = "No Match"
                 else:
                     status = "No Match"
             else:

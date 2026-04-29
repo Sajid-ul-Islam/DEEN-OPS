@@ -38,7 +38,7 @@ class PathaoClient:
                     self.access_token = data.get("access_token")
                     self.refresh_token = data.get("refresh_token")
                     self.expires_at = data.get("expires_at", 0)
-            except:
+            except Exception:
                 pass
 
     def ensure_token(self):
@@ -86,7 +86,7 @@ class PathaoClient:
             else:
                 print(f"Pathao Refresh Failed: {res.status_code} - {res.text}")
                 return self.issue_access_token()
-        except:
+        except Exception:
             return self.issue_access_token()
 
     def _get_headers(self):

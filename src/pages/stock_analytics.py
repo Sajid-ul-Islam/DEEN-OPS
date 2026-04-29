@@ -48,7 +48,17 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
     orphan_skus = []
 
     # Use best available Name column for inventory matching
-    inv_name_col = "Base_Product" if "Base_Product" in stock_df.columns else "Product"
+    inv_name_col = None
+    if "Base_Product" in stock_df.columns:
+        inv_name_col = "Base_Product"
+    elif "Product" in stock_df.columns:
+        inv_name_col = "Product"
+    elif "Clean_Product" in stock_df.columns:
+        inv_name_col = "Clean_Product"
+
+    if not inv_name_col:
+        st.warning("No suitable product name column found for bundle analysis.")
+        return
 
     for pair, count in top_pairs:
         stock_a = stock_df[stock_df[inv_name_col] == pair[0]]["Stock"].sum()
@@ -123,6 +133,9 @@ def render_stock_analytics_tab():
     df_raw["Price"] = pd.to_numeric(df_raw["Price"], errors="coerce").fillna(0).astype(float)
 
     if "Sub-Category" not in df_raw.columns or "Clean_Product" not in df_raw.columns:
+        if "Product" not in df_raw.columns:
+            st.error("Required 'Product' column not found in inventory data.")
+            return
         df_raw["Category"] = df_raw["Product"].apply(get_category_for_sales)
         df_raw["Sub-Category"] = df_raw.apply(lambda r: get_sub_category_for_sales(r["Product"], r["Category"]), axis=1)
         df_raw["Clean_Product"] = df_raw["Product"].apply(get_base_product_name)
