@@ -77,10 +77,16 @@ class AIDataAgent:
             async for chunk in self.controller.get_response_stream_async(messages):
                 yield chunk
         except Exception:
+            try:
                 try:
                     yield self.controller.get_response_sync(messages, context="")
                 except TypeError:
                     yield self.controller.get_response_sync(messages)
+            except Exception as fallback_err:
+                if "ollama" in self.provider.lower():
+                    yield f"\n\n⚠️ **Connection Error:** Ollama is unreachable. Please ensure it is running locally via `ollama serve`.\n\n`Details: {fallback_err}`"
+                else:
+                    yield f"\n\n⚠️ **Error:** Failed to get response from {self.provider}. Please verify your API key and connection.\n\n`Details: {fallback_err}`"
 
 # ------------------------------
 # 2. UI COMPONENTS
@@ -109,7 +115,11 @@ def render_sidebar_controls():
             model_name = "gpt-4o" if provider == "OpenAI" else "gemini-1.5-flash"
         elif provider == "Ollama (Local)":
             controller = init_llm_controller()
-            models = controller.key_manager.get_local_models() if hasattr(controller.key_manager, "get_local_models") else []
+            try:
+                models = controller.key_manager.get_local_models() if hasattr(controller.key_manager, "get_local_models") else []
+            except Exception:
+                models = []
+                
             if models:
                 model_name = st.selectbox("Local Model", models)
             else:
@@ -121,15 +131,24 @@ def render_sidebar_controls():
 
         st.divider()
         st.markdown("### 📁 Knowledge Base")
-        up_file = st.file_uploader("Upload CSV/Excel", type=["csv", "xlsx"])
+        
+        if "pilot_uploader_key" not in st.session_state:
+            st.session_state.pilot_uploader_key = 0
+            
+        up_file = st.file_uploader("Upload CSV/Excel", type=["csv", "xlsx"], key=f"pilot_up_{st.session_state.pilot_uploader_key}")
         if up_file:
-            df = pd.read_csv(up_file) if up_file.name.endswith('.csv') else pd.read_excel(up_file)
-            st.session_state.pilot_uploaded_df = df
-            st.success(f"Ingested {len(df)} records.")
+            try:
+                df = pd.read_csv(up_file) if up_file.name.endswith('.csv') else pd.read_excel(up_file)
+                st.session_state.pilot_uploaded_df = df
+                st.success(f"Ingested {len(df)} records.")
+            except Exception as e:
+                st.error(f"Failed to parse file: {e}")
 
-        if st.session_state.get("pilot_uploaded_df") is not None:
-            if st.button("Clear Knowledge Base"):
+        uploaded_df = st.session_state.get("pilot_uploaded_df")
+        if uploaded_df is not None and not uploaded_df.empty:
+            if st.button("Clear Knowledge Base", use_container_width=True):
                 st.session_state.pilot_uploaded_df = None
+                st.session_state.pilot_uploader_key += 1
                 st.rerun()
 
     return provider, api_key, model_name

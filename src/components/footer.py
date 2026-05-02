@@ -17,17 +17,6 @@ def render_footer():
 
     st.markdown(
         f"""
-            <style>
-            @media (max-width: 600px) {{
-                .footer-inner {{
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 8px;
-                }}
-                .footer-separator {{ display: none; }}
-            }}
-            </style>
             <div class="hub-footer">
                 <div class="footer-inner" style="width:100%; text-align:center;">
                     <span style="margin-right:0px;">&copy; 2026 <a href="https://github.com/saajiidi" target="_blank">Sajid Islam</a>. All rights reserved.</span>

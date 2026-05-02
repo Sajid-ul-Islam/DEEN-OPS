@@ -7,29 +7,6 @@ def render_operational_slots_calendar():
     Modern Date Range Selector UI for operational holiday management.
     Replacing the tile-based calendar for better bulk operation efficiency.
     """
-    st.markdown("""
-        <style>
-        .stDateInput > div {
-            border-radius: 10px !important;
-        }
-        .holiday-list-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(239, 68, 68, 0.05);
-            padding: 4px 10px;
-            border-radius: 6px;
-            margin-bottom: 4px;
-            border-left: 3px solid #ef4444;
-            font-size: 0.8rem;
-        }
-        .holiday-date {
-            font-weight: 600;
-            color: #1e293b;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     if "operational_holidays" not in st.session_state:
         st.session_state.operational_holidays = []
     

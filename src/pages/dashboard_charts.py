@@ -35,13 +35,14 @@ def render_category_charts(
             hole=0.6,
             title="Revenue Share (TK)",
             color_discrete_map=color_map,
+            hover_data=["Total Qty"],
         )
-        fig_pie.update_layout(margin=dict(l=10, r=10, t=50, b=10), showlegend=False)
+        fig_pie.update_layout(margin=dict(t=50, b=20, l=10, r=10), showlegend=False)
         fig_pie.update_traces(
             textposition="inside",
             textinfo="label+percent",
             textfont_size=11,
-            hovertemplate="%{label}: %{value:,.0f} (%{percent})",
+            hovertemplate="<b>%{label}</b><br>Revenue: %{value:,.0f} TK (%{percent})<br>Volume: %{customdata[0]:,.0f} Units",
         )
         st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
 
@@ -59,14 +60,21 @@ def render_category_charts(
             text_auto=".0f",
             color_discrete_map=color_map,
             category_orders={"Bar_Label": sorted_bars},
+            hover_data={
+                "Bar_Label": False,
+                display_col: True,
+                "Total Qty": ":,.0f",
+                "Total Amount": ":,.0f",
+            },
         )
         fig_bar.update_layout(
-            margin=dict(l=50, r=10, t=50, b=40),
+            margin=dict(t=50, b=20, l=10, r=10),
             xaxis_title="",
             yaxis_title="Quantity Sold",
             showlegend=False,
         )
-        fig_bar.update_traces(hovertemplate="%{x}: %{y:,.0f}")
+        fig_bar.update_xaxes(automargin=True)
+        fig_bar.update_yaxes(automargin=True)
         st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
 
 
@@ -88,7 +96,7 @@ def render_spotlight(
     # Apply size-agnostic grouping (aggregate by Clean_Product)
     top = top.copy()
     if "Clean_Product" in top.columns:
-        group_cols = ["Clean_Product", "SKU"] if "SKU" in top.columns else ["Clean_Product"]
+        group_cols = ["Clean_Product"]
         agg_dict = {"Total Qty": "sum", "Total Amount": "sum", "Category": "first"}
         if "Sub-Category" in top.columns:
             agg_dict["Sub-Category"] = "first"
@@ -113,11 +121,16 @@ def render_spotlight(
     ascending = False
     if strategy == "Top 10":
         limit = 10
+        ascending = False
     elif strategy == "Top 20":
         limit = 20
+        ascending = False
     elif strategy == "Underperformers":
         limit = 10
         ascending = True
+
+    # Ensure top is sorted descending by amount so custom range and limits slice correctly
+    top = top.sort_values("Total Amount", ascending=False).reset_index(drop=True)
 
     if strategy == "Custom Range" and not top.empty:
         with sc2:
@@ -125,7 +138,7 @@ def render_spotlight(
             spotlight = top.iloc[c_range[0] - 1 : c_range[1]].sort_values("Total Amount", ascending=True)
     else:
         spotlight = (
-            top.sort_values("Total Amount", ascending=not ascending)
+            top.sort_values("Total Amount", ascending=ascending)
             .head(limit)
             .sort_values("Total Amount", ascending=True)
         )
@@ -136,31 +149,55 @@ def render_spotlight(
     stock_df = st.session_state.get("wc_stock_df")
     
     def get_velocity_and_stock_label(row):
-        label = f"{row['Product Name']} [{row['SKU']}]"
+        has_sku = "SKU" in row and pd.notna(row["SKU"])
+        label = f"{row['Product Name']} [{row['SKU']}]" if has_sku else f"{row['Product Name']}"
         
         # 🟢 Velocity Logic
         if prev_top is not None and not prev_top.empty:
-            prev_row = prev_top[prev_top["SKU"] == row["SKU"]]
+            if has_sku and "SKU" in prev_top.columns:
+                prev_row = prev_top[prev_top["SKU"] == row["SKU"]]
+            elif "Product Name" in prev_top.columns:
+                prev_row = prev_top[prev_top["Product Name"] == row["Product Name"]]
+            else:
+                prev_row = pd.DataFrame()
+                
             if not prev_row.empty:
                 curr_q = row["Total Qty"]
                 prev_q = prev_row.iloc[0]["Total Qty"]
                 if curr_q > prev_q:
-                    label = f"🔼 {label}"
+                    label = f"<span style='color:#10b981'>🔼</span> {label}"
                 elif curr_q < prev_q:
-                    label = f"🔽 {label}"
+                    label = f"<span style='color:#ef4444'>🔽</span> {label}"
         
         # 🔴 Safety Stock Logic
         if stock_df is not None and not stock_df.empty:
-            sku_stock = stock_df[stock_df["SKU"] == row["SKU"]]
+            sku_stock = pd.DataFrame()
+            if has_sku and "SKU" in stock_df.columns:
+                sku_stock = stock_df[stock_df["SKU"] == row["SKU"]]
+            elif "Clean_Product" in stock_df.columns:
+                sku_stock = stock_df[stock_df["Clean_Product"] == row["Product Name"]]
+            elif "Product" in stock_df.columns:
+                sku_stock = stock_df[stock_df["Product"] == row["Product Name"]]
+                
             if not sku_stock.empty:
                 stock_qty = sku_stock["Stock"].sum()
-                # If stock < 1.5x current shift sales, it's a risk
-                if stock_qty < (row["Total Qty"] * 1.5):
-                    label = f"⚠️ {label}"
+                # Trigger earlier: if stock is under absolute minimum (10) OR less than 3x current shift sales
+                if stock_qty <= 10 or stock_qty <= (row["Total Qty"] * 3.0):
+                    label = f"<span style='color:#f59e0b'>⚠️</span> {label}"
                     
         return label
 
     spotlight["Label"] = spotlight.apply(get_velocity_and_stock_label, axis=1)
+
+    hover_data_dict = {
+        "Label": False,
+        "Product Name": True,
+        "Sub-Category": True if "Sub-Category" in spotlight.columns else False,
+        "Total Qty": ":.0f",
+        "Total Amount": ":,.0f",
+    }
+    if "SKU" in spotlight.columns:
+        hover_data_dict["SKU"] = True
 
     fig_top = px.bar(
         spotlight,
@@ -171,19 +208,14 @@ def render_spotlight(
         title=f"Spotlight: {strategy}",
         text_auto=".2s",
         color_discrete_map=color_map,
-        hover_data={
-            "Label": False,
-            "Product Name": True,
-            "SKU": True,
-            "Sub-Category": True,
-            "Total Qty": ":.0f",
-            "Total Amount": ":,.0f",
-        },
+        hover_data=hover_data_dict,
     )
     fig_top.update_layout(
-        margin=dict(l=12, r=12, t=50, b=12),
+        margin=dict(t=50, b=20, l=10, r=20),
         yaxis_title="",
         xaxis_title="Revenue (TK)",
         showlegend=False,
     )
+    fig_top.update_yaxes(automargin=True)
+    fig_top.update_xaxes(automargin=True)
     st.plotly_chart(fig_top, use_container_width=True, config={"displayModeBar": False})

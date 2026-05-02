@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-def truncate_label(text: str, max_len: int = 25) -> str:
+def truncate_label(text: str, max_len: int = 20) -> str:
     """Truncate a string to *max_len* characters, appending '...' if needed.
 
     Args:

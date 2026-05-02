@@ -28,7 +28,7 @@ def render_performance_analysis(df: pd.DataFrame):
         st.subheader("\U0001f4c8 Time-Series Performance Analysis")
     with c_window:
         if "perf_zoom_window" not in st.session_state:
-            st.session_state.perf_zoom_window = "7 Days"
+            st.session_state.perf_zoom_window = "14 Days"
         zoom_opt = st.selectbox(
             "Zoom Window", 
             ["7 Days", "14 Days", "30 Days", "All Time"], 
@@ -86,11 +86,14 @@ def render_performance_analysis(df: pd.DataFrame):
         fig_rev = px.area(daily_stats, x="Day", y="Total Amount",
                           title=f"Revenue Outlook {'(Best 3 Strategy Ensemble)' if enable_ml else '(with 7-Day Trend)'}",
                           labels={"Total Amount": "Revenue", "Day": ""},
-                          color_discrete_sequence=["#1d4ed8"],
-                          hover_data={"Total Amount": ":,.0f", "Revenue Trend": ":,.0f"})
+                          color_discrete_sequence=["#1d4ed8"])
+        fig_rev.update_traces(
+            customdata=daily_stats[["Revenue Trend"]],
+            hovertemplate="<b>%{x}</b><br>Revenue: ৳%{y:,.0f}<br>7-Day Trend: ৳%{customdata[0]:,.0f}<extra></extra>"
+        )
 
         if not enable_ml:
-            fig_rev.add_scatter(x=daily_stats["Day"], y=daily_stats["Revenue Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"))
+            fig_rev.add_scatter(x=daily_stats["Day"], y=daily_stats["Revenue Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"), hovertemplate="<b>%{x}</b><br>7-Day Avg: ৳%{y:,.0f}<extra></extra>")
 
         if enable_ml and fc_res_rev:
             fc_dates = [daily_stats["Day"].iloc[-1] + timedelta(days=i+1) for i in range(7)]
@@ -98,10 +101,12 @@ def render_performance_analysis(df: pd.DataFrame):
             for i, res in enumerate(fc_res_rev):
                 fig_rev.add_scatter(x=fc_dates, y=res["forecast"], mode="lines+markers",
                                    name=f"Rank {i+1}: {res['name']}",
-                                   line=dict(dash="dot" if i > 0 else "dash", color=forecast_colors[i], width=2 if i == 0 else 1))
+                                   line=dict(dash="dot" if i > 0 else "dash", color=forecast_colors[i], width=2 if i == 0 else 1),
+                                   hovertemplate="<b>%{x}</b><br>Forecast: ৳%{y:,.0f}<extra></extra>")
 
         fig_rev.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350, showlegend=False)
-        fig_rev.update_xaxes(rangeslider_visible=True, range=x_axis_range, autorange=False)
+        fig_rev.update_xaxes(rangeslider_visible=False, range=x_axis_range, autorange=False)
+        fig_rev.update_yaxes(showgrid=True, gridcolor="rgba(128, 128, 128, 0.2)", zeroline=False)
         st.plotly_chart(fig_rev, use_container_width=True, config={"displayModeBar": False})
 
         qty_data = daily_stats.set_index("Day")["Quantity"]
@@ -110,11 +115,14 @@ def render_performance_analysis(df: pd.DataFrame):
         fig_qty = px.line(daily_stats, x="Day", y="Quantity",
                           title=f"Volume Outlook {'(Top Models Displayed)' if enable_ml else '(with 7-Day Trend)'}",
                           labels={"Quantity": "Volume", "Day": ""},
-                          color_discrete_sequence=["#10b981"],
-                          hover_data={"Quantity": ":,.0f", "Volume Trend": ":,.0f"})
+                          color_discrete_sequence=["#10b981"])
+        fig_qty.update_traces(
+            customdata=daily_stats[["Volume Trend"]],
+            hovertemplate="<b>%{x}</b><br>Volume: %{y:,.0f} Units<br>7-Day Trend: %{customdata[0]:,.0f} Units<extra></extra>"
+        )
 
         if not enable_ml:
-            fig_qty.add_scatter(x=daily_stats["Day"], y=daily_stats["Volume Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"))
+            fig_qty.add_scatter(x=daily_stats["Day"], y=daily_stats["Volume Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"), hovertemplate="<b>%{x}</b><br>7-Day Avg: %{y:,.0f} Units<extra></extra>")
 
         if enable_ml and fc_res_qty:
             fc_dates = [daily_stats["Day"].iloc[-1] + timedelta(days=i+1) for i in range(7)]
@@ -122,10 +130,12 @@ def render_performance_analysis(df: pd.DataFrame):
             for i, res in enumerate(fc_res_qty):
                 fig_qty.add_scatter(x=fc_dates, y=res["forecast"], mode="lines",
                                    name=f"Rank {i+1}: {res['name']}",
-                                   line=dict(dash="dot" if i > 0 else "dash", color=forecast_colors[i], width=2 if i == 0 else 1))
+                                   line=dict(dash="dot" if i > 0 else "dash", color=forecast_colors[i], width=2 if i == 0 else 1),
+                                   hovertemplate="<b>%{x}</b><br>Forecast: %{y:,.0f} Units<extra></extra>")
 
         fig_qty.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350, showlegend=False)
-        fig_qty.update_xaxes(rangeslider_visible=True, range=x_axis_range, autorange=False)
+        fig_qty.update_xaxes(rangeslider_visible=False, range=x_axis_range, autorange=False)
+        fig_qty.update_yaxes(showgrid=True, gridcolor="rgba(128, 128, 128, 0.2)", zeroline=False)
         st.plotly_chart(fig_qty, use_container_width=True, config={"displayModeBar": False})
 
     with c2:
@@ -135,11 +145,14 @@ def render_performance_analysis(df: pd.DataFrame):
         fig_ord = px.bar(daily_stats, x="Day", y="Order ID",
                          title=f"Orders Outlook {'(Multi-Model Mode)' if enable_ml else '(with 7-Day Trend)'}",
                          labels={"Order ID": "Orders", "Day": ""},
-                         color_discrete_sequence=["#6366f1"],
-                         hover_data={"Order ID": ":,.0f", "Orders Trend": ":,.1f"})
+                         color_discrete_sequence=["#6366f1"])
+        fig_ord.update_traces(
+            customdata=daily_stats[["Orders Trend"]],
+            hovertemplate="<b>%{x}</b><br>Orders: %{y:,.0f}<br>7-Day Trend: %{customdata[0]:,.1f}<extra></extra>"
+        )
 
         if not enable_ml:
-            fig_ord.add_scatter(x=daily_stats["Day"], y=daily_stats["Orders Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"))
+            fig_ord.add_scatter(x=daily_stats["Day"], y=daily_stats["Orders Trend"], mode="lines", name="7-Day Avg", line=dict(color="#fcd34d", width=3, dash="dot"), hovertemplate="<b>%{x}</b><br>7-Day Avg: %{y:,.1f}<extra></extra>")
 
         if enable_ml and fc_res_ord:
              fc_dates = [daily_stats["Day"].iloc[-1] + timedelta(days=i+1) for i in range(7)]
@@ -147,10 +160,12 @@ def render_performance_analysis(df: pd.DataFrame):
              for i, res in enumerate(fc_res_ord):
                  fig_ord.add_scatter(x=fc_dates, y=res["forecast"], mode="markers+lines",
                                     name=f"Rank {i+1}: {res['name']}",
-                                    line=dict(dash="dot" if i > 0 else "solid", color=forecast_colors[i], width=2 if i == 0 else 1))
+                                    line=dict(dash="dot" if i > 0 else "solid", color=forecast_colors[i], width=2 if i == 0 else 1),
+                                    hovertemplate="<b>%{x}</b><br>Forecast: %{y:,.0f}<extra></extra>")
 
         fig_ord.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350, showlegend=False)
-        fig_ord.update_xaxes(rangeslider_visible=True, range=x_axis_range, autorange=False)
+        fig_ord.update_xaxes(rangeslider_visible=False, range=x_axis_range, autorange=False)
+        fig_ord.update_yaxes(showgrid=True, gridcolor="rgba(128, 128, 128, 0.2)", zeroline=False)
         st.plotly_chart(fig_ord, use_container_width=True, config={"displayModeBar": False})
 
         if enable_ml and standings_rev is not None and not isinstance(standings_rev, str):
@@ -163,8 +178,10 @@ def render_performance_analysis(df: pd.DataFrame):
                          title="Market Basket Efficiency (AOV)",
                          labels={"Avg Basket Value": "Avg Value", "Day": ""},
                          color_discrete_sequence=["#f59e0b"])
+        fig_bv.update_traces(hovertemplate="<b>%{x}</b><br>Avg Basket Value: ৳%{y:,.0f}<extra></extra>")
         fig_bv.update_layout(margin=dict(l=40, r=20, t=50, b=40), height=350)
-        fig_bv.update_xaxes(rangeslider_visible=True, range=x_axis_range, autorange=False)
+        fig_bv.update_xaxes(rangeslider_visible=False, range=x_axis_range, autorange=False)
+        fig_bv.update_yaxes(showgrid=True, gridcolor="rgba(128, 128, 128, 0.2)", zeroline=False)
         st.plotly_chart(fig_bv, use_container_width=True, config={"displayModeBar": False})
 
 
@@ -238,10 +255,21 @@ def render_dashboard_output(
     sel_unified = st.session_state.get("fallback_filter_unified", [])
 
     display_col = "Category"
-    if "Sub-Category" in summ.columns:
-        display_col = "Sub-Category"
+    chart_summ = summ.copy() if summ is not None else pd.DataFrame()
 
-    sorted_cats = summ.sort_values("Total Amount", ascending=False)[display_col].tolist()
+    if not chart_summ.empty and "Sub-Category" in chart_summ.columns:
+        display_col = st.radio(
+            "Chart View",
+            options=["Category", "Sub-Category"],
+            index=1,
+            horizontal=True,
+            label_visibility="collapsed",
+            key="perf_outlook_view"
+        )
+        if display_col == "Category":
+            chart_summ = chart_summ.groupby("Category", as_index=False).agg({"Total Qty": "sum", "Total Amount": "sum"})
+
+    sorted_cats = chart_summ.sort_values("Total Amount", ascending=False)[display_col].tolist() if not chart_summ.empty else []
     color_map = {
         cat: px.colors.sample_colorscale(
             "Plasma",
@@ -250,25 +278,31 @@ def render_dashboard_output(
         for i, cat in enumerate(sorted_cats)
     }
 
-    render_category_charts(summ, display_col, color_map)
+    if not chart_summ.empty:
+        render_category_charts(chart_summ, display_col, color_map)
     st.divider()
 
     # ── Executive Briefing & Power BI Export ──
-    st.subheader("📱 Executive Briefing & Analytics Export")
+    is_operational = st.session_state.get("wc_sync_mode") == "Operational Cycle"
+    
+    if is_operational:
+        st.subheader("📱 Executive Briefing")
+        
     today_rev = summ['Total Amount'].sum() if summ is not None else 0
     today_qty = summ['Total Qty'].sum() if summ is not None else 0
     today_orders = basket.get('total_orders', 0) if basket else 0
     today_aov = basket.get('avg_basket_value', 0) if basket else 0
     
-    dm = get_dispatch_metrics(active_df, today_orders)
-
-    report_text = generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, dm, top)
+    if is_operational:
+        dm = get_dispatch_metrics(active_df, today_orders)
+        report_text = generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, dm, top)
 
     buf_pbi = BytesIO()
     with pd.ExcelWriter(buf_pbi, engine="xlsxwriter") as wr:
-        df_exec = pd.DataFrame({"Executive Summary": report_text.split('\n')})
-        df_exec.to_excel(wr, sheet_name="Executive Briefing", index=False)
-        
+        if is_operational:
+            df_exec = pd.DataFrame({"Executive Summary": report_text.split('\n')})
+            df_exec.to_excel(wr, sheet_name="Executive Briefing", index=False)
+            
         # Inject Core Metrics Sheet
         metrics_data = [
             {"Metric": "Total Revenue (TK)", "Value": today_rev},
@@ -276,7 +310,7 @@ def render_dashboard_output(
             {"Metric": "Total Orders", "Value": today_orders},
             {"Metric": "Average Order Value (TK)", "Value": today_aov},
         ]
-        if dm:
+        if is_operational and dm:
             metrics_data.extend([
                 {"Metric": "Pending Dispatch", "Value": dm.get("pending", 0)},
                 {"Metric": "Dispatched", "Value": dm.get("dispatched", 0)},
@@ -296,43 +330,50 @@ def render_dashboard_output(
         header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
 
         # Auto-format column widths & apply header styles
-        for sheet_name, df_ref in [
-            ("Executive Briefing", df_exec),
+        sheets_to_format = [
             ("Core Metrics", df_metrics),
             ("Category Summary", summ if summ is not None else pd.DataFrame()),
             ("Top Products", top if top is not None else pd.DataFrame()),
             ("Raw Shift Data", active_df if active_df is not None else pd.DataFrame())
-        ]:
+        ]
+        if is_operational:
+            sheets_to_format.insert(0, ("Executive Briefing", df_exec))
+            
+        for sheet_name, df_ref in sheets_to_format:
             if sheet_name in wr.sheets and not df_ref.empty:
                 ws = wr.sheets[sheet_name]
                 for idx, col in enumerate(df_ref.columns):
                     ws.write(0, idx, str(col), header_format)
-                    max_len = max(df_ref[col].astype(str).map(len).max(), len(str(col))) + 2
-                    ws.set_column(idx, idx, min(max_len, 80))
+                    
+                    try:
+                        # Drop NA to avoid 'nan' skewing length, calculate actual max string length
+                        col_data = df_ref[col].dropna().astype(str)
+                        max_val_len = col_data.map(len).max() if not col_data.empty else 0
+                        # Add a +4 buffer for cell padding, bold headers, and font scaling
+                        max_len = max(max_val_len, len(str(col))) + 4
+                    except Exception:
+                        max_len = len(str(col)) + 4
+                    
+                    # Cap max width at 100 to prevent unreadably wide columns
+                    ws.set_column(idx, idx, min(max_len, 100))
 
-    exp1, exp2 = st.columns(2)
-    with exp1:
-        st.download_button(
-            label="💾 Download Full Analytics Report (Excel)",
-            data=buf_pbi.getvalue(),
-            file_name=f"DEEN_Analytics_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            type="primary",
-            use_container_width=True
-        )
-    
-    with exp2:
-        if active_df is not None and not active_df.empty:
-            st.download_button(
-                label="📄 Download Raw Data (CSV)",
-                data=active_df.to_csv(index=False).encode('utf-8'),
-                file_name=f"DEEN_Raw_Data_{datetime.now().strftime('%Y%m%d')}.csv",
-                type="secondary",
-                use_container_width=True
-            )
-    
-    with st.expander("📋 View/Copy Executive Briefing Text", expanded=False):
-        st.markdown("**Copy for Quick Briefing:**")
-        st.code(report_text, language="markdown")
+    export_date_str = datetime.now().strftime('%Y%m%d')
+    if not is_operational:
+        if active_df is not None and not active_df.empty and "Date" in active_df.columns:
+            try:
+                min_d = pd.to_datetime(active_df["Date"]).min()
+                max_d = pd.to_datetime(active_df["Date"]).max()
+                if min_d.date() == max_d.date():
+                    export_date_str = min_d.strftime('%Y%m%d')
+                else:
+                    export_date_str = f"{min_d.strftime('%Y%m%d')}_to_{max_d.strftime('%Y%m%d')}"
+            except Exception:
+                pass
+
+    if is_operational:
+        with st.expander("📋 View/Copy Executive Briefing Text", expanded=False):
+            st.markdown("**Copy for Quick Briefing:**")
+            st.code(report_text, language="markdown")
 
     st.divider()
 
@@ -353,3 +394,24 @@ def render_dashboard_output(
 
     from src.pages.dashboard_charts import render_spotlight
     render_spotlight(top, color_map, prev_top=prev_top)
+
+    st.divider()
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        st.download_button(
+            label="💾 Export Full Analytics (Excel)",
+            data=buf_pbi.getvalue(),
+            file_name=f"DEEN_Analytics_Report_{export_date_str}.xlsx",
+            type="primary",
+            use_container_width=True
+        )
+    with c2:
+        if active_df is not None and not active_df.empty:
+            st.download_button(
+                label="📄 Export Filtered View (CSV)",
+                data=active_df.to_csv(index=False).encode('utf-8'),
+                file_name=f"DEEN_Filtered_Data_{export_date_str}.csv",
+                type="secondary",
+                use_container_width=True
+            )

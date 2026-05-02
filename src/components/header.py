@@ -57,13 +57,6 @@ def render_app_banner():
                         <span style="color: #60a5fa; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;">Holiday Merge Active</span>
                         <span style="color: white; font-size: 0.7rem; font-weight: 600;">(Incl. {merge_date})</span>
                     </div>
-                    <style>
-                    @keyframes pulse {{
-                        0% {{ transform: scale(1); opacity: 0.9; }}
-                        50% {{ transform: scale(1.02); opacity: 1; }}
-                        100% {{ transform: scale(1); opacity: 0.9; }}
-                    }}
-                    </style>
                 """
 
     if os.path.exists(banner_path):
@@ -72,22 +65,6 @@ def render_app_banner():
 
         st.markdown(
             f"""
-<style>
-.app-banner-wrapper {{ position: relative; width: 100%; height: 220px; border-radius: 12px; overflow: hidden; margin-bottom: 24px; box-shadow: var(--card-shadow); }}
-.app-banner-overlay {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, rgba(15, 23, 42, 0.8) 0%, rgba(15, 23, 42, 0.1) 100%); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; z-index: 2; }}
-.app-banner-title-area {{ width: auto; z-index: 5; margin-right: 20px; }}
-.app-banner-title {{ color: white; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }}
-.app-banner-subtitle {{ color: rgba(255, 255, 255, 0.7); font-size: 0.95rem; }}
-.app-banner-clock-area {{ background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); padding: 10px 18px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.15); z-index: 10; text-align: right; min-width: max-content; }}
-
-@media (max-width: 800px) {{
-    .app-banner-wrapper {{ height: auto; min-height: 180px; }}
-    .app-banner-overlay {{ flex-direction: column; align-items: flex-start; justify-content: center; padding: 25px 20px; gap: 15px; position: static; background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.5) 100%); }}
-    .app-banner-title {{ font-size: 1.4rem; }}
-    .app-banner-subtitle {{ font-size: 0.85rem; }}
-    .app-banner-clock-area {{ text-align: left; background: rgba(0,0,0,0.2); padding: 12px !important; margin-top: 5px; width: 100%; box-sizing: border-box; }}
-}}
-</style>
 <div class="app-banner-wrapper">
 <img src="data:image/png;base64,{b64}" class="app-banner-img" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;">
 {holiday_banner_html}
@@ -113,52 +90,6 @@ def render_banner_mode_controls():
     mode_to_state = {"Last Day": "Prev", "Active": "Today", "Queue": "Backlog"}
     state_to_mode = {v: k for k, v in mode_to_state.items()}
     current_idx = mode_options.index(state_to_mode.get(nav_mode, "Active"))
-
-    # Single CSS block for positioning the controls at BOTTOM LEFT
-    st.markdown(f"""
-        <style>
-        .banner-controls-shelf {{
-            margin-top: -85px;
-            margin-bottom: 45px;
-            margin-left: 35px;
-            z-index: 100;
-            position: relative;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            pointer-events: none;
-        }}
-        .banner-controls-shelf > div {{
-            pointer-events: auto;
-            background: rgba(15, 23, 42, 0.5);
-            backdrop-filter: blur(12px);
-            padding: 4px 12px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-        }}
-        .banner-controls-shelf label p {{
-            color: white !important;
-            font-size: 0.8rem !important;
-            font-weight: 700 !important;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }}
-        /* Remove extra space in the radio group */
-        .banner-controls-shelf [data-testid="stRadio"] {{
-            margin-bottom: -15px;
-        }}
-        @media (max-width: 800px) {{
-            .banner-controls-shelf {{
-                margin-top: 10px;
-                margin-bottom: 25px;
-                margin-left: 0;
-                justify-content: center;
-            }}
-        }}
-        </style>
-    """, unsafe_allow_html=True)
 
     with st.container():
         st.markdown('<div class="banner-controls-shelf">', unsafe_allow_html=True)

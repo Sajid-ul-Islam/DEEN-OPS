@@ -22,53 +22,6 @@ def render_bike_animation():
 
     st.markdown(
         f"""
-    <style>
-    /* Global Full-Screen Bike Animation (Right to Left) */
-    @keyframes moveFullScreen {{
-        0%   {{ transform: translateX(250px) scale(1); opacity: 0; }}
-        10%  {{ opacity: 1; }}
-        90%  {{ opacity: 1; }}
-        100% {{ transform: translateX(-115vw) scale(1); opacity: 0; }}
-    }}
-    @keyframes smoke-puff {{
-        0% {{ transform: scale(0.4); opacity: 0.8; }}
-        100% {{ transform: scale(2) translate(15px, -10px); opacity: 0; }}
-    }}
-    .full-screen-bike {{
-        position: fixed;
-        top: 80px; /* Moved down to prevent header cutting */
-        right: 0;
-        z-index: 9999; /* Overlaps everything */
-        pointer-events: none; /* Allows clicking through it */
-        display: flex;
-        align-items: center;
-        flex-direction: row; /* Image then smoke */
-        animation: moveFullScreen 18s linear infinite;
-        filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));
-    }}
-    .bike-img {{
-        width: 60px;
-        z-index: 10000;
-        display: block;
-        /* Flips bike to point Left removed, as png natively handles it */
-    }}
-    .smoke-trail {{
-        display: flex;
-        /* Put smoke to the right of the left-facing bike */
-        margin-left: -10px;
-    }}
-    .smoke {{
-        width: 12px;
-        height: 12px;
-        background: #cbd5e1;
-        border-radius: 50%;
-        animation: smoke-puff 0.8s ease-out infinite;
-        margin-left: -6px;
-    }}
-    .smoke:nth-child(2) {{ animation-delay: 0.2s; }}
-    .smoke:nth-child(3) {{ animation-delay: 0.4s; }}
-    </style>
-
     <div class="full-screen-bike">
         <img src="{bike_uri}" class="bike-img">
         <div class="smoke-trail">
