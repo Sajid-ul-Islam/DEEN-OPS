@@ -30,7 +30,7 @@ def render_live_tab():
     st.markdown("### 🎛️ Shift View Filter")
     order_view_mode = st.radio(
         "Filter orders in current slot:",
-        ["All Orders", "Shipped / Completed Only"],
+        ["All Orders", "Shipped Only"],
         horizontal=True,
         key="live_order_filter"
     )
@@ -80,15 +80,17 @@ def render_live_tab():
                 st.session_state.wc_nav_mode = "Today"
                 st.rerun()
 
-        # Apply Shipped/Completed Filter
-        if order_view_mode == "Shipped / Completed Only":
-            if "Status" in df_live.columns:
-                df_live = df_live[df_live["Status"].astype(str).str.lower().isin(["shipped", "completed"])]
+        # Apply Shipped Filter
+        if order_view_mode == "Shipped Only":
+            status_col = "Order Status" if "Order Status" in df_live.columns else "Status" if "Status" in df_live.columns else None
+            
+            if status_col:
+                df_live = df_live[df_live[status_col].astype(str).str.lower().isin(["shipped"])]
                 if df_live.empty:
-                    st.info(f"📦 No shipped or completed orders found in the {nav_mode} slot.")
+                    st.info(f"📦 No shipped orders found in the {nav_mode} slot.")
                     return
             else:
-                st.warning("⚠️ 'Status' column not found in data. Cannot apply filter.")
+                st.warning("⚠️ 'Order Status' column not found in data. Cannot apply filter.")
 
         try:
             auto_cols = find_columns(df_live)

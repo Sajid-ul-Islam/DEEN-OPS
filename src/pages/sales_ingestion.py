@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+from io import BytesIO
 
 from src.components.widgets import render_action_bar, render_reset_confirm, section_card
 from src.processing.column_detection import find_columns
@@ -104,6 +105,41 @@ def render_manual_tab():
         if st.session_state.get("manual_df") is not None:
             df = st.session_state.manual_df
             source_name = st.session_state.get("manual_source_name", "WooCommerce_Custom_Pull")
+
+    if df is not None:
+        with st.expander("🔢 Filter Raw Ingestion Data (Order ID / Status)", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                min_order_id = st.number_input("Start Order ID", value=0, step=1, help="Leave as 0 to ignore")
+            with col2:
+                max_order_id = st.number_input("End Order ID", value=0, step=1, help="Leave as 0 to ignore")
+
+            only_shipped = st.checkbox("📦 Show Shipped Orders Only", value=False)
+
+            if min_order_id > 0 and max_order_id > 0:
+                order_col = "Order ID" if "Order ID" in df.columns else "Order Number" if "Order Number" in df.columns else None
+                if order_col:
+                    df[order_col] = pd.to_numeric(df[order_col], errors="coerce")
+                    df = df[(df[order_col] >= min_order_id) & (df[order_col] <= max_order_id)]
+            
+            if only_shipped:
+                status_col = "Order Status" if "Order Status" in df.columns else "Status" if "Status" in df.columns else None
+                if status_col:
+                    df = df[df[status_col].astype(str).str.lower().isin(["shipped"])]
+                    
+            st.info(f"Rows matching criteria: {len(df)}")
+            
+            buf = BytesIO()
+            with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
+                df.to_excel(writer, index=False, sheet_name="Filtered Orders")
+            
+            st.download_button(
+                label="💾 Export Filtered Orders (Excel)",
+                data=buf.getvalue(),
+                file_name="Filtered_Orders.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
 
     if df is None:
         # v11.3 Call unified dashboard with None to show ingestion expander

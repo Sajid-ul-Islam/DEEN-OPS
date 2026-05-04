@@ -1,26 +1,5 @@
 [
     {
-        "timestamp": "2026-04-06 15:33:02",
-        "context": "App Bootstrap",
-        "error": "'Category'",
-        "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\core\\indexes\\base.py\", line 3812, in get_loc\n    return self._engine.get_loc(casted_key)\n           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^\n  File \"pandas/_libs/index.pyx\", line 167, in pandas._libs.index.IndexEngine.get_loc\n  File \"pandas/_libs/index.pyx\", line 196, in pandas._libs.index.IndexEngine.get_loc\n  File \"pandas/_libs/hashtable_class_helper.pxi\", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item\n  File \"pandas/_libs/hashtable_class_helper.pxi\", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item\nKeyError: 'Category'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 147, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 129, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\sales_dashboard.py\", line 1330, in render_stock_analytics_tab\n    k3.metric(\"Mapped Categories\", df[\"Category\"][df[\"Category\"] != \"Uncategorized\"].nunique())\n                                   ~~^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\core\\frame.py\", line 4113, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\core\\indexes\\base.py\", line 3819, in get_loc\n    raise KeyError(key) from err\nKeyError: 'Category'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-06 16:19:46",
-        "context": "App Bootstrap",
-        "error": "expected an indented block after 'with' statement on line 753 (sales_dashboard.py, line 755)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 147, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 38, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab, render_stock_analytics_tab\n  File \"H:\\Repo\\DEEN-OPS\\app_modules\\sales_dashboard.py\", line 755\n    with col5:\nIndentationError: expected an indented block after 'with' statement on line 753\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-06 20:22:21",
-        "context": "Pathao Processor",
-        "error": "unsupported operand type(s) for +=: 'int' and 'str'",
-        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-BI\\app_modules\\pathao_tab.py\", line 104, in render_pathao_tab\n    result_df = process_orders_dataframe(preview_df)\n  File \"E:\\DEEN-BI\\app_modules\\processor.py\", line 253, in process_orders_dataframe\n    record = process_single_order_group(phone, group, data_cols)\n  File \"E:\\DEEN-BI\\app_modules\\processor.py\", line 128, in process_single_order_group\n    total_to_collect += order_total\nTypeError: unsupported operand type(s) for +=: 'int' and 'str'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-08 09:56:03",
         "context": "App Bootstrap",
         "error": "No module named 'streamlit_autorefresh'",
@@ -697,6 +676,27 @@
         "context": "App Bootstrap",
         "error": "unmatched ']' (woocommerce_orders.py, line 55)",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\DEEN-OPS\\app.py\", line 241, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\DEEN-OPS\\app.py\", line 213, in run_app\n    from src.pages.woocommerce_orders import render_woocommerce_orders_tab\n  File \"H:\\DEEN-OPS\\src\\pages\\woocommerce_orders.py\", line 55\n    ].astype(str).str.lower() == \"processing\"])\n    ^\nSyntaxError: unmatched ']'\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-04 20:40:41",
+        "context": "App Bootstrap",
+        "error": "No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\saaji\\.streamlit\\secrets.toml, E:\\DEEN-OPS\\.streamlit\\secrets.toml",
+        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\app.py\", line 241, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"E:\\DEEN-OPS\\app.py\", line 33, in run_app\n    is_auth_configured = \"auth\" in st.secrets\n                         ^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\secrets.py\", line 520, in __contains__\n    return key in self._parse()\n                  ~~~~~~~~~~~^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\secrets.py\", line 369, in _parse\n    raise StreamlitSecretNotFoundError(error_msg)\nstreamlit.errors.StreamlitSecretNotFoundError: No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\saaji\\.streamlit\\secrets.toml, E:\\DEEN-OPS\\.streamlit\\secrets.toml\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-04 20:46:01",
+        "context": "App Bootstrap",
+        "error": "No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\saaji\\.streamlit\\secrets.toml, E:\\DEEN-OPS\\.streamlit\\secrets.toml",
+        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\app.py\", line 241, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"E:\\DEEN-OPS\\app.py\", line 33, in run_app\n    is_auth_configured = \"auth\" in st.secrets\n                         ^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\secrets.py\", line 520, in __contains__\n    return key in self._parse()\n                  ~~~~~~~~~~~^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\secrets.py\", line 369, in _parse\n    raise StreamlitSecretNotFoundError(error_msg)\nstreamlit.errors.StreamlitSecretNotFoundError: No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\saaji\\.streamlit\\secrets.toml, E:\\DEEN-OPS\\.streamlit\\secrets.toml\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-04 20:51:03",
+        "context": "App Bootstrap",
+        "error": "No module named 'polars'",
+        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\app.py\", line 241, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"E:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"E:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 6, in <module>\n    from src.processing.data_processing import prepare_granular_data, aggregate_data\n  File \"E:\\DEEN-OPS\\src\\processing\\data_processing.py\", line 2, in <module>\n    import polars as pl\nModuleNotFoundError: No module named 'polars'\n",
         "details": {}
     }
 ]

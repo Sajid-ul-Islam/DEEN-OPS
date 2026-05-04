@@ -40,8 +40,19 @@ def generate_report_data():
     df_prev_raw = partitions.get("wc_prev_df")
     df_full_raw = wc_res.get("df_to_return")
 
+    # Enforce strict "Shipped Only" filter for the operational briefing
+    if df_live_raw is not None and not df_live_raw.empty:
+        status_col = "Order Status" if "Order Status" in df_live_raw.columns else "Status" if "Status" in df_live_raw.columns else None
+        if status_col:
+            df_live_raw = df_live_raw[df_live_raw[status_col].astype(str).str.lower().isin(["shipped"])]
+            
+    if df_prev_raw is not None and not df_prev_raw.empty:
+        status_col_prev = "Order Status" if "Order Status" in df_prev_raw.columns else "Status" if "Status" in df_prev_raw.columns else None
+        if status_col_prev:
+            df_prev_raw = df_prev_raw[df_prev_raw[status_col_prev].astype(str).str.lower().isin(["shipped"])]
+
     if df_live_raw is None or df_live_raw.empty:
-        return "⚠️ *DEEN-OPS Daily Briefing*\n\nNo active orders found for today's operational shift.", None, None, None
+        return "⚠️ *DEEN-OPS Daily Briefing*\n\nNo shipped orders found for today's operational shift.", None, None, None
 
     wc_raw_mapping = {
         "name": "Item Name", "cost": "Item Cost", "qty": "Quantity", 

@@ -214,6 +214,18 @@ def render_dashboard_output(
              # Operational mode controls moved to Banner for HUD-style UI
              pass
  
+             # Apply Live Dashboard order filter to metrics if applicable
+             order_view_mode = st.session_state.get("live_order_filter", "All Orders")
+             if order_view_mode == "Shipped Only":
+                 status_col_m = "Order Status" if "Order Status" in m_df.columns else "Status" if "Status" in m_df.columns else None
+                 if status_col_m:
+                     m_df = m_df[m_df[status_col_m].astype(str).str.lower().isin(["shipped"])]
+                     
+                 if c_df is not None:
+                     status_col_c = "Order Status" if "Order Status" in c_df.columns else "Status" if "Status" in c_df.columns else None
+                     if status_col_c:
+                         c_df = c_df[c_df[status_col_c].astype(str).str.lower().isin(["shipped"])]
+
              drill, summ, top, basket, active_df = render_operational_metrics(
                 m_df, c_df, nav_mode, dummy_mapping, wc_raw_mapping
             )

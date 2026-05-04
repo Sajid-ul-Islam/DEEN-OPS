@@ -247,7 +247,7 @@ def get_dispatch_metrics(active_df, total_orders=0):
                 metrics["outlet_dispatch"] = active_df[outlet_mask][order_col].nunique()
 
         if status_col and order_col:
-            shipped_df = active_df[active_df[status_col].astype(str).str.lower().isin(["shipped", "completed"])]
+            shipped_df = active_df[active_df[status_col].astype(str).str.lower().isin(["shipped"])]
             if not shipped_df.empty:
                 latest_shipped = shipped_df.sort_values(date_col, ascending=False).iloc[0] if date_col else shipped_df.iloc[0]
                 metrics["last_shipped_order"] = str(latest_shipped[order_col])
@@ -265,14 +265,14 @@ def generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, d
     if prev_rev is not None:
         rev_trend = " 📈" if today_rev >= prev_rev else " 📉"
         
-    rev_line = f"💰 *Today's Revenue:* ৳{today_rev:,.0f}{rev_trend}" if prev_rev is not None else f"💰 *Revenue:* ৳{today_rev:,.0f}"
+    rev_line = f"💰 *Shipped Revenue:* ৳{today_rev:,.0f}{rev_trend}" if prev_rev is not None else f"💰 *Shipped Revenue:* ৳{today_rev:,.0f}"
 
     report_lines = [
         f"📊 *DEEN-OPS Executive Briefing*",
         f"📅 {datetime.now(timezone(timedelta(hours=6))).strftime('%A, %d %B %Y')}",
         "",
         rev_line,
-        f"📦 *Gross Items Sold:* {today_qty:,.0f}",
+        f"📦 *Shipped Items:* {today_qty:,.0f}",
         f"🛍️ *Avg Basket Value:* ৳{today_aov:,.0f}",
         "",
         f"🚚 *Last Shipped Order:* {dm.get('last_shipped_order', 'N/A')}",
@@ -289,7 +289,7 @@ def generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, d
     ]
 
     if prev_rev is not None:
-        report_lines.extend(["", f"📉 *Yesterday's Revenue:* ৳{prev_rev:,.0f} ({prev_orders} orders)"])
+        report_lines.extend(["", f"📉 *Yesterday's Shipped Revenue:* ৳{prev_rev:,.0f} ({prev_orders} orders)"])
         
     if forecast_str:
         report_lines.append(forecast_str)
