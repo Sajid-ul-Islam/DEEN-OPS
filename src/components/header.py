@@ -94,8 +94,7 @@ def render_banner_mode_controls():
     with st.container():
         st.markdown('<div class="banner-controls-shelf">', unsafe_allow_html=True)
         
-        # Use a narrower column for the radio buttons
-        c1, _ = st.columns([1.5, 3])
+        c1, c2, c3, _ = st.columns([1.5, 1.5, 2, 0.5])
         with c1:
             selected_mode = st.radio(
                 "Op Mode",
@@ -103,6 +102,26 @@ def render_banner_mode_controls():
                 index=current_idx,
                 horizontal=True,
                 key="banner_op_mode_radio",
+                label_visibility="collapsed"
+            )
+        
+        with c2:
+            if nav_mode == "Today":
+                st.radio(
+                    "Shift View",
+                    ["All Orders", "Shipped Only"],
+                    horizontal=True,
+                    key="live_order_filter",
+                    label_visibility="collapsed"
+                )
+                
+        with c3:
+            st.radio(
+                "Chart View",
+                options=["Category", "Sub-Category"],
+                index=1,
+                horizontal=True,
+                key="perf_outlook_view",
                 label_visibility="collapsed"
             )
         

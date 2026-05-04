@@ -270,14 +270,7 @@ def render_dashboard_output(
     chart_summ = summ.copy() if summ is not None else pd.DataFrame()
 
     if not chart_summ.empty and "Sub-Category" in chart_summ.columns:
-        display_col = st.radio(
-            "Chart View",
-            options=["Category", "Sub-Category"],
-            index=1,
-            horizontal=True,
-            label_visibility="collapsed",
-            key="perf_outlook_view"
-        )
+        display_col = st.session_state.get("perf_outlook_view", "Sub-Category")
         if display_col == "Category":
             chart_summ = chart_summ.groupby("Category", as_index=False).agg({"Total Qty": "sum", "Total Amount": "sum"})
 

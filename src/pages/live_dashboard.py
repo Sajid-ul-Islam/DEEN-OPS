@@ -27,13 +27,8 @@ def render_live_tab():
     # Force Operational Cycle in live dashboard
     st.session_state["wc_sync_mode"] = "Operational Cycle"
 
-    st.markdown("### 🎛️ Shift View Filter")
-    order_view_mode = st.radio(
-        "Filter orders in current slot:",
-        ["All Orders", "Shipped Only"],
-        horizontal=True,
-        key="live_order_filter"
-    )
+    nav_mode = st.session_state.get("wc_nav_mode", "Today")
+    order_view_mode = st.session_state.get("live_order_filter", "All Orders") if nav_mode == "Today" else "All Orders"
 
     # Standardize autorefresh for Live Dashboard
 

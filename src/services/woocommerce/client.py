@@ -214,26 +214,19 @@ def load_from_woocommerce():
             shipped_limit = cutoff_today + timedelta(minutes=30)
             proc_limit = cutoff_today + timedelta(minutes=15)
 
-            # SNAPSHOT 1: TODAY (Active Shift - Now includes intake)
-            # v11.6: Confirmed orders are included regardless of date
+            # SNAPSHOT 1: TODAY (Active Shift Pool)
             df_live = df_full[
-                ( (df_full["dt_parsed"] >= prev_cutoff) & (df_full["dt_parsed"] <= shipped_limit) & (is_shipped | is_waiting) ) |
-                ( is_processing & (df_full["dt_parsed"] <= proc_limit) ) |
-                is_confirmed
+                ( (df_full["dt_parsed"] >= prev_cutoff) & (df_full["dt_parsed"] <= shipped_limit) & (is_shipped | is_confirmed | is_processing) ) |
+                is_confirmed | is_processing
             ].copy()
 
-            # SNAPSHOT 2: YESTERDAY (Historical Performance)
+            # SNAPSHOT 2: PREV (Historical Performance - Only Shipped)
             df_prev = df_full[
-                (df_full["dt_parsed"] >= day_before_prev) &
-                (df_full["dt_parsed"] < prev_cutoff) &
-                is_shipped
+                (df_full["dt_parsed"] >= day_before_prev) & (df_full["dt_parsed"] < prev_cutoff) & is_shipped
             ].copy()
 
-            # SNAPSHOT 3: BACKLOG (Hold + Waiting + Late Ops)
-            df_backlog = df_full[
-                is_hold | is_waiting |
-                (is_processing & (df_full["dt_parsed"] > proc_limit))
-            ].copy()
+            # SNAPSHOT 3: BACKLOG (Queue - Only Hold + Waiting)
+            df_backlog = df_full[is_hold | is_waiting].copy()
 
             # v9.8 Selective Slot Return
             current_hour = now_bd.hour

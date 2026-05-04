@@ -1079,6 +1079,28 @@ def render_dashboard_output(
             # v10.1 Resiliency: Ensure both active and comparison dataframes are standardized
             if "Category" not in m_df.columns or "Product Name" not in m_df.columns or "Clean_Product" not in m_df.columns:
                 m_df, _ = prepare_granular_data(m_df, wc_raw_mapping)
+
+            # v14.5 Active Sub-Filtering Logic
+            if nav_mode == "Today" and not m_df.empty:
+                # 1. Determine Time-Based Default (UTC+6)
+                now_bd = datetime.now(timezone(timedelta(hours=6)))
+                now_t = now_bd.time()
+                t_10am = datetime.strptime("10:00", "%H:%M").time()
+                t_530pm = datetime.strptime("17:30", "%H:%M").time()
+                
+                if now_t >= t_530pm: default_val = "Shipped/Confirmed"
+                elif now_t >= t_10am: default_val = "All (Proc+Ship+Conf)"
+                else: default_val = "Processing Only"
+                
+                # 2. Get Selection from State or Default
+                active_filter = st.session_state.get("wc_active_filter", default_val)
+                
+                # 3. Apply Filter to m_df
+                if active_filter == "Processing Only":
+                    m_df = m_df[m_df["Order Status"] == "processing"]
+                elif active_filter == "Shipped/Confirmed":
+                    m_df = m_df[m_df["Order Status"].isin(["completed", "shipped", "confirmed"])]
+
             if c_df is not None and ("Category" not in c_df.columns or "Product Name" not in c_df.columns or "Clean_Product" not in c_df.columns):
                 c_df, _ = prepare_granular_data(c_df, wc_raw_mapping)
             
@@ -1164,6 +1186,23 @@ def render_dashboard_output(
                 with c3:
                     if st.button("📥 Queue", type="primary" if nav_mode == "Backlog" else "secondary", use_container_width=True):
                         st.session_state.wc_nav_mode = "Backlog"; st.rerun()
+
+                # v14.5 Active Sub-Filter Radio Buttons
+                if nav_mode == "Today":
+                    st.divider()
+                    now_bd = datetime.now(timezone(timedelta(hours=6)))
+                    now_t = now_bd.time()
+                    t_10am = datetime.strptime("10:00", "%H:%M").time()
+                    t_530pm = datetime.strptime("17:30", "%H:%M").time()
+                    if now_t >= t_530pm: d_idx = 2
+                    elif now_t >= t_10am: d_idx = 1
+                    else: d_idx = 0
+
+                    opts = ["Processing Only", "All (Proc+Ship+Conf)", "Shipped/Confirmed"]
+                    sel_filter = st.radio("Active View Filter", opts, index=opts.index(st.session_state.get("wc_active_filter", opts[d_idx])), horizontal=True)
+                    if sel_filter != st.session_state.get("wc_active_filter"):
+                        st.session_state.wc_active_filter = sel_filter
+                        st.rerun()
 
             with st.container():
                 col1, col2, col3, col4 = st.columns(4)

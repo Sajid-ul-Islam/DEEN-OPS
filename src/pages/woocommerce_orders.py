@@ -14,6 +14,40 @@ def render_woocommerce_orders_tab():
         st.warning("⚠️ No active WooCommerce order data found. Please trigger a sync from the **Live Dashboard** first.")
         return
 
+    df_copy = df.copy()
+
+    # Unique Order-Wise View Aggregation
+    if "Order ID" in df_copy.columns:
+        agg_funcs = {}
+        for col in df_copy.columns:
+            if col == "Item Name":
+                pass 
+            elif col == "Quantity":
+                agg_funcs[col] = "sum"
+            elif col in ["Total Amount", "Order Total Amount"]:
+                agg_funcs[col] = "first" 
+            elif col != "Order ID":
+                agg_funcs[col] = "first"
+                
+        if "Item Name" in df_copy.columns and "Quantity" in df_copy.columns:
+            df_copy["_Formatted_Item"] = df_copy.apply(lambda row: f"{row['Item Name']} (x{row['Quantity']})", axis=1)
+            agg_funcs["_Formatted_Item"] = lambda x: " | ".join(x.dropna().astype(str))
+        elif "Item Name" in df_copy.columns:
+            agg_funcs["Item Name"] = lambda x: " | ".join(x.dropna().astype(str))
+
+        display_df = df_copy.groupby("Order ID", as_index=False).agg(agg_funcs)
+        
+        if "_Formatted_Item" in display_df.columns:
+            display_df.rename(columns={"_Formatted_Item": "Items"}, inplace=True)
+            if "Item Name" in display_df.columns:
+                display_df.drop(columns=["Item Name"], inplace=True)
+    else:
+        display_df = df_copy
+
+    status_col = "Order Status" if "Order Status" in display_df.columns else "Status" if "Status" in display_df.columns else None
+    amount_col = "Order Total Amount" if "Order Total Amount" in display_df.columns else "Total Amount" if "Total Amount" in display_df.columns else None
+    date_col = "Order Date" if "Order Date" in display_df.columns else "Date" if "Date" in display_df.columns else None
+
     # Advanced Multi-Column Filter Sidebar
     with st.sidebar:
         st.markdown("### 🎛️ Order Filters")
@@ -23,62 +57,65 @@ def render_woocommerce_orders_tab():
         
         # Status Filter
         status_filter = []
-        if "Status" in df.columns:
-            statuses = df["Status"].dropna().unique().tolist()
+        if status_col:
+            statuses = display_df[status_col].dropna().unique().tolist()
             status_filter = st.multiselect("Status:", statuses, default=statuses)
 
         # Total Amount Range Filter
         amount_filter = None
-        if "Total Amount" in df.columns:
-            min_amt = float(df["Total Amount"].min())
-            max_amt = float(df["Total Amount"].max())
+        if amount_col:
+            display_df[amount_col] = pd.to_numeric(display_df[amount_col], errors='coerce').fillna(0)
+            min_amt = float(display_df[amount_col].min())
+            max_amt = float(display_df[amount_col].max())
             if min_amt < max_amt:
                 amount_filter = st.slider("Total Amount Range:", min_value=min_amt, max_value=max_amt, value=(min_amt, max_amt))
-
-    display_df = df.copy()
 
     # Apply Filters
     if search_query:
         mask = display_df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
         display_df = display_df[mask]
         
-    if status_filter and "Status" in display_df.columns:
-        display_df = display_df[display_df["Status"].isin(status_filter)]
+    if status_filter and status_col:
+        display_df = display_df[display_df[status_col].isin(status_filter)]
         
-    if amount_filter and "Total Amount" in display_df.columns:
-        display_df = display_df[(display_df["Total Amount"] >= amount_filter[0]) & (display_df["Total Amount"] <= amount_filter[1])]
+    if amount_filter and amount_col:
+        display_df = display_df[(display_df[amount_col] >= amount_filter[0]) & (display_df[amount_col] <= amount_filter[1])]
 
     # Top-level operational metrics
     total_orders = len(display_df)
-    total_revenue = display_df["Total Amount"].sum() if "Total Amount" in display_df.columns else 0
+    total_revenue = display_df[amount_col].sum() if amount_col else 0
     
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Filtered Orders", total_orders)
     c2.metric("Filtered Revenue", f"৳{total_revenue:,.0f}")
     
-    if "Status" in display_df.columns:
-        processing = len(display_df[display_df["Status"].astype(str).str.lower() == "processing"])
+    if status_col:
+        processing = len(display_df[display_df[status_col].astype(str).str.lower() == "processing"])
         c3.metric("Processing Orders", processing)
-        completed = len(display_df[display_df["Status"].astype(str).str.lower() == "completed"])
+        completed = len(display_df[display_df[status_col].astype(str).str.lower() == "completed"])
         c4.metric("Completed Orders", completed)
 
     st.markdown("### 📋 Raw Order Data")
     
     # Configure specific column formats
     column_configuration = {}
-    if "Date" in display_df.columns:
-        display_df["Date"] = pd.to_datetime(display_df["Date"], errors='coerce')
-        column_configuration["Date"] = st.column_config.DatetimeColumn(
+    if date_col:
+        display_df[date_col] = pd.to_datetime(display_df[date_col], errors='coerce')
+        column_configuration[date_col] = st.column_config.DatetimeColumn(
             "Order Date",
             format="D MMM YYYY, h:mm a",
         )
         
-    if "Total Amount" in display_df.columns:
-        column_configuration["Total Amount"] = st.column_config.NumberColumn(
+    if amount_col:
+        column_configuration[amount_col] = st.column_config.NumberColumn(
             "Total Amount",
             help="Total order amount in BDT",
             format="৳ %.2f",
         )
+
+    # Sort orders by Date descending
+    if date_col in display_df.columns:
+        display_df = display_df.sort_values(by=date_col, ascending=False)
 
     st.dataframe(
         display_df, 
