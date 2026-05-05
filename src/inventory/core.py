@@ -226,22 +226,31 @@ def load_inventory_from_uploads(uploaded_files: Dict[str, object]):
 
                 joined = normalize_key(row.get("Title - Size", ""))
                 key = joined.casefold() if joined else ""
-                if not key:
-                    continue
-                if key not in inventory:
-                    inventory[key] = {loc: 0 for loc in all_locations}
-                inventory[key][loc_name] += qty
-                # Also index by SKU; record which Title-Size this SKU has (require item name == Title-Size when matching by SKU)
+                if key:
+                    if key not in inventory:
+                        inventory[key] = {loc: 0 for loc in all_locations}
+                    inventory[key][loc_name] += qty
+
+                # Also index by SKU and SKU + Size
                 if sku_col and sku_col in df.columns:
                     sku_val = row.get(sku_col, "")
                     sku_key = normalize_sku(sku_val)
                     if sku_key:
+                        # Fallback pure SKU key (aggregates all sizes for this SKU)
                         if sku_key not in inventory:
                             inventory[sku_key] = {loc: 0 for loc in all_locations}
                         inventory[sku_key][loc_name] += qty
                         sku_to_title_size[sku_key] = (
                             key  # SKU -> Title-Size key for this row
                         )
+                        
+                        # Master SKU + Size Key
+                        size_val = row.get(size_col, "") if size_col and size_col in df.columns else "NO_SIZE"
+                        norm_sz = normalize_size(size_val)
+                        sku_size_key = f"SKU:{sku_key}_SZ:{norm_sz}"
+                        if sku_size_key not in inventory:
+                            inventory[sku_size_key] = {loc: 0 for loc in all_locations}
+                        inventory[sku_size_key][loc_name] += qty
 
         except Exception as e:
             warnings.append(f"❌ Error in {loc_name}: {e}")
@@ -289,20 +298,26 @@ def add_stock_columns_from_inventory(
         status = "No Match"
 
         # 2. MATCHING LOGIC
+        sku_size_key = f"SKU:{pl_sku}_SZ:{size}" if pl_sku else ""
         is_embroidered_panjabi = pl_key and "embroidered cotton panjabi" in pl_key
 
         if is_embroidered_panjabi:
-            if pl_sku and pl_sku in sku_to_inv_key:
-                inv_key = sku_to_inv_key[pl_sku]
-                if pl_key and pl_key in inventory and sku_to_inv_key[pl_sku] == pl_key:
-                    status = "Perfect Match (Name + SKU)"
-                else:
-                    status = f"SKU Match (Strict mode for Panjabi -> {inv_key})"
+            if pl_sku and sku_size_key in inventory:
+                inv_key = sku_size_key
+                status = "Perfect Match (SKU + Size - Strict mode)"
+            elif pl_sku and pl_sku in sku_to_inv_key:
+                inv_key = pl_sku
+                status = "SKU Match (Strict mode - Size mismatch)"
             else:
                 status = "No Match (Strict SKU required for Embroidered Cotton Panjabi)"
         else:
-            # Priority 1: Exact Name Match
-            if pl_key and pl_key in inventory:
+            # Priority 1: Master SKU + Size Match
+            if pl_sku and sku_size_key in inventory:
+                inv_key = sku_size_key
+                status = "Master SKU + Size Match"
+
+            # Priority 2: Exact Name Match
+            elif pl_key and pl_key in inventory:
                 inv_key = pl_key
                 status = "Exact Name Match"
                 if pl_sku:
@@ -315,15 +330,15 @@ def add_stock_columns_from_inventory(
                     else:
                         status = "Name Match (SKU not in Inv)"
 
-            # Priority 2: Strict Normalized SKU Match
+            # Priority 3: Strict Normalized SKU Match (Ignoring Size)
             elif pl_sku and pl_sku in sku_to_inv_key:
-                inv_key = sku_to_inv_key[pl_sku]
-                status = f"SKU Match (Name mismatch -> {inv_key})"
+                inv_key = pl_sku
+                status = f"SKU Match (Size/Name mismatch -> {sku_to_inv_key[pl_sku]})"
 
-            # Priority 3: Fuzzy Name Match (Correction for typos)
+            # Priority 4: Fuzzy Name Match (Correction for typos)
             elif pl_key:
-                # We only fuzzy match against non-SKU keys (Title-Size keys)
-                name_keys = [k for k in inventory.keys() if k not in sku_to_inv_key]
+                # We only fuzzy match against pure Title-Size keys
+                name_keys = [k for k in inventory.keys() if not k.startswith("SKU:") and k not in sku_to_inv_key]
                 if name_keys:
                     match_result = process.extractOne(pl_key, name_keys)
                     if match_result:
