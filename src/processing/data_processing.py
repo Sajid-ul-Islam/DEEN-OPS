@@ -94,7 +94,7 @@ def prepare_granular_data(df, selected_cols):
         df["Sub-Category"] = df["Product Name"].map(name_subcat_map)
         df["Size"] = df["Product Name"].map(name_size_map)
         df["Clean_Product"] = df["Product Name"].map(name_clean_map)
-        df["Filter_Identity"] = df["Clean_Product"] + " [" + df["SKU"].astype(str) + "]"
+        df["Filter_Identity"] = df["Clean_Product"].astype(str) + " [" + df["SKU"].astype(str) + "]"
 
         df["Total Amount"] = df["Item Cost"] * df["Quantity"]
 
@@ -219,8 +219,6 @@ def get_dispatch_metrics(active_df, total_orders=0):
     metrics = {
         "outlet_dispatch": 0,
         "exchange_dispatch": 0,
-        "free_tshirts": 0,
-        "free_bottles": 0,
         "last_shipped_order": "N/A",
         "last_pathao_print": "N/A",
         "ecom_dispatch": 0
@@ -233,11 +231,6 @@ def get_dispatch_metrics(active_df, total_orders=0):
         pmt_col = "Payment Method Title" if "Payment Method Title" in active_df.columns else None
 
         if order_col:
-            if "Total Amount" in active_df.columns:
-                order_totals = active_df.groupby(order_col)["Total Amount"].sum()
-                metrics["free_tshirts"] = (order_totals > 3499).sum()
-                metrics["free_bottles"] = ((order_totals > 2499) & (order_totals < 3500)).sum()
-                
             if status_col:
                 metrics["exchange_dispatch"] = active_df[active_df[status_col].astype(str).str.lower().str.contains("exchange", na=False)][order_col].nunique()
                 
@@ -282,10 +275,6 @@ def generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, d
         f"🔄 *Exchange:* {dm.get('exchange_dispatch', 0):,.0f}",
         f"🚀 *Ecom Dispatch:* {dm.get('ecom_dispatch', 0):,.0f}",
         f"🏪 *Outlet Dispatch:* {dm.get('outlet_dispatch', 0):,.0f}",
-        "",
-
-        f"👕 *Free T-Shirts:* {dm.get('free_tshirts', 0):,.0f}",
-        f"🍶 *Free Water Bottles:* {dm.get('free_bottles', 0):,.0f}",
     ]
 
     if prev_rev is not None:

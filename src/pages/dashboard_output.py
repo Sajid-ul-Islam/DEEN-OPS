@@ -250,8 +250,34 @@ def render_dashboard_output(
                          else:
                              c_df = c_df[c_df[status_col_c].astype(str).str.lower().isin(SHIPPED_STATUSES)]
 
+             # v16.0: Predictive & Lead Time Intelligence
+             forecast_val = 0
+             avg_proc_time = 0
+             
+             # 1. Next Day Forecast
+             full_df = st.session_state.get("wc_full_df")
+             if full_df is not None and not full_df.empty:
+                 temp_full = full_df.copy()
+                 temp_full['Day'] = pd.to_datetime(temp_full[wc_raw_mapping["date"]]).dt.date
+                 daily_rev = temp_full.groupby('Day')['Order Total Amount'].sum()
+                 if len(daily_rev) >= 3:
+                     fc_res, _ = PredictiveIntelligence.forecast(daily_rev, steps=1)
+                     if fc_res:
+                         forecast_val = fc_res[0]['forecast'][0]
+
+             # 2. Processing Lead Time (Created -> Modified to Shipped/Confirmed)
+             ship_conf_df = m_df[m_df[status_col_m].astype(str).str.lower().isin(SHIPPED_STATUSES)].copy() if status_col_m else pd.DataFrame()
+             if not ship_conf_df.empty and "mod_dt_parsed" in ship_conf_df.columns:
+                 ship_conf_df["dt_created"] = pd.to_datetime(ship_conf_df[wc_raw_mapping["date"]], errors="coerce").dt.tz_localize(None)
+                 # Calculate hours
+                 ship_conf_df["lead_h"] = (ship_conf_df["mod_dt_parsed"] - ship_conf_df["dt_created"]).dt.total_seconds() / 3600
+                 # Filter out negative or extreme outliers (e.g. status changes before creation which is an API quirk) and ensure non-NaN
+                 valid_leads = ship_conf_df[(ship_conf_df["lead_h"] >= 0) & (ship_conf_df["lead_h"] < 168)]["lead_h"]
+                 avg_proc_time = valid_leads.mean() if not valid_leads.empty else 0.0
+                 if pd.isna(avg_proc_time): avg_proc_time = 0.0
+
              drill, summ, top, basket, active_df = render_operational_metrics(
-                m_df, c_df, nav_mode, dummy_mapping, wc_raw_mapping
+                m_df, c_df, nav_mode, dummy_mapping, wc_raw_mapping, forecast_val, avg_proc_time
             )
 
     else:

@@ -84,6 +84,10 @@ def generate_report_data():
     df_live, _ = prepare_granular_data(df_live_raw, wc_raw_mapping)
     drill, summ, top, basket = aggregate_data(df_live, wc_raw_mapping)
 
+    # Filter out ended promotional offers from top products list
+    if top is not None and not top.empty:
+        top = top[~top["Product Name"].str.contains("Free T-Shirt|Free Water Bottle", case=False, na=False)]
+
     today_rev = summ['Total Amount'].sum() if summ is not None else 0
     today_qty = summ['Total Qty'].sum() if summ is not None else 0
     today_orders = basket.get('total_orders', 0) if basket else 0

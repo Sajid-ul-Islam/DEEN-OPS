@@ -297,6 +297,9 @@ def load_live_source():
         # 3. Update Sync Metadata
         st.session_state.live_sync_time = datetime.now()
 
+        # 4. Update Full Context for Forecasting
+        st.session_state["wc_full_df"] = results.get("df_to_return")
+
         # 4. Silent Autosave for Offline Mode Fallback
         try:
             from src.utils.snapshots import save_sales_snapshot

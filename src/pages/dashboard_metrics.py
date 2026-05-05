@@ -14,6 +14,8 @@ def render_operational_metrics(
     nav_mode: str,
     dummy_mapping: dict,
     wc_raw_mapping: dict,
+    forecast_val: float = 0,
+    avg_proc_time: float = 0,
 ):
     """Render the operational KPI cards with delta comparisons.
 
@@ -126,13 +128,23 @@ def render_operational_metrics(
     l2 = "Backlog Rev" if nav_mode == "Backlog" else "Revenue"
     l3 = "Backlog Orders" if nav_mode == "Backlog" else "Orders"
 
+    # v16.0 Efficiency Tag
+    lead_time_html = ""
+    if nav_mode != "Backlog" and avg_proc_time > 0:
+        color = "#10b981" if avg_proc_time < 6 else "#f59e0b" if avg_proc_time < 24 else "#ef4444" # avg_proc_time is already a float or 0
+        lead_time_html = f'<div class="metric-delta" style="background: rgba(16, 185, 129, 0.1); color: {color};">Avg Lead: {avg_proc_time:.1f}h</div>'
+
+    v_fc = f"TK {forecast_val:,.0f}"
+
     # Compact HTML construction to avoid Streamlit's markdown parser interference
     card_html = (
-        '<div class="metric-container">'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l1}</div><div class="metric-value">{v_qty}</div>{html_dq}</div><div class="metric-icon">📦</div></div>'
+        '<div class="metric-container" style="grid-template-columns: repeat(5, 1fr);">'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l1}</div><div class="metric-value">{v_qty}</div>{lead_time_html if lead_time_html else html_dq}</div><div class="metric-icon">📦</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l2}</div><div class="metric-value">{v_rev}</div>{html_dr}</div><div class="metric-icon">৳</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l3}</div><div class="metric-value">{v_ord}</div>{html_do}</div><div class="metric-icon">🛒</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{extra_metric_label}</div><div class="metric-value">{extra_metric_value}</div>{extra_metric_delta}</div><div class="metric-icon">{extra_metric_icon}</div></div>'
+        f'<div class="metric-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%); border: 1px solid rgba(99, 102, 241, 0.2);">'
+        f'<div class="metric-content"><div class="metric-label">NEXT DAY FORECAST</div><div class="metric-value" style="color: #818cf8;">{v_fc}</div><div class="metric-delta" style="color: #a7f3d0;">ML PREDICTION</div></div><div class="metric-icon">🔮</div></div>'
         '</div>'
     )
 

@@ -139,7 +139,7 @@ def render_stock_analytics_tab():
         df_raw["Category"] = df_raw["Product"].apply(get_category_for_sales)
         df_raw["Sub-Category"] = df_raw.apply(lambda r: get_sub_category_for_sales(r["Product"], r["Category"]), axis=1)
         df_raw["Clean_Product"] = df_raw["Product"].apply(get_base_product_name)
-        df_raw["Filter_Identity"] = df_raw["Clean_Product"] + " [" + df_raw["SKU"].astype(str) + "]"
+        df_raw["Filter_Identity"] = df_raw["Clean_Product"].astype(str) + " [" + df_raw["SKU"].astype(str) + "]"
 
     with st.expander("🛠️ Filter Intelligence", expanded=True):
         f1, f2, f3 = st.columns(3)

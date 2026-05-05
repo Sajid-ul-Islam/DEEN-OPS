@@ -47,6 +47,7 @@ def render_woocommerce_orders_tab():
     status_col = "Order Status" if "Order Status" in display_df.columns else "Status" if "Status" in display_df.columns else None
     amount_col = "Order Total Amount" if "Order Total Amount" in display_df.columns else "Total Amount" if "Total Amount" in display_df.columns else None
     date_col = "Order Date" if "Order Date" in display_df.columns else "Date" if "Date" in display_df.columns else None
+    mod_date_col = "Order Date Modified" if "Order Date Modified" in display_df.columns else None
 
     # Advanced Multi-Column Filter Sidebar
     with st.sidebar:
@@ -103,6 +104,13 @@ def render_woocommerce_orders_tab():
         display_df[date_col] = pd.to_datetime(display_df[date_col], errors='coerce')
         column_configuration[date_col] = st.column_config.DatetimeColumn(
             "Order Date",
+            format="D MMM YYYY, h:mm a",
+        )
+        
+    if mod_date_col:
+        display_df[mod_date_col] = pd.to_datetime(display_df[mod_date_col], errors='coerce')
+        column_configuration[mod_date_col] = st.column_config.DatetimeColumn(
+            "Last Modified",
             format="D MMM YYYY, h:mm a",
         )
         
