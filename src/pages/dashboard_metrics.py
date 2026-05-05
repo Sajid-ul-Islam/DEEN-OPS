@@ -130,7 +130,7 @@ def render_operational_metrics(
     )
 
     card_html = (
-        '<div class="metric-container" style="grid-template-columns: repeat(4, 1fr);">'
+        '<div class="metric-container metric-container-4">'
         f"{gross_items_card}"
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l2}</div>'
         f'<div class="metric-value">{v_rev}</div>{html_dr}</div><div class="metric-icon">৳</div></div>'

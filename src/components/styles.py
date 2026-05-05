@@ -276,6 +276,9 @@ def inject_base_styles():
             margin: 15px 0 25px 0;
             width: 100%;
         }}
+        .metric-container-4 {{
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }}
         .metric-card {{
             background: linear-gradient(145deg, var(--background-secondary, rgba(255, 255, 255, 0.05)) 0%, rgba(255, 255, 255, 0.01) 100%);
             backdrop-filter: blur(12px);
@@ -338,9 +341,13 @@ def inject_base_styles():
         .delta-up {{ background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }}
         .delta-down {{ background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }}
         
-        @media (max-width: 1200px) {{ .metric-container {{ grid-template-columns: repeat(2, 1fr); }} }}
+        @media (max-width: 1200px) {{ 
+            .metric-container {{ grid-template-columns: repeat(2, 1fr); }}
+            .metric-container-4 {{ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }}
+        }}
         @media (max-width: 600px) {{ 
             .metric-container {{ grid-template-columns: repeat(2, 1fr); gap: 10px; }} 
+            .metric-container-4 {{ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }}
             .metric-card {{ padding: 12px; }}
             .metric-value {{ font-size: 1.2rem; }} 
             .metric-label {{ font-size: 0.65rem; white-space: normal; }}
