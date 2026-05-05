@@ -163,7 +163,7 @@ def render_manual_tab():
             if not df_standard.empty:
                 drill, summ, top, basket = aggregate_data(df_standard, final_mapping)
                 # v10.9 Fix: Pass df_standard as granular_df to enable filters and rendering
-                render_dashboard_output(drill, summ, top, timeframe, basket, source_name, granular_df=df_standard)
+            render_dashboard_output(drill, summ, top, str(timeframe) if timeframe is not None else None, basket, str(source_name) if source_name is not None else None, granular_df=df_standard)
             return
 
         st.caption(f"Active Data Source: {source_name}")
@@ -249,9 +249,9 @@ def render_manual_tab():
                     drill,
                     summ,
                     top,
-                    timeframe,
+                str(timeframe) if timeframe is not None else None,
                     basket,
-                    source_name,
+                str(source_name) if source_name is not None else None,
                     manual_updated,
                     granular_df=df_standard
                 )

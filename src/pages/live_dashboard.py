@@ -22,6 +22,14 @@ def render_live_tab():
     render_reset_confirm("Live Dashboard", "live", _reset_live_state)
     st.session_state.manual_tab_active = False # v11.3 Flag Reset
 
+    # Implement Time-Aware Defaults: After 6 PM (18:00), focus on the Processing queue
+    if "live_order_filter" not in st.session_state:
+        now_bd = datetime.now(timezone(timedelta(hours=6)))
+        if now_bd.hour >= 18:
+            st.session_state.live_order_filter = "Processing Only"
+        else:
+            st.session_state.live_order_filter = "All Orders"
+
     # Use global imports
     # Force Operational Cycle in live dashboard
     st.session_state["wc_sync_mode"] = "Operational Cycle"
@@ -101,6 +109,11 @@ def render_live_tab():
                 if df_live.empty:
                     st.info(f"📋 No processing orders found in the {nav_mode} slot.")
                     return
+            elif order_view_mode == "Processing Only":
+                df_live = df_live[df_live[status_col].astype(str).str.lower() == "processing"]
+                if df_live.empty:
+                    st.info(f"📋 No processing orders found in the {nav_mode} slot.")
+                    return
         elif order_view_mode != "All Orders":
             st.warning("⚠️ 'Order Status' column not found in data. Cannot apply filter.")
 
@@ -144,10 +157,10 @@ def render_live_tab():
                 drill,
                 summ,
                 top,
-                timeframe,
+                str(timeframe) if timeframe is not None else None,
                 basket,
-                source_name,
-                modified_at,
+                str(source_name) if source_name is not None else None,
+                str(modified_at) if modified_at is not None else None,
                 granular_df=df_standard
             ),
             fallback_msg="Dashboard rendering encountered an error.",

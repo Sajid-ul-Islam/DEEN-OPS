@@ -39,17 +39,17 @@ Replacement: Pages now use file upload and/or WooCommerce API sync. For URL-base
 
 ## No-Op / Unused Code (Still Present)
 
-### `render_sidebar_branding()` in `src/components/sidebar.py`
+### `render_sidebar_branding()` in `src/components/sidebar.py` (removed)
 
-**Status:** No-op (function body ends with `pass`).
+**Status:** Removed.
 
 The function loads the DEEN Commerce logo and encodes it to base64 but then does nothing with it. The final line is `pass` with a comment noting the user requested no title in the sidebar. The logo loading code above the `pass` still executes (wasting I/O) but produces no visible output.
 
-**Recommendation:** Either remove the function entirely or strip it to an empty body. If sidebar branding is needed in the future, rewrite from scratch.
+**Resolution:** The function has been completely removed.
 
-### `MORE_TOOLS` list in `src/config/ui_config.py`
+### `MORE_TOOLS` list in `src/config/ui_config.py` (removed)
 
-**Status:** Defined but never used in routing.
+**Status:** Removed.
 
 ```python
 MORE_TOOLS = [

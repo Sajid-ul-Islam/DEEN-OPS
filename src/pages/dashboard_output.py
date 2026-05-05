@@ -274,7 +274,7 @@ def render_dashboard_output(
                  ship_conf_df["dt_created"] = pd.to_datetime(ship_conf_df[wc_raw_mapping["date"]], errors="coerce").dt.tz_localize(None)
                  # Calculate hours
                  ship_conf_df["lead_h"] = (ship_conf_df["mod_dt_parsed"] - ship_conf_df["dt_created"]).dt.total_seconds() / 3600
-                 # Filter out negative or extreme outliers (e.g. status changes before creation which is an API quirk)
+                 # Filter out negative or extreme outliers (e.g. status changes before creation which is an API quirk) and ensure non-NaN
                  valid_leads = ship_conf_df[(ship_conf_df["lead_h"] >= 0) & (ship_conf_df["lead_h"] < 168)]["lead_h"]
                  avg_proc_time = valid_leads.mean() if not valid_leads.empty else 0.0
                  if pd.isna(avg_proc_time): avg_proc_time = 0.0

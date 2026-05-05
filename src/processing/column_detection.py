@@ -60,7 +60,7 @@ def find_columns(df: pd.DataFrame) -> dict[str, str]:
 
     found = {}
     try:
-        actual_cols = [c.strip() for c in df.columns]
+        actual_cols = [str(c).strip() for c in df.columns]
         lower_cols = [c.lower() for c in actual_cols]
 
         for key, aliases in mapping.items():
