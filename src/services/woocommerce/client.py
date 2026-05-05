@@ -228,10 +228,11 @@ def load_from_woocommerce():
             ].copy()
 
             # SNAPSHOT 2: PREV (Historical Performance - Only Shipped)
+            # Added 30-min buffer to match Dashboard/Report logic for consistency
             df_prev = df_full[
                 (
-                    ((df_full["dt_parsed"] >= day_before_prev) & (df_full["dt_parsed"] < prev_cutoff)) |
-                    ((df_full["mod_dt_parsed"] >= day_before_prev) & (df_full["mod_dt_parsed"] < prev_cutoff))
+                    ((df_full["dt_parsed"] >= day_before_prev) & (df_full["dt_parsed"] < (prev_cutoff + timedelta(minutes=30)))) |
+                    ((df_full["mod_dt_parsed"] >= day_before_prev) & (df_full["mod_dt_parsed"] < (prev_cutoff + timedelta(minutes=30))))
                 ) & is_shipped
             ].copy()
 
