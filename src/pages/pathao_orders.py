@@ -13,7 +13,10 @@ from src.components.widgets import (
     section_card,
 )
 from src.config.ui_config import PATHAO_CONFIG
-from src.processing.order_processor import process_orders_dataframe
+from src.processing.order_processor import (
+    normalize_manual_item_input,
+    process_orders_dataframe,
+)
 from src.services.pathao.client import PathaoClient
 from src.state.persistence import clear_state_keys, save_state
 from src.utils.file_io import read_uploaded
@@ -33,6 +36,8 @@ def _reset_pathao_state():
             "pathao_vlink_df",
             "show_vlink_gen",
             "pathao_auto_process",
+            "pathao_manual_items_df",
+            "pathao_manual_desc",
         ]
     )
 
@@ -116,7 +121,7 @@ def _load_processing_orders_from_woocommerce():
     return _filter_processing_orders(df_live)
 
 
-def render_pathao_tab():
+def _render_processing_tab():
     render_reset_confirm("Pathao Processor", "pathao", _reset_pathao_state)
 
     with st.expander("Pathao API & Sync Settings", expanded=False):
@@ -373,3 +378,54 @@ def render_pathao_tab():
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
                 )
+
+
+def _render_item_description_tab():
+    section_card(
+        "Item Description Helper",
+        "Paste one item per line to normalize, sort, and generate the same ItemDesc style used by the bulk order processor.",
+    )
+    st.caption("Supported formats: `2x Item Name`, `Item Name x2`, `Item Name (2 pcs)`, or `Item Name | SKU123`.")
+
+    raw_items = st.text_area(
+        "Manual item input",
+        key="pathao_manual_items",
+        height=220,
+        placeholder="2x Oxford Shirt - Navy | SKU123\nPolo Shirt x1\nJeans (2 pcs)",
+    )
+
+    if st.button("Normalize and sort items", type="primary", use_container_width=True, key="pathao_manual_normalize"):
+        if not raw_items.strip():
+            st.warning("Enter at least one item line.")
+        else:
+            normalized_items, description = normalize_manual_item_input(raw_items)
+            st.session_state.pathao_manual_items_df = pd.DataFrame(normalized_items)
+            st.session_state.pathao_manual_desc = description
+
+    normalized_df = st.session_state.get("pathao_manual_items_df")
+    manual_desc = st.session_state.get("pathao_manual_desc")
+
+    if normalized_df is not None and not normalized_df.empty:
+        display_df = normalized_df.rename(
+            columns={"category": "Category", "label": "Normalized Item", "qty": "Qty"}
+        )
+        with st.expander("Normalized items", expanded=True):
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+    if manual_desc:
+        from src.components.clipboard import render_copy_button
+
+        c1, c2 = st.columns([4, 1])
+        with c1:
+            st.markdown("#### Generated Item Description")
+        with c2:
+            render_copy_button(manual_desc, label="Copy ItemDesc")
+        st.code(manual_desc)
+
+
+def render_pathao_tab():
+    processing_tab, helper_tab = st.tabs(["Order Processing", "Item Description Helper"])
+    with processing_tab:
+        _render_processing_tab()
+    with helper_tab:
+        _render_item_description_tab()

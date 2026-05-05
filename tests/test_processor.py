@@ -88,3 +88,18 @@ def test_recipient_address_includes_normalized_zone_and_district():
     assert res.loc[0, "RecipientAddress(*)"] == "House 10, Road 4, Mirpur 12, Dhaka"
     assert res.loc[0, "RecipientCity(*)"] == "Dhaka"
     assert res.loc[0, "RecipientZone(*)"] == "Mirpur 12"
+
+
+def test_manual_item_input_is_normalized_sorted_and_aggregated():
+    normalized_items, description = processor.normalize_manual_item_input(
+        "Polo Shirt x1\n2x Oxford Shirt | SKU-2\nOxford Shirt | SKU-2"
+    )
+
+    assert normalized_items == [
+        {"category": "FS Shirt", "label": "Oxford Shirt - SKU-2", "qty": 3},
+        {"category": "Polo Shirt", "label": "Polo Shirt", "qty": 1},
+    ]
+    assert description == (
+        "3 FS Shirt = Oxford Shirt - SKU-2 (3 pcs); "
+        "1 Polo Shirt = Polo Shirt; (4 items)"
+    )

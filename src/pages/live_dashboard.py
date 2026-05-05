@@ -97,26 +97,18 @@ def render_live_tab():
                 if slot and "mod_dt_parsed" in df_live.columns:
                     s_start, s_end = slot
                     df_live = df_live[
-                        (df_live[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)) &
                         (status_series_lower.isin(SHIPPED_STATUSES)) &
                         (df_live["mod_dt_parsed"] >= s_start) &
                         (df_live["mod_dt_parsed"] <= (s_end + timedelta(minutes=30)))
                     ]
                 else:
-                    df_live = df_live[df_live[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)]
                     df_live = df_live[status_series_lower.isin(SHIPPED_STATUSES)]
 
                 if df_live.empty:
                     st.info(f"📦 No shipped orders found in the {nav_mode} slot.")
                     return
             elif order_view_mode == "Processing Only":
-                df_live = df_live[df_live[status_col].astype(str).str.lower() == "processing"]
                 df_live = df_live[status_series_lower == "processing"]
-                if df_live.empty:
-                    st.info(f"📋 No processing orders found in the {nav_mode} slot.")
-                    return
-            elif order_view_mode == "Processing Only":
-                df_live = df_live[df_live[status_col].astype(str).str.lower() == "processing"]
                 if df_live.empty:
                     st.info(f"📋 No processing orders found in the {nav_mode} slot.")
                     return

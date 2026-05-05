@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import os
 import json
+import re
 from functools import lru_cache
 from src.utils.product import get_category_from_name
 from src.utils.text import normalize_city_name, peek_zone_from_address
@@ -75,6 +76,123 @@ def _find_city_for_zone(zone_text, pathao_map):
     if best_score >= 85:
         return best_city, best_zone
     return "", ""
+
+
+def _coerce_item_qty(value, default=1):
+    try:
+        qty = int(float(value))
+    except (TypeError, ValueError):
+        qty = default
+    return qty
+
+
+def _format_item_label(item_name, sku=""):
+    clean_name = _clean_text_part(item_name) or "Unknown Item"
+    clean_sku = _clean_text_part(sku)
+    if clean_sku:
+        return f"{clean_name} - {clean_sku}"
+    return clean_name
+
+
+def _normalize_item_records(items):
+    aggregated = {}
+    for item in items:
+        item_name = _clean_text_part(item.get("item_name", ""))
+        if not item_name:
+            continue
+
+        sku = _clean_text_part(item.get("sku", ""))
+        qty = _coerce_item_qty(item.get("qty", 1), default=1)
+        if qty <= 0:
+            continue
+
+        category = get_category_from_name(item_name) or "Others"
+        label = _format_item_label(item_name, sku)
+        key = (category, label)
+        aggregated[key] = aggregated.get(key, 0) + qty
+
+    normalized = [
+        {"category": cat, "label": label, "qty": qty}
+        for (cat, label), qty in aggregated.items()
+    ]
+    normalized.sort(key=lambda item: (item["category"].casefold(), item["label"].casefold()))
+    return normalized
+
+
+def build_item_description(items, suffix_info=""):
+    normalized_items = _normalize_item_records(items)
+    total_qty = sum(item["qty"] for item in normalized_items)
+    if not normalized_items:
+        return "General Items"
+
+    if total_qty == 1 and len(normalized_items) == 1:
+        full_desc = normalized_items[0]["label"]
+        if suffix_info:
+            full_desc += f"; {suffix_info.lstrip('- ').strip()}"
+        return full_desc
+
+    grouped = {}
+    for item in normalized_items:
+        grouped.setdefault(item["category"], []).append(item)
+
+    desc_parts = []
+    for category in sorted(grouped.keys(), key=str.casefold):
+        formatted_items = []
+        cat_total = 0
+        for item in grouped[category]:
+            cat_total += item["qty"]
+            if item["qty"] > 1:
+                formatted_items.append(f'{item["label"]} ({item["qty"]} pcs)')
+            else:
+                formatted_items.append(item["label"])
+        desc_parts.append(f'{cat_total} {category} = {"; ".join(formatted_items)}')
+
+    full_desc = "; ".join(desc_parts)
+    suffix_parts = [f"{int(total_qty)} items"]
+    if suffix_info:
+        suffix_parts.append(suffix_info)
+    return full_desc + f"; ({' - '.join(suffix_parts)})"
+
+
+def parse_manual_item_lines(raw_text):
+    parsed_items = []
+    for raw_line in str(raw_text or "").splitlines():
+        line = _clean_text_part(raw_line)
+        if not line:
+            continue
+
+        qty = 1
+        payload = line
+
+        prefix_match = re.match(r"^(\d+)\s*[xX]\s+(.+)$", payload)
+        suffix_match = re.match(r"^(.+?)\s*[xX]\s*(\d+)$", payload)
+        paren_match = re.match(r"^(.+?)\s*\((\d+)\s*(?:pcs?|pieces?)\)$", payload, re.IGNORECASE)
+
+        if prefix_match:
+            qty = _coerce_item_qty(prefix_match.group(1), default=1)
+            payload = _clean_text_part(prefix_match.group(2))
+        elif suffix_match:
+            qty = _coerce_item_qty(suffix_match.group(2), default=1)
+            payload = _clean_text_part(suffix_match.group(1))
+        elif paren_match:
+            qty = _coerce_item_qty(paren_match.group(2), default=1)
+            payload = _clean_text_part(paren_match.group(1))
+
+        item_name = payload
+        sku = ""
+        if "|" in payload:
+            item_name, sku = [part.strip() for part in payload.split("|", 1)]
+
+        parsed_items.append({"item_name": item_name, "sku": sku, "qty": qty})
+
+    return parsed_items
+
+
+def normalize_manual_item_input(raw_text):
+    parsed_items = parse_manual_item_lines(raw_text)
+    normalized_items = _normalize_item_records(parsed_items)
+    description = build_item_description(parsed_items)
+    return normalized_items, description
 
 
 def clean_dataframe(df):
@@ -211,23 +329,15 @@ def process_single_order_group(phone, group, data_cols):
 
     first_row = group.iloc[0]
     total_qty = group["Quantity"].sum()
-
-    # --- Categorize Items (across all rows in group) ---
-    cat_map = {}
+    order_items = []
     for _, row in group.iterrows():
-        item_name = row.get("Item Name", "")
-        sku = row.get("SKU", "")
-        category = get_category_from_name(item_name)
-
-        # Format: "Item Name - SKU"
-        item_str = f"{item_name} - {sku}"
-        qty = int(row.get("Quantity", 0))
-
-        if category not in cat_map:
-            cat_map[category] = {}
-        if item_str not in cat_map[category]:
-            cat_map[category][item_str] = 0
-        cat_map[category][item_str] += qty
+        order_items.append(
+            {
+                "item_name": row.get("Item Name", ""),
+                "sku": row.get("SKU", ""),
+                "qty": row.get("Quantity", 0),
+            }
+        )
 
     # --- Amount to Collect & Payment Info (across unique orders) ---
     total_to_collect = 0
@@ -263,48 +373,7 @@ def process_single_order_group(phone, group, data_cols):
                 trx_info = trx_str
 
     # --- Construct Description String ---
-    full_desc = ""
-
-    if int(total_qty) == 1:
-        # Single Item
-        for cat, items in cat_map.items():
-            for item_str, count in items.items():
-                full_desc = item_str
-                break
-            if full_desc:
-                break
-
-        if trx_info:
-            single_trx_info = trx_info
-            if single_trx_info.startswith(" - "):
-                single_trx_info = single_trx_info[3:].strip()
-            elif single_trx_info.startswith("- "):
-                single_trx_info = single_trx_info[2:].strip()
-
-            full_desc += f"; {single_trx_info}"
-    else:
-        # Multi Item
-        desc_parts = []
-        for cat, items_dict in cat_map.items():
-            formatted_items = []
-            cat_total = 0
-            for item_str, count in items_dict.items():
-                cat_total += count
-                if count > 1:
-                    formatted_items.append(f"{item_str} ({count} pcs)")
-                else:
-                    formatted_items.append(item_str)
-
-            items_joined = "; ".join(formatted_items)
-            desc_parts.append(f"{cat_total} {cat} = {items_joined}")
-
-        full_desc = "; ".join(desc_parts)
-
-        suffix_parts = [f"{int(total_qty)} items"]
-        if trx_info:
-            suffix_parts.append(trx_info)
-
-        full_desc += f"; ({' - '.join(suffix_parts)})"
+    full_desc = build_item_description(order_items, suffix_info=trx_info)
 
     # Address Processing
     addr_col = data_cols["addr_col"]
