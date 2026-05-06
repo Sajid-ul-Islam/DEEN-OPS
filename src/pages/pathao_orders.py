@@ -430,7 +430,11 @@ def _render_item_description_tab():
 def _update_woocommerce_status(order_id, status, note=None):
     """Update WooCommerce order status via API."""
     wc_info = st.secrets.get("woocommerce", {})
-    wc_url = wc_info.get("store_url") or os.environ.get("WC_URL")
+    wc_url = (
+        wc_info.get("store_url")
+        or wc_info.get("url")
+        or os.environ.get("WC_URL")
+    )
     wc_key = wc_info.get("consumer_key") or os.environ.get("WC_KEY")
     wc_secret = wc_info.get("consumer_secret") or os.environ.get("WC_SECRET")
     
@@ -451,6 +455,22 @@ def _update_woocommerce_status(order_id, status, note=None):
         return True, "Success"
     except Exception as e:
         return False, str(e)
+
+
+def _extract_woocommerce_order_id(raw_value):
+    """Parse a WooCommerce order ID from common exported string formats."""
+    text = str(raw_value).strip()
+    if not text or text.lower() in {"nan", "none"}:
+        return None
+
+    match = re.fullmatch(r"(?:#|wc-|order-|invoice-)?(\d+)", text, flags=re.IGNORECASE)
+    if match:
+        return match.group(1)
+
+    if text.isdigit():
+        return text
+
+    return None
 
 
 def _render_status_tracking_tab():
@@ -502,7 +522,7 @@ def _render_status_tracking_tab():
     st.divider()
 
     st.subheader("Customer History Check")
-    st.write("Search WooCommerce to check a customer's past orders and delivery success rate.")
+    st.write("Search Pathao to check a customer's past courier orders and delivery success rate.")
     c_phone, c_phone_btn = st.columns([3, 1])
     with c_phone:
         phone_input = st.text_input("Phone Number", placeholder="e.g. 01700000000", key="phone_check_input")
@@ -579,6 +599,8 @@ def _render_status_tracking_tab():
 
                 with st.status("Fetching bulk statuses...", expanded=True) as status_ui:
                     results = []
+                    status_cache = {}
+                    updated_order_ids = set()
                     progress_bar = st.progress(0)
                     total = len(bulk_df)
                     
@@ -587,7 +609,9 @@ def _render_status_tracking_tab():
                         row_copy = row.to_dict()
                         
                         if cid and cid.lower() not in ["nan", "none", ""]:
-                            res = get_pathao_order_status(cid)
+                            if cid not in status_cache:
+                                status_cache[cid] = get_pathao_order_status(cid)
+                            res = status_cache[cid]
                             if "error" in res:
                                 row_copy["Live Status"] = "Error"
                                 row_copy["Status Reason"] = res["error"]
@@ -600,15 +624,21 @@ def _render_status_tracking_tab():
                                 row_copy["Payment Status"] = data.get("payment_status", "")
                                 
                                 if auto_update_wc == "Enabled" and order_id_col and "delivered" in live_status.lower():
-                                    raw_id = str(row_copy.get(order_id_col, ""))
-                                    match = re.search(r'\d+', raw_id)
-                                    if match:
-                                        wc_id = match.group()
+                                    wc_id = _extract_woocommerce_order_id(row_copy.get(order_id_col, ""))
+                                    if wc_id:
+                                        if wc_id in updated_order_ids:
+                                            row_copy["WC Update"] = "Skipped (already updated in this run)"
+                                            results.append(row_copy)
+                                            progress_bar.progress((i + 1) / total)
+                                            continue
+
                                         success, msg = _update_woocommerce_status(
                                             wc_id, 
                                             "completed", 
                                             f"Auto-updated by DEEN-OPS: Pathao Consignment {cid} marked as Delivered."
                                         )
+                                        if success:
+                                            updated_order_ids.add(wc_id)
                                         row_copy["WC Update"] = "Success" if success else f"Failed: {msg}"
                                     else:
                                         row_copy["WC Update"] = "Invalid Order ID"

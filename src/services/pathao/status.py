@@ -1,15 +1,37 @@
-"""Pathao Order Status and Credential Verification Module."""
+"""Pathao order status and credential verification helpers."""
 
 import requests
 import streamlit as st
+
+from src.services.pathao.client import PathaoClient
 
 
 def get_pathao_credentials() -> dict | None:
     """Extract Pathao credentials from Streamlit secrets."""
     try:
-        return st.secrets["pathao"]
-    except (FileNotFoundError, KeyError):
+        creds = dict(st.secrets["pathao"])
+    except (FileNotFoundError, KeyError, TypeError):
         return None
+
+    required = ("base_url", "client_id", "client_secret", "username", "password")
+    if not all(creds.get(key) for key in required):
+        return None
+    return creds
+
+
+def _build_pathao_client() -> tuple[PathaoClient | None, str | None]:
+    """Create a Pathao client from configured credentials."""
+    creds = get_pathao_credentials()
+    if not creds:
+        return None, (
+            "Pathao credentials not found in .streamlit/secrets.toml. "
+            "Please add a complete [pathao] section."
+        )
+
+    try:
+        return PathaoClient(**creds), None
+    except Exception as exc:
+        return None, f"Failed to initialize Pathao client: {exc}"
 
 
 def verify_pathao_connection() -> tuple[bool, str]:
@@ -19,39 +41,17 @@ def verify_pathao_connection() -> tuple[bool, str]:
     Returns:
         Tuple of (is_successful, status_message).
     """
-    creds = get_pathao_credentials()
-    if not creds:
-        return False, "Pathao credentials not found in .streamlit/secrets.toml. Please add a [pathao] section."
-    
-    base_url = creds.get("base_url", "https://api-hermes.pathao.com")
-    client_id = creds.get("client_id")
-    client_secret = creds.get("client_secret")
-    username = creds.get("username")
-    password = creds.get("password")
-    
-    if not all([client_id, client_secret, username, password]):
-        return False, "Missing one or more required credentials (client_id, client_secret, username, password)."
-        
-    auth_url = f"{base_url.rstrip('/')}/aladdin/api/v1/issue-token"
-    
-    payload = {
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "username": username,
-        "password": password,
-        "grant_type": "password"
-    }
-    
+    client, error = _build_pathao_client()
+    if error:
+        return False, error
+
     try:
-        response = requests.post(auth_url, json=payload, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if "access_token" in data:
-                return True, "✅ Successfully authenticated with Pathao API. Credentials are working!"
-        
-        return False, f"❌ Authentication failed: {response.status_code} - {response.text}"
-    except Exception as e:
-        return False, f"❌ Connection error: {str(e)}"
+        client.ensure_token()
+        if client.access_token:
+            return True, "Successfully authenticated with Pathao API. Credentials are working."
+        return False, "Authentication failed. Pathao did not return an access token."
+    except Exception as exc:
+        return False, f"Connection error: {exc}"
 
 
 def get_pathao_order_status(consignment_id: str) -> dict:
@@ -64,41 +64,21 @@ def get_pathao_order_status(consignment_id: str) -> dict:
     Returns:
         Dictionary containing the order status or an error message.
     """
-    success, msg = verify_pathao_connection()
-    if not success:
-        return {"error": msg}
-        
-    creds = get_pathao_credentials()
-    base_url = creds.get("base_url", "https://api-hermes.pathao.com")
-    
-    auth_url = f"{base_url.rstrip('/')}/aladdin/api/v1/issue-token"
-    payload = {
-        "client_id": creds.get("client_id"),
-        "client_secret": creds.get("client_secret"),
-        "username": creds.get("username"),
-        "password": creds.get("password"),
-        "grant_type": "password"
-    }
-    
+    client, error = _build_pathao_client()
+    if error:
+        return {"error": error}
+
     try:
-        # 1. Get Token
-        token_response = requests.post(auth_url, json=payload, timeout=10)
-        token_response.raise_for_status()
-        access_token = token_response.json().get("access_token")
-        
-        # 2. Fetch Status
-        status_url = f"{base_url.rstrip('/')}/aladdin/api/v1/orders/{consignment_id}/info"
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
-        
+        headers = client._get_headers()
+        if not client.access_token:
+            return {"error": "Authentication failed. Pathao access token is unavailable."}
+
+        status_url = f"{client.base_url}/aladdin/api/v1/orders/{consignment_id}/info"
         status_response = requests.get(status_url, headers=headers, timeout=10)
         if status_response.status_code == 200:
             return status_response.json()
-            
+
         return {"error": f"Failed to fetch status: {status_response.status_code} - {status_response.text}"}
-        
-    except Exception as e:
-        return {"error": f"Request failed: {str(e)}"}
+
+    except Exception as exc:
+        return {"error": f"Request failed: {exc}"}

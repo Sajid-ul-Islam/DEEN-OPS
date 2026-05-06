@@ -81,25 +81,34 @@ def render_woocommerce_orders_tab():
         tracking_col = st.selectbox("Tracking ID Column", tracking_col_options, index=tracking_col_options.index(guess_col), help="Select the column containing Pathao Consignment IDs.")
         
         if tracking_col != "None":
-            if st.button("Fetch Live Statuses", use_container_width=True, type="primary"):
+            if st.button("Refresh Live Statuses", use_container_width=True, type="primary"):
                 with st.spinner("Fetching live Pathao statuses..."):
-                    live_statuses = st.session_state.get("wc_pathao_statuses", {})
-                    progress_bar = st.progress(0)
-                    total = len(display_df)
-                    
-                    for i, cid in enumerate(display_df[tracking_col]):
+                    live_statuses = dict(st.session_state.get("wc_pathao_statuses", {}))
+                    unique_ids = []
+                    seen_ids = set()
+                    for cid in display_df[tracking_col]:
                         clean_cid = str(cid).strip()
-                        if pd.notna(cid) and clean_cid and clean_cid.lower() != "nan" and clean_cid not in live_statuses:
+                        if pd.notna(cid) and clean_cid and clean_cid.lower() != "nan" and clean_cid not in seen_ids:
+                            unique_ids.append(clean_cid)
+                            seen_ids.add(clean_cid)
+
+                    if not unique_ids:
+                        st.warning("No valid consignment IDs found in the selected column.")
+                    else:
+                        progress_bar = st.progress(0)
+                        total = len(unique_ids)
+                        
+                        for i, clean_cid in enumerate(unique_ids):
                             res = get_pathao_order_status(clean_cid)
                             if "error" not in res:
                                 live_statuses[clean_cid] = res.get("data", {}).get("order_status", "Unknown")
                             else:
                                 live_statuses[clean_cid] = "API Error"
-                                
-                        progress_bar.progress((i + 1) / total)
-                        
-                    st.session_state["wc_pathao_statuses"] = live_statuses
-                    st.success("Pathao statuses updated!")
+                                    
+                            progress_bar.progress((i + 1) / total)
+                            
+                        st.session_state["wc_pathao_statuses"] = live_statuses
+                        st.success(f"Pathao statuses refreshed for {len(unique_ids)} consignments.")
 
         if tracking_col != "None" and "wc_pathao_statuses" in st.session_state:
             display_df["Pathao Status"] = display_df[tracking_col].astype(str).str.strip().map(st.session_state["wc_pathao_statuses"]).fillna("Not Fetched")
