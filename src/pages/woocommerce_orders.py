@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+from src.services.pathao.status import get_pathao_order_status
 
 def render_woocommerce_orders_tab():
     """Renders the WooCommerce Orders list module."""
@@ -71,6 +73,37 @@ def render_woocommerce_orders_tab():
             if min_amt < max_amt:
                 amount_filter = st.slider("Total Amount Range:", min_value=min_amt, max_value=max_amt, value=(min_amt, max_amt))
 
+        st.divider()
+        st.markdown("### 📦 Pathao Tracking")
+        tracking_col_options = ["None"] + list(display_df.columns)
+        guess_col = next((col for col in display_df.columns if any(kw in col.lower() for kw in ["tracking", "consignment", "pathao"])), "None")
+        
+        tracking_col = st.selectbox("Tracking ID Column", tracking_col_options, index=tracking_col_options.index(guess_col), help="Select the column containing Pathao Consignment IDs.")
+        
+        if tracking_col != "None":
+            if st.button("Fetch Live Statuses", use_container_width=True, type="primary"):
+                with st.spinner("Fetching live Pathao statuses..."):
+                    live_statuses = st.session_state.get("wc_pathao_statuses", {})
+                    progress_bar = st.progress(0)
+                    total = len(display_df)
+                    
+                    for i, cid in enumerate(display_df[tracking_col]):
+                        clean_cid = str(cid).strip()
+                        if pd.notna(cid) and clean_cid and clean_cid.lower() != "nan" and clean_cid not in live_statuses:
+                            res = get_pathao_order_status(clean_cid)
+                            if "error" not in res:
+                                live_statuses[clean_cid] = res.get("data", {}).get("order_status", "Unknown")
+                            else:
+                                live_statuses[clean_cid] = "API Error"
+                                
+                        progress_bar.progress((i + 1) / total)
+                        
+                    st.session_state["wc_pathao_statuses"] = live_statuses
+                    st.success("Pathao statuses updated!")
+
+        if tracking_col != "None" and "wc_pathao_statuses" in st.session_state:
+            display_df["Pathao Status"] = display_df[tracking_col].astype(str).str.strip().map(st.session_state["wc_pathao_statuses"]).fillna("Not Fetched")
+
     # Apply Filters
     if search_query:
         mask = display_df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
@@ -95,6 +128,116 @@ def render_woocommerce_orders_tab():
         c3.metric("Processing Orders", processing)
         completed = len(display_df[display_df[status_col].astype(str).str.lower() == "completed"])
         c4.metric("Completed Orders", completed)
+
+    if "Pathao Status" in display_df.columns:
+        valid_statuses = display_df[display_df["Pathao Status"] != "Not Fetched"]
+        if not valid_statuses.empty:
+            st.divider()
+            st.markdown("### 📊 Pathao Status Breakdown")
+            status_counts = valid_statuses["Pathao Status"].value_counts().reset_index()
+            status_counts.columns = ["Status", "Count"]
+            
+            color_map = {}
+            for status in status_counts["Status"]:
+                s_lower = str(status).lower()
+                if any(x in s_lower for x in ['return', 'failed', 'cancel', 'error']):
+                    color_map[status] = '#ef4444'
+                elif 'delivered' in s_lower:
+                    color_map[status] = '#10b981'
+                elif any(x in s_lower for x in ['transit', 'processing', 'assigned']):
+                    color_map[status] = '#3b82f6'
+                else:
+                    color_map[status] = '#f59e0b'
+                    
+            c_chart, c_metric = st.columns([1, 1])
+            with c_chart:
+                fig = px.pie(status_counts, names="Status", values="Count", hole=0.5, color="Status", color_discrete_map=color_map)
+                fig.update_traces(textposition='inside', textinfo='percent+label')
+                fig.update_layout(margin=dict(t=20, b=20, l=10, r=10), showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+
+            with c_metric:
+                st.markdown("#### 🎯 Delivery Performance")
+                delivered = status_counts[status_counts["Status"].str.lower().str.contains('delivered')]["Count"].sum()
+                failed_returned = status_counts[status_counts["Status"].str.lower().str.contains('return|failed|cancel|error')]["Count"].sum()
+                resolved = delivered + failed_returned
+                
+                success_rate = (delivered / resolved * 100) if resolved > 0 else 0
+                
+                c_m1, c_m2 = st.columns(2)
+                c_m1.metric("Success Rate", f"{success_rate:.1f}%", help="Based on resolved orders (Delivered vs Returned/Failed/Cancelled).")
+                c_m2.metric("Total Resolved", int(resolved))
+                
+                c_m3, c_m4 = st.columns(2)
+                c_m3.metric("Delivered", int(delivered))
+                c_m4.metric("Failed/Returned", int(failed_returned))
+                
+            if date_col:
+                ts_df = valid_statuses.copy()
+                ts_df["Day"] = pd.to_datetime(ts_df[date_col], errors='coerce').dt.date
+                resolved_mask = ts_df["Pathao Status"].astype(str).str.lower().str.contains('delivered|return|failed|cancel|error')
+                ts_resolved = ts_df[resolved_mask].copy()
+                if not ts_resolved.empty:
+                    ts_resolved['Is_Delivered'] = ts_resolved["Pathao Status"].astype(str).str.lower().str.contains('delivered')
+                    daily_sr = ts_resolved.groupby("Day").agg(
+                        Total_Resolved=("Is_Delivered", "count"),
+                        Delivered=("Is_Delivered", "sum")
+                    ).reset_index()
+                    daily_sr["Success Rate (%)"] = (daily_sr["Delivered"] / daily_sr["Total_Resolved"] * 100).round(1)
+                    daily_sr = daily_sr.sort_values("Day")
+                    
+                    fig_sr = px.line(
+                        daily_sr, x="Day", y="Success Rate (%)", 
+                        title="📈 Daily Success Rate Over Time", markers=True,
+                        color_discrete_sequence=['#10b981'], hover_data={"Delivered": True, "Total_Resolved": True}
+                    )
+                    fig_sr.update_layout(yaxis_range=[0, 105], margin=dict(t=40, b=20, l=10, r=10))
+                    st.plotly_chart(fig_sr, use_container_width=True)
+
+            if date_col and mod_date_col:
+                delivered_df = valid_statuses[valid_statuses["Pathao Status"].astype(str).str.lower().str.contains("delivered")].copy()
+                if not delivered_df.empty:
+                    st.divider()
+                    st.markdown("### ⏱️ Delivery Transit Times")
+                    
+                    delivered_df["Transit Days"] = (pd.to_datetime(delivered_df[mod_date_col], errors='coerce') - pd.to_datetime(delivered_df[date_col], errors='coerce')).dt.days
+                    delivered_df = delivered_df[(delivered_df["Transit Days"] >= 0) & (delivered_df["Transit Days"] < 60)]
+                    
+                    if not delivered_df.empty:
+                        avg_transit = delivered_df["Transit Days"].mean()
+                        st.metric("Average Transit Time", f"{avg_transit:.1f} Days", help="Average days from Order Creation to Delivery.")
+
+                        transit_counts = delivered_df["Transit Days"].value_counts().reset_index()
+                        transit_counts.columns = ["Transit Days", "Order Count"]
+                        transit_counts = transit_counts.sort_values("Transit Days")
+                        transit_counts["Transit Days Label"] = transit_counts["Transit Days"].astype(str) + " Days"
+                        
+                        fig_transit = px.bar(
+                            transit_counts, 
+                            x="Transit Days Label", 
+                            y="Order Count", 
+                            title="Transit Time Distribution (Delivered Orders)",
+                            text_auto=True,
+                            color_discrete_sequence=['#3b82f6']
+                        )
+                        fig_transit.update_layout(xaxis_title="Days from Order to Delivery", yaxis_title="Number of Orders", margin=dict(t=40, b=20, l=10, r=10))
+                        st.plotly_chart(fig_transit, use_container_width=True)
+
+    with st.expander("📦 Quick Pathao Track"):
+        c_id, c_btn = st.columns([3, 1])
+        with c_id:
+            quick_cid = st.text_input("Consignment ID", placeholder="e.g., DD...", key="wc_quick_track")
+        with c_btn:
+            st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
+            if st.button("Check Status", use_container_width=True, key="wc_quick_btn"):
+                if quick_cid:
+                    with st.spinner("Checking..."):
+                        res = get_pathao_order_status(quick_cid.strip())
+                        if "error" in res:
+                            st.error(res["error"])
+                        else:
+                            data = res.get("data", {})
+                            st.success(f"Live Status: **{data.get('order_status', 'Unknown')}** | Payment: **{data.get('payment_status', 'Unknown')}**")
 
     st.markdown("### 📋 Raw Order Data")
     
@@ -125,9 +268,21 @@ def render_woocommerce_orders_tab():
     if date_col in display_df.columns:
         display_df = display_df.sort_values(by=date_col, ascending=False)
 
-    st.dataframe(
-        display_df, 
-        use_container_width=True, 
-        height=600,
-        column_config=column_configuration
-    )
+    if "Pathao Status" in display_df.columns:
+        def highlight_pathao_status(col):
+            return [
+                'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
+                if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
+                else 'color: #10b981;' if 'delivered' in str(v).lower()
+                else ''
+                for v in col
+            ]
+        styled_df = display_df.style.apply(highlight_pathao_status, subset=['Pathao Status'])
+        st.dataframe(styled_df, use_container_width=True, height=600, column_config=column_configuration)
+    else:
+        st.dataframe(
+            display_df, 
+            use_container_width=True, 
+            height=600,
+            column_config=column_configuration
+        )

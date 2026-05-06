@@ -66,6 +66,10 @@ def run_app():
     import os
     from src.pages.whatsapp_messaging import render_wp_tab
 
+    # Ensure Pathao Processor is available in the nav menu
+    if not any("Pathao" in item or "Bulk Order" in item for item in PRIMARY_NAV):
+        PRIMARY_NAV.append("📦 Pathao Processor")
+
     init_state()
     inject_base_styles()
 
@@ -194,8 +198,8 @@ def run_app():
         safe_render(render_app_banner, fallback_msg="App banner unavailable.")
         safe_render(render_banner_mode_controls, fallback_msg="Mode controls unavailable.")
         safe_render(render_live_tab, fallback_msg="Live Dashboard unavailable.")
-    elif selected_nav == "📦 Bulk Order Processer":
-        safe_render(render_pathao_tab, fallback_msg="Bulk Order Processor unavailable.")
+    elif selected_nav in ["📦 Bulk Order Processer", "📦 Bulk Order Processor", "📦 Pathao Processor"]:
+        safe_render(render_pathao_tab, fallback_msg="Pathao Processor unavailable.")
     elif selected_nav == "💬 WhatsApp Messaging":
         safe_render(render_wp_tab, fallback_msg="WhatsApp Messaging unavailable.")
     elif selected_nav == "📊 Inventory Distribution":

@@ -7,7 +7,7 @@ PRIMARY_NAV = [
     "📈 Live Dashboard",
     "📥 Sales Data Ingestion",
     "📦 Current Stock Analytics",
-    "📦 Bulk Order Processer",
+    "📦 Pathao Processor",
     "📊 Inventory Distribution",
     "💬 WhatsApp Messaging",
     "🧩 Delivery Data Parser",
