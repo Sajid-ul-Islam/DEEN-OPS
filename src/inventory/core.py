@@ -418,7 +418,7 @@ def add_stock_columns_from_inventory(
         df[loc] = vals
 
     # 5. Intelligent Dispatch Suggestion
-    dispatch_suggestions = ["N/A"] * (df.shape[0] if hasattr(df, 'shape') else len(df))
+    dispatch_suggestions = [""] * (df.shape[0] if hasattr(df, 'shape') else len(df))
     group_col = get_group_by_column(df)
 
     if group_col:
@@ -431,10 +431,7 @@ def add_stock_columns_from_inventory(
 
         # Group data to optimize per order
         for _, group_indices in df.groupby(group_col).groups.items():
-            # For this order, find the best location(s)
-            remaining_indices = list(group_indices)
-
-            # 1. Try to find a SINGLE location that can fulfill ALL items in the order
+            # Try to find a SINGLE location that can fulfill ALL items in the order
             best_single_loc = None
             for loc in locations:
                 all_match = True
@@ -454,47 +451,17 @@ def add_stock_columns_from_inventory(
             if best_single_loc:
                 for idx in group_indices:
                     dispatch_suggestions[idx] = best_single_loc
-            else:
-                # 2. Multi-parcel minimization: Find loc with MOST fulfillment, then repeat
-                while remaining_indices:
-                    best_loc = None
-                    max_covered = -1
-                    covered_indices = []
-
-                    for loc in locations:
-                        current_covered = []
-                        for idx in remaining_indices:
-                            source_key = stock_sources[idx]
-                            needed = qty_needed[idx]
-                            avail = (
-                                inventory.get(source_key, {}).get(loc, 0)
-                                if source_key
-                                else 0
-                            )
-                            if avail >= needed:
-                                current_covered.append(idx)
-
-                        if len(current_covered) > max_covered:
-                            max_covered = len(current_covered)
-                            best_loc = loc
-                            covered_indices = current_covered
-
-                    if best_loc and covered_indices:
-                        for idx in covered_indices:
-                            dispatch_suggestions[idx] = best_loc
-                        remaining_indices = [
-                            i for i in remaining_indices if i not in covered_indices
-                        ]
-                    else:
-                        # OOS items remaining
-                        for idx in remaining_indices:
-                            dispatch_suggestions[idx] = "OOS / No Match"
-                        break
 
     df["Dispatch Suggestion"] = dispatch_suggestions
 
+    # Mark unique orders for easy filtering
+    if group_col:
+        df["Unique Order"] = (~df.duplicated(subset=[group_col])).map({True: "Yes", False: ""})
+    else:
+        df["Unique Order"] = "Yes"
+
     # Reorder Match Status to the end
-    cols = [c for c in df.columns if c != "Match Status"] + ["Match Status"]
+    cols = [c for c in df.columns if c not in ["Match Status", "Unique Order"]] + ["Unique Order", "Match Status"]
     df = df[cols]
 
     return df, len(matched)

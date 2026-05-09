@@ -3,196 +3,9 @@ import streamlit as st
 import os
 import json
 import re
-from functools import lru_cache
 from src.utils.product import get_category_from_name
 from src.utils.text import normalize_city_name, peek_zone_from_address
 from fuzzywuzzy import process
-
-
-def _clean_text_part(value):
-    text = str(value or "").replace("\n", " ").strip()
-    if not text or text.lower() == "nan":
-        return ""
-    return " ".join(text.split())
-
-
-def _title_text_part(value):
-    cleaned = _clean_text_part(value)
-    return cleaned.title() if cleaned else ""
-
-
-def _dedupe_address_parts(parts):
-    deduped = []
-    seen = set()
-    for part in parts:
-        cleaned = _clean_text_part(part)
-        if not cleaned:
-            continue
-        key = cleaned.casefold()
-        if key in seen:
-            continue
-        deduped.append(cleaned)
-        seen.add(key)
-    return deduped
-
-
-@lru_cache(maxsize=1)
-def _load_pathao_map():
-    pathao_map_path = "resources/pathao_map.json"
-    if not os.path.exists(pathao_map_path):
-        return {}
-
-    try:
-        with open(pathao_map_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
-
-
-def _find_city_for_zone(zone_text, pathao_map):
-    zone_name = _title_text_part(zone_text)
-    if not zone_name or not pathao_map:
-        return "", ""
-
-    best_city = ""
-    best_zone = ""
-    best_score = 0
-
-    for city_name, city_data in pathao_map.items():
-        zones = city_data.get("zones", {})
-        if zone_name in zones:
-            return city_name, zone_name
-
-        if not zones:
-            continue
-
-        zone_match = process.extractOne(zone_name, list(zones.keys()))
-        if zone_match and zone_match[1] > best_score:
-            best_city = city_name
-            best_zone = zone_match[0]
-            best_score = zone_match[1]
-
-    if best_score >= 85:
-        return best_city, best_zone
-    return "", ""
-
-
-def _coerce_item_qty(value, default=1):
-    try:
-        qty = int(float(value))
-    except (TypeError, ValueError):
-        qty = default
-    return qty
-
-
-def _format_item_label(item_name, sku=""):
-    clean_name = _clean_text_part(item_name) or "Unknown Item"
-    clean_sku = _clean_text_part(sku)
-    if clean_sku:
-        return f"{clean_name} - {clean_sku}"
-    return clean_name
-
-
-def _normalize_item_records(items):
-    aggregated = {}
-    for item in items:
-        item_name = _clean_text_part(item.get("item_name", ""))
-        if not item_name:
-            continue
-
-        sku = _clean_text_part(item.get("sku", ""))
-        qty = _coerce_item_qty(item.get("qty", 1), default=1)
-        if qty <= 0:
-            continue
-
-        category = get_category_from_name(item_name) or "Others"
-        label = _format_item_label(item_name, sku)
-        key = (category, label)
-        aggregated[key] = aggregated.get(key, 0) + qty
-
-    normalized = [
-        {"category": cat, "label": label, "qty": qty}
-        for (cat, label), qty in aggregated.items()
-    ]
-    normalized.sort(key=lambda item: (item["category"].casefold(), item["label"].casefold()))
-    return normalized
-
-
-def build_item_description(items, suffix_info=""):
-    normalized_items = _normalize_item_records(items)
-    total_qty = sum(item["qty"] for item in normalized_items)
-    if not normalized_items:
-        return "General Items"
-
-    if total_qty == 1 and len(normalized_items) == 1:
-        full_desc = normalized_items[0]["label"]
-        if suffix_info:
-            full_desc += f"; {suffix_info.lstrip('- ').strip()}"
-        return full_desc
-
-    grouped = {}
-    for item in normalized_items:
-        grouped.setdefault(item["category"], []).append(item)
-
-    desc_parts = []
-    for category in sorted(grouped.keys(), key=str.casefold):
-        formatted_items = []
-        cat_total = 0
-        for item in grouped[category]:
-            cat_total += item["qty"]
-            if item["qty"] > 1:
-                formatted_items.append(f'{item["label"]} ({item["qty"]} pcs)')
-            else:
-                formatted_items.append(item["label"])
-        desc_parts.append(f'{cat_total} {category} = {"; ".join(formatted_items)}')
-
-    full_desc = "; ".join(desc_parts)
-    suffix_parts = [f"{int(total_qty)} items"]
-    if suffix_info:
-        suffix_parts.append(suffix_info)
-    return full_desc + f"; ({' - '.join(suffix_parts)})"
-
-
-def parse_manual_item_lines(raw_text):
-    parsed_items = []
-    for raw_line in str(raw_text or "").splitlines():
-        line = _clean_text_part(raw_line)
-        if not line:
-            continue
-
-        qty = 1
-        payload = line
-
-        prefix_match = re.match(r"^(\d+)\s*[xX]\s+(.+)$", payload)
-        suffix_match = re.match(r"^(.+?)\s*[xX]\s*(\d+)$", payload)
-        paren_match = re.match(r"^(.+?)\s*\((\d+)\s*(?:pcs?|pieces?)\)$", payload, re.IGNORECASE)
-
-        if prefix_match:
-            qty = _coerce_item_qty(prefix_match.group(1), default=1)
-            payload = _clean_text_part(prefix_match.group(2))
-        elif suffix_match:
-            qty = _coerce_item_qty(suffix_match.group(2), default=1)
-            payload = _clean_text_part(suffix_match.group(1))
-        elif paren_match:
-            qty = _coerce_item_qty(paren_match.group(2), default=1)
-            payload = _clean_text_part(paren_match.group(1))
-
-        item_name = payload
-        sku = ""
-        if "|" in payload:
-            item_name, sku = [part.strip() for part in payload.split("|", 1)]
-
-        parsed_items.append({"item_name": item_name, "sku": sku, "qty": qty})
-
-    return parsed_items
-
-
-def normalize_manual_item_input(raw_text):
-    parsed_items = parse_manual_item_lines(raw_text)
-    normalized_items = _normalize_item_records(parsed_items)
-    description = build_item_description(parsed_items)
-    return normalized_items, description
 
 
 def clean_dataframe(df):
@@ -315,6 +128,117 @@ def identify_columns(df):
     return cols
 
 
+def build_item_description(cat_map, total_qty, trx_info=""):
+    """
+    Builds the ItemDesc string for Pathao from a category map.
+    """
+    full_desc = ""
+
+    if int(total_qty) == 1:
+        # Single Item
+        for cat, items in cat_map.items():
+            for item_str, count in items.items():
+                full_desc = item_str
+                break
+            if full_desc:
+                break
+
+        if trx_info:
+            single_trx_info = trx_info
+            if single_trx_info.startswith(" - "):
+                single_trx_info = single_trx_info[3:].strip()
+            elif single_trx_info.startswith("- "):
+                single_trx_info = single_trx_info[2:].strip()
+
+            full_desc += f"; {single_trx_info}"
+    else:
+        # Multi Item
+        desc_parts = []
+        for cat, items_dict in cat_map.items():
+            formatted_items = []
+            cat_total = 0
+            for item_str, count in items_dict.items():
+                cat_total += count
+                if count > 1:
+                    formatted_items.append(f"{item_str} ({count} pcs)")
+                else:
+                    formatted_items.append(item_str)
+
+            items_joined = "; ".join(formatted_items)
+            desc_parts.append(f"{cat_total} {cat} = {items_joined}")
+
+        full_desc = "; ".join(desc_parts)
+
+        suffix_parts = [f"{int(total_qty)} items"]
+        if trx_info:
+            suffix_parts.append(trx_info)
+
+        full_desc += f"; ({' - '.join(suffix_parts)})"
+        
+    return full_desc
+
+
+def parse_manual_item_lines(raw_text):
+    """
+    Parses a raw text block of manual items into a category map and total quantity.
+    """
+    lines = [line.strip() for line in str(raw_text).splitlines() if line.strip()]
+    cat_map = {}
+    total_qty = 0
+    
+    for line in lines:
+        qty = 1
+        item_str = line
+        
+        m1 = re.match(r'^(\d+)\s*[xX]\s*(.+)', item_str)
+        if m1:
+            qty = int(m1.group(1))
+            item_str = m1.group(2)
+        else:
+            m2 = re.search(r'(.+?)\s*[xX]\s*(\d+)$', item_str)
+            if m2:
+                item_str = m2.group(1)
+                qty = int(m2.group(2))
+            else:
+                m3 = re.search(r'(.+?)\s*\(\s*(\d+)\s*pcs?\s*\)$', item_str, re.IGNORECASE)
+                if m3:
+                    item_str = m3.group(1)
+                    qty = int(m3.group(2))
+                    
+        item_str = item_str.strip()
+        item_str = item_str.replace(" | ", " - ")
+        category = get_category_from_name(item_str)
+        
+        if category not in cat_map:
+            cat_map[category] = {}
+        if item_str not in cat_map[category]:
+            cat_map[category][item_str] = 0
+            
+        cat_map[category][item_str] += qty
+        total_qty += qty
+        
+    return cat_map, total_qty
+
+
+def normalize_manual_item_input(raw_text):
+    """
+    Returns normalized items (list of dicts) and the formatted description string.
+    """
+    cat_map, total_qty = parse_manual_item_lines(raw_text)
+    
+    normalized_items = []
+    for cat, items in cat_map.items():
+        for item, q in items.items():
+            normalized_items.append({
+                "category": cat,
+                "label": item,
+                "qty": q
+            })
+            
+    full_desc = build_item_description(cat_map, total_qty)
+    return normalized_items, full_desc
+
+
 def process_single_order_group(phone, group, data_cols):
     """
     Processes a group of rows belonging to a single order (phone number).
@@ -329,15 +253,23 @@ def process_single_order_group(phone, group, data_cols):
 
     first_row = group.iloc[0]
     total_qty = group["Quantity"].sum()
-    order_items = []
+
+    # --- Categorize Items (across all rows in group) ---
+    cat_map = {}
     for _, row in group.iterrows():
-        order_items.append(
-            {
-                "item_name": row.get("Item Name", ""),
-                "sku": row.get("SKU", ""),
-                "qty": row.get("Quantity", 0),
-            }
-        )
+        item_name = row.get("Item Name", "")
+        sku = row.get("SKU", "")
+        category = get_category_from_name(item_name)
+
+        # Format: "Item Name - SKU"
+        item_str = f"{item_name} - {sku}"
+        qty = int(row.get("Quantity", 0))
+
+        if category not in cat_map:
+            cat_map[category] = {}
+        if item_str not in cat_map[category]:
+            cat_map[category][item_str] = 0
+        cat_map[category][item_str] += qty
 
     # --- Amount to Collect & Payment Info (across unique orders) ---
     total_to_collect = 0
@@ -373,45 +305,50 @@ def process_single_order_group(phone, group, data_cols):
                 trx_info = trx_str
 
     # --- Construct Description String ---
-    full_desc = build_item_description(order_items, suffix_info=trx_info)
+    full_desc = build_item_description(cat_map, total_qty, trx_info)
 
     # Address Processing
     addr_col = data_cols["addr_col"]
-    raw_address = _clean_text_part(first_row.get(addr_col, ""))
-    if not raw_address:
-        raw_address = _clean_text_part(first_row.get("State Name (Billing)", ""))
+    raw_address = str(first_row.get(addr_col, "")).strip()
+    raw_state = str(first_row.get(data_cols["state_col"], "")).strip()
+    raw_city = str(first_row.get(data_cols["city_col"], "")).strip()
 
-    raw_state = _clean_text_part(first_row.get(data_cols["state_col"], ""))
-    raw_city_or_zone = _clean_text_part(first_row.get(data_cols["city_col"], ""))
+    # Combine Address, City, and State into the main address field
+    address_parts = []
+    if raw_address and raw_address.lower() != "nan":
+        address_parts.append(raw_address)
+    if raw_city and raw_city.lower() != "nan" and raw_city.lower() not in raw_address.lower():
+        address_parts.append(raw_city)
+    if raw_state and raw_state.lower() != "nan" and raw_state.lower() not in raw_address.lower():
+        address_parts.append(raw_state)
+
+    combined_address = ", ".join(address_parts)
+    if not combined_address:
+        combined_address = str(first_row.get("State Name (Billing)", "")).strip()
+
+    # Normalize City & Address (Pathao RecipientCity is the District/State)
     recipient_city = normalize_city_name(raw_state)
-    if recipient_city.lower() in ["nan", "unknown"]:
-        recipient_city = ""
+    address_val = " ".join(combined_address.split()).title()
 
     # RecipientZone & Area: Smart Matching from Pathao Database
     recipient_area = ""
-    extracted_zone = _title_text_part(raw_city_or_zone)
-    inferred_zone = peek_zone_from_address(" ".join([raw_address, raw_city_or_zone]))
-    if not extracted_zone:
-        extracted_zone = inferred_zone
+    extracted_zone = raw_city.title()
+    if extracted_zone.lower() == "nan":
+        extracted_zone = ""
 
     # Load Pathao Map for intelligent correction
-    pathao_map = _load_pathao_map()
-    if pathao_map:
+    pathao_map_path = "resources/pathao_map.json"
+    if os.path.exists(pathao_map_path):
         try:
-            if not recipient_city:
-                inferred_city, official_zone = _find_city_for_zone(extracted_zone or inferred_zone, pathao_map)
-                if inferred_city:
-                    recipient_city = inferred_city
-                    if official_zone:
-                        extracted_zone = official_zone
+            with open(pathao_map_path, "r") as f:
+                pathao_map = json.load(f)
 
             # 1. Match City
             city_data = pathao_map.get(recipient_city)
-            if not city_data and recipient_city:
+            if not city_data:
                 # Try fuzzy matching city name if direct lookup fails
                 match = process.extractOne(recipient_city, pathao_map.keys())
                 if match and match[1] > 85:
-                    recipient_city = match[0]
                     city_data = pathao_map[match[0]]
 
             if city_data:
@@ -428,7 +365,7 @@ def process_single_order_group(phone, group, data_cols):
                         if areas_list:
                             # Try to find area name in the Address since it's rarely a separate column in WooCommerce
                             area_names = [a["area_name"] for a in areas_list]
-                            area_match = process.extractOne(raw_address or extracted_zone, area_names)
+                            area_match = process.extractOne(address_val, area_names)
                             if area_match and area_match[1] > 90:
                                 recipient_area = area_match[0]
         except:
@@ -453,30 +390,18 @@ def process_single_order_group(phone, group, data_cols):
     if not recipient_city or recipient_city.lower() in ["unknown", "nan", ""]:
         # Try to find city in address as last resort
         for city_name in ["Dhaka", "Chittagong", "Chattogram", "Sylhet", "Khulna", "Rajshahi", "Barisal", "Rangpur"]:
-            if city_name.lower() in raw_address.lower():
+            if city_name.lower() in address_val.lower():
                 recipient_city = city_name
                 break
         if not recipient_city: recipient_city = "Dhaka" # Default to capital
 
     # If extracted_zone is just the city name again, try to peek into the address
     if not extracted_zone or extracted_zone.lower() in ["unknown", "nan", "", recipient_city.lower(), "dhaka", "chattogram"]:
-        peeked = inferred_zone or peek_zone_from_address(
-            " ".join([raw_address, raw_city_or_zone, recipient_city])
-        )
+        peeked = peek_zone_from_address(address_val)
         if peeked:
             extracted_zone = peeked
         else:
             extracted_zone = recipient_city # Final fallback
-
-    address_parts = _dedupe_address_parts(
-        [
-            _title_text_part(raw_address),
-            recipient_area,
-            extracted_zone,
-            recipient_city,
-        ]
-    )
-    address_val = ", ".join(address_parts) if address_parts else "Address Missing"
 
     # --- Build Record ---
     record = {

@@ -1,12 +1,5 @@
 [
     {
-        "timestamp": "2026-04-08 10:35:23",
-        "context": "Pathao Processor",
-        "error": "unsupported operand type(s) for +=: 'int' and 'str'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\pathao_tab.py\", line 124, in render_pathao_tab\n    result_df = process_orders_dataframe(preview_df)\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\processor.py\", line 262, in process_orders_dataframe\n    record = process_single_order_group(phone, group, data_cols)\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\processor.py\", line 135, in process_single_order_group\n    total_to_collect += order_total\nTypeError: unsupported operand type(s) for +=: 'int' and 'str'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-08 10:35:38",
         "context": "Pathao Processor",
         "error": "unsupported operand type(s) for +=: 'int' and 'str'",
@@ -697,6 +690,13 @@
         "context": "App Bootstrap",
         "error": "unterminated string literal (detected at line 318) (client.py, line 318)",
         "traceback": "Traceback (most recent call last):\n  File \"G:\\DEEN-OPS\\app.py\", line 241, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"G:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"G:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 7, in <module>\n    from src.pages.dashboard_output import render_dashboard_output\n  File \"G:\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 13, in <module>\n    from src.pages.dashboard_filters import render_ingestion_filters\n  File \"G:\\DEEN-OPS\\src\\pages\\dashboard_filters.py\", line 13, in <module>\n    from src.services.woocommerce.client import load_from_woocommerce\n  File \"G:\\DEEN-OPS\\src\\services\\woocommerce\\client.py\", line 318\n    dt = datetime.strptime(last_updated, \"%Y-%m-\n                                         ^\nSyntaxError: unterminated string literal (detected at line 318)\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-09 19:54:16",
+        "context": "App Bootstrap",
+        "error": "cannot import name 'normalize_manual_item_input' from 'src.processing.order_processor' (E:\\DEEN-OPS\\src\\processing\\order_processor.py)",
+        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\app.py\", line 248, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"E:\\DEEN-OPS\\app.py\", line 57, in run_app\n    from src.pages.pathao_orders import render_pathao_tab\n  File \"E:\\DEEN-OPS\\src\\pages\\pathao_orders.py\", line 19, in <module>\n    from src.processing.order_processor import (\n    ...<2 lines>...\n    )\nImportError: cannot import name 'normalize_manual_item_input' from 'src.processing.order_processor' (E:\\DEEN-OPS\\src\\processing\\order_processor.py)\n",
         "details": {}
     }
 ]
