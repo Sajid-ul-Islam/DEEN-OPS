@@ -206,7 +206,17 @@ def render_distribution_tab(search_q):
                 .str.contains(search_q.lower(), na=False)
             ]
 
-        st.dataframe(df, use_container_width=True)
+        # Render UI Tabs
+        tab_all, tab_ecom, tab_wari, tab_cumilla, tab_sylhet, tab_split, tab_oos = st.tabs([
+            "All Orders", "Ecom-Mirpur", "Wari", "Cumilla", "Sylhet", "Multiple / Split", "Out of Stock"
+        ])
+        with tab_all: st.dataframe(df, use_container_width=True)
+        with tab_ecom: st.dataframe(df[df["Dispatch Suggestion"] == "Ecom-Mirpur"], use_container_width=True)
+        with tab_wari: st.dataframe(df[df["Dispatch Suggestion"] == "Wari"], use_container_width=True)
+        with tab_cumilla: st.dataframe(df[df["Dispatch Suggestion"] == "Cumilla"], use_container_width=True)
+        with tab_sylhet: st.dataframe(df[df["Dispatch Suggestion"] == "Sylhet"], use_container_width=True)
+        with tab_split: st.dataframe(df[df["Dispatch Suggestion"] == "Multiple / Split"], use_container_width=True)
+        with tab_oos: st.dataframe(df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"], use_container_width=True)
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -218,43 +228,66 @@ def render_distribution_tab(search_q):
             df_metrics.to_excel(writer, index=False, sheet_name="Distribution Metrics")
             
             group_col = inv_core.get_group_by_column(df)
-            styled = False
-            if group_col:
-                try:
-                    def get_row_colors(col_series):
-                        colors = []
-                        color_idx = 0
-                        current_val = None
-                        for val in df[group_col]:
-                            val_str = str(val).strip().lower()
-                            if pd.notna(val) and val_str != "" and val_str != "nan":
-                                if current_val != val_str:
-                                    current_val = val_str
-                                    color_idx = 1 - color_idx
-                            else:
-                                current_val = None
-                                color_idx = 0
-                            
-                            colors.append('background-color: #E8F2FF' if color_idx == 1 else 'background-color: #FFFFFF')
-                        return colors
-                    
-                    styled_df = df.style.apply(get_row_colors, axis=0)
-                    styled_df.to_excel(writer, index=False, sheet_name="Granular Distribution")
-                    styled = True
-                except Exception as e:
-                    log_error(e, context="Excel Styling")
+
+            def make_color_func(target_df):
+                def get_row_colors(col_series):
+                    colors = []
+                    color_idx = 0
+                    current_val = None
+                    for val in target_df[group_col]:
+                        val_str = str(val).strip().lower()
+                        if pd.notna(val) and val_str != "" and val_str != "nan":
+                            if current_val != val_str:
+                                current_val = val_str
+                                color_idx = 1 - color_idx
+                        else:
+                            current_val = None
+                            color_idx = 0
+                        colors.append('background-color: #E8F2FF' if color_idx == 1 else 'background-color: #FFFFFF')
+                    return colors
+                return get_row_colors
+
+            sheets_data = [
+                ("All Orders", None),
+                ("Ecom-Mirpur", "Ecom-Mirpur"),
+                ("Wari", "Wari"),
+                ("Cumilla", "Cumilla"),
+                ("Sylhet", "Sylhet"),
+                ("Multiple Split", "Multiple / Split"),
+                ("Out of Stock", "OOS / Unfulfillable")
+            ]
             
-            if not styled:
-                df.to_excel(writer, index=False, sheet_name="Granular Distribution")
+            sheet_names_to_format = [("Distribution Metrics", df_metrics)]
+
+            for sheet_name, suggestion_val in sheets_data:
+                if suggestion_val is None:
+                    tab_df = df.copy()
+                else:
+                    tab_df = df[df["Dispatch Suggestion"] == suggestion_val].copy()
+                
+                if tab_df.empty and suggestion_val is not None:
+                    continue
+
+                styled = False
+                if group_col:
+                    try:
+                        color_func = make_color_func(tab_df)
+                        styled_df = tab_df.style.apply(color_func, axis=0)
+                        styled_df.to_excel(writer, index=False, sheet_name=sheet_name)
+                        styled = True
+                    except Exception as e:
+                        log_error(e, context="Excel Styling")
+                
+                if not styled:
+                    tab_df.to_excel(writer, index=False, sheet_name=sheet_name)
+                
+                sheet_names_to_format.append((sheet_name, tab_df))
 
             workbook = writer.book
             header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
 
             # Auto-format column widths & apply header styles
-            for sheet_name, df_ref in [
-                ("Distribution Metrics", df_metrics),
-                ("Granular Distribution", df)
-            ]:
+            for sheet_name, df_ref in sheet_names_to_format:
                 if sheet_name in writer.sheets and not df_ref.empty:
                     ws = writer.sheets[sheet_name]
                     for idx, col in enumerate(df_ref.columns):
@@ -269,6 +302,21 @@ def render_distribution_tab(search_q):
                             max_len = len(str(col)) + 2
                             ws.set_column(idx, idx, min(max_len, 50))
                         
+                    # Apply Excel Data Grouping (Outline) for orders with multiple items
+                    if group_col and group_col in df_ref.columns:
+                        current_group = None
+                        for row_idx in range(len(df_ref)):
+                            val = df_ref.iloc[row_idx][group_col]
+                            val_str = str(val).strip() if pd.notna(val) else ""
+                            if val_str and val_str == current_group:
+                                # Group additional items under the first row of the order
+                                try:
+                                    ws.set_row(row_idx + 1, None, None, {'level': 1})
+                                except Exception:
+                                    pass
+                            else:
+                                current_group = val_str
+
         st.download_button(
             "Download distribution report",
             output.getvalue(),

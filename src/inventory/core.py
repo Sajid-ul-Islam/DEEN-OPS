@@ -408,6 +408,7 @@ def add_stock_columns_from_inventory(
     df["Fulfillment"] = stock_summary
 
     # 4. Assign individual location columns
+    loc_data = {}
     for loc in locations:
         vals = []
         for i, source_key in enumerate(stock_sources):
@@ -416,52 +417,104 @@ def add_stock_columns_from_inventory(
                 qty = inventory[source_key].get(loc, 0)
             vals.append(qty)
         df[loc] = vals
+        loc_data[loc] = vals
+
+    # Create a helper for quantities
+    qty_needed = [1] * (df.shape[0] if hasattr(df, 'shape') else len(df))
+    if qty_to_buy_col and qty_to_buy_col in df.columns:
+        qty_needed = [
+            int(float(x)) if pd.notna(x) else 1 for x in df[qty_to_buy_col]
+        ]
+
+    # Identify Out of Stock locations per item
+    oos_locations_list = []
+    for i in range(len(qty_needed)):
+        needed = qty_needed[i]
+        oos_locs = []
+        for loc in locations:
+            if loc_data[loc][i] < needed:
+                oos_locs.append(loc)
+        
+        if len(oos_locs) == len(locations):
+            oos_locations_list.append("All Locations")
+        elif not oos_locs:
+            oos_locations_list.append("None")
+        else:
+            oos_locations_list.append(", ".join(oos_locs))
+            
+    df["OOS Locations"] = oos_locations_list
 
     # 5. Intelligent Dispatch Suggestion
     dispatch_suggestions = [""] * (df.shape[0] if hasattr(df, 'shape') else len(df))
     group_col = get_group_by_column(df)
+    items_in_order_list = [1] * (df.shape[0] if hasattr(df, 'shape') else len(df))
 
     if group_col:
-        # Create a helper for quantities
-        qty_needed = [1] * (df.shape[0] if hasattr(df, 'shape') else len(df))
-        if qty_to_buy_col and qty_to_buy_col in df.columns:
-            qty_needed = [
-                int(float(x)) if pd.notna(x) else 1 for x in df[qty_to_buy_col]
-            ]
-
         # Group data to optimize per order
         for _, group_indices in df.groupby(group_col).groups.items():
-            # Try to find a SINGLE location that can fulfill ALL items in the order
-            best_single_loc = None
-            for loc in locations:
-                all_match = True
+            
+            num_items = len(group_indices)
+            for idx in group_indices:
+                items_in_order_list[idx] = num_items
+
+            def can_fulfill(loc_keywords):
                 for idx in group_indices:
                     source_key = stock_sources[idx]
                     needed = qty_needed[idx]
-                    avail = (
-                        inventory.get(source_key, {}).get(loc, 0) if source_key else 0
-                    )
+                    avail = 0
+                    if source_key and source_key in inventory:
+                        for loc in locations:
+                            if any(kw in loc.lower() for kw in loc_keywords):
+                                avail += inventory[source_key].get(loc, 0)
                     if avail < needed:
-                        all_match = False
-                        break
-                if all_match:
-                    best_single_loc = loc
-                    break  # Prioritize Ecom -> Mirpur -> ... as defined in 'locations'
+                        return False
+                return True
 
-            if best_single_loc:
+            # Priority 1: Ecom-Mirpur (Combined)
+            if can_fulfill(["ecom", "mirpur"]):
+                suggestion = "Ecom-Mirpur"
+            # Priority 2: Wari
+            elif can_fulfill(["wari"]):
+                suggestion = "Wari"
+            # Priority 3: Cumilla
+            elif can_fulfill(["cumilla"]):
+                suggestion = "Cumilla"
+            # Priority 4: Sylhet
+            elif can_fulfill(["sylhet"]):
+                suggestion = "Sylhet"
+            else:
+                # Check if it can be fulfilled at all (sum across all locations)
+                can_fulfill_all = True
                 for idx in group_indices:
-                    dispatch_suggestions[idx] = best_single_loc
+                    source_key = stock_sources[idx]
+                    needed = qty_needed[idx]
+                    total_avail = 0
+                    if source_key and source_key in inventory:
+                        total_avail = sum(inventory[source_key].values())
+                    if total_avail < needed:
+                        can_fulfill_all = False
+                        break
+
+                if can_fulfill_all:
+                    suggestion = "Multiple / Split"
+                else:
+                    suggestion = "OOS / Unfulfillable"
+
+            for idx in group_indices:
+                dispatch_suggestions[idx] = suggestion
 
     df["Dispatch Suggestion"] = dispatch_suggestions
 
     # Mark unique orders for easy filtering
     if group_col:
         df["Unique Order"] = (~df.duplicated(subset=[group_col])).map({True: "Yes", False: ""})
+        df["Items in Order"] = items_in_order_list
     else:
         df["Unique Order"] = "Yes"
+        df["Items in Order"] = 1
 
     # Reorder Match Status to the end
-    cols = [c for c in df.columns if c not in ["Match Status", "Unique Order"]] + ["Unique Order", "Match Status"]
+    cols = [c for c in df.columns if c not in ["Match Status", "Unique Order", "Items in Order"]] + ["Items in Order", "Unique Order", "Match Status"]
     df = df[cols]
 
     return df, len(matched)
