@@ -217,7 +217,35 @@ def render_distribution_tab(search_q):
             df_metrics = pd.DataFrame(loc_totals)
             df_metrics.to_excel(writer, index=False, sheet_name="Distribution Metrics")
             
-            df.to_excel(writer, index=False, sheet_name="Granular Distribution")
+            group_col = inv_core.get_group_by_column(df)
+            styled = False
+            if group_col:
+                try:
+                    def get_row_colors(col_series):
+                        colors = []
+                        color_idx = 0
+                        current_val = None
+                        for val in df[group_col]:
+                            val_str = str(val).strip().lower()
+                            if pd.notna(val) and val_str != "" and val_str != "nan":
+                                if current_val != val_str:
+                                    current_val = val_str
+                                    color_idx = 1 - color_idx
+                            else:
+                                current_val = None
+                                color_idx = 0
+                            
+                            colors.append('background-color: #E8F2FF' if color_idx == 1 else 'background-color: #FFFFFF')
+                        return colors
+                    
+                    styled_df = df.style.apply(get_row_colors, axis=0)
+                    styled_df.to_excel(writer, index=False, sheet_name="Granular Distribution")
+                    styled = True
+                except Exception as e:
+                    log_error(e, context="Excel Styling")
+            
+            if not styled:
+                df.to_excel(writer, index=False, sheet_name="Granular Distribution")
 
             workbook = writer.book
             header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})

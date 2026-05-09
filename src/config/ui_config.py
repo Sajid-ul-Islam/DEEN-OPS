@@ -13,6 +13,7 @@ PRIMARY_NAV = [
     "🧩 Delivery Data Parser",
     "🚀 Data Pilot",
     "🛒 WooCommerce Orders",
+    "📑 Excel Merger",
 ]
 
 CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"

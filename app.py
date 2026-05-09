@@ -216,6 +216,9 @@ def run_app():
     elif selected_nav == "🛒 WooCommerce Orders":
         from src.pages.woocommerce_orders import render_woocommerce_orders_tab
         safe_render(render_woocommerce_orders_tab, fallback_msg="WooCommerce Orders unavailable.")
+    elif selected_nav == "📑 Excel Merger":
+        from src.pages.excel_merger import render_excel_merger_tab
+        safe_render(render_excel_merger_tab, fallback_msg="Excel Merger unavailable.")
     # After tool execution, re-render the header with any injected content
     with header_container:
         def render_header_right():
