@@ -242,45 +242,43 @@ def normalize_manual_item_input(raw_text):
 def process_single_order_group(phone, group, data_cols):
     """
     Processes a group of rows belonging to a single order (phone number).
+    Splits into multiple parcels if items have different dispatch locations,
+    assigning the delivery fee to the parcel with the highest item value.
+    Returns a list of dictionaries (records).
     """
     order_col = data_cols.get("order_col", "Order Number")
+    group = group.copy()
+
+    # Determine dispatch groups for each row to handle split parcels
+    def get_dispatch_group(row):
+        sugg = str(row.get("Dispatch Suggestion", "")).strip()
+        if sugg and sugg.lower() != "nan" and sugg != "Multiple / Split":
+            return sugg
+        val = str(row.get(order_col, "")).lower()
+        if val.endswith(" c"): return "Cumilla"
+        if val.endswith(" w"): return "Wari"
+        if val.endswith(" s"): return "Sylhet"
+        return "Ecom-Mirpur"
+        
+    group["_dispatch_loc"] = group.apply(get_dispatch_group, axis=1)
+    
+    subgroups = [df_sub for _, df_sub in group.groupby("_dispatch_loc")]
+
+    # --- Amount to Collect & Payment Info (across the entire customer group) ---
+    total_to_collect = 0
+    trx_types = set()
 
     if order_col in group.columns:
         unique_orders = group.drop_duplicates(subset=[order_col])
     else:
-        # Fallback if no order identification column is found
         unique_orders = group.head(1)
-
-    first_row = group.iloc[0]
-    total_qty = group["Quantity"].sum()
-
-    # --- Categorize Items (across all rows in group) ---
-    cat_map = {}
-    for _, row in group.iterrows():
-        item_name = row.get("Item Name", "")
-        sku = row.get("SKU", "")
-        category = get_category_from_name(item_name)
-
-        # Format: "Item Name - SKU"
-        item_str = f"{item_name} - {sku}"
-        qty = int(row.get("Quantity", 0))
-
-        if category not in cat_map:
-            cat_map[category] = {}
-        if item_str not in cat_map[category]:
-            cat_map[category][item_str] = 0
-        cat_map[category][item_str] += qty
-
-    # --- Amount to Collect & Payment Info (across unique orders) ---
-    total_to_collect = 0
-    trx_types = set()
 
     for _, order_row in unique_orders.iterrows():
         order_total = order_row.get("Order Total Amount", 0)
         pay_method = str(order_row.get("Payment Method Title", "")).lower()
 
         # Determine if this specific order is already paid
-        is_paid = any(kw in pay_method for kw in ["pay online", "ssl", "bkash"])
+        is_paid = any(kw in pay_method for kw in ["pay online", "ssl", "bkash", "card", "nagad", "rocket", "portpos", "paid"])
 
         if is_paid:
             if "bkash" in pay_method:
@@ -288,7 +286,7 @@ def process_single_order_group(phone, group, data_cols):
             else:
                 trx_types.add("Paid by SSL")
         else:
-            total_to_collect += order_total
+            total_to_collect += float(order_total) if pd.notna(order_total) and str(order_total).strip() else 0
 
     trx_info = " / ".join(sorted(list(trx_types)))
 
@@ -304,141 +302,177 @@ def process_single_order_group(phone, group, data_cols):
             else:
                 trx_info = trx_str
 
-    # --- Construct Description String ---
-    full_desc = build_item_description(cat_map, total_qty, trx_info)
+    parcel_records = []
+    parcel_base_values = []
 
-    # Address Processing
-    addr_col = data_cols["addr_col"]
-    raw_address = str(first_row.get(addr_col, "")).strip()
-    raw_state = str(first_row.get(data_cols["state_col"], "")).strip()
-    raw_city = str(first_row.get(data_cols["city_col"], "")).strip()
+    # --- Process each dispatch parcel separately ---
+    for df_sub in subgroups:
+        first_row = df_sub.iloc[0]
+        total_qty = df_sub["Quantity"].sum()
 
-    # Combine Address, City, and State into the main address field
-    address_parts = []
-    if raw_address and raw_address.lower() != "nan":
-        address_parts.append(raw_address)
-    if raw_city and raw_city.lower() != "nan" and raw_city.lower() not in raw_address.lower():
-        address_parts.append(raw_city)
-    if raw_state and raw_state.lower() != "nan" and raw_state.lower() not in raw_address.lower():
-        address_parts.append(raw_state)
+        # Categorize Items and calculate Base Value for this parcel
+        cat_map = {}
+        base_val = 0
+        for _, row in df_sub.iterrows():
+            item_name = row.get("Item Name", "")
+            sku = row.get("SKU", "")
+            category = get_category_from_name(item_name)
 
-    combined_address = ", ".join(address_parts)
-    if not combined_address:
-        combined_address = str(first_row.get("State Name (Billing)", "")).strip()
+            item_str = f"{item_name} - {sku}"
+            qty = int(float(row.get("Quantity", 0))) if pd.notna(row.get("Quantity")) else 0
+            cost = float(row.get("Item Cost", 0)) if pd.notna(row.get("Item Cost")) and str(row.get("Item Cost")).strip() else 0
 
-    # Normalize City & Address (Pathao RecipientCity is the District/State)
-    recipient_city = normalize_city_name(raw_state)
-    address_val = " ".join(combined_address.split()).title()
+            if category not in cat_map:
+                cat_map[category] = {}
+            if item_str not in cat_map[category]:
+                cat_map[category][item_str] = 0
+            cat_map[category][item_str] += qty
+            
+            base_val += (cost * qty)
 
-    # RecipientZone & Area: Smart Matching from Pathao Database
-    recipient_area = ""
-    extracted_zone = raw_city.title()
-    if extracted_zone.lower() == "nan":
-        extracted_zone = ""
+        full_desc = build_item_description(cat_map, total_qty, trx_info)
 
-    # Load Pathao Map for intelligent correction
-    pathao_map_path = "resources/pathao_map.json"
-    if os.path.exists(pathao_map_path):
-        try:
-            with open(pathao_map_path, "r") as f:
-                pathao_map = json.load(f)
+        # Address Processing
+        addr_col = data_cols["addr_col"]
+        raw_address = str(first_row.get(addr_col, "")).strip()
+        raw_state = str(first_row.get(data_cols["state_col"], "")).strip()
+        raw_city = str(first_row.get(data_cols["city_col"], "")).strip()
 
-            # 1. Match City
-            city_data = pathao_map.get(recipient_city)
-            if not city_data:
-                # Try fuzzy matching city name if direct lookup fails
-                match = process.extractOne(recipient_city, pathao_map.keys())
-                if match and match[1] > 85:
-                    city_data = pathao_map[match[0]]
+        address_parts = []
+        if raw_address and raw_address.lower() != "nan":
+            address_parts.append(raw_address)
+        if raw_city and raw_city.lower() != "nan" and raw_city.lower() not in raw_address.lower():
+            address_parts.append(raw_city)
+        if raw_state and raw_state.lower() != "nan" and raw_state.lower() not in raw_address.lower():
+            address_parts.append(raw_state)
 
-            if city_data:
-                zones_dict = city_data.get("zones", {})
-                if extracted_zone and zones_dict:
-                    # 2. Match Zone
-                    zone_match = process.extractOne(extracted_zone, zones_dict.keys())
-                    if zone_match and zone_match[1] > 75:
-                        official_zone_name = zone_match[0]
-                        extracted_zone = official_zone_name
+        combined_address = ", ".join(address_parts)
+        if not combined_address:
+            combined_address = str(first_row.get("State Name (Billing)", "")).strip()
 
-                        # 3. Match Area (Optional)
-                        areas_list = zones_dict[official_zone_name].get("areas", [])
-                        if areas_list:
-                            # Try to find area name in the Address since it's rarely a separate column in WooCommerce
-                            area_names = [a["area_name"] for a in areas_list]
-                            area_match = process.extractOne(address_val, area_names)
-                            if area_match and area_match[1] > 90:
-                                recipient_area = area_match[0]
-        except:
-            pass # Fallback to raw data if map fails to load
+        recipient_city = normalize_city_name(raw_state)
+        address_val = " ".join(combined_address.split()).title()
 
-    # Combine merchant IDs
-    if order_col in unique_orders.columns:
-        order_ids = []
-        for _, r in unique_orders.iterrows():
-            val = str(r[order_col])
-            if val.lower() == "nan":
-                continue
-            if val.endswith(".0"):
-                val = val[:-2]
+        recipient_area = ""
+        extracted_zone = raw_city.title()
+        if extracted_zone.lower() == "nan":
+            extracted_zone = ""
+
+        # Load Pathao Map for intelligent correction
+        pathao_map_path = "resources/pathao_map.json"
+        if os.path.exists(pathao_map_path):
+            try:
+                with open(pathao_map_path, "r") as f:
+                    pathao_map = json.load(f)
+
+                city_data = pathao_map.get(recipient_city)
+                if not city_data:
+                    match = process.extractOne(recipient_city, pathao_map.keys())
+                    if match and match[1] > 85:
+                        city_data = pathao_map[match[0]]
+
+                if city_data:
+                    zones_dict = city_data.get("zones", {})
+                    if extracted_zone and zones_dict:
+                        zone_match = process.extractOne(extracted_zone, zones_dict.keys())
+                        if zone_match and zone_match[1] > 75:
+                            official_zone_name = zone_match[0]
+                            extracted_zone = official_zone_name
+
+                            areas_list = zones_dict[official_zone_name].get("areas", [])
+                            if areas_list:
+                                area_names = [a["area_name"] for a in areas_list]
+                                area_match = process.extractOne(address_val, area_names)
+                                if area_match and area_match[1] > 90:
+                                    recipient_area = area_match[0]
+            except:
+                pass 
+
+        # Combine merchant IDs
+        if order_col in df_sub.columns:
+            order_ids = []
+            for _, r in df_sub.iterrows():
+                val = str(r[order_col])
+                if val.lower() == "nan":
+                    continue
+                if val.endswith(".0"):
+                    val = val[:-2]
+                    
+                sugg = str(r.get("Dispatch Suggestion", "")).strip()
+                suffix = ""
+                if sugg == "Cumilla": suffix = " c"
+                elif sugg == "Wari": suffix = " w"
+                elif sugg == "Sylhet": suffix = " s"
                 
-            sugg = str(r.get("Dispatch Suggestion", "")).strip()
-            suffix = ""
-            if sugg == "Cumilla":
-                suffix = " c"
-            elif sugg == "Wari":
-                suffix = " w"
-            elif sugg == "Sylhet":
-                suffix = " s"
-                
-            if suffix and not val.endswith(suffix):
-                val += suffix
-                
-            if val not in order_ids:
-                order_ids.append(val)
-                
-        combined_merchant_id = ", ".join(order_ids)
-    else:
-        combined_merchant_id = "N/A"
-
-    # --- Final Brute Force Validation for Pathao Mandatory Cells ---
-    recipient_name = str(first_row.get(data_cols["name_col"], "")).strip().title()
-    if not recipient_name or recipient_name.lower() == "nan":
-        recipient_name = "Customer"
-
-    if not recipient_city or recipient_city.lower() in ["unknown", "nan", ""]:
-        # Try to find city in address as last resort
-        for city_name in ["Dhaka", "Chittagong", "Chattogram", "Sylhet", "Khulna", "Rajshahi", "Barisal", "Rangpur"]:
-            if city_name.lower() in address_val.lower():
-                recipient_city = city_name
-                break
-        if not recipient_city: recipient_city = "Dhaka" # Default to capital
-
-    # If extracted_zone is just the city name again, try to peek into the address
-    if not extracted_zone or extracted_zone.lower() in ["unknown", "nan", "", recipient_city.lower(), "dhaka", "chattogram"]:
-        peeked = peek_zone_from_address(address_val)
-        if peeked:
-            extracted_zone = peeked
+                if suffix and not val.endswith(suffix):
+                    val += suffix
+                    
+                if val not in order_ids:
+                    order_ids.append(val)
+                    
+            combined_merchant_id = ", ".join(order_ids)
         else:
-            extracted_zone = recipient_city # Final fallback
+            combined_merchant_id = "N/A"
 
-    # --- Build Record ---
-    record = {
-        "ItemType": "Parcel",
-        "StoreName": "Deen Commerce",
-        "MerchantOrderId": combined_merchant_id,
-        "RecipientName(*)": recipient_name,
-        "RecipientPhone(*)": phone if phone and str(phone).lower() != "nan" else "01700000000",
-        "RecipientAddress(*)": address_val if address_val else "Address Missing",
-        "RecipientCity(*)": recipient_city,
-        "RecipientZone(*)": extracted_zone,
-        "RecipientArea": recipient_area,
-        "AmountToCollect(*)": total_to_collect if total_to_collect > 0 else 0,
-        "ItemQuantity": int(total_qty) if total_qty > 0 else 1,
-        "ItemWeight": "0.5",
-        "ItemDesc": full_desc if full_desc else "General Items",
-        "SpecialInstruction": "",
-    }
-    return record
+        # Final Brute Force Validation
+        recipient_name = str(first_row.get(data_cols["name_col"], "")).strip().title()
+        if not recipient_name or recipient_name.lower() == "nan":
+            recipient_name = "Customer"
+
+        if not recipient_city or recipient_city.lower() in ["unknown", "nan", ""]:
+            for city_name in ["Dhaka", "Chittagong", "Chattogram", "Sylhet", "Khulna", "Rajshahi", "Barisal", "Rangpur"]:
+                if city_name.lower() in address_val.lower():
+                    recipient_city = city_name
+                    break
+            if not recipient_city: recipient_city = "Dhaka" 
+
+        if not extracted_zone or extracted_zone.lower() in ["unknown", "nan", "", recipient_city.lower(), "dhaka", "chattogram"]:
+            peeked = peek_zone_from_address(address_val)
+            if peeked:
+                extracted_zone = peeked
+            else:
+                extracted_zone = recipient_city
+
+        special_instruction = ""
+        if len(subgroups) > 1:
+            special_instruction = "⚠️ SPLIT PARCEL - This is part of a multi-parcel order."
+
+        record = {
+            "ItemType": "Parcel",
+            "StoreName": "Deen Commerce",
+            "MerchantOrderId": combined_merchant_id,
+            "RecipientName(*)": recipient_name,
+            "RecipientPhone(*)": phone if phone and str(phone).lower() != "nan" else "01700000000",
+            "RecipientAddress(*)": address_val if address_val else "Address Missing",
+            "RecipientCity(*)": recipient_city,
+            "RecipientZone(*)": extracted_zone,
+            "RecipientArea": recipient_area,
+            "AmountToCollect(*)": 0, # Distributed below
+            "ItemQuantity": int(total_qty) if total_qty > 0 else 1,
+            "ItemWeight": "0.5",
+            "ItemDesc": full_desc if full_desc else "General Items",
+            "SpecialInstruction": special_instruction,
+        }
+        
+        parcel_records.append(record)
+        parcel_base_values.append(base_val)
+
+    # --- Distribute Total Amount to Collect across parcels ---
+    if total_to_collect > 0:
+        if len(parcel_records) == 1:
+            parcel_records[0]["AmountToCollect(*)"] = total_to_collect
+        else:
+            # Add delivery fee/discounts only to the parcel with the highest base value
+            max_idx = parcel_base_values.index(max(parcel_base_values))
+            sum_others = sum(v for i, v in enumerate(parcel_base_values) if i != max_idx)
+            
+            for i, rec in enumerate(parcel_records):
+                if i == max_idx:
+                    rec["AmountToCollect(*)"] = max(0, total_to_collect - sum_others)
+                else:
+                    rec["AmountToCollect(*)"] = parcel_base_values[i]
+    
+    return parcel_records
 
 
 @st.cache_data(show_spinner="Processing orders via Pathao Intelligence Engine...")
@@ -459,8 +493,8 @@ def process_orders_dataframe(df):
 
     # 3. Process Groups
     for phone, group in grouped:
-        record = process_single_order_group(phone, group, data_cols)
-        processed_data.append(record)
+        records = process_single_order_group(phone, group, data_cols)
+        processed_data.extend(records)
 
     # 4. Result DF
     result_df = pd.DataFrame(processed_data)

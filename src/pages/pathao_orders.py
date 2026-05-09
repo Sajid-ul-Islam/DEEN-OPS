@@ -299,7 +299,13 @@ def _render_processing_tab():
     result_df = st.session_state.get("pathao_res_df")
     if result_df is not None:
         with st.expander("Preview output", expanded=True):
-            st.dataframe(result_df, use_container_width=True)
+            def highlight_split_orders(row):
+                if "SPLIT " in str(row.get("SpecialInstruction", "")):
+                    return ['background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: bold;'] * len(row)
+                return [''] * len(row)
+                
+            styled_df = result_df.style.apply(highlight_split_orders, axis=1)
+            st.dataframe(styled_df, use_container_width=True)
 
         c1, c2 = st.columns(2)
         with c1:
