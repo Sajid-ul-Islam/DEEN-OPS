@@ -373,11 +373,29 @@ def process_single_order_group(phone, group, data_cols):
 
     # Combine merchant IDs
     if order_col in unique_orders.columns:
-        order_ids = [
-            str(x)
-            for x in unique_orders[order_col].unique()
-            if str(x).lower() != "nan"
-        ]
+        order_ids = []
+        for _, r in unique_orders.iterrows():
+            val = str(r[order_col])
+            if val.lower() == "nan":
+                continue
+            if val.endswith(".0"):
+                val = val[:-2]
+                
+            sugg = str(r.get("Dispatch Suggestion", "")).strip()
+            suffix = ""
+            if sugg == "Cumilla":
+                suffix = " c"
+            elif sugg == "Wari":
+                suffix = " w"
+            elif sugg == "Sylhet":
+                suffix = " s"
+                
+            if suffix and not val.endswith(suffix):
+                val += suffix
+                
+            if val not in order_ids:
+                order_ids.append(val)
+                
         combined_merchant_id = ", ".join(order_ids)
     else:
         combined_merchant_id = "N/A"

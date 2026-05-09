@@ -234,7 +234,11 @@ def render_distribution_tab(search_q):
                     colors = []
                     color_idx = 0
                     current_val = None
-                    for val in target_df[group_col]:
+                    
+                    group_vals = target_df[group_col].values
+                    col_vals = col_series.values
+                    
+                    for i, val in enumerate(group_vals):
                         val_str = str(val).strip().lower()
                         if pd.notna(val) and val_str != "" and val_str != "nan":
                             if current_val != val_str:
@@ -243,7 +247,15 @@ def render_distribution_tab(search_q):
                         else:
                             current_val = None
                             color_idx = 0
-                        colors.append('background-color: #E8F2FF' if color_idx == 1 else 'background-color: #FFFFFF')
+                            
+                        bg_color = '#E8F2FF' if color_idx == 1 else '#FFFFFF'
+                        font_style = ''
+                        
+                        if col_series.name == "Fulfillment" and "Stock Exhausted by Prior Orders" in str(col_vals[i]):
+                            bg_color = '#FEE2E2'
+                            font_style = 'color: #DC2626; font-weight: bold;'
+                            
+                        colors.append(f'background-color: {bg_color}; {font_style}')
                     return colors
                 return get_row_colors
 
