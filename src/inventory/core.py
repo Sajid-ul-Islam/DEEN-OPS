@@ -412,6 +412,7 @@ def add_stock_columns_from_inventory(
     
     dispatch_suggestions = [""] * len(df)
     oos_locations_list = [""] * len(df)
+    full_order_locs_list = [""] * len(df)
     items_in_order_list = [1] * len(df)
     fulfillment_status = [""] * len(df)
 
@@ -442,7 +443,7 @@ def add_stock_columns_from_inventory(
                     if any(kw in loc.lower() for kw in loc_keywords):
                         avail = temp_inv[source_key].get(loc, 0)
                         take = min(amount_to_find, avail)
-                        temp_inv[source_key][loc] -= take
+                        temp_inv[source_key][loc] = avail - take
                         amount_to_find -= take
                         if amount_to_find == 0:
                             break
@@ -455,6 +456,16 @@ def add_stock_columns_from_inventory(
                 running_inv.clear()
                 running_inv.update(temp_inv)
             return success
+
+        full_locs = []
+        if try_allocate(["ecom", "mirpur"], commit=False): full_locs.append("Ecom-Mirpur")
+        if try_allocate(["wari"], commit=False): full_locs.append("Wari")
+        if try_allocate(["cumilla"], commit=False): full_locs.append("Cumilla")
+        if try_allocate(["sylhet"], commit=False): full_locs.append("Sylhet")
+
+        full_locs_str = ", ".join(full_locs) if full_locs else "None"
+        for idx in group_indices:
+            full_order_locs_list[idx] = full_locs_str
 
         if try_allocate(["ecom", "mirpur"], commit=True):
             suggestion = "Ecom-Mirpur"
@@ -507,6 +518,7 @@ def add_stock_columns_from_inventory(
         df = df.drop(columns=["_temp_group"])
         group_col = None
 
+    df["Full Order Available At"] = full_order_locs_list
     df["Fulfillment"] = fulfillment_status
     df["OOS Locations"] = oos_locations_list
     df["Dispatch Suggestion"] = dispatch_suggestions

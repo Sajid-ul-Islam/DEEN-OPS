@@ -30,6 +30,11 @@ The project follows a layered structure. Avoid circular imports. Pages should or
   - `data_pilot.py`
   - `dashboard_output.py`
   - `dashboard_metrics.py`
+  - `dashboard_charts.py`
+  - `excel_merger.py` (UI Name: Product Listing)
+  - `whatsapp_messaging.py`
+  - `woocommerce_orders.py`
+  - `delivery_parser.py`
 - `src/components/`
   Reusable UI widgets and styling helpers.
 - `src/services/`
@@ -44,6 +49,7 @@ The project follows a layered structure. Avoid circular imports. Pages should or
   - `column_detection.py`
   - `order_processor.py`
   - `forecasting.py`
+  - `whatsapp_processor.py`
 - `src/inventory/`
   Inventory matching and distribution logic.
 - `src/utils/`
@@ -74,6 +80,8 @@ Common prefixes:
   Data Pilot state.
 - `pathao_*`
   Pathao processor state.
+- `wp_*`
+  WhatsApp processor state.
 - `inv_*`
   Inventory distribution state.
 - `wc_*`
@@ -173,6 +181,11 @@ If you extend parsing, keep it backward compatible and route all output through 
 - Added the `Item Description Helper` tab to the Pathao page.
 - Centralized Pathao item-description normalization so manual and grouped-order flows use the same formatter.
 - Improved Pathao `RecipientAddress(*)` generation with normalized zone and district synthesis.
+- Transformed `Excel Merger` into `Product Listing`, adding SKU grouping, unique order counting, and dynamic pastel row coloring for visual distinction.
+- Upgraded `Inventory Distribution` with graceful empty-stock handling, infinite pastel color grouping for unique orders, and full order location discovery.
+- Integrated WhatsApp Messaging link generation and bulk export capabilities.
+- Added Live WooCommerce Order Tracking and Pathao Bulk Status Checks.
+- Introduced `executive_daily_report.py` for automated daily shift narrative generation.
 
 ## 10. Development Guidance
 - New workspace page:
