@@ -156,7 +156,9 @@ def render_distribution_tab(search_q):
                         t_col = title_col if title_col in master_df.columns else None
                         if t_col:
                             for item in master_df[t_col].dropna():
-                                title, _ = item_name_to_title_size(str(item))
+                                if isinstance(item, (list, dict, set)):
+                                    item = str(item)
+                                title, _ = item_name_to_title_size(item)
                                 if title: t_titles.add(title.strip().lower())
 
                         from src.services.woocommerce.stock import fetch_woocommerce_stock
@@ -175,14 +177,15 @@ def render_distribution_tab(search_q):
                     for warning in warnings:
                         st.warning(warning)
 
-                result_df, _ = inv_core.add_stock_columns_from_inventory(
-                    master_df,
-                    title_col,
-                    inventory_map,
-                    INVENTORY_LOCATIONS,
-                    sku_col,
-                    sku_map,
-                )
+                with st.spinner("Intelligent Inventory Matching in progress..."):
+                    result_df, _ = inv_core.add_stock_columns_from_inventory(
+                        master_df,
+                        title_col,
+                        inventory_map,
+                        INVENTORY_LOCATIONS,
+                        sku_col,
+                        sku_map,
+                    )
 
                 st.session_state.inv_res_data = result_df
                 st.session_state.inv_active_l = INVENTORY_LOCATIONS
@@ -191,7 +194,7 @@ def render_distribution_tab(search_q):
                 st.success("Distribution analysis complete.")
             except Exception as exc:
                 log_error(exc, context="Inventory Analyze")
-                st.error("Distribution analysis failed.")
+                st.error(f"Distribution analysis failed: {str(exc)}")
 
     if st.session_state.get("inv_res_data") is not None:
         df = st.session_state.inv_res_data.copy()

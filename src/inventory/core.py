@@ -264,7 +264,6 @@ def load_inventory_from_uploads(uploaded_files: Dict[str, object]):
     return inventory, warnings, enriched_dfs, sku_to_title_size
 
 
-@st.cache_data(show_spinner="Intelligent Inventory Matching in progress...")
 def add_stock_columns_from_inventory(
     product_df: pd.DataFrame,
     item_name_col: str,
@@ -291,6 +290,8 @@ def add_stock_columns_from_inventory(
         if sku_col and sku_col in df.columns:
             val = r.get(sku_col, "")
             if val:
+                if isinstance(val, (list, dict, set)):
+                    val = str(val)
                 return normalize_sku(val)
         return ""
 
@@ -299,7 +300,10 @@ def add_stock_columns_from_inventory(
     for i, row in df.iterrows():
         # 1. Get Product List SKU and Item Name Key
         pl_sku = get_sku(row)
-        title, size = item_name_to_title_size(row.get(item_name_col, ""))
+        raw_item_name = row.get(item_name_col, "")
+        if isinstance(raw_item_name, (list, dict, set)):
+            raw_item_name = str(raw_item_name)
+        title, size = item_name_to_title_size(raw_item_name)
         
         if size_col and size_col in df.columns:
             val = row.get(size_col, "")
@@ -380,7 +384,18 @@ def add_stock_columns_from_inventory(
     _, qty_to_buy_col, _, _ = identify_columns(df)
     qty_needed = [1] * len(df)
     if qty_to_buy_col and qty_to_buy_col in df.columns:
-        qty_needed = [int(float(x)) if pd.notna(x) else 1 for x in df[qty_to_buy_col]]
+        def _parse_qty(x):
+            if pd.isna(x):
+                return 1
+            if isinstance(x, str):
+                x = x.replace(",", "").strip()
+                if x == "":
+                    return 1
+            try:
+                return int(float(x))
+            except Exception:
+                return 1
+        qty_needed = [_parse_qty(x) for x in df[qty_to_buy_col]]
 
     # 3. Assign individual location columns (Raw original warehouse values)
     for loc in locations:
