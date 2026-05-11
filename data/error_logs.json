@@ -1,12 +1,5 @@
 [
     {
-        "timestamp": "2026-04-08 10:40:15",
-        "context": "Pathao Processor",
-        "error": "'NoneType' object has no attribute 'get'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\pathao_tab.py\", line 124, in render_pathao_tab\n    result_df = process_orders_dataframe(preview_df)\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\processor.py\", line 251, in process_orders_dataframe\n    record = process_single_order_group(phone, group, data_cols)\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\processor.py\", line 79, in process_single_order_group\n    order_col = data_cols.get(\"order_col\", \"Order Number\")\n                ^^^^^^^^^^^^^\nAttributeError: 'NoneType' object has no attribute 'get'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-08 11:39:33",
         "context": "App Bootstrap",
         "error": "cannot import name 'render_status_toggle' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)",
@@ -697,6 +690,13 @@
         "context": "Inventory Analyze",
         "error": "'Mirpur'",
         "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 178, in render_distribution_tab\n    result_df, _ = inv_core.add_stock_columns_from_inventory(\n                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n        master_df,\n        ^^^^^^^^^^\n    ...<4 lines>...\n        sku_map,\n        ^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\caching\\cache_utils.py\", line 281, in __call__\n    return self._get_or_create_cached_value(args, kwargs, spinner_message)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\caching\\cache_utils.py\", line 326, in _get_or_create_cached_value\n    return self._handle_cache_miss(cache, value_key, func_args, func_kwargs)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\caching\\cache_utils.py\", line 385, in _handle_cache_miss\n    computed_value = self._info.func(*func_args, **func_kwargs)\n  File \"E:\\DEEN-OPS\\src\\inventory\\core.py\", line 444, in add_stock_columns_from_inventory\n    if try_allocate([\"ecom\", \"mirpur\"], commit=True):\n       ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"E:\\DEEN-OPS\\src\\inventory\\core.py\", line 430, in try_allocate\n    temp_inv[source_key][loc] -= take\n    ~~~~~~~~~~~~~~~~~~~~^^^^^\nKeyError: 'Mirpur'\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-11 21:07:54",
+        "context": "Inventory Analyze",
+        "error": "'Mirpur'",
+        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 181, in render_distribution_tab\n    result_df, _ = inv_core.add_stock_columns_from_inventory(\n                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n        master_df,\n        ^^^^^^^^^^\n    ...<4 lines>...\n        sku_map,\n        ^^^^^^^^\n    )\n    ^\n  File \"E:\\DEEN-OPS\\src\\inventory\\core.py\", line 459, in add_stock_columns_from_inventory\n    if try_allocate([\"ecom\", \"mirpur\"], commit=True):\n       ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"E:\\DEEN-OPS\\src\\inventory\\core.py\", line 445, in try_allocate\n    temp_inv[source_key][loc] -= take\n    ~~~~~~~~~~~~~~~~~~~~^^^^^\nKeyError: 'Mirpur'\n",
         "details": {}
     }
 ]
