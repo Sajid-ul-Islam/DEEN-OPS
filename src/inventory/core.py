@@ -277,7 +277,7 @@ def add_stock_columns_from_inventory(
     or by SKU when available. When matching by SKU, item name must equal that SKU's Title-Size.
     Returns (output_df, matched_row_count).
     """
-    df = product_df.copy()
+    df = product_df.copy().reset_index(drop=True)
     matched = set()
     sku_to_inv_key = sku_to_title_size or {}
 
@@ -423,96 +423,109 @@ def add_stock_columns_from_inventory(
         group_col = "_temp_group"
         temp_group_added = True
 
-    for group_val, group_indices in df.groupby(group_col, sort=False).groups.items():
-        num_items = len(group_indices)
-        for idx in group_indices:
-            items_in_order_list[idx] = num_items
+    try:
+        for group_val, group_indices in df.groupby(group_col, sort=False).groups.items():
+            try:
+                num_items = len(group_indices)
+                for idx in group_indices:
+                    items_in_order_list[idx] = num_items
 
-        def try_allocate(loc_keywords, commit=False):
-            temp_inv = copy.deepcopy(running_inv)
-            success = True
-            for idx in group_indices:
-                source_key = stock_sources[idx]
-                needed = qty_needed[idx]
-                if not source_key or source_key not in temp_inv:
-                    success = False
-                    break
-                
-                amount_to_find = needed
-                for loc in locations:
-                    if any(kw in loc.lower() for kw in loc_keywords):
-                        avail = temp_inv[source_key].get(loc, 0)
-                        take = min(amount_to_find, avail)
-                        temp_inv[source_key][loc] = avail - take
-                        amount_to_find -= take
-                        if amount_to_find == 0:
+                def try_allocate(loc_keywords, commit=False):
+                    temp_inv = copy.deepcopy(running_inv)
+                    success = True
+                    for idx in group_indices:
+                        source_key = stock_sources[idx]
+                        needed = qty_needed[idx]
+                        if not source_key or source_key not in temp_inv:
+                            success = False
+                            break
+                        
+                        amount_to_find = needed
+                        for loc in locations:
+                            if any(kw in loc.lower() for kw in loc_keywords):
+                                avail = temp_inv[source_key].get(loc, 0)
+                                take = min(amount_to_find, avail)
+                                temp_inv[source_key][loc] = avail - take
+                                amount_to_find -= take
+                                if amount_to_find == 0:
+                                    break
+                                    
+                        if amount_to_find > 0:
+                            success = False
                             break
                             
-                if amount_to_find > 0:
-                    success = False
-                    break
-                    
-            if success and commit:
-                running_inv.clear()
-                running_inv.update(temp_inv)
-            return success
+                    if success and commit:
+                        running_inv.clear()
+                        running_inv.update(temp_inv)
+                    return success
 
-        full_locs = []
-        if try_allocate(["ecom", "mirpur"], commit=False): full_locs.append("Ecom-Mirpur")
-        if try_allocate(["wari"], commit=False): full_locs.append("Wari")
-        if try_allocate(["cumilla"], commit=False): full_locs.append("Cumilla")
-        if try_allocate(["sylhet"], commit=False): full_locs.append("Sylhet")
+                full_locs = []
+                if try_allocate(["ecom", "mirpur"], commit=False): full_locs.append("Ecom-Mirpur")
+                if try_allocate(["wari"], commit=False): full_locs.append("Wari")
+                if try_allocate(["cumilla"], commit=False): full_locs.append("Cumilla")
+                if try_allocate(["sylhet"], commit=False): full_locs.append("Sylhet")
 
-        full_locs_str = ", ".join(full_locs) if full_locs else "None"
-        for idx in group_indices:
-            full_order_locs_list[idx] = full_locs_str
+                full_locs_str = ", ".join(full_locs) if full_locs else "None"
+                for idx in group_indices:
+                    full_order_locs_list[idx] = full_locs_str
 
-        if try_allocate(["ecom", "mirpur"], commit=True):
-            suggestion = "Ecom-Mirpur"
-        elif try_allocate(["wari"], commit=True):
-            suggestion = "Wari"
-        elif try_allocate(["cumilla"], commit=True):
-            suggestion = "Cumilla"
-        elif try_allocate(["sylhet"], commit=True):
-            suggestion = "Sylhet"
-        else:
-            if try_allocate([loc.lower() for loc in locations], commit=True):
-                suggestion = "Multiple / Split"
-            else:
-                suggestion = "OOS / Unfulfillable"
-
-        for idx in group_indices:
-            dispatch_suggestions[idx] = suggestion
-            source_key = stock_sources[idx]
-            needed = qty_needed[idx]
-
-            if suggestion == "OOS / Unfulfillable":
-                if not source_key:
-                    fulfillment_status[idx] = "❌ No Match"
-                    oos_locations_list[idx] = "All Locations"
+                if try_allocate(["ecom", "mirpur"], commit=True):
+                    suggestion = "Ecom-Mirpur"
+                elif try_allocate(["wari"], commit=True):
+                    suggestion = "Wari"
+                elif try_allocate(["cumilla"], commit=True):
+                    suggestion = "Cumilla"
+                elif try_allocate(["sylhet"], commit=True):
+                    suggestion = "Sylhet"
                 else:
-                    total_left = sum(running_inv.get(source_key, {}).values())
-                    if total_left == 0:
-                        fulfillment_status[idx] = "❌ OOS (Stock Exhausted by Prior Orders)"
-                    elif total_left < needed:
-                        fulfillment_status[idx] = f"⚠️ Partial ({total_left}/{needed} left)"
+                    if try_allocate([loc.lower() for loc in locations], commit=True):
+                        suggestion = "Multiple / Split"
                     else:
-                        fulfillment_status[idx] = "❌ Blocked (Another item in order is OOS)"
+                        suggestion = "OOS / Unfulfillable"
 
-                    oos_locs = []
-                    for loc in locations:
-                        avail = running_inv.get(source_key, {}).get(loc, 0)
-                        if avail < needed:
-                            oos_locs.append(loc)
-                    if len(oos_locs) == len(locations):
-                        oos_locations_list[idx] = "All Locations"
-                    elif not oos_locs:
-                        oos_locations_list[idx] = "None"
+                for idx in group_indices:
+                    dispatch_suggestions[idx] = suggestion
+                    source_key = stock_sources[idx]
+                    needed = qty_needed[idx]
+
+                    if suggestion == "OOS / Unfulfillable":
+                        if not source_key:
+                            fulfillment_status[idx] = "❌ No Match"
+                            oos_locations_list[idx] = "All Locations"
+                        else:
+                            total_left = sum(running_inv.get(source_key, {}).values())
+                            if total_left == 0:
+                                fulfillment_status[idx] = "❌ OOS (Stock Exhausted by Prior Orders)"
+                            elif total_left < needed:
+                                fulfillment_status[idx] = f"⚠️ Partial ({total_left}/{needed} left)"
+                            else:
+                                fulfillment_status[idx] = "❌ Blocked (Another item in order is OOS)"
+
+                            oos_locs = []
+                            for loc in locations:
+                                avail = running_inv.get(source_key, {}).get(loc, 0)
+                                if avail < needed:
+                                    oos_locs.append(loc)
+                            if len(oos_locs) == len(locations):
+                                oos_locations_list[idx] = "All Locations"
+                            elif not oos_locs:
+                                oos_locations_list[idx] = "None"
+                            else:
+                                oos_locations_list[idx] = ", ".join(oos_locs)
                     else:
-                        oos_locations_list[idx] = ", ".join(oos_locs)
-            else:
-                fulfillment_status[idx] = "✅ Available (Allocated)"
-                oos_locations_list[idx] = "None"
+                        fulfillment_status[idx] = "✅ Available (Allocated)"
+                        oos_locations_list[idx] = "None"
+            except Exception:
+                for idx in group_indices:
+                    dispatch_suggestions[idx] = "Error / Unfulfillable"
+                    fulfillment_status[idx] = "❌ Processing Error"
+                    full_order_locs_list[idx] = "Error"
+                    oos_locations_list[idx] = "Error"
+    except Exception:
+        dispatch_suggestions = ["Error / Unfulfillable"] * len(df)
+        fulfillment_status = ["❌ Grouping Error"] * len(df)
+        full_order_locs_list = ["Error"] * len(df)
+        oos_locations_list = ["Error"] * len(df)
 
     if temp_group_added:
         df = df.drop(columns=["_temp_group"])

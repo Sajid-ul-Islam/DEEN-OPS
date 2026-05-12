@@ -3,7 +3,7 @@ import streamlit as st
 import os
 import json
 import re
-from src.utils.product import get_category_from_name
+from src.processing.categorization import get_category_for_sales
 from src.utils.text import normalize_city_name, peek_zone_from_address
 from fuzzywuzzy import process
 
@@ -60,11 +60,11 @@ def identify_columns(df):
 
     # Transaction ID Column
     cols["trx_col"] = "trxId"
-    if "trxId" not in df.columns:
-        for c in df.columns:
-            if c.lower() == "trxid":
-                cols["trx_col"] = c
-                break
+    for c in df.columns:
+        c_lower = c.lower()
+        if c_lower in ["trxid", "transaction id", "transaction", "trx id", "bkash"]:
+            cols["trx_col"] = c
+            break
 
     # Order Number Column
     cols["order_col"] = "Order Number"
@@ -138,7 +138,7 @@ def build_item_description(cat_map, total_qty, trx_info=""):
         # Single Item
         for cat, items in cat_map.items():
             for item_str, count in items.items():
-                full_desc = item_str
+                full_desc = str(item_str).strip().rstrip(';')
                 break
             if full_desc:
                 break
@@ -159,15 +159,16 @@ def build_item_description(cat_map, total_qty, trx_info=""):
             cat_total = 0
             for item_str, count in items_dict.items():
                 cat_total += count
+                clean_item = str(item_str).strip().rstrip(';')
                 if count > 1:
-                    formatted_items.append(f"{item_str} ({count} pcs)")
+                    formatted_items.append(f"{clean_item} ({count} pcs)")
                 else:
-                    formatted_items.append(item_str)
+                    formatted_items.append(clean_item)
 
-            items_joined = "; ".join(formatted_items)
+            items_joined = "; ".join(filter(None, formatted_items))
             desc_parts.append(f"{cat_total} {cat} = {items_joined}")
 
-        full_desc = "; ".join(desc_parts)
+        full_desc = "; ".join(filter(None, desc_parts))
 
         suffix_parts = [f"{int(total_qty)} items"]
         if trx_info:
@@ -175,6 +176,9 @@ def build_item_description(cat_map, total_qty, trx_info=""):
 
         full_desc += f"; ({' - '.join(suffix_parts)})"
         
+    # Clean up any accidental double semicolons
+    full_desc = re.sub(r'(\s*;\s*)+', '; ', full_desc).strip()
+
     return full_desc
 
 
@@ -187,6 +191,10 @@ def parse_manual_item_lines(raw_text):
     total_qty = 0
     
     for line in lines:
+        line = line.strip().rstrip(';')
+        if not line:
+            continue
+            
         qty = 1
         item_str = line
         
@@ -205,9 +213,9 @@ def parse_manual_item_lines(raw_text):
                     item_str = m3.group(1)
                     qty = int(m3.group(2))
                     
-        item_str = item_str.strip()
+        item_str = item_str.strip().rstrip(';')
         item_str = item_str.replace(" | ", " - ")
-        category = get_category_from_name(item_str)
+        category = get_category_for_sales(item_str)
         
         if category not in cat_map:
             cat_map[category] = {}
@@ -281,7 +289,9 @@ def process_single_order_group(phone, group, data_cols):
         is_paid = any(kw in pay_method for kw in ["pay online", "ssl", "bkash", "card", "nagad", "rocket", "portpos", "paid"])
 
         if is_paid:
-            if "bkash" in pay_method:
+            if "pay online" in pay_method or "ssl" in pay_method:
+                trx_types.add("Paid by SSL")
+            elif "bkash" in pay_method:
                 trx_types.add("Paid by Bkash")
             else:
                 trx_types.add("Paid by SSL")
@@ -292,7 +302,7 @@ def process_single_order_group(phone, group, data_cols):
 
     # Append Transaction IDs
     trx_col = data_cols["trx_col"]
-    if trx_col in group.columns:
+    if trx_col in group.columns and "Paid by Bkash" in trx_types:
         trx_vals = set(group[trx_col].dropna().astype(str))
         cleaned_trx = [t for t in trx_vals if t.lower() != "nan" and t.strip() != ""]
         if cleaned_trx:
@@ -316,7 +326,7 @@ def process_single_order_group(phone, group, data_cols):
         for _, row in df_sub.iterrows():
             item_name = row.get("Item Name", "")
             sku = row.get("SKU", "")
-            category = get_category_from_name(item_name)
+            category = get_category_for_sales(item_name)
 
             item_str = f"{item_name} - {sku}"
             qty = int(float(row.get("Quantity", 0))) if pd.notna(row.get("Quantity")) else 0
@@ -436,6 +446,12 @@ def process_single_order_group(phone, group, data_cols):
         special_instruction = ""
         if len(subgroups) > 1:
             special_instruction = "⚠️ SPLIT PARCEL - This is part of a multi-parcel order."
+
+        if trx_info:
+            if special_instruction:
+                special_instruction += f" | {trx_info}"
+            else:
+                special_instruction = trx_info
 
         record = {
             "ItemType": "Parcel",

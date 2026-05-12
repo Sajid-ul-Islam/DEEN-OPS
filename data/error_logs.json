@@ -1,12 +1,5 @@
 [
     {
-        "timestamp": "2026-04-08 11:43:36",
-        "context": "App Bootstrap",
-        "error": "cannot import name 'render_status_toggle' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 150, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 36, in run_app\n    from app_modules.pathao_tab import render_pathao_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\pathao_tab.py\", line 9, in <module>\n    from app_modules.ui_components import (\n    ...<6 lines>...\n    )\nImportError: cannot import name 'render_status_toggle' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-08 11:43:42",
         "context": "App Bootstrap",
         "error": "cannot import name 'render_status_toggle' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)",
@@ -697,6 +690,13 @@
         "context": "Inventory Analyze",
         "error": "list assignment index out of range",
         "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 181, in render_distribution_tab\n    result_df, _ = inv_core.add_stock_columns_from_inventory(\n                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n        master_df,\n        ^^^^^^^^^^\n    ...<4 lines>...\n        sku_map,\n        ^^^^^^^^\n    )\n    ^\n  File \"E:\\DEEN-OPS\\src\\inventory\\core.py\", line 428, in add_stock_columns_from_inventory\n    items_in_order_list[idx] = num_items\n    ~~~~~~~~~~~~~~~~~~~^^^^^\nIndexError: list assignment index out of range\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-12 10:19:56",
+        "context": "Inventory Analyze",
+        "error": "list assignment index out of range",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 181, in render_distribution_tab\n    result_df, _ = inv_core.add_stock_columns_from_inventory(\n                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n        master_df,\n        ^^^^^^^^^^\n    ...<4 lines>...\n        sku_map,\n        ^^^^^^^^\n    )\n    ^\n  File \"H:\\DEEN-OPS\\src\\inventory\\core.py\", line 429, in add_stock_columns_from_inventory\n    items_in_order_list[idx] = num_items\n    ~~~~~~~~~~~~~~~~~~~^^^^^\nIndexError: list assignment index out of range\n",
         "details": {}
     }
 ]

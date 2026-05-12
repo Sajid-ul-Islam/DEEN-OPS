@@ -156,9 +156,7 @@ def render_distribution_tab(search_q):
                         t_col = title_col if title_col in master_df.columns else None
                         if t_col:
                             for item in master_df[t_col].dropna():
-                                if isinstance(item, (list, dict, set)):
-                                    item = str(item)
-                                title, _ = item_name_to_title_size(item)
+                                title, _ = item_name_to_title_size(str(item))
                                 if title: t_titles.add(title.strip().lower())
 
                         from src.services.woocommerce.stock import fetch_woocommerce_stock
@@ -177,15 +175,19 @@ def render_distribution_tab(search_q):
                     for warning in warnings:
                         st.warning(warning)
 
-                with st.spinner("Intelligent Inventory Matching in progress..."):
-                    result_df, _ = inv_core.add_stock_columns_from_inventory(
-                        master_df,
-                        title_col,
-                        inventory_map,
-                        INVENTORY_LOCATIONS,
-                        sku_col,
-                        sku_map,
-                    )
+                result_df, _ = inv_core.add_stock_columns_from_inventory(
+                    master_df,
+                    title_col,
+                    inventory_map,
+                    INVENTORY_LOCATIONS,
+                    sku_col,
+                    sku_map,
+                )
+
+                if "Fulfillment" in result_df.columns:
+                    error_mask = result_df["Fulfillment"].astype(str).str.contains("Error", na=False)
+                    if error_mask.any():
+                        st.warning(f"⚠️ Encountered processing errors in {error_mask.sum()} order row(s). Check the 'Fulfillment' column for details.")
 
                 st.session_state.inv_res_data = result_df
                 st.session_state.inv_active_l = INVENTORY_LOCATIONS
@@ -194,7 +196,7 @@ def render_distribution_tab(search_q):
                 st.success("Distribution analysis complete.")
             except Exception as exc:
                 log_error(exc, context="Inventory Analyze")
-                st.error(f"Distribution analysis failed: {str(exc)}")
+                st.error("Distribution analysis failed.")
 
     if st.session_state.get("inv_res_data") is not None:
         df = st.session_state.inv_res_data.copy()
@@ -208,63 +210,18 @@ def render_distribution_tab(search_q):
                 .str.lower()
                 .str.contains(search_q.lower(), na=False)
             ]
-            
-        group_col = inv_core.get_group_by_column(df)
-
-        def make_color_func(target_df):
-            import colorsys
-            group_vals = target_df[group_col].values
-            unique_groups = []
-            for val in group_vals:
-                val_str = str(val).strip().lower()
-                if pd.notna(val) and val_str != "" and val_str != "nan":
-                    if val_str not in unique_groups:
-                        unique_groups.append(val_str)
-                        
-            color_dict = {}
-            for i, val in enumerate(unique_groups):
-                # Golden ratio to spread hues evenly for infinite unique distinct colors
-                hue = (i * 0.618033988749895) % 1.0
-                rgb = colorsys.hls_to_rgb(hue, 0.92, 0.5)
-                hex_color = '#%02x%02x%02x' % (int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255))
-                color_dict[val] = hex_color
-
-            def get_row_colors(col_series):
-                colors = []
-                col_vals = col_series.values
-                for i, val in enumerate(group_vals):
-                    val_str = str(val).strip().lower()
-                    bg_color = color_dict.get(val_str, '#FFFFFF')
-                    font_style = 'color: #000000; border: 1px solid #d1d5db;'
-                    
-                    if col_series.name == "Fulfillment" and "Stock Exhausted by Prior Orders" in str(col_vals[i]):
-                        bg_color = '#FEE2E2'
-                        font_style = 'color: #DC2626; font-weight: bold; border: 1px solid #d1d5db;'
-                        
-                    colors.append(f'background-color: {bg_color}; {font_style}')
-                return colors
-            return get_row_colors
-            
-        def apply_ui_style(tab_df):
-            if group_col and not tab_df.empty:
-                try:
-                    color_func = make_color_func(tab_df)
-                    return tab_df.style.apply(color_func, axis=0)
-                except Exception:
-                    pass
-            return tab_df
 
         # Render UI Tabs
         tab_all, tab_ecom, tab_wari, tab_cumilla, tab_sylhet, tab_split, tab_oos = st.tabs([
             "All Orders", "Ecom-Mirpur", "Wari", "Cumilla", "Sylhet", "Multiple / Split", "Out of Stock"
         ])
-        with tab_all: st.dataframe(apply_ui_style(df), use_container_width=True)
-        with tab_ecom: st.dataframe(apply_ui_style(df[df["Dispatch Suggestion"] == "Ecom-Mirpur"]), use_container_width=True)
-        with tab_wari: st.dataframe(apply_ui_style(df[df["Dispatch Suggestion"] == "Wari"]), use_container_width=True)
-        with tab_cumilla: st.dataframe(apply_ui_style(df[df["Dispatch Suggestion"] == "Cumilla"]), use_container_width=True)
-        with tab_sylhet: st.dataframe(apply_ui_style(df[df["Dispatch Suggestion"] == "Sylhet"]), use_container_width=True)
-        with tab_split: st.dataframe(apply_ui_style(df[df["Dispatch Suggestion"] == "Multiple / Split"]), use_container_width=True)
-        with tab_oos: st.dataframe(apply_ui_style(df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"]), use_container_width=True)
+        with tab_all: st.dataframe(df, use_container_width=True)
+        with tab_ecom: st.dataframe(df[df["Dispatch Suggestion"] == "Ecom-Mirpur"], use_container_width=True)
+        with tab_wari: st.dataframe(df[df["Dispatch Suggestion"] == "Wari"], use_container_width=True)
+        with tab_cumilla: st.dataframe(df[df["Dispatch Suggestion"] == "Cumilla"], use_container_width=True)
+        with tab_sylhet: st.dataframe(df[df["Dispatch Suggestion"] == "Sylhet"], use_container_width=True)
+        with tab_split: st.dataframe(df[df["Dispatch Suggestion"] == "Multiple / Split"], use_container_width=True)
+        with tab_oos: st.dataframe(df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"], use_container_width=True)
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -275,6 +232,38 @@ def render_distribution_tab(search_q):
             df_metrics = pd.DataFrame(loc_totals)
             df_metrics.to_excel(writer, index=False, sheet_name="Distribution Metrics")
             
+            group_col = inv_core.get_group_by_column(df)
+
+            def make_color_func(target_df):
+                def get_row_colors(col_series):
+                    colors = []
+                    color_idx = 0
+                    current_val = None
+                    
+                    group_vals = target_df[group_col].values
+                    col_vals = col_series.values
+                    
+                    for i, val in enumerate(group_vals):
+                        val_str = str(val).strip().lower()
+                        if pd.notna(val) and val_str != "" and val_str != "nan":
+                            if current_val != val_str:
+                                current_val = val_str
+                                color_idx = 1 - color_idx
+                        else:
+                            current_val = None
+                            color_idx = 0
+                            
+                        bg_color = '#E8F2FF' if color_idx == 1 else '#FFFFFF'
+                        font_style = ''
+                        
+                        if col_series.name == "Fulfillment" and "Stock Exhausted by Prior Orders" in str(col_vals[i]):
+                            bg_color = '#FEE2E2'
+                            font_style = 'color: #DC2626; font-weight: bold;'
+                            
+                        colors.append(f'background-color: {bg_color}; {font_style}')
+                    return colors
+                return get_row_colors
+
             sheets_data = [
                 ("All Orders", None),
                 ("Ecom-Mirpur", "Ecom-Mirpur"),
