@@ -34,6 +34,8 @@ def normalize_sku(val) -> str:
     s = normalize_key(val)
     # Remove all spaces and special characters for 'hard' matching, but keep it roughly same
     s = re.sub(r"[^a-zA-Z0-9]", "", s).upper()
+    if not s or s in ["NAN", "NONE"]:
+        return "0"
     return s
 
 

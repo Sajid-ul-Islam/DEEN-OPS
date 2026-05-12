@@ -226,6 +226,16 @@ class WhatsAppOrderProcessor:
             df.loc[valid_sku, product_col] = p_series[valid_sku] + " - " + s_series[valid_sku]
             df.loc[~valid_sku, product_col] = p_series[~valid_sku]
 
+        # Enforce string types for categorical columns to prevent Polars mixed-type errors
+        for col in [self.config["order_id_col"], product_col, self.config["quantity_col"], self.config["price_col"]]:
+            if col in df.columns:
+                df[col] = df[col].astype(str)
+                
+        # Clean order total amount for numeric aggregation
+        total_col = self.config.get("order_total_col")
+        if total_col and total_col in df.columns:
+            df[total_col] = pd.to_numeric(df[total_col].astype(str).str.replace(r"[^\d.]", "", regex=True), errors="coerce").fillna(0)
+
         # Convert to Polars LazyFrame for optimized execution
         lazy_df = pl.from_pandas(df).lazy()
         
@@ -252,7 +262,6 @@ class WhatsAppOrderProcessor:
         grouped_lazy = lazy_df.group_by(phone_col).agg(agg_exprs)
 
         # Calculate correct total amount (sum of unique order totals per phone)
-        total_col = self.config.get("order_total_col")
         if total_col and total_col in df.columns:
             # Get one row per order to capture the Order Total once
             totals_lazy = (

@@ -17,8 +17,12 @@ from src.utils.file_io import read_uploaded
 
 def _reset_inventory_state():
     clear_state_keys(
-        ["inv_res_data", "inv_active_l", "inv_t_col", "inv_master_df_live", "inv_l_Ecom_df"]
+        ["inv_res_data", "inv_active_l", "inv_t_col", "inv_master_df_live", "inv_l_Ecom_df", "inv_pathao_df"]
     )
+
+
+def _clear_analysis_results():
+    clear_state_keys(["inv_res_data", "inv_active_l", "inv_t_col", "inv_pathao_df"])
 
 
 def _render_upload_summary(master_df, title_col):
@@ -49,6 +53,7 @@ def render_distribution_tab(search_q):
                     df_res = fetch_dataframe_from_url(url_input)
                     st.session_state.inv_master_df_live = df_res
                     st.session_state.inv_auto_analyze = True
+                    _clear_analysis_results()
                     st.rerun()
             except Exception as e:
                 st.error(f"URL fetch failed: {e}")
@@ -76,6 +81,7 @@ def render_distribution_tab(search_q):
     sku_col = None
 
     if fetch_live_clicked:
+        _clear_analysis_results()
         try:
             # v9.8 Rapid In-Memory Pull
             if st.session_state.get("wc_curr_df") is not None:
@@ -103,6 +109,10 @@ def render_distribution_tab(search_q):
             log_error(exc, context="Inventory WooCommerce Pull")
             st.error(f"Failed to fetch data: {exc}")
     elif master_file:
+        if st.session_state.get("inv_last_master_name") != master_file.name:
+            st.session_state.inv_last_master_name = master_file.name
+            _clear_analysis_results()
+            
         try:
             master_df = read_uploaded(master_file)
             st.session_state.inv_master_df_live = master_df
@@ -145,6 +155,14 @@ def render_distribution_tab(search_q):
                 "Upload a valid master stock list or pull from live source before analysis."
             )
         else:
+            # If SKU doesn't exist, fill up with 0 to ensure proper matching
+            if sku_col and sku_col in master_df.columns:
+                master_df[sku_col] = master_df[sku_col].fillna(0)
+                master_df[sku_col] = master_df[sku_col].replace({"": 0, "NaN": 0, "nan": 0, "None": 0})
+            else:
+                master_df["SKU"] = 0
+                sku_col = "SKU"
+
             try:
                 # 1. INTEGRATED REAL-TIME ECOM SYNC:
                 # Only sync if "Ecom" wasn't manually uploaded for this analysis
@@ -191,6 +209,7 @@ def render_distribution_tab(search_q):
 
                 st.session_state.inv_res_data = result_df
                 st.session_state.inv_active_l = INVENTORY_LOCATIONS
+                st.session_state.pop("inv_pathao_df", None)
                 st.session_state.inv_t_col = title_col
                 save_state()
                 st.success("Distribution analysis complete.")
@@ -342,3 +361,52 @@ def render_distribution_tab(search_q):
             use_container_width=True,
             type="primary",
         )
+
+        # --- PATHAO INTEGRATION ---
+        st.divider()
+        st.subheader("📦 Generate Pathao Bulk Sheet")
+        st.write("Automatically create multi-parcel Pathao uploads based on these exact dispatch locations.")
+        
+        c_pathao1, c_pathao2 = st.columns([1, 1])
+        with c_pathao1:
+            if st.button("Process for Pathao", use_container_width=True):
+                with st.spinner("Processing orders..."):
+                    from src.processing.order_processor import process_orders_dataframe
+                    try:
+                        # Exclude purely OOS rows to prevent them from creating empty parcels
+                        valid_dispatch_df = df[df["Dispatch Suggestion"] != "OOS / Unfulfillable"].copy()
+                        
+                        if valid_dispatch_df.empty:
+                            st.error("No fulfillable items to process.")
+                        else:
+                            st.session_state.inv_pathao_df = process_orders_dataframe(valid_dispatch_df)
+                            st.rerun()
+                    except Exception as e:
+                        from src.utils.logging import log_error
+                        log_error(e, context="Inventory Pathao Processor")
+                        st.error(f"Pathao processing failed: {e}")
+        
+        with c_pathao2:
+            if st.session_state.get("inv_pathao_df") is not None:
+                p_output = io.BytesIO()
+                with pd.ExcelWriter(p_output, engine="xlsxwriter") as p_writer:
+                    st.session_state.inv_pathao_df.to_excel(p_writer, index=False, sheet_name="Pathao")
+                    workbook = p_writer.book
+                    header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
+                    ws = p_writer.sheets["Pathao"]
+                    for idx, col in enumerate(st.session_state.inv_pathao_df.columns):
+                        ws.write(0, idx, str(col), header_format)
+                        try:
+                            max_len = max(st.session_state.inv_pathao_df[col].astype(str).map(lambda x: len(str(x))).max(), len(str(col))) + 2
+                            ws.set_column(idx, idx, min(max_len, 50))
+                        except Exception:
+                            ws.set_column(idx, idx, 20)
+                            
+                st.download_button(
+                    "📥 Download Pathao Excel",
+                    p_output.getvalue(),
+                    "Pathao_Bulk_From_Inventory.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary",
+                    use_container_width=True
+                )

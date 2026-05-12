@@ -129,8 +129,8 @@ def render_stock_analytics_tab():
         st.info("📬 No inventory data found in snapshots. Try 'Sync Fresh Data' above.")
         return
 
-    df_raw["Stock"] = pd.to_numeric(df_raw["Stock"], errors="coerce").fillna(0).astype(float)
-    df_raw["Price"] = pd.to_numeric(df_raw["Price"], errors="coerce").fillna(0).astype(float)
+    df_raw["Stock"] = pd.to_numeric(df_raw["Stock"].astype(str).str.replace(r"[^\d.-]", "", regex=True), errors="coerce").fillna(0).astype(float)
+    df_raw["Price"] = pd.to_numeric(df_raw["Price"].astype(str).str.replace(r"[^\d.]", "", regex=True), errors="coerce").fillna(0).astype(float)
 
     if "Sub-Category" not in df_raw.columns or "Clean_Product" not in df_raw.columns:
         if "Product" not in df_raw.columns:
@@ -175,8 +175,8 @@ def render_stock_analytics_tab():
             df = safe_filter(df_base, lambda d: d[d["Size"].isin(sel_sizes)], "Size") if sel_sizes else df_base
 
     if not df.empty:
-        df["Stock"] = pd.to_numeric(df["Stock"], errors="coerce").fillna(0).astype(float)
-        df["Price"] = pd.to_numeric(df["Price"], errors="coerce").fillna(0).astype(float)
+        df["Stock"] = pd.to_numeric(df["Stock"].astype(str).str.replace(r"[^\d.-]", "", regex=True), errors="coerce").fillna(0).astype(float)
+        df["Price"] = pd.to_numeric(df["Price"].astype(str).str.replace(r"[^\d.]", "", regex=True), errors="coerce").fillna(0).astype(float)
     else:
         st.info("📬 No inventory data matches your current filters.")
         return

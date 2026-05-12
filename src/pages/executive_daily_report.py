@@ -54,7 +54,12 @@ def generate_report_data():
     # Enforce strict "Shipped Only" filter for the operational briefing
     if df_live_raw is not None and not df_live_raw.empty:
         # Filter for orders modified to shipped during the active slot
-        df_live_raw["mod_dt"] = df_live_raw["mod_dt_parsed"] if "mod_dt_parsed" in df_live_raw.columns else pd.to_datetime(df_live_raw["Order Date Modified"], errors="coerce").dt.tz_localize(None)
+        if "mod_dt_parsed" in df_live_raw.columns:
+            df_live_raw["mod_dt"] = df_live_raw["mod_dt_parsed"]
+        else:
+            dt_s = pd.to_datetime(df_live_raw["Order Date Modified"], errors="coerce")
+            df_live_raw["mod_dt"] = dt_s.dt.tz_localize(None) if getattr(dt_s.dt, "tz", None) is not None else dt_s
+
         df_live_raw = df_live_raw[
             (df_live_raw["Order Status"].isin(SHIPPED_STATUSES)) & 
             (df_live_raw["mod_dt"] >= slot_start) &
@@ -65,7 +70,12 @@ def generate_report_data():
         prev_slot = slots.get("wc_prev_slot")
         if prev_slot:
             p_start, p_end = prev_slot
-            df_prev_raw["mod_dt"] = df_prev_raw["mod_dt_parsed"] if "mod_dt_parsed" in df_prev_raw.columns else pd.to_datetime(df_prev_raw["Order Date Modified"], errors="coerce").dt.tz_localize(None)
+            if "mod_dt_parsed" in df_prev_raw.columns:
+                df_prev_raw["mod_dt"] = df_prev_raw["mod_dt_parsed"]
+            else:
+                dt_s_prev = pd.to_datetime(df_prev_raw["Order Date Modified"], errors="coerce")
+                df_prev_raw["mod_dt"] = dt_s_prev.dt.tz_localize(None) if getattr(dt_s_prev.dt, "tz", None) is not None else dt_s_prev
+
             df_prev_raw = df_prev_raw[
                 (df_prev_raw["Order Status"].isin(SHIPPED_STATUSES)) &
                 (df_prev_raw["mod_dt"] >= p_start) &

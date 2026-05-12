@@ -28,8 +28,8 @@ def prepare_granular_data(df, selected_cols):
         df["Product Name"] = df[selected_cols["name"]].fillna("Unknown Product").astype(str)
         df = df[~df["Product Name"].str.contains("Choose Any", case=False, na=False)]
 
-        df["Item Cost"] = pd.to_numeric(df[selected_cols["cost"]], errors="coerce").fillna(0)
-        df["Quantity"] = pd.to_numeric(df[selected_cols["qty"]], errors="coerce").fillna(0)
+        df["Item Cost"] = pd.to_numeric(df[selected_cols["cost"]].astype(str).str.replace(r"[^\d.]", "", regex=True), errors="coerce").fillna(0)
+        df["Quantity"] = pd.to_numeric(df[selected_cols["qty"]].astype(str).str.replace(r"[^\d.]", "", regex=True), errors="coerce").fillna(0)
 
         # v10.4 Standardized SKU support
         if "sku" in selected_cols and selected_cols["sku"] in df.columns:
