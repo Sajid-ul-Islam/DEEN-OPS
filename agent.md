@@ -30,11 +30,6 @@ The project follows a layered structure. Avoid circular imports. Pages should or
   - `data_pilot.py`
   - `dashboard_output.py`
   - `dashboard_metrics.py`
-  - `dashboard_charts.py`
-  - `excel_merger.py` (UI Name: Product Listing)
-  - `whatsapp_messaging.py`
-  - `woocommerce_orders.py`
-  - `delivery_parser.py`
 - `src/components/`
   Reusable UI widgets and styling helpers.
 - `src/services/`
@@ -49,7 +44,6 @@ The project follows a layered structure. Avoid circular imports. Pages should or
   - `column_detection.py`
   - `order_processor.py`
   - `forecasting.py`
-  - `whatsapp_processor.py`
 - `src/inventory/`
   Inventory matching and distribution logic.
 - `src/utils/`
@@ -80,8 +74,6 @@ Common prefixes:
   Data Pilot state.
 - `pathao_*`
   Pathao processor state.
-- `wp_*`
-  WhatsApp processor state.
 - `inv_*`
   Inventory distribution state.
 - `wc_*`
@@ -95,6 +87,7 @@ Pathao-specific state currently used:
 - `pathao_auto_process`
 - `pathao_manual_items_df`
 - `pathao_manual_desc`
+- `inv_pathao_df` (Used when pushing allocations directly to Pathao from Inventory Distribution)
 
 ## 5. Operational Dashboard Rules
 The operational dashboard has behavior that should not drift accidentally.
@@ -151,6 +144,11 @@ District resolution can come from:
 
 The goal is a more complete `RecipientAddress(*)`, not just a raw street field dump.
 
+### Bulk Status Tracking
+The Pathao module includes an `Order Tracking` tab that allows bulk tracking via Consignment IDs.
+- If auto-update is enabled, it uses the `Order ID` column to actively send `completed` statuses back to WooCommerce via API for delivered parcels.
+- Ensure tracking files contain an `Order ID` or `Merchant Order ID` column for this auto-sync to function properly.
+
 ## 7. Item Description Helper
 The bulk order processor includes a second tab: `Item Description Helper`.
 
@@ -175,17 +173,13 @@ If you extend parsing, keep it backward compatible and route all output through 
 - There are still runtime-generated artifacts and snapshots in the repo, so expect a dirty worktree.
 
 ## 9. Recent Stability Improvements
-- Fixed the operational dashboard crash caused by unbound `status_col_m` / `status_col_c` in `dashboard_output.py`.
-- Restored `Gross Items` comparison delta visibility and removed the `NEXT DAY FORECAST` KPI card.
-- Added explicit Pathao source selection between WooCommerce processing data and upload/URL input.
-- Added the `Item Description Helper` tab to the Pathao page.
-- Centralized Pathao item-description normalization so manual and grouped-order flows use the same formatter.
-- Improved Pathao `RecipientAddress(*)` generation with normalized zone and district synthesis.
-- Transformed `Excel Merger` into `Product Listing`, adding SKU grouping, unique order counting, and dynamic pastel row coloring for visual distinction.
-- Upgraded `Inventory Distribution` with graceful empty-stock handling, infinite pastel color grouping for unique orders, and full order location discovery.
-- Integrated WhatsApp Messaging link generation and bulk export capabilities.
-- Added Live WooCommerce Order Tracking and Pathao Bulk Status Checks.
-- Introduced `executive_daily_report.py` for automated daily shift narrative generation.
+- Fixed `list assignment index out of range` in Inventory Distribution by resetting dataframes and wrapping order-group logic in resilient `try...except` blocks.
+- Added universal numeric/currency data sanitization (stripping non-numeric chars via regex) prior to `pd.to_numeric` to prevent silent `NaN` revenue/quantity drops.
+- Added strict string-casting for categorical columns before Polars DataFrame conversion to prevent `MixedType` compute crashes.
+- Prevented manual empty SKUs (filled with "0") from clustering entirely unrelated products together in inventory matching.
+- Eliminated ghost UI previews by actively clearing `inv_*` session state variables on new uploads/URL fetches.
+- Appended transaction IDs directly to Pathao `SpecialInstruction` and `ItemDesc` for 100% Prepaid (SSL/Bkash) orders.
+- Integrated Pathao bulk-sheet generation directly into the Inventory Distribution page.
 
 ## 10. Development Guidance
 - New workspace page:
@@ -196,6 +190,8 @@ If you extend parsing, keep it backward compatible and route all output through 
   if a transformation is needed in more than one page, move it into `src/processing/` or `src/utils/`.
 - Pathao changes:
   prefer editing shared helpers in `order_processor.py` before adding page-local formatting rules.
+- Data sanitization:
+  Always strip currency/text strings using `str.replace(r"[^\d.-]", "", regex=True)` before calling `pd.to_numeric` on quantities, prices, or amounts.
 
 ## 11. Execution & Testing
 - Local app:

@@ -113,6 +113,8 @@ def identify_columns(
             title_col = c_orig
         elif "title" in c_lower and title_col is None:
             title_col = c_orig
+        elif "name" == c_lower and title_col is None:
+            title_col = c_orig
         if "sku" in c_lower and sku_col is None:
             sku_col = c_orig
 
@@ -238,7 +240,7 @@ def load_inventory_from_uploads(uploaded_files: Dict[str, object]):
                 if sku_col and sku_col in df.columns:
                     sku_val = row.get(sku_col, "")
                     sku_key = normalize_sku(sku_val)
-                    if sku_key:
+                    if sku_key and sku_key != "0":
                         # Fallback pure SKU key (aggregates all sizes for this SKU)
                         if sku_key not in inventory:
                             inventory[sku_key] = {loc: 0 for loc in all_locations}
@@ -291,10 +293,9 @@ def add_stock_columns_from_inventory(
     def get_sku(r):
         if sku_col and sku_col in df.columns:
             val = r.get(sku_col, "")
-            if val:
-                if isinstance(val, (list, dict, set)):
-                    val = str(val)
-                return normalize_sku(val)
+            if isinstance(val, (list, dict, set)):
+                val = str(val)
+            return normalize_sku(val)
         return ""
 
     size_col, _, _, _ = identify_columns(df)
@@ -318,21 +319,21 @@ def add_stock_columns_from_inventory(
         status = "No Match"
 
         # 2. MATCHING LOGIC
-        sku_size_key = f"SKU:{pl_sku}_SZ:{size}" if pl_sku else ""
+        sku_size_key = f"SKU:{pl_sku}_SZ:{size}" if (pl_sku and pl_sku != "0") else ""
         is_embroidered_panjabi = pl_key and "embroidered cotton panjabi" in pl_key
 
         if is_embroidered_panjabi:
-            if pl_sku and sku_size_key in inventory:
+            if sku_size_key and sku_size_key in inventory:
                 inv_key = sku_size_key
                 status = "Perfect Match (SKU + Size - Strict mode)"
-            elif pl_sku and pl_sku in sku_to_inv_key:
+            elif pl_sku and pl_sku != "0" and pl_sku in sku_to_inv_key:
                 inv_key = pl_sku
                 status = "SKU Match (Strict mode - Size mismatch)"
             else:
                 status = "No Match (Strict SKU required for Embroidered Cotton Panjabi)"
         else:
             # Priority 1: Master SKU + Size Match
-            if pl_sku and sku_size_key in inventory:
+            if sku_size_key and sku_size_key in inventory:
                 inv_key = sku_size_key
                 status = "Master SKU + Size Match"
 
@@ -340,7 +341,7 @@ def add_stock_columns_from_inventory(
             elif pl_key and pl_key in inventory:
                 inv_key = pl_key
                 status = "Exact Name Match"
-                if pl_sku:
+                if pl_sku and pl_sku != "0":
                     if pl_sku in sku_to_inv_key:
                         status = (
                             "Perfect Match (Name + SKU)"
@@ -351,7 +352,7 @@ def add_stock_columns_from_inventory(
                         status = "Name Match (SKU not in Inv)"
 
             # Priority 3: Strict Normalized SKU Match (Ignoring Size)
-            elif pl_sku and pl_sku in sku_to_inv_key:
+            elif pl_sku and pl_sku != "0" and pl_sku in sku_to_inv_key:
                 inv_key = pl_sku
                 status = f"SKU Match (Size/Name mismatch -> {sku_to_inv_key[pl_sku]})"
 
