@@ -1,12 +1,5 @@
 [
     {
-        "timestamp": "2026-04-09 12:58:37",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1499, in render_stock_analytics_tab\n    size_options = sorted(df_item[size_col].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-09 13:02:59",
         "context": "App Bootstrap",
         "error": "'<' not supported between instances of 'str' and 'float'",
@@ -697,6 +690,13 @@
         "context": "App Bootstrap",
         "error": "unindent does not match any outer indentation level (dashboard_filters.py, line 206)",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\DEEN-OPS\\app.py\", line 253, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"H:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 8, in <module>\n    from src.pages.dashboard_output import render_dashboard_output\n  File \"H:\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 14, in <module>\n    from src.pages.dashboard_filters import render_ingestion_filters\n  File \"H:\\DEEN-OPS\\src\\pages\\dashboard_filters.py\", line 206\n    except Exception as e:\n                          ^\nIndentationError: unindent does not match any outer indentation level\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-13 19:32:34",
+        "context": "App Bootstrap",
+        "error": "unindent does not match any outer indentation level (dashboard_filters.py, line 206)",
+        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\app.py\", line 253, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"E:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"E:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 8, in <module>\n    from src.pages.dashboard_output import render_dashboard_output\n  File \"E:\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 14, in <module>\n    from src.pages.dashboard_filters import render_ingestion_filters\n  File \"E:\\DEEN-OPS\\src\\pages\\dashboard_filters.py\", line 206\n    except Exception as e:\n                          ^\nIndentationError: unindent does not match any outer indentation level\n",
         "details": {}
     }
 ]

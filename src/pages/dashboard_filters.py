@@ -156,57 +156,57 @@ def render_ingestion_filters(
                     st.session_state["wc_sync_end_time"] = datetime.strptime("23:59", "%H:%M").time()
 
                     try:
-                                with st.status("🔄 Syncing Fresh Data...", expanded=True) as sync_status:
-                                    st.write("📡 Connecting to WooCommerce API...")
-                                    wc_res = load_from_woocommerce()
-                                    st.write("🧮 Restructuring and applying filters...")
-                                    df_res = wc_res["df_to_return"]
-                                    if not df_res.empty:
-                                        if sel_unified:
-                                            df_res["_TmpCat"] = df_res["Item Name"].apply(_get_category)
-                                            df_res["_TmpSub"] = df_res.apply(
-                                                lambda r: get_sub_category_for_sales(r["Item Name"], r["_TmpCat"]), axis=1
-                                            )
-                                            mask = pd.Series(False, index=df_res.index)
-                                            for opt in sel_unified:
-                                                if "  \u21b3 " in opt:
-                                                    sub_name = opt.replace("  \u21b3 ", "")
-                                                    mask |= (df_res["_TmpSub"] == sub_name)
-                                                else:
-                                                    mask |= (df_res["_TmpCat"] == opt)
-                                            df_res = df_res[mask]
-                                            if "_TmpCat" in df_res.columns:
-                                                df_res = df_res.drop(columns=["_TmpCat"])
-                                            if "_TmpSub" in df_res.columns:
-                                                df_res = df_res.drop(columns=["_TmpSub"])
-
-                                        if sel_prods:
-                                            df_res["_TmpIdent"] = df_res.apply(
-                                                lambda r: f"{get_base_product_name(r['Item Name'])} [{r['SKU']}]", axis=1
-                                            )
-                                            df_res = df_res[df_res["_TmpIdent"].isin(sel_prods)].drop(columns=["_TmpIdent"])
-                                        if sel_sizes:
-                                            df_res["_TmpSize"] = df_res["Item Name"].apply(get_size_from_name)
-                                            df_res = df_res[df_res["_TmpSize"].isin(sel_sizes)].drop(columns=["_TmpSize"])
-
-                                        if not df_res.empty:
-                                            st.session_state.manual_df = df_res
-                                            st.session_state.manual_source_name = wc_res["sync_desc"]
-                                            st.write("💾 Saving local snapshot...")
-                                            save_sales_snapshot(df_res)
-                                            sync_status.update(label="API Sync Complete", state="complete", expanded=False)
-                                            st.toast("✅ API Sync Complete!", icon="🎉")
-                                            st.rerun()
+                        with st.status("🔄 Syncing Fresh Data...", expanded=True) as sync_status:
+                            st.write("📡 Connecting to WooCommerce API...")
+                            wc_res = load_from_woocommerce()
+                            st.write("🧮 Restructuring and applying filters...")
+                            df_res = wc_res["df_to_return"]
+                            if not df_res.empty:
+                                if sel_unified:
+                                    df_res["_TmpCat"] = df_res["Item Name"].apply(_get_category)
+                                    df_res["_TmpSub"] = df_res.apply(
+                                        lambda r: get_sub_category_for_sales(r["Item Name"], r["_TmpCat"]), axis=1
+                                    )
+                                    mask = pd.Series(False, index=df_res.index)
+                                    for opt in sel_unified:
+                                        if "  \u21b3 " in opt:
+                                            sub_name = opt.replace("  \u21b3 ", "")
+                                            mask |= (df_res["_TmpSub"] == sub_name)
                                         else:
-                                            sync_status.update(label="No Data Matched Filters", state="error", expanded=False)
-                                            st.warning("No data found for the selected Category/Item/Size combination.")
-                                    else:
-                                        sync_status.update(label="Empty Payload", state="error", expanded=False)
-                                        st.warning("No data found for the selected range.")
-                            except Exception as e:
-                                if 'sync_status' in locals():
-                                    sync_status.update(label="Ingestion Failed", state="error", expanded=False)
-                                st.error(f"Ingestion failed: {e}")
+                                            mask |= (df_res["_TmpCat"] == opt)
+                                    df_res = df_res[mask]
+                                    if "_TmpCat" in df_res.columns:
+                                        df_res = df_res.drop(columns=["_TmpCat"])
+                                    if "_TmpSub" in df_res.columns:
+                                        df_res = df_res.drop(columns=["_TmpSub"])
+
+                                if sel_prods:
+                                    df_res["_TmpIdent"] = df_res.apply(
+                                        lambda r: f"{get_base_product_name(r['Item Name'])} [{r['SKU']}]", axis=1
+                                    )
+                                    df_res = df_res[df_res["_TmpIdent"].isin(sel_prods)].drop(columns=["_TmpIdent"])
+                                if sel_sizes:
+                                    df_res["_TmpSize"] = df_res["Item Name"].apply(get_size_from_name)
+                                    df_res = df_res[df_res["_TmpSize"].isin(sel_sizes)].drop(columns=["_TmpSize"])
+
+                                if not df_res.empty:
+                                    st.session_state.manual_df = df_res
+                                    st.session_state.manual_source_name = wc_res["sync_desc"]
+                                    st.write("💾 Saving local snapshot...")
+                                    save_sales_snapshot(df_res)
+                                    sync_status.update(label="API Sync Complete", state="complete", expanded=False)
+                                    st.toast("✅ API Sync Complete!", icon="🎉")
+                                    st.rerun()
+                                else:
+                                    sync_status.update(label="No Data Matched Filters", state="error", expanded=False)
+                                    st.warning("No data found for the selected Category/Item/Size combination.")
+                            else:
+                                sync_status.update(label="Empty Payload", state="error", expanded=False)
+                                st.warning("No data found for the selected range.")
+                    except Exception as e:
+                        if 'sync_status' in locals():
+                            sync_status.update(label="Ingestion Failed", state="error", expanded=False)
+                        st.error(f"Ingestion failed: {e}")
                 else:
                     st.error("Please select both a start and end date.")
 
