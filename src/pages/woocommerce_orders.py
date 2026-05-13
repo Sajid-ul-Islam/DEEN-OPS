@@ -302,24 +302,34 @@ def _render_live_orders_view():
     if date_col in display_df.columns:
         display_df = display_df.sort_values(by=date_col, ascending=False)
 
+    styled_df = display_df.style
+
     if "Pathao Status" in display_df.columns:
         def highlight_pathao_status(col):
             return [
                 'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
                 if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
-                else 'color: #10b981;' if 'delivered' in str(v).lower()
+                else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
+                else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
                 else ''
                 for v in col
             ]
-        styled_df = display_df.style.apply(highlight_pathao_status, subset=['Pathao Status'])
-        st.dataframe(styled_df, use_container_width=True, height=600, column_config=column_configuration)
-    else:
-        st.dataframe(
-            display_df, 
-            use_container_width=True, 
-            height=600,
-            column_config=column_configuration
-        )
+        styled_df = styled_df.apply(highlight_pathao_status, subset=['Pathao Status'])
+        
+    if status_col and status_col in display_df.columns:
+        def highlight_wc_status(col):
+            return [
+                'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
+                if str(v).lower() in ['cancelled', 'failed', 'refunded', 'trash']
+                else 'color: #10b981; font-weight: 600;' if str(v).lower() in ['completed', 'shipped', 'confirmed']
+                else 'color: #3b82f6; font-weight: 500;' if str(v).lower() in ['processing']
+                else 'color: #f59e0b; font-weight: 500;' if str(v).lower() in ['on-hold', 'pending', 'pending payment']
+                else ''
+                for v in col
+            ]
+        styled_df = styled_df.apply(highlight_wc_status, subset=[status_col])
+
+    st.dataframe(styled_df, use_container_width=True, height=600, column_config=column_configuration)
 
 def render_woocommerce_orders_tab():
     """Renders the WooCommerce Operations module."""

@@ -10,3 +10,5 @@ xlsxwriter
 fuzzywuzzy
 python-Levenshtein
 toml
+duckdb>=1.0.0
+tenacity

@@ -106,24 +106,32 @@ def render_stock_analytics_tab():
             st.rerun()
 
     if df_raw is None:
-        with st.spinner("🚀 Initial API sync..."):
+        with st.status("🚀 Initial API sync...", expanded=True) as sync_status:
+            st.write("📡 Fetching products from WooCommerce...")
             df_raw = fetch_woocommerce_stock()
             if df_raw is not None:
                 st.session_state.wc_stock_df = df_raw
                 st.session_state.stock_sync_time = datetime.now()
+                sync_status.update(label="Inventory Sync Complete", state="complete", expanded=False)
+                st.toast("✅ Inventory data loaded!", icon="🎉")
             else:
+                sync_status.update(label="Sync Failed", state="error", expanded=False)
                 st.warning("No inventory data found. Check WooCommerce connection.")
                 return
 
     if st.button("🔄 Sync Fresh Data", use_container_width=True, type="secondary"):
-        with st.spinner("Updating from WooCommerce..."):
+        with st.status("Updating from WooCommerce...", expanded=True) as sync_status:
+            st.write("📡 Fetching latest stock levels...")
             df_fresh = fetch_woocommerce_stock()
             if df_fresh is not None:
                 st.session_state.wc_stock_df = df_fresh
                 st.session_state.stock_sync_time = datetime.now()
                 df_raw = df_fresh
-                st.success("Database Updated!")
+                sync_status.update(label="Database Updated", state="complete", expanded=False)
+                st.toast("✅ Stock database updated!", icon="🎉")
                 st.rerun()
+            else:
+                sync_status.update(label="Update Failed", state="error", expanded=False)
 
     if df_raw is None or df_raw.empty:
         st.info("📬 No inventory data found in snapshots. Try 'Sync Fresh Data' above.")

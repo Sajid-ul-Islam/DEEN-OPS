@@ -119,8 +119,11 @@ def _load_processing_orders_from_woocommerce():
     else:
         from src.services.woocommerce.client import load_live_source
 
-        with st.spinner("Connecting to WooCommerce API..."):
+        with st.status("Connecting to WooCommerce API...", expanded=True) as status:
+            st.write("📡 Fetching live orders...")
             df_live, _, _ = load_live_source()
+            status.update(label="WooCommerce Sync Complete", state="complete", expanded=False)
+            st.toast("✅ Orders pulled successfully!", icon="🎉")
 
     return _filter_processing_orders(df_live)
 
@@ -300,7 +303,10 @@ def _render_processing_tab():
     if result_df is not None:
         with st.expander("Preview output", expanded=True):
             def highlight_split_orders(row):
-                if "SPLIT " in str(row.get("SpecialInstruction", "")):
+                spec_inst = str(row.get("SpecialInstruction", ""))
+                if "PARTIAL ORDER" in spec_inst:
+                    return ['background-color: rgba(245, 158, 11, 0.15); color: #b45309; font-weight: bold;'] * len(row)
+                if "SPLIT " in spec_inst:
                     return ['background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: bold;'] * len(row)
                 return [''] * len(row)
                 
@@ -668,7 +674,8 @@ def _render_status_tracking_tab():
                     return [
                         'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
                         if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
-                        else 'color: #10b981;' if 'delivered' in str(v).lower()
+                        else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
+                        else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
                         else ''
                         for v in col
                     ]

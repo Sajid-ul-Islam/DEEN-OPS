@@ -1,26 +1,5 @@
 [
     {
-        "timestamp": "2026-04-08 11:43:42",
-        "context": "App Bootstrap",
-        "error": "cannot import name 'render_status_toggle' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 150, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 36, in run_app\n    from app_modules.pathao_tab import render_pathao_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\pathao_tab.py\", line 9, in <module>\n    from app_modules.ui_components import (\n    ...<6 lines>...\n    )\nImportError: cannot import name 'render_status_toggle' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-08 11:45:32",
-        "context": "Pathao WooCommerce Pull",
-        "error": "WooCommerce integration requires WC_URL, WC_KEY, and WC_SECRET (or [woocommerce] table in secrets.toml).",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\pathao_tab.py\", line 130, in render_pathao_tab\n    df_live, source_name, _ = load_live_source()\n                              ~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 703, in load_live_source\n    res = load_from_woocommerce()\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\runtime\\caching\\cache_utils.py\", line 281, in __call__\n    return self._get_or_create_cached_value(args, kwargs, spinner_message)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\runtime\\caching\\cache_utils.py\", line 326, in _get_or_create_cached_value\n    return self._handle_cache_miss(cache, value_key, func_args, func_kwargs)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\runtime\\caching\\cache_utils.py\", line 385, in _handle_cache_miss\n    computed_value = self._info.func(*func_args, **func_kwargs)\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 458, in load_from_woocommerce\n    raise ValueError(\n        \"WooCommerce integration requires WC_URL, WC_KEY, and WC_SECRET (or [woocommerce] table in secrets.toml).\"\n    )\nValueError: WooCommerce integration requires WC_URL, WC_KEY, and WC_SECRET (or [woocommerce] table in secrets.toml).\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-09 12:56:19",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1499, in render_stock_analytics_tab\n    size_options = sorted(df_item[size_col].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-09 12:58:37",
         "context": "App Bootstrap",
         "error": "'<' not supported between instances of 'str' and 'float'",
@@ -697,6 +676,27 @@
         "context": "Inventory Analyze",
         "error": "list assignment index out of range",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 181, in render_distribution_tab\n    result_df, _ = inv_core.add_stock_columns_from_inventory(\n                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n        master_df,\n        ^^^^^^^^^^\n    ...<4 lines>...\n        sku_map,\n        ^^^^^^^^\n    )\n    ^\n  File \"H:\\DEEN-OPS\\src\\inventory\\core.py\", line 429, in add_stock_columns_from_inventory\n    items_in_order_list[idx] = num_items\n    ~~~~~~~~~~~~~~~~~~~^^^^^\nIndexError: list assignment index out of range\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-13 17:59:32",
+        "context": "App Bootstrap",
+        "error": "unindent does not match any outer indentation level (dashboard_filters.py, line 161)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\DEEN-OPS\\app.py\", line 253, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"H:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 8, in <module>\n    from src.pages.dashboard_output import render_dashboard_output\n  File \"H:\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 14, in <module>\n    from src.pages.dashboard_filters import render_ingestion_filters\n  File \"H:\\DEEN-OPS\\src\\pages\\dashboard_filters.py\", line 161\n    wc_res = load_from_woocommerce()\n                                    ^\nIndentationError: unindent does not match any outer indentation level\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-13 18:01:45",
+        "context": "App Bootstrap",
+        "error": "unindent does not match any outer indentation level (dashboard_filters.py, line 206)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\DEEN-OPS\\app.py\", line 253, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"H:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 8, in <module>\n    from src.pages.dashboard_output import render_dashboard_output\n  File \"H:\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 14, in <module>\n    from src.pages.dashboard_filters import render_ingestion_filters\n  File \"H:\\DEEN-OPS\\src\\pages\\dashboard_filters.py\", line 206\n    except Exception as e:\n                          ^\nIndentationError: unindent does not match any outer indentation level\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-05-13 18:01:49",
+        "context": "App Bootstrap",
+        "error": "unindent does not match any outer indentation level (dashboard_filters.py, line 206)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\DEEN-OPS\\app.py\", line 253, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"H:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 8, in <module>\n    from src.pages.dashboard_output import render_dashboard_output\n  File \"H:\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 14, in <module>\n    from src.pages.dashboard_filters import render_ingestion_filters\n  File \"H:\\DEEN-OPS\\src\\pages\\dashboard_filters.py\", line 206\n    except Exception as e:\n                          ^\nIndentationError: unindent does not match any outer indentation level\n",
         "details": {}
     }
 ]

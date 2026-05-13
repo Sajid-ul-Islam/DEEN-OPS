@@ -292,17 +292,27 @@ def render_distribution_tab(search_q):
                 .str.contains(search_q.lower(), na=False)
             ]
 
+        def highlight_inventory_rows(row):
+            sugg = str(row.get("Dispatch Suggestion", ""))
+            if "OOS" in sugg or "Unfulfillable" in sugg:
+                return ['background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 500;'] * len(row)
+            elif "Multiple / Split" in sugg:
+                return ['background-color: rgba(245, 158, 11, 0.15); color: #b45309; font-weight: 500;'] * len(row)
+            elif "Error" in sugg:
+                return ['background-color: rgba(220, 38, 38, 0.2); color: #991b1b; font-weight: bold;'] * len(row)
+            return [''] * len(row)
+
         # Render UI Tabs
         tab_all, tab_ecom, tab_wari, tab_cumilla, tab_sylhet, tab_split, tab_oos = st.tabs([
             "All Orders", "Ecom-Mirpur", "Wari", "Cumilla", "Sylhet", "Multiple / Split", "Out of Stock"
         ])
-        with tab_all: st.dataframe(df, use_container_width=True)
-        with tab_ecom: st.dataframe(df[df["Dispatch Suggestion"] == "Ecom-Mirpur"], use_container_width=True)
-        with tab_wari: st.dataframe(df[df["Dispatch Suggestion"] == "Wari"], use_container_width=True)
-        with tab_cumilla: st.dataframe(df[df["Dispatch Suggestion"] == "Cumilla"], use_container_width=True)
-        with tab_sylhet: st.dataframe(df[df["Dispatch Suggestion"] == "Sylhet"], use_container_width=True)
-        with tab_split: st.dataframe(df[df["Dispatch Suggestion"] == "Multiple / Split"], use_container_width=True)
-        with tab_oos: st.dataframe(df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"], use_container_width=True)
+        with tab_all: st.dataframe(df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True)
+        with tab_ecom: st.dataframe(df[df["Dispatch Suggestion"] == "Ecom-Mirpur"].style.apply(highlight_inventory_rows, axis=1), use_container_width=True)
+        with tab_wari: st.dataframe(df[df["Dispatch Suggestion"] == "Wari"].style.apply(highlight_inventory_rows, axis=1), use_container_width=True)
+        with tab_cumilla: st.dataframe(df[df["Dispatch Suggestion"] == "Cumilla"].style.apply(highlight_inventory_rows, axis=1), use_container_width=True)
+        with tab_sylhet: st.dataframe(df[df["Dispatch Suggestion"] == "Sylhet"].style.apply(highlight_inventory_rows, axis=1), use_container_width=True)
+        with tab_split: st.dataframe(df[df["Dispatch Suggestion"] == "Multiple / Split"].style.apply(highlight_inventory_rows, axis=1), use_container_width=True)
+        with tab_oos: st.dataframe(df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"].style.apply(highlight_inventory_rows, axis=1), use_container_width=True)
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:

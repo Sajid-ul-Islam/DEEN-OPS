@@ -53,14 +53,25 @@ The project follows a layered structure. Avoid circular imports. Pages should or
 - `_deprecated/`
   Archived legacy code. Do not build new logic here.
 
-## 3. Technology Stack
+## 3. Cloud Deployment Considerations (Streamlit Community Cloud)
+- **Ephemeral Filesystem:** Local storage is temporary. Files like `resources/deen_ops.duckdb`, `pathao_map.json`, and CSV snapshots will be wiped when the app restarts or sleeps. The app is built to gracefully handle this by re-syncing from external APIs.
+- **No Background Workers:** Streamlit Cloud does not support running background daemon processes like Celery or Redis. All syncs and API requests must run synchronously when triggered by user interaction.
+- **Dependencies:** Any third-party package used (like `tenacity`, `duckdb`, `polars`) must be explicitly present in `requirements.txt`.
+
+## 4. UI/UX Design Guidelines
+- **Feedback & Loading:** Prefer `st.toast()` and `st.status()` over `st.spinner()` for a smoother, less disruptive user experience during background network tasks.
+- **Empty States:** Never show a blank table. Use `st.info("📬 No inventory data found.")` with descriptive instructions.
+- **Premium Metrics:** Use the custom HTML/CSS metric card layout (`<div class="metric-container">`) for KPIs instead of default `st.metric` for better styling.
+- **Theme Responsiveness:** Ensure custom HTML elements do not hardcode background colors that break Streamlit's native dark mode.
+
+## 5. Technology Stack
 - Frontend: Streamlit with heavy custom CSS injection.
 - Data: Pandas and Polars.
 - Charts: Plotly.
 - AI: multi-provider LLM routing.
 - APIs: WooCommerce REST API and Pathao Courier API.
 
-## 4. Session State Rules
+## 6. Session State Rules
 The app depends heavily on `st.session_state`. Do not rename or remove keys casually.
 
 Common prefixes:
@@ -89,7 +100,7 @@ Pathao-specific state currently used:
 - `pathao_manual_desc`
 - `inv_pathao_df` (Used when pushing allocations directly to Pathao from Inventory Distribution)
 
-## 5. Operational Dashboard Rules
+## 7. Operational Dashboard Rules
 The operational dashboard has behavior that should not drift accidentally.
 
 - `src/pages/dashboard_output.py`
@@ -104,7 +115,7 @@ Current KPI behavior:
 
 If you touch metric-card ordering or badge placement, verify that deltas still appear on the intended cards.
 
-## 6. Pathao Processor Rules
+## 8. Pathao Processor Rules
 `src/pages/pathao_orders.py` and `src/processing/order_processor.py` now contain a few important conventions.
 
 ### Source modes
@@ -149,7 +160,7 @@ The Pathao module includes an `Order Tracking` tab that allows bulk tracking via
 - If auto-update is enabled, it uses the `Order ID` column to actively send `completed` statuses back to WooCommerce via API for delivered parcels.
 - Ensure tracking files contain an `Order ID` or `Merchant Order ID` column for this auto-sync to function properly.
 
-## 7. Item Description Helper
+## 9. Item Description Helper
 The bulk order processor includes a second tab: `Item Description Helper`.
 
 Purpose:
@@ -166,13 +177,13 @@ Supported manual patterns currently include forms like:
 
 If you extend parsing, keep it backward compatible and route all output through the shared normalization helpers.
 
-## 8. Known Technical Debt
+## 10. Known Technical Debt
 - Some older docs still describe the project as `DEEN-BI` or `dashboard_v1`.
 - `MORE_TOOLS` in `src/config/ui_config.py` is still not part of active routing.
 - Some page modules still mix heavy business logic directly into UI renderers.
 - There are still runtime-generated artifacts and snapshots in the repo, so expect a dirty worktree.
 
-## 9. Recent Stability Improvements
+## 11. Recent Stability Improvements
 - Fixed `list assignment index out of range` in Inventory Distribution by resetting dataframes and wrapping order-group logic in resilient `try...except` blocks.
 - Added universal numeric/currency data sanitization (stripping non-numeric chars via regex) prior to `pd.to_numeric` to prevent silent `NaN` revenue/quantity drops.
 - Added strict string-casting for categorical columns before Polars DataFrame conversion to prevent `MixedType` compute crashes.
@@ -181,7 +192,7 @@ If you extend parsing, keep it backward compatible and route all output through 
 - Appended transaction IDs directly to Pathao `SpecialInstruction` and `ItemDesc` for 100% Prepaid (SSL/Bkash) orders.
 - Integrated Pathao bulk-sheet generation directly into the Inventory Distribution page.
 
-## 10. Development Guidance
+## 12. Development Guidance
 - New workspace page:
   follow `DEVELOPMENT.md` for page creation, nav updates, routing, and reset registration.
 - Defensive rendering:
@@ -193,7 +204,7 @@ If you extend parsing, keep it backward compatible and route all output through 
 - Data sanitization:
   Always strip currency/text strings using `str.replace(r"[^\d.-]", "", regex=True)` before calling `pd.to_numeric` on quantities, prices, or amounts.
 
-## 11. Execution & Testing
+## 13. Execution & Testing
 - Local app:
   `streamlit run app.py`
 - Unit tests:
