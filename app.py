@@ -70,10 +70,8 @@ def run_app():
     if not any("Pathao" in item or "Bulk Order" in item for item in PRIMARY_NAV):
         PRIMARY_NAV.append("📦 Pathao Processor")
 
-    # Rename Excel Merger to Product Listing in navigation
-    for i, item in enumerate(PRIMARY_NAV):
-        if "Excel Merger" in item:
-            PRIMARY_NAV[i] = "📑 Product Listing"
+    # Remove Excel Merger / Product Listing from navigation as it is now a sub-feature of Inventory Distribution
+    PRIMARY_NAV = [item for item in PRIMARY_NAV if "Excel Merger" not in item and "Product Listing" not in item]
 
     init_state()
     inject_base_styles()
@@ -208,7 +206,12 @@ def run_app():
     elif selected_nav == "💬 WhatsApp Messaging":
         safe_render(render_wp_tab, fallback_msg="WhatsApp Messaging unavailable.")
     elif selected_nav == "📊 Inventory Distribution":
-        safe_render(lambda: render_distribution_tab(search_q=st.session_state.get("inv_matrix_search", "")), fallback_msg="Inventory Distribution unavailable.")
+        dist_tab, merge_tab = st.tabs(["📦 Distribution Matrix", "📑 Product Listing"])
+        with dist_tab:
+            safe_render(lambda: render_distribution_tab(search_q=st.session_state.get("inv_matrix_search", "")), fallback_msg="Inventory Distribution unavailable.")
+        with merge_tab:
+            from src.pages.excel_merger import render_excel_merger_tab
+            safe_render(render_excel_merger_tab, fallback_msg="Product Listing unavailable.")
     elif selected_nav == "📦 Current Stock Analytics":
         safe_render(render_stock_analytics_tab, fallback_msg="Stock Analytics unavailable.")
     elif selected_nav == "🧩 Delivery Data Parser":
@@ -221,9 +224,6 @@ def run_app():
     elif selected_nav == "🛒 WooCommerce Orders":
         from src.pages.woocommerce_orders import render_woocommerce_orders_tab
         safe_render(render_woocommerce_orders_tab, fallback_msg="WooCommerce Orders unavailable.")
-    elif selected_nav in ["📑 Excel Merger", "📑 Product Listing"]:
-        from src.pages.excel_merger import render_excel_merger_tab
-        safe_render(render_excel_merger_tab, fallback_msg="Product Listing unavailable.")
     # After tool execution, re-render the header with any injected content
     with header_container:
         def render_header_right():

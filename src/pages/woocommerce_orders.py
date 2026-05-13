@@ -1,14 +1,39 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import re
+import requests
+import os
+import io
+from requests.auth import HTTPBasicAuth
 from src.services.pathao.status import get_pathao_order_status
 
-def render_woocommerce_orders_tab():
-    """Renders the WooCommerce Orders list module."""
-    st.markdown("<h2 style='color: #6366f1;'>🛒 WooCommerce Orders List</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='opacity: 0.8;'>Live synchronization view of your current WooCommerce operations.</p>", unsafe_allow_html=True)
-    st.divider()
+def extract_base_order_id(merchant_id):
+    """Extracts base WooCommerce order ID from Pathao merchant ID variations."""
+    text = str(merchant_id).strip()
+    if text.lower() in ["nan", "none", ""]:
+        return ""
+    match = re.search(r'(?:M-|D-)?(\d+)(?:\s*[cws])?', text, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return text
 
+def _update_wc_status(order_id, status):
+    """Update WooCommerce order status via API."""
+    wc_info = st.secrets.get("woocommerce", {})
+    wc_url = wc_info.get("store_url") or os.environ.get("WC_URL")
+    wc_key = wc_info.get("consumer_key") or os.environ.get("WC_KEY")
+    wc_secret = wc_info.get("consumer_secret") or os.environ.get("WC_SECRET")
+    if not all([wc_url, wc_key, wc_secret]):
+        return False
+    url = f"{wc_url.rstrip('/')}/wp-json/wc/v3/orders/{order_id}"
+    try:
+        res = requests.put(url, json={"status": status}, auth=HTTPBasicAuth(wc_key, wc_secret), timeout=10)
+        return res.status_code in [200, 201]
+    except:
+        return False
+
+def _render_live_orders_view():
     # Fetch the WooCommerce Dataframe from session state
     df = st.session_state.get("wc_curr_df")
 
@@ -295,3 +320,136 @@ def render_woocommerce_orders_tab():
             height=600,
             column_config=column_configuration
         )
+
+def render_woocommerce_orders_tab():
+    """Renders the WooCommerce Operations module."""
+    st.markdown("<h2 style='color: #6366f1;'>🛒 WooCommerce Operations</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='opacity: 0.8;'>Live synchronization view and tracking for WooCommerce operations.</p>", unsafe_allow_html=True)
+    st.divider()
+
+    tab_live, tab_track = st.tabs(["🛒 Live Orders View", "🚚 WC × Pathao Tracking"])
+
+    with tab_live:
+        _render_live_orders_view()
+
+    with tab_track:
+        st.markdown("### WooCommerce × Pathao Order Tracking Dashboard")
+        st.markdown("Match WooCommerce orders with Pathao deliveries and update statuses directly.")
+
+        wc_df = st.session_state.get("wc_full_df")
+        if wc_df is None or wc_df.empty:
+            wc_df = st.session_state.get("wc_curr_df")
+
+        if wc_df is None or wc_df.empty:
+            st.warning("⚠️ No active WooCommerce order data found. Please trigger a sync from the **Live Dashboard** first.")
+            return
+
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            st.info(f"Loaded {wc_df['Order ID'].nunique()} WooCommerce Orders from session cache.")
+
+        with c2:
+            pathao_file = st.file_uploader("Upload Pathao Export (CSV/Excel)", type=["csv", "xlsx"], key="wc_pathao_up")
+
+        # Create WC Base
+        track_df = wc_df[["Order ID", "Order Status"]].copy().drop_duplicates(subset=["Order ID"])
+        track_df.rename(columns={"Order ID": "Order Number", "Order Status": "WC Status"}, inplace=True)
+        track_df["Order Number"] = track_df["Order Number"].astype(str)
+
+        if pathao_file is not None:
+            try:
+                if pathao_file.name.endswith(".csv"):
+                    pathao_df = pd.read_csv(pathao_file)
+                else:
+                    pathao_df = pd.read_excel(pathao_file)
+
+                # Identify columns
+                cols = [str(c) for c in pathao_df.columns]
+                merchant_col = next((c for c in cols if "merchant" in c.lower() and "order" in c.lower()), None)
+                if not merchant_col:
+                    merchant_col = next((c for c in cols if "order" in c.lower() or "merchant" in c.lower()), cols[0])
+
+                consignment_col = next((c for c in cols if "consignment" in c.lower() or "tracking" in c.lower()), None)
+                if not consignment_col:
+                    consignment_col = cols[1] if len(cols) > 1 else cols[0]
+
+                p_status_col = next((c for c in cols if "status" in c.lower() and "payment" not in c.lower()), None)
+                if not p_status_col:
+                    p_status_col = cols[2] if len(cols) > 2 else cols[0]
+
+                pathao_df["Base_WC_ID"] = pathao_df[merchant_col].apply(extract_base_order_id)
+                pathao_df["Base_WC_ID"] = pathao_df["Base_WC_ID"].astype(str)
+
+                # Merge
+                merged_df = pd.merge(track_df, pathao_df, left_on="Order Number", right_on="Base_WC_ID", how="left")
+
+                display_df = merged_df[["Order Number", "WC Status", merchant_col, consignment_col, p_status_col]].copy()
+                display_df.rename(columns={
+                    merchant_col: "Pathao ID",
+                    consignment_col: "Consignment",
+                    p_status_col: "Pathao Status"
+                }, inplace=True)
+                display_df.fillna("Not Found", inplace=True)
+
+            except Exception as e:
+                st.error(f"Error processing Pathao file: {e}")
+                display_df = None
+        else:
+            display_df = track_df.copy()
+            display_df["Pathao ID"] = "Pending Upload"
+            display_df["Consignment"] = "Pending Upload"
+            display_df["Pathao Status"] = "Pending Upload"
+
+        if display_df is not None:
+            c_info, c_action = st.columns([2, 1])
+            with c_info:
+                st.write("Edit the **WC Status** column to apply changes to WooCommerce.")
+                
+            if pathao_file is not None:
+                unmatched_df = display_df[display_df["Pathao ID"] == "Not Found"].copy()
+                if not unmatched_df.empty:
+                    with c_action:
+                        buf = io.BytesIO()
+                        with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
+                            unmatched_df.to_excel(writer, index=False, sheet_name="Unmatched Orders")
+                        st.download_button(
+                            label=f"📥 Download {len(unmatched_df)} Unmatched Orders",
+                            data=buf.getvalue(),
+                            file_name="Unmatched_WC_Orders.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+
+            status_options = ["processing", "on-hold", "pending", "completed", "shipped", "confirmed", "cancelled", "refunded", "failed"]
+            display_df["WC Status"] = display_df["WC Status"].astype(str).str.lower()
+
+            edited_df = st.data_editor(
+                display_df,
+                column_config={
+                    "Order Number": st.column_config.TextColumn("Order Number", disabled=True),
+                    "WC Status": st.column_config.SelectboxColumn("WC Status", options=status_options, required=True),
+                    "Pathao ID": st.column_config.TextColumn("Pathao ID", disabled=True),
+                    "Consignment": st.column_config.TextColumn("Consignment", disabled=True),
+                    "Pathao Status": st.column_config.TextColumn("Pathao Status", disabled=True),
+                },
+                disabled=["Order Number", "Pathao ID", "Consignment", "Pathao Status"],
+                use_container_width=True,
+                key="wc_pathao_tracker_editor",
+                height=600,
+                hide_index=False
+            )
+
+            changes = st.session_state.get("wc_pathao_tracker_editor", {}).get("edited_rows", {})
+            if changes:
+                st.warning(f"You have {len(changes)} pending status updates.")
+                if st.button("Apply Status Changes to WooCommerce", type="primary", key="apply_wc_status_changes"):
+                    with st.spinner("Updating WooCommerce..."):
+                        success_count = 0
+                        for row_idx, col_changes in changes.items():
+                            if "WC Status" in col_changes:
+                                new_status = col_changes["WC Status"]
+                                order_id = display_df.iloc[row_idx]["Order Number"]
+                                if _update_wc_status(order_id, new_status):
+                                    success_count += 1
+
+                        st.success(f"Successfully applied {success_count} updates!")

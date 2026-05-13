@@ -183,16 +183,31 @@ def render_stock_analytics_tab():
 
     def _render_stock_body():
         st.divider()
-        current_stocks = pd.to_numeric(df["Stock"], errors="coerce").fillna(0).astype(float)
+        st.subheader("🧮 Live Scenario Simulator")
+        st.markdown("Adjust the sliders below to simulate stock and price changes. Metrics, charts, and table highlights will update in real-time.")
+        sc1, sc2, sc3 = st.columns(3)
+        with sc1:
+            sim_stock_adj = st.slider("Simulate Stock Adjustment (%)", -100, 100, 0, step=5, help="Simulate a percentage change in available warehouse units.")
+        with sc2:
+            sim_price_adj = st.slider("Simulate Price Adjustment (%)", -50, 100, 0, step=5, help="Simulate a percentage markup or discount on inventory value.")
+        with sc3:
+            low_thresh = st.number_input("Low Stock Highlight Threshold", min_value=1, max_value=500, value=10, step=1, help="Highlight items with stock below this number.")
+
+        df_sim = df.copy()
+        df_sim["Stock"] = pd.to_numeric(df_sim["Stock"], errors="coerce").fillna(0).astype(float) * (1 + (sim_stock_adj / 100.0))
+        df_sim["Price"] = pd.to_numeric(df_sim["Price"], errors="coerce").fillna(0).astype(float) * (1 + (sim_price_adj / 100.0))
+
+        st.divider()
+        current_stocks = df_sim["Stock"]
         total_qty = current_stocks.sum()
-        low_stock = (current_stocks < 10.0).sum()
-        val_stock = (current_stocks * df["Price"]).sum()
+        low_stock = (current_stocks < low_thresh).sum()
+        val_stock = (current_stocks * df_sim["Price"]).sum()
 
         # Compact HTML
         stock_html = (
             '<div class="metric-container">'
             f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Warehouse Units</div><div class="metric-value">{total_qty:,.0f}</div></div><div class="metric-icon">🏠</div></div>'
-            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Low Stock SKUs</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
+            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Low Stock (<{low_thresh})</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
             f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Inventory Value</div><div class="metric-value">৳ {val_stock:,.0f}</div></div><div class="metric-icon">💰</div></div>'
             '</div>'
         )
@@ -201,7 +216,7 @@ def render_stock_analytics_tab():
         sales_df = st.session_state.get("wc_curr_df")
         if sales_df is not None and not sales_df.empty:
             safe_render(
-                lambda: render_bundle_inventory_intelligence(sales_df, df),
+                lambda: render_bundle_inventory_intelligence(sales_df, df_sim),
                 fallback_msg="Bundle intelligence section unavailable.",
             )
 
@@ -209,7 +224,7 @@ def render_stock_analytics_tab():
         display_label = "Sub-Category"
 
         st.subheader(f"Inventory by {display_label}")
-        cat_summ = df.groupby(display_label)["Stock"].sum().reset_index()
+        cat_summ = df_sim.groupby(display_label)["Stock"].sum().reset_index()
         cat_summ = cat_summ.sort_values("Stock", ascending=False)
 
         v1, v2 = st.columns([2, 3])
@@ -228,7 +243,7 @@ def render_stock_analytics_tab():
         st.subheader("Granular Stock Details")
         search = st.text_input("🔍 Filter by Product Name, SKU, or Category", "").strip().lower()
 
-        filtered_df = df.copy()
+        filtered_df = df_sim.copy()
         if search:
             filtered_df = filtered_df[
                 filtered_df["Product"].astype(str).str.lower().str.contains(search) |
@@ -236,14 +251,21 @@ def render_stock_analytics_tab():
                 filtered_df["Category"].astype(str).str.lower().str.contains(search)
             ]
 
-        st.dataframe(filtered_df, use_container_width=True, hide_index=True)
+        def highlight_low_stock(row):
+            qty = pd.to_numeric(row.get("Stock", 0), errors="coerce")
+            if pd.notna(qty) and qty < low_thresh:
+                return ['background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: bold;'] * len(row)
+            return [''] * len(row)
+
+        styled_df = filtered_df.style.apply(highlight_low_stock, axis=1).format({"Stock": "{:.0f}", "Price": "{:.2f}"})
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
         st.divider()
         buf_stock = BytesIO()
         with pd.ExcelWriter(buf_stock, engine="xlsxwriter") as wr:
             stock_metrics = pd.DataFrame([
                 {"Metric": "Total Warehouse Units", "Value": total_qty},
-                {"Metric": "Low Stock SKUs (<10)", "Value": low_stock},
+                {"Metric": f"Low Stock SKUs (<{low_thresh})", "Value": low_stock},
                 {"Metric": "Total Inventory Value (TK)", "Value": val_stock}
             ])
             stock_metrics.to_excel(wr, sheet_name="Stock Metrics", index=False)

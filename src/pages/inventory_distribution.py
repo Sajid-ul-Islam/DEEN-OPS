@@ -17,12 +17,12 @@ from src.utils.file_io import read_uploaded
 
 def _reset_inventory_state():
     clear_state_keys(
-        ["inv_res_data", "inv_active_l", "inv_t_col", "inv_master_df_live", "inv_l_Ecom_df", "inv_pathao_df"]
+        ["inv_res_data", "inv_active_l", "inv_t_col", "inv_master_df_live", "inv_l_Ecom_df", "inv_pathao_df", "inv_inventory_map", "inv_sku_map", "inv_sku_col"]
     )
 
 
 def _clear_analysis_results():
-    clear_state_keys(["inv_res_data", "inv_active_l", "inv_t_col", "inv_pathao_df"])
+    clear_state_keys(["inv_res_data", "inv_active_l", "inv_t_col", "inv_pathao_df", "inv_inventory_map", "inv_sku_map", "inv_sku_col"])
 
 
 def _render_upload_summary(master_df, title_col):
@@ -211,6 +211,9 @@ def render_distribution_tab(search_q):
                 st.session_state.inv_active_l = INVENTORY_LOCATIONS
                 st.session_state.pop("inv_pathao_df", None)
                 st.session_state.inv_t_col = title_col
+                st.session_state.inv_inventory_map = inventory_map
+                st.session_state.inv_sku_map = sku_map
+                st.session_state.inv_sku_col = sku_col
                 save_state()
                 st.success("Distribution analysis complete.")
             except Exception as exc:
@@ -218,7 +221,66 @@ def render_distribution_tab(search_q):
                 st.error("Distribution analysis failed.")
 
     if st.session_state.get("inv_res_data") is not None:
-        df = st.session_state.inv_res_data.copy()
+        st.divider()
+        st.subheader("🧮 Live Scenario Simulator")
+        st.markdown("Adjust the sliders below to simulate demand and supply changes. The distribution matrix will recalculate in real-time.")
+        
+        sc1, sc2 = st.columns(2)
+        with sc1:
+            sim_demand_adj = st.slider("Simulate Demand / Order Volume (%)", -50, 200, 0, step=10, help="Simulate a percentage change in requested order quantities.")
+        with sc2:
+            sim_supply_adj = st.slider("Simulate Supply / Stock Level (%)", -50, 100, 0, step=10, help="Simulate a percentage change in available stock across all locations.")
+            
+        if sim_demand_adj != 0 or sim_supply_adj != 0:
+            master_df = st.session_state.get("inv_master_df_live")
+            inventory_map = st.session_state.get("inv_inventory_map")
+            sku_map = st.session_state.get("inv_sku_map")
+            sku_col = st.session_state.get("inv_sku_col")
+            title_col = st.session_state.get("inv_t_col")
+            locations = st.session_state.get("inv_active_l")
+            
+            if master_df is not None and inventory_map is not None:
+                sim_master_df = master_df.copy()
+                
+                _, qty_col, _, _ = inv_core.identify_columns(sim_master_df)
+                if qty_col and qty_col in sim_master_df.columns:
+                    sim_master_df[qty_col] = pd.to_numeric(sim_master_df[qty_col], errors='coerce').fillna(1) * (1 + (sim_demand_adj / 100.0))
+                    sim_master_df[qty_col] = sim_master_df[qty_col].apply(lambda x: max(1, int(round(x))))
+                    
+                sim_inventory_map = {}
+                for k, locs in inventory_map.items():
+                    sim_inventory_map[k] = {loc: max(0, int(round(qty * (1 + (sim_supply_adj / 100.0))))) for loc, qty in locs.items()}
+                    
+                with st.spinner("Simulating..."):
+                    df, _ = inv_core.add_stock_columns_from_inventory(
+                        sim_master_df,
+                        title_col,
+                        sim_inventory_map,
+                        locations,
+                        sku_col,
+                        sku_map,
+                    )
+            else:
+                df = st.session_state.inv_res_data.copy()
+        else:
+            df = st.session_state.inv_res_data.copy()
+            
+        total_orders = df.shape[0] if hasattr(df, 'shape') else len(df)
+        oos_count = df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"].shape[0] if "Dispatch Suggestion" in df.columns else 0
+        split_count = df[df["Dispatch Suggestion"] == "Multiple / Split"].shape[0] if "Dispatch Suggestion" in df.columns else 0
+        
+        oos_rate = (oos_count / total_orders * 100) if total_orders > 0 else 0
+        
+        sim_html = (
+            '<div class="metric-container">'
+            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Items</div><div class="metric-value">{total_orders:,.0f}</div></div><div class="metric-icon">📦</div></div>'
+            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Out of Stock Rate</div><div class="metric-value">{oos_rate:.1f}%</div></div><div class="metric-icon">⚠️</div></div>'
+            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Split Parcels</div><div class="metric-value">{split_count:,.0f}</div></div><div class="metric-icon">✂️</div></div>'
+            '</div>'
+        )
+        st.markdown(sim_html, unsafe_allow_html=True)
+        st.divider()
+
         title_key = st.session_state.inv_t_col
         active_locations = st.session_state.inv_active_l
 

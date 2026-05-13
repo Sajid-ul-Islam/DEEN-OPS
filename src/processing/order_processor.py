@@ -474,7 +474,31 @@ def process_single_order_group(phone, group, data_cols):
         parcel_base_values.append(base_val)
 
     # --- Distribute Total Amount to Collect across parcels ---
+    total_base = sum(parcel_base_values)
+    
+    # Fallback if Order Total Amount is missing but it's a COD order
+    if total_to_collect == 0 and "Paid" not in trx_info and total_base > 0:
+        city_lower = str(recipient_city).lower()
+        delivery_fee = 60 if any(d in city_lower for d in ["dhaka", "savar", "keraniganj"]) else 120
+        total_to_collect = total_base + delivery_fee
+
     if total_to_collect > 0:
+        diff = total_to_collect - total_base
+        
+        # If difference is unusually large (> 250 TK), it indicates a partial order 
+        # where items were removed (e.g., Out of Stock). We must not overcharge the customer.
+        # We sum up the item costs they contain and add a standard delivery fee.
+        if diff > 250:
+            city_lower = str(recipient_city).lower()
+            delivery_fee = 60 if any(d in city_lower for d in ["dhaka", "savar", "keraniganj"]) else 120
+            total_to_collect = total_base + delivery_fee
+            
+            for rec in parcel_records:
+                if rec["SpecialInstruction"]:
+                    rec["SpecialInstruction"] += " | ⚠️ PARTIAL ORDER"
+                else:
+                    rec["SpecialInstruction"] = "⚠️ PARTIAL ORDER"
+
         if len(parcel_records) == 1:
             parcel_records[0]["AmountToCollect(*)"] = total_to_collect
         else:
