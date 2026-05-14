@@ -459,9 +459,9 @@ def inject_base_styles():
 
         /* General dark mode enforcement for custom HTML text */
         @media (prefers-color-scheme: dark) {{
-            .hub-title, .hub-subtitle, .metric-value {{ color: #ffffff !important; }}
+            .hub-title, .hub-subtitle, .metric-value, div[data-testid="stMetricValue"] {{ color: #ffffff !important; }}
             .hub-card, .metric-card {{ background: rgba(255, 255, 255, 0.05) !important; border-color: rgba(255, 255, 255, 0.1) !important; }}
-            .metric-label {{ color: #cbd5e1 !important; }}
+            .metric-label, div[data-testid="stMetricLabel"] {{ color: #cbd5e1 !important; }}
             .hub-footer {{ background: #0e1117 !important; color: #cbd5e1 !important; border-top-color: rgba(255, 255, 255, 0.1) !important; }}
             .hub-title-row {{ background: rgba(29, 78, 216, 0.1) !important; border-bottom-color: rgba(255, 255, 255, 0.1) !important; }}
         }}
