@@ -1,0 +1,49 @@
+Exception: [Errno 28] No space left on device
+OSError: [Errno 28] No space left on device
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\xlsxwriter\workbook.py", line 387, in close
+    self._store_workbook()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\xlsxwriter\workbook.py", line 803, in _store_workbook
+    xml_files = packager._create_package()
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\xlsxwriter\packager.py", line 138, in _create_package
+    self._write_content_types_file()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\xlsxwriter\packager.py", line 500, in _write_content_types_file
+    content._assemble_xml_file()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\xlsxwriter\contenttypes.py", line 77, in _assemble_xml_file
+    self._xml_close()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\xlsxwriter\xmlwriter.py", line 52, in _xml_close
+    self.fh.close()
+    ~~~~~~~~~~~~~^^
+OSError: [Errno 28] No space left on device
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "H:\DEEN-OPS\src\utils\safe_ops.py", line 79, in safe_render
+    return render_fn()
+  File "H:\DEEN-OPS\app.py", line 211, in <lambda>
+    safe_render(lambda: render_distribution_tab(search_q=st.session_state.get("inv_matrix_search", "")), fallback_msg="Inventory Distribution unavailable.")
+                        ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "H:\DEEN-OPS\src\pages\inventory_distribution.py", line 318, in render_distribution_tab
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\pandas\io\excel\_base.py", line 1353, in __exit__
+    self.close()
+    ~~~~~~~~~~^^
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\pandas\io\excel\_base.py", line 1357, in close
+    self._save()
+    ~~~~~~~~~~^^
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\pandas\io\excel\_xlsxwriter.py", line 239, in _save
+    self.book.close()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\deenb\AppData\Roaming\Python\Python314\site-packages\xlsxwriter\workbook.py", line 389, in close
+    raise FileCreateError(e)
+xlsxwriter.exceptions.FileCreateError: [Errno 28] No space left on device
+
