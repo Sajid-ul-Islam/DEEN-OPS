@@ -268,14 +268,9 @@ def parse_manual_item_lines(raw_text):
                     
         item_str = item_str.strip().rstrip(';')
         item_str = item_str.replace(" | ", " - ")
-        category = get_category_for_sales(item_str)
         
         parts = item_str.split(" - ")
-        short_name = get_short_sub_category(parts[0])
-        if len(parts) > 1:
-            item_str = f"{short_name} - {parts[1]}"
-        else:
-            item_str = short_name
+        category = get_short_sub_category(parts[0])
             
         if category not in cat_map:
             cat_map[category] = {}
@@ -384,16 +379,16 @@ def process_single_order_group(phone, group, data_cols):
         cat_map = {}
         base_val = 0
         for _, row in df_sub.iterrows():
-            item_name = row.get("Item Name", "")
+            item_name = str(row.get("Item Name", "")).strip()
             sku = row.get("SKU", "")
-            category = get_category_for_sales(item_name)
-
-            short_name = get_short_sub_category(item_name)
+            
+            category = get_short_sub_category(item_name)
+            
             clean_sku = str(sku).strip()
             if clean_sku and clean_sku.lower() != "nan":
-                item_str = f"{short_name} - {clean_sku}"
+                item_str = f"{item_name} - {clean_sku}"
             else:
-                item_str = short_name
+                item_str = item_name
 
             qty = int(float(row.get("Quantity", 0))) if pd.notna(row.get("Quantity")) else 0
             cost = float(row.get("Item Cost", 0)) if pd.notna(row.get("Item Cost")) and str(row.get("Item Cost")).strip() else 0
