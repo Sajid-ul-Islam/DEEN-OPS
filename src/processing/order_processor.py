@@ -128,6 +128,59 @@ def identify_columns(df):
     return cols
 
 
+def get_short_sub_category(item_name: str) -> str:
+    """Extracts a shortened sub-category name for Pathao ItemDesc formatting."""
+    name_lower = str(item_name).lower()
+    
+    if "tank top" in name_lower or "tanktop" in name_lower or "tank-top" in name_lower:
+        return "TankTop"
+    if "jeans" in name_lower:
+        return "Jeans"
+    if "denim" in name_lower:
+        return "Denim"
+    if "flannel" in name_lower:
+        return "Flannel"
+    if "drop shoulder" in name_lower or "oversized" in name_lower:
+        return "Drop Shoulder"
+    if "active wear" in name_lower or "activewear" in name_lower or "sports" in name_lower or "jersey" in name_lower:
+        return "Active Wear"
+    if "full sleeve" in name_lower or "fs t-shirt" in name_lower or "fs tshirt" in name_lower:
+        return "FS T-Shirt"
+    if "t-shirt" in name_lower or "tshirt" in name_lower or "tee" in name_lower or "t shirt" in name_lower:
+        return "HS T-Shirt"
+    if "polo" in name_lower:
+        return "Polo"
+    if "panjabi" in name_lower or "punjabi" in name_lower:
+        return "Panjabi"
+    if "oxford" in name_lower:
+        return "Oxford"
+    if "cuban" in name_lower:
+        return "Cuban"
+    if "linen" in name_lower:
+        return "Linen"
+    if "corduroy" in name_lower:
+        return "Corduroy"
+    if "chino" in name_lower:
+        return "Chino"
+    if "twill" in name_lower:
+        return "Twill"
+    if "cargo" in name_lower:
+        return "Cargo"
+    if "jogger" in name_lower:
+        return "Jogger"
+    if "jacket" in name_lower:
+        return "Jacket"
+    if "hoodie" in name_lower:
+        return "Hoodie"
+    if "sweatshirt" in name_lower or "sweater" in name_lower:
+        return "Sweater"
+    if "shirt" in name_lower:
+        return "Shirt"
+    
+    parts = str(item_name).split(" - ")
+    return parts[0].strip()
+
+
 def build_item_description(cat_map, total_qty, trx_info=""):
     """
     Builds the ItemDesc string for Pathao from a category map.
@@ -217,6 +270,13 @@ def parse_manual_item_lines(raw_text):
         item_str = item_str.replace(" | ", " - ")
         category = get_category_for_sales(item_str)
         
+        parts = item_str.split(" - ")
+        short_name = get_short_sub_category(parts[0])
+        if len(parts) > 1:
+            item_str = f"{short_name} - {parts[1]}"
+        else:
+            item_str = short_name
+            
         if category not in cat_map:
             cat_map[category] = {}
         if item_str not in cat_map[category]:
@@ -328,7 +388,13 @@ def process_single_order_group(phone, group, data_cols):
             sku = row.get("SKU", "")
             category = get_category_for_sales(item_name)
 
-            item_str = f"{item_name} - {sku}"
+            short_name = get_short_sub_category(item_name)
+            clean_sku = str(sku).strip()
+            if clean_sku and clean_sku.lower() != "nan":
+                item_str = f"{short_name} - {clean_sku}"
+            else:
+                item_str = short_name
+
             qty = int(float(row.get("Quantity", 0))) if pd.notna(row.get("Quantity")) else 0
             cost = float(row.get("Item Cost", 0)) if pd.notna(row.get("Item Cost")) and str(row.get("Item Cost")).strip() else 0
 
