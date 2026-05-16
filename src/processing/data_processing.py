@@ -221,13 +221,24 @@ def aggregate_data(df, selected_cols):
             order_col = group_cols[0] if group_cols else None
             if order_col:
                 lazy_df = lazy_df.with_columns(
-                    pl.when(pl.col(phone_col).is_null() | (pl.col(phone_col).cast(pl.String) == ""))
+                    pl.when(
+                        pl.col(phone_col).is_null() | 
+                        pl.col(phone_col).cast(pl.String).is_in(["", "nan", "NaN", "None", "N/A", "0"])
+                    )
                     .then(pl.col(order_col).cast(pl.String))
                     .otherwise(pl.col(phone_col).cast(pl.String))
                     .alias("_clean_phone")
                 )
             else:
-                lazy_df = lazy_df.with_columns(pl.col(phone_col).cast(pl.String).fill_null("Unknown").alias("_clean_phone"))
+                lazy_df = lazy_df.with_columns(
+                    pl.when(
+                        pl.col(phone_col).is_null() | 
+                        pl.col(phone_col).cast(pl.String).is_in(["", "nan", "NaN", "None", "N/A", "0"])
+                    )
+                    .then(pl.lit("Unknown"))
+                    .otherwise(pl.col(phone_col).cast(pl.String))
+                    .alias("_clean_phone")
+                )
                 
             customer_groups = (
                 lazy_df.group_by("_clean_phone")
