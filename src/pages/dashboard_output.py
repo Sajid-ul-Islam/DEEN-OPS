@@ -216,7 +216,7 @@ def render_dashboard_output(
              pass
  
              # Apply Live Dashboard order filter to metrics if applicable
-             order_view_mode = st.session_state.get("live_order_filter", "All Orders")
+             order_view_mode = st.session_state.get("live_order_filter", "All Orders") if nav_mode == "Today" else "All Orders"
              status_col_m = "Order Status" if "Order Status" in m_df.columns else "Status" if "Status" in m_df.columns else None
              status_col_c = None
              if c_df is not None:
@@ -265,24 +265,28 @@ def render_dashboard_output(
              full_df = st.session_state.get("wc_full_df")
              if full_df is not None and not full_df.empty:
                  temp_full = full_df.copy()
-                 temp_full['Day'] = pd.to_datetime(temp_full[wc_raw_mapping["date"]]).dt.date
-                 temp_full['Order Total Amount'] = pd.to_numeric(temp_full['Order Total Amount'], errors='coerce').fillna(0)
-                 daily_rev = temp_full.groupby('Day')['Order Total Amount'].sum()
-                 if len(daily_rev) >= 3:
-                     fc_res, _ = PredictiveIntelligence.forecast(daily_rev, steps=1)
-                     if fc_res:
-                         forecast_val = fc_res[0]['forecast'][0]
+                 date_col = wc_raw_mapping["date"]
+                 if date_col in temp_full.columns and 'Order Total Amount' in temp_full.columns:
+                     temp_full['Day'] = pd.to_datetime(temp_full[date_col]).dt.date
+                     temp_full['Order Total Amount'] = pd.to_numeric(temp_full['Order Total Amount'], errors='coerce').fillna(0)
+                     daily_rev = temp_full.groupby('Day')['Order Total Amount'].sum()
+                     if len(daily_rev) >= 3:
+                         fc_res, _ = PredictiveIntelligence.forecast(daily_rev, steps=1)
+                         if fc_res:
+                             forecast_val = fc_res[0]['forecast'][0]
 
              # 2. Processing Lead Time (Created -> Modified to Shipped/Confirmed)
              ship_conf_df = m_df[m_df[status_col_m].astype(str).str.lower().isin(SHIPPED_STATUSES)].copy() if status_col_m else pd.DataFrame()
              if not ship_conf_df.empty and "mod_dt_parsed" in ship_conf_df.columns:
-                 ship_conf_df["dt_created"] = pd.to_datetime(ship_conf_df[wc_raw_mapping["date"]], errors="coerce").dt.tz_localize(None)
-                 # Calculate hours
-                 ship_conf_df["lead_h"] = (ship_conf_df["mod_dt_parsed"] - ship_conf_df["dt_created"]).dt.total_seconds() / 3600
-                 # Filter out negative or extreme outliers (e.g. status changes before creation which is an API quirk) and ensure non-NaN
-                 valid_leads = ship_conf_df[(ship_conf_df["lead_h"] >= 0) & (ship_conf_df["lead_h"] < 168)]["lead_h"]
-                 avg_proc_time = valid_leads.mean() if not valid_leads.empty else 0.0
-                 if pd.isna(avg_proc_time): avg_proc_time = 0.0
+                 date_col = wc_raw_mapping["date"]
+                 if date_col in ship_conf_df.columns:
+                     ship_conf_df["dt_created"] = pd.to_datetime(ship_conf_df[date_col], errors="coerce").dt.tz_localize(None)
+                     # Calculate hours
+                     ship_conf_df["lead_h"] = (ship_conf_df["mod_dt_parsed"] - ship_conf_df["dt_created"]).dt.total_seconds() / 3600
+                     # Filter out negative or extreme outliers (e.g. status changes before creation which is an API quirk) and ensure non-NaN
+                     valid_leads = ship_conf_df[(ship_conf_df["lead_h"] >= 0) & (ship_conf_df["lead_h"] < 168)]["lead_h"]
+                     avg_proc_time = valid_leads.mean() if not valid_leads.empty else 0.0
+                     if pd.isna(avg_proc_time): avg_proc_time = 0.0
 
              drill, summ, top, basket, active_df = render_operational_metrics(
                 m_df, c_df, nav_mode, dummy_mapping, wc_raw_mapping, forecast_val, avg_proc_time

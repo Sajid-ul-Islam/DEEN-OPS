@@ -36,18 +36,18 @@ def render_operational_metrics(
     active_df = m_df
     drill, summ, top, basket = aggregate_data(m_df, dummy_mapping)
 
-    m_qty = m_df["Quantity"].sum()
-    m_rev = (m_df["Quantity"] * m_df["Item Cost"]).sum()
-    m_ord = basket["total_orders"]
-    m_bv = basket["avg_basket_value"]
+    m_qty = m_df["Quantity"].sum() if "Quantity" in m_df.columns else 0
+    m_rev = (m_df["Quantity"] * m_df["Item Cost"]).sum() if "Quantity" in m_df.columns and "Item Cost" in m_df.columns else 0
+    m_ord = basket["total_orders"] if basket else 0
+    m_bv = basket["avg_basket_value"] if basket else 0
 
     dq_str, dr_str, do_str, db_str = None, None, None, None
     if c_df is not None and not c_df.empty:
-        co_q = c_df["Quantity"].sum()
-        co_r = (c_df["Quantity"] * c_df["Item Cost"]).sum()
+        co_q = c_df["Quantity"].sum() if "Quantity" in c_df.columns else 0
+        co_r = (c_df["Quantity"] * c_df["Item Cost"]).sum() if "Quantity" in c_df.columns and "Item Cost" in c_df.columns else 0
         _, _, _, co_basket = aggregate_data(c_df, dummy_mapping)
-        co_o = co_basket["total_orders"]
-        co_b = co_basket["avg_basket_value"]
+        co_o = co_basket["total_orders"] if co_basket else 0
+        co_b = co_basket["avg_basket_value"] if co_basket else 0
 
         prefix = "Today " if nav_mode == "Prev" else ""
         suffix = "" if nav_mode == "Prev" else " vs Prev"
