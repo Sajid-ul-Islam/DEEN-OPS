@@ -159,6 +159,9 @@ def render_spotlight(
     top = top.copy()
     if "Clean_Product" in top.columns:
         group_cols = ["Clean_Product"]
+        if "SKU" in top.columns:
+            group_cols.append("SKU")
+            
         agg_dict = {"Total Qty": "sum", "Total Amount": "sum", "Category": "first"}
         if "Sub-Category" in top.columns:
             agg_dict["Sub-Category"] = "first"
@@ -167,7 +170,10 @@ def render_spotlight(
         top.rename(columns={"Clean_Product": "Product Name"}, inplace=True)
         
         if prev_top is not None and not prev_top.empty and "Clean_Product" in prev_top.columns:
-            prev_top = prev_top.groupby(group_cols, as_index=False).agg(agg_dict)
+            prev_group_cols = ["Clean_Product"]
+            if "SKU" in prev_top.columns:
+                prev_group_cols.append("SKU")
+            prev_top = prev_top.groupby(prev_group_cols, as_index=False).agg(agg_dict)
             prev_top.rename(columns={"Clean_Product": "Product Name"}, inplace=True)
 
     st.subheader("\U0001f525 Products Spotlight")
@@ -211,8 +217,8 @@ def render_spotlight(
     stock_df = st.session_state.get("wc_stock_df")
     
     def get_velocity_and_stock_label(row):
-        has_sku = "SKU" in row and pd.notna(row["SKU"])
-        product_name = truncate_label(row['Product Name'], max_len=15)
+        has_sku = "SKU" in row and pd.notna(row["SKU"]) and str(row["SKU"]).strip() not in ["", "N/A", "nan"]
+        product_name = str(row['Product Name'])
         label = f"{product_name} [{row['SKU']}]" if has_sku else f"{product_name}"
         
         # 🟢 Velocity Logic

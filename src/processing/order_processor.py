@@ -1,3 +1,4 @@
+from pickle import SHORT_BINSTRING
 import pandas as pd
 import streamlit as st
 import os
@@ -178,6 +179,26 @@ def get_short_sub_category(item_name: str) -> str:
         return "Jogger"
     if "shirt" in name_lower:
         return "Shirt"
+    if "wallet" in name_lower:
+        return "Wallet"
+    if "trouser" in name_lower:
+        return "Trouser"
+    if "executive formal shirt" in name_lower:
+        return "Formal"
+    if "t-shirt" in name_lower:
+        return "T-Shirt"
+    if "belt" in name_lower:
+        return "Belt"
+    if "kaftan" in name_lower:
+        return "Kaftan"
+    if "boxer" in name_lower:
+        return "Boxer"
+    if "mask" in name_lower:
+        return "Mask"
+    if "polo" in name_lower:
+        return "Polo"
+    if "turtleneck" or "turtle neck" in name_lower:
+        return "Turtleneck"
     
     parts = str(item_name).split(" - ")
     return parts[0].strip()
