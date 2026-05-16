@@ -202,12 +202,45 @@ def aggregate_data(df, selected_cols):
                 .to_pandas()
             )
             
-            basket_metrics["avg_basket_qty"] = order_groups["Quantity"].mean()
-            basket_metrics["avg_basket_value"] = order_groups["Total Amount"].mean()
+            avg_qty = order_groups["Quantity"].mean()
+            avg_val = order_groups["Total Amount"].mean()
+            basket_metrics["avg_basket_qty"] = float(avg_qty) if pd.notna(avg_qty) else 0
+            basket_metrics["avg_basket_value"] = float(avg_val) if pd.notna(avg_val) else 0
             basket_metrics["total_orders"] = len(order_groups)
 
             multi_item_orders = len(order_groups[order_groups["Item Count"] > 1])
             basket_metrics["attachment_rate"] = (multi_item_orders / len(order_groups) * 100) if len(order_groups) > 0 else 0
+
+        phone_col = None
+        if "phone" in selected_cols and selected_cols["phone"] in df.columns:
+            phone_col = selected_cols["phone"]
+        elif "Phone (Billing)" in df.columns:
+            phone_col = "Phone (Billing)"
+            
+        if phone_col:
+            order_col = group_cols[0] if group_cols else None
+            if order_col:
+                lazy_df = lazy_df.with_columns(
+                    pl.when(pl.col(phone_col).is_null() | (pl.col(phone_col).cast(pl.String) == ""))
+                    .then(pl.col(order_col).cast(pl.String))
+                    .otherwise(pl.col(phone_col).cast(pl.String))
+                    .alias("_clean_phone")
+                )
+            else:
+                lazy_df = lazy_df.with_columns(pl.col(phone_col).cast(pl.String).fill_null("Unknown").alias("_clean_phone"))
+                
+            customer_groups = (
+                lazy_df.group_by("_clean_phone")
+                .agg([pl.col("Total Amount").sum().alias("Total Amount")])
+                .collect()
+                .to_pandas()
+            )
+            avg_cust_val = customer_groups["Total Amount"].mean()
+            basket_metrics["avg_customer_value"] = float(avg_cust_val) if pd.notna(avg_cust_val) else 0
+            basket_metrics["unique_customers"] = len(customer_groups)
+        else:
+            basket_metrics["avg_customer_value"] = basket_metrics["avg_basket_value"]
+            basket_metrics["unique_customers"] = basket_metrics["total_orders"]
 
         return drilldown, summary, top_items, basket_metrics
     except Exception as e:
@@ -266,7 +299,7 @@ def generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, d
         "",
         rev_line,
         f"📦 *Shipped Items:* {today_qty:,.0f}",
-        f"🛍️ *Avg Basket Value:* ৳{today_aov:,.0f}",
+        f"🛍️ *Avg per Customer:* ৳{today_aov:,.0f}",
         "",
         f"🚚 *Last Shipped Order:* {dm.get('last_shipped_order', 'N/A')}",
         f"🖨️ *Last Pathao Print:* {dm.get('last_pathao_print', 'N/A')}",

@@ -39,7 +39,8 @@ def render_operational_metrics(
     m_qty = m_df["Quantity"].sum() if "Quantity" in m_df.columns else 0
     m_rev = (m_df["Quantity"] * m_df["Item Cost"]).sum() if "Quantity" in m_df.columns and "Item Cost" in m_df.columns else 0
     m_ord = basket["total_orders"] if basket else 0
-    m_bv = basket["avg_basket_value"] if basket else 0
+    m_bv = basket.get("avg_customer_value", basket.get("avg_basket_value", 0)) if basket else 0
+    if pd.isna(m_bv): m_bv = 0
 
     dq_str, dr_str, do_str, db_str = None, None, None, None
     if c_df is not None and not c_df.empty:
@@ -47,7 +48,8 @@ def render_operational_metrics(
         co_r = (c_df["Quantity"] * c_df["Item Cost"]).sum() if "Quantity" in c_df.columns and "Item Cost" in c_df.columns else 0
         _, _, _, co_basket = aggregate_data(c_df, dummy_mapping)
         co_o = co_basket["total_orders"] if co_basket else 0
-        co_b = co_basket["avg_basket_value"] if co_basket else 0
+        co_b = co_basket.get("avg_customer_value", co_basket.get("avg_basket_value", 0)) if co_basket else 0
+        if pd.isna(co_b): co_b = 0
 
         prefix = "Today " if nav_mode == "Prev" else ""
         suffix = "" if nav_mode == "Prev" else " vs Prev"

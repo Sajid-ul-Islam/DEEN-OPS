@@ -308,7 +308,8 @@ def render_dashboard_output(
                 m_qty = summ['Total Qty'].sum()
                 m_rev = summ['Total Amount'].sum()
                 m_ord = basket.get("total_orders", 0) if basket else 0
-                m_bv = basket.get('avg_basket_value', 0) if basket else 0
+                m_bv = basket.get('avg_customer_value', basket.get('avg_basket_value', 0)) if basket else 0
+                if pd.isna(m_bv): m_bv = 0
                 
                 # Build Compact HTML string to prevent markdown parser interference
                 label1 = get_items_sold_label(last_updated).upper()
@@ -317,7 +318,7 @@ def render_dashboard_output(
                     f'<div class="metric-card"><div><div class="metric-label">{label1}</div><div class="metric-value">{m_qty:,.0f}</div></div><div class="metric-icon">📦</div></div>'
                     f'<div class="metric-card"><div><div class="metric-label">REVENUE</div><div class="metric-value">TK {m_rev:,.0f}</div></div><div class="metric-icon">৳</div></div>'
                     f'<div class="metric-card"><div><div class="metric-label">NUMBER OF ORDERS</div><div class="metric-value">{m_ord:,.0f}</div></div><div class="metric-icon">🛒</div></div>'
-                    f'<div class="metric-card"><div><div class="metric-label">MARKET BASKET VALUE</div><div class="metric-value">TK {m_bv:,.0f}</div></div><div class="metric-icon">🛍️</div></div>'
+                    f'<div class="metric-card"><div><div class="metric-label">AVG / CUSTOMER</div><div class="metric-value">TK {m_bv:,.0f}</div></div><div class="metric-icon">🛍️</div></div>'
                     '</div>'
                 )
                 st.markdown(ingestion_html, unsafe_allow_html=True)
@@ -358,7 +359,7 @@ def render_dashboard_output(
     today_rev = summ['Total Amount'].sum() if summ is not None else 0
     today_qty = summ['Total Qty'].sum() if summ is not None else 0
     today_orders = basket.get('total_orders', 0) if basket else 0
-    today_aov = basket.get('avg_basket_value', 0) if basket else 0
+    today_aov = basket.get('avg_customer_value', basket.get('avg_basket_value', 0)) if basket else 0
     
     if is_operational:
         dm = get_dispatch_metrics(active_df, today_orders)
@@ -375,7 +376,7 @@ def render_dashboard_output(
             {"Metric": "Total Revenue (TK)", "Value": today_rev},
             {"Metric": "Total Items Sold", "Value": today_qty},
             {"Metric": "Total Orders", "Value": today_orders},
-            {"Metric": "Average Order Value (TK)", "Value": today_aov},
+            {"Metric": "Average Customer Value (TK)", "Value": today_aov},
         ]
         if is_operational and dm:
             metrics_data.extend([

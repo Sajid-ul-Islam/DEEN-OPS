@@ -101,7 +101,7 @@ def generate_report_data():
     today_rev = summ['Total Amount'].sum() if summ is not None else 0
     today_qty = summ['Total Qty'].sum() if summ is not None else 0
     today_orders = basket.get('total_orders', 0) if basket else 0
-    today_aov = basket.get('avg_basket_value', 0) if basket else 0
+    today_aov = basket.get('avg_customer_value', basket.get('avg_basket_value', 0)) if basket else 0
 
     # Process yesterday's context for delta comparison
     prev_rev, prev_orders = 0, 0
