@@ -155,12 +155,12 @@ def render_distribution_tab(search_q):
                 "Upload a valid master stock list or pull from live source before analysis."
             )
         else:
-            # If SKU doesn't exist, fill up with 0 to ensure proper matching
+            # Prevent empty SKUs from clustering unrelated products together
             if sku_col and sku_col in master_df.columns:
-                master_df[sku_col] = master_df[sku_col].fillna(0)
-                master_df[sku_col] = master_df[sku_col].replace({"": 0, "NaN": 0, "nan": 0, "None": 0})
+                master_df[sku_col] = master_df[sku_col].astype(str).fillna("N/A")
+                master_df[sku_col] = master_df[sku_col].replace({"": "N/A", "NaN": "N/A", "nan": "N/A", "None": "N/A", "0": "N/A"})
             else:
-                master_df["SKU"] = 0
+                master_df["SKU"] = "N/A"
                 sku_col = "SKU"
 
             try:
@@ -182,6 +182,7 @@ def render_distribution_tab(search_q):
 
                         if wocom_df is not None:
                             loc_files["Ecom"] = wocom_df
+                            st.session_state.inv_l_Ecom_df = wocom_df
                             sync_status.update(label=f"Done: Ecom stock synced for {wocom_df.shape[0] if hasattr(wocom_df, 'shape') else len(wocom_df)} relevant items.", state="complete")
                         else:
                             st.warning("⚠️ WooCommerce sync failed. Analysis will proceed using other locations.")
@@ -448,6 +449,12 @@ def render_distribution_tab(search_q):
                         # Exclude purely OOS rows to prevent them from creating empty parcels
                         valid_dispatch_df = df[df["Dispatch Suggestion"] != "OOS / Unfulfillable"].copy()
                         
+                        # Ensure Pathao processor finds the correct phone column
+                        from src.processing.column_detection import find_columns
+                        det_cols = find_columns(valid_dispatch_df)
+                        if det_cols.get("phone") and det_cols["phone"] != "Phone (Billing)":
+                            valid_dispatch_df = valid_dispatch_df.rename(columns={det_cols["phone"]: "Phone (Billing)"})
+                            
                         if valid_dispatch_df.empty:
                             st.error("No fulfillable items to process.")
                         else:
