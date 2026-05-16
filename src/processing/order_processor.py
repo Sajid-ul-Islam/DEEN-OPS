@@ -146,6 +146,14 @@ def get_short_sub_category(item_name: str) -> str:
         return "Active Wear"
     if "full sleeve" in name_lower or "fs t-shirt" in name_lower or "fs tshirt" in name_lower:
         return "FS T-Shirt"
+    if "sweatshirt" in name_lower:
+        return "Sweatshirt"
+    if "sweater" in name_lower:
+        return "Sweater"
+    if "hoodie" in name_lower:
+        return "Hoodie"
+    if "jacket" in name_lower:
+        return "Jacket"
     if "t-shirt" in name_lower or "tshirt" in name_lower or "tee" in name_lower or "t shirt" in name_lower:
         return "HS T-Shirt"
     if "polo" in name_lower:
@@ -168,12 +176,6 @@ def get_short_sub_category(item_name: str) -> str:
         return "Cargo"
     if "jogger" in name_lower:
         return "Jogger"
-    if "jacket" in name_lower:
-        return "Jacket"
-    if "hoodie" in name_lower:
-        return "Hoodie"
-    if "sweatshirt" in name_lower or "sweater" in name_lower:
-        return "Sweater"
     if "shirt" in name_lower:
         return "Shirt"
     
