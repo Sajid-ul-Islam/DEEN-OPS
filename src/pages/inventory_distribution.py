@@ -85,13 +85,21 @@ def render_distribution_tab(search_q):
         try:
             # v9.8 Rapid In-Memory Pull
             if st.session_state.get("wc_curr_df") is not None:
-                df_live = st.session_state.wc_curr_df
+                df_live = st.session_state.wc_curr_df.copy()
+                
+                status_col = "Order Status" if "Order Status" in df_live.columns else "Status" if "Status" in df_live.columns else None
+                if status_col:
+                    df_live = df_live[df_live[status_col].astype(str).str.lower().isin(["processing", "on-hold", "pending"])]
+                    
                 source_name = "Dashboard_Live_Today"
-                st.info("⚡ Instant Pull: Using Today's Active Shift data from Dashboard.")
+                st.info("⚡ Instant Pull: Using Today's Active Shift data (Processing/On-Hold) from Dashboard.")
             else:
                 from src.services.woocommerce.client import load_live_source
                 with st.spinner("Connecting to WooCommerce API..."):
                     df_live, source_name, _ = load_live_source()
+                    status_col = "Order Status" if "Order Status" in df_live.columns else "Status" if "Status" in df_live.columns else None
+                    if status_col:
+                        df_live = df_live[df_live[status_col].astype(str).str.lower().isin(["processing", "on-hold", "pending"])]
 
             master_df = df_live
             st.session_state.inv_master_df_live = master_df
@@ -442,12 +450,17 @@ def render_distribution_tab(search_q):
         
         c_pathao1, c_pathao2 = st.columns([1, 1])
         with c_pathao1:
+            dispatch_loc_options = ["All Fulfillable"] + [loc for loc in active_locations if "Dispatch Suggestion" in df.columns and loc in df["Dispatch Suggestion"].unique()]
+            selected_pathao_loc = st.selectbox("Filter Dispatch Location for Pathao", dispatch_loc_options)
+            
             if st.button("Process for Pathao", use_container_width=True):
                 with st.spinner("Processing orders..."):
                     from src.processing.order_processor import process_orders_dataframe
                     try:
-                        # Exclude purely OOS rows to prevent them from creating empty parcels
-                        valid_dispatch_df = df[df["Dispatch Suggestion"] != "OOS / Unfulfillable"].copy()
+                        if selected_pathao_loc == "All Fulfillable":
+                            valid_dispatch_df = df[df["Dispatch Suggestion"] != "OOS / Unfulfillable"].copy()
+                        else:
+                            valid_dispatch_df = df[df["Dispatch Suggestion"] == selected_pathao_loc].copy()
                         
                         # Ensure Pathao processor finds the correct phone column
                         from src.processing.column_detection import find_columns

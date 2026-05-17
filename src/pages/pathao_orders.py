@@ -288,7 +288,7 @@ def _render_processing_tab():
             try:
                 with st.status("Processing orders...", expanded=True) as status:
                     st.write("Applying cleanup, district resolution, and address normalization...")
-                    result_df = process_orders_dataframe(preview_df)
+                    result_df = process_orders_dataframe(preview_df.copy())
                     st.session_state.pathao_res_df = result_df
                     save_state()
                     status.update(

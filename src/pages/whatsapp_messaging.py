@@ -87,7 +87,7 @@ def render_wp_tab():
         try:
             # v9.8 Rapid In-Memory Pull
             if st.session_state.get("wc_curr_df") is not None:
-                df_live = st.session_state.wc_curr_df
+                df_live = st.session_state.wc_curr_df.copy()
                 source_name = "Dashboard_Live_Today"
                 st.info("⚡ Instant Pull: Using Today's Active Shift data from Dashboard.")
             else:
