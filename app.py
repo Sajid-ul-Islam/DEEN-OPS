@@ -30,7 +30,13 @@ st.set_page_config(
 def run_app():
     # ========== AUTHENTICATION LAYER ==========
     # Native Streamlit OIDC Auth (requires secrets.toml configuration)
-    is_auth_configured = "auth" in st.secrets
+    from src.config.settings import (
+        is_auth_configured as auth_is_configured,
+        validate_runtime_configuration,
+    )
+
+    is_auth_configured = auth_is_configured()
+    config_issues = validate_runtime_configuration()
 
     if is_auth_configured:
         if not st.experimental_user.is_logged_in:
@@ -134,6 +140,16 @@ def run_app():
 
         st.divider()
         with st.sidebar.expander("🛠️ Maintenance & Settings", expanded=False):
+            st.caption("Configuration Health")
+            if config_issues:
+                st.warning("Some integrations are partially configured.")
+                for issue in config_issues:
+                    st.caption(f"- {issue}")
+                st.caption("Schema reference: src/config/secrets_schema.json")
+            else:
+                st.success("Configuration validation passed.")
+
+            st.divider()
             st.session_state.show_animation = st.toggle(
                 "Show motion effects",
                 value=st.session_state.get("show_animation", True),

@@ -71,9 +71,10 @@ def item_name_to_title_size(item_name: str) -> Tuple[str, str]:
     if " - " in s:
         left, right = s.rsplit(" - ", 1)
         title = left.strip()
-        size = normalize_size(right.strip())
+        raw_size = right.strip()
+        size = normalize_size(raw_size)
         if title and size and size != "NO_SIZE":
-            return title, size
+            return title, raw_size
 
     return s.strip(), "NO_SIZE"
 

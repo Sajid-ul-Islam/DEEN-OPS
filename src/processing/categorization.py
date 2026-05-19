@@ -37,10 +37,13 @@ def get_category_for_sales(name) -> str:
             return "FS Shirt"
         return "HS Shirt"
 
+    if "chino" in name_str:
+        return "Twill Chino"
+
     specific_cats = {
         "Boxer": ["boxer"],
         "Panjabi": ["panjabi", "punjabi"],
-        "Twill": ["twill", "chino"],
+        "Twill": ["twill"],
         "Trousers": ["trousers", "trouser", "jogger", "pants", "gabardine"],
         "Mask": ["mask"],
         "Leather Bag": ["bag", "backpack", "tote"],

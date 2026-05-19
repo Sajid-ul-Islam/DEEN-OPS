@@ -1,12 +1,12 @@
-import os
 import streamlit as st
 import pandas as pd
-import requests
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from src.config.settings import get_woocommerce_config
 from src.processing.categorization import get_category_for_sales
+from src.utils.http import request_with_backoff
 from src.utils.logging import log_system_event
 from src.utils.snapshots import save_stock_snapshot
 
@@ -19,10 +19,10 @@ def _get_category(name):
 @st.cache_data(ttl=600)
 def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
     """Fetches real-time stock levels for published items using Expert Rules."""
-    wc_info = st.secrets.get("woocommerce", {})
-    wc_url = wc_info.get("store_url") or os.environ.get("WC_URL")
-    wc_key = wc_info.get("consumer_key") or os.environ.get("WC_KEY")
-    wc_secret = wc_info.get("consumer_secret") or os.environ.get("WC_SECRET")
+    wc_info = get_woocommerce_config(required=False)
+    wc_url = wc_info.get("store_url")
+    wc_key = wc_info.get("consumer_key")
+    wc_secret = wc_info.get("consumer_secret")
 
     if not wc_url or not wc_key or not wc_secret:
         st.error("WooCommerce credentials missing.")
@@ -34,7 +34,13 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
 
     def fetch_variations(p_id, p_name):
         try:
-            v_r = requests.get(f"{base_endpoint}/{p_id}/variations", params={"per_page": 100, "status": "publish"}, auth=auth, timeout=15)
+            v_r = request_with_backoff(
+                "GET",
+                f"{base_endpoint}/{p_id}/variations",
+                params={"per_page": 100, "status": "publish"},
+                auth=auth,
+                timeout=15,
+            )
             if v_r.status_code == 200:
                 results = []
                 for v in v_r.json():
@@ -61,7 +67,8 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
         all_products = []
         with st.spinner("Fetching published inventory..."):
             while True:
-                r = requests.get(
+                r = request_with_backoff(
+                    "GET",
                     base_endpoint,
                     params={
                         "per_page": 100,

@@ -1,50 +1,45 @@
 # DEEN OPS Terminal
 
-### AI-Powered Operational Command Center for E-Commerce
+AI-assisted operations workspace for WooCommerce, Pathao, inventory, and reporting workflows.
 
-> "Most dashboards show data. This one explains it."
+## Highlights
 
-DEEN OPS Terminal is a high-performance, intelligence-driven command center designed to optimize E-commerce operations through real-time data storytelling and AI-assisted decision making.
-
----
+- Streamlit dashboard with live operational views, inventory analysis, and courier tooling
+- WooCommerce and Pathao integrations with local snapshot fallbacks
+- Multi-provider LLM routing for Data Pilot workflows
+- Runtime configuration validation backed by [src/config/secrets_schema.json](src/config/secrets_schema.json)
+- Container healthcheck support via [scripts/healthcheck.py](scripts/healthcheck.py)
 
 ## Tech Stack
 
-- **Frontend**: Streamlit + Custom CSS (Glassmorphism & Radial Gradients)
-- **Data Engine**: Vectorized Pandas operations, Plotly charting
-- **AI Layer**: Multi-provider LLM wrapper (OpenRouter, Gemini, Groq, Ollama) with failover
-- **Integrations**: WooCommerce REST API, Pathao Courier API, Google Sheets
-- **Reliability**: Error logging, session persistence, multi-threaded API fetching
+- Frontend: Streamlit, custom CSS, Plotly
+- Data: pandas, polars, numpy
+- Integrations: WooCommerce REST API, Pathao Courier API
+- AI: OpenRouter, Gemini, Groq, Ollama, Hugging Face
+- Tooling: pytest, pre-commit, black, isort, flake8
 
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10+
-- pip
-
-### Install & Run
+## Quick Start
 
 ```bash
 git clone https://github.com/saajiidi/DEEN-BI.git
-cd dashboard_v1
+cd DEEN-OPS
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
+pip install -r requirements_dev.txt
+pre-commit install
 streamlit run app.py
 ```
 
-### Configuration
+## Configuration
 
-Copy `.env.example` and configure your secrets:
+The app supports `.streamlit/secrets.toml` and environment variable fallbacks for WooCommerce, Pathao, and LLM providers. The contract is documented in [src/config/secrets_schema.json](src/config/secrets_schema.json).
 
-```bash
-cp .env.example .streamlit/secrets.toml
-```
-
-Required secrets in `.streamlit/secrets.toml`:
+Example `.streamlit/secrets.toml`:
 
 ```toml
 [woocommerce]
-url = "https://your-store.com"
+store_url = "https://your-store.com"
 consumer_key = "ck_..."
 consumer_secret = "cs_..."
 
@@ -60,7 +55,6 @@ openrouter_key = "..."
 gemini_key = "..."
 groq_key = "..."
 
-# Optional: Google OIDC auth
 [auth]
 redirect_uri = "..."
 cookie_secret = "..."
@@ -71,65 +65,64 @@ client_secret = "..."
 server_metadata_url = "..."
 ```
 
-## Workspaces
+Supported env vars:
 
-| Workspace | Description |
-|-----------|-------------|
-| Live Dashboard | Real-time WooCommerce sync with KPI cards, trend analysis, and ML forecasting |
-| Sales Data Ingestion | Upload/fetch sales data with auto-categorization and aggregation |
-| Current Stock Analytics | WooCommerce stock monitoring with bundle intelligence |
-| Bulk Order Processer | Pathao courier integration for bulk order preparation |
-| Inventory Distribution | Multi-location inventory matrix with fulfillment suggestions |
-| WhatsApp Messaging | Order-to-WhatsApp message generator with gender-aware salutations |
-| Delivery Data Parser | Fuzzy parsing of unstructured delivery records |
-| Data Pilot | Conversational AI agent for dataset analysis |
+- `WC_URL`, `WC_KEY`, `WC_SECRET`
+- `PATHAO_BASE_URL`, `PATHAO_CLIENT_ID`, `PATHAO_CLIENT_SECRET`, `PATHAO_USERNAME`, `PATHAO_PASSWORD`
+- `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `HF_API_KEY`
+
+The app now validates partially configured integrations at startup and surfaces issues in the sidebar under `Maintenance & Settings`.
+
+## Dependency Layout
+
+```text
+requirements/
+|-- base.txt
+|-- integrations.txt
+|-- ai.txt
+`-- dev.txt
+```
+
+- `requirements.txt` installs runtime dependencies
+- `requirements_dev.txt` installs runtime and development tooling
 
 ## Project Structure
 
-```
-dashboard_v1/
-├── app.py                    # Entry point: auth, routing, layout
-├── requirements.txt
-├── .streamlit/secrets.toml   # API keys & config (not committed)
-├── assets/                   # Images, logos
-├── resources/                # Static data (Pathao city/zone maps)
-├── data/                     # Runtime data directory
-│
-├── src/
-│   ├── config/               # Settings, UI config, path constants
-│   ├── services/             # External API clients
-│   │   ├── woocommerce/      # WooCommerce client & stock fetcher
-│   │   ├── pathao/           # Pathao courier API client
-│   │   ├── llm/              # Multi-provider LLM manager
-│   │   └── google/           # Google Sheets loader
-│   ├── processing/           # Data transformation pipeline
-│   ├── inventory/            # Inventory matching engine
-│   ├── components/           # Reusable UI components
-│   ├── pages/                # One file per workspace tab
-│   ├── utils/                # Text, product, file I/O, logging helpers
-│   └── state/                # Session persistence & insights
-│
-├── tests/                    # pytest test suite
-├── scripts/                  # Standalone utility scripts
-└── _deprecated/              # Legacy code (archived)
+```text
+DEEN-OPS/
+|-- app.py
+|-- assets/
+|-- data/
+|-- resources/
+|-- scripts/
+|-- src/
+|   |-- components/
+|   |-- config/
+|   |-- inventory/
+|   |-- pages/
+|   |-- processing/
+|   |-- services/
+|   |-- state/
+|   `-- utils/
+|-- tests/
+`-- _deprecated/
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed data flow and module responsibilities.
-See [DEVELOPMENT.md](DEVELOPMENT.md) for development workflow.
-
-## Testing
+## Development
 
 ```bash
-pip install -r requirements_dev.txt
 pytest tests/ -v
+pytest tests/ --cov=src --cov-report=term-missing
+pre-commit run --all-files
 ```
 
-## Author
+See [DEVELOPMENT.md](DEVELOPMENT.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [ERROR_HANDLING_GUIDE.md](ERROR_HANDLING_GUIDE.md).
 
-**Sajid Islam**
-*Data Product Engineer specializing in AI-Driven Operational Tools.*
+## Deployment Notes
 
-[LinkedIn](https://www.linkedin.com/in/sajidislam/) | [Portfolio](https://saajiidi.github.io/) | [DEEN Commerce](https://deencommerce.com/)
+- Local: `streamlit run app.py`
+- Staging: Docker or Docker Compose with env-based secrets injection
+- Production: Kubernetes with external secret management, TLS ingress, and autoscaling
+- CI/CD: run pytest, build the image, and deploy only after tests pass
 
----
-*DEEN Commerce Ltd.*
+The Docker image uses the Streamlit `/_stcore/health` endpoint through [scripts/healthcheck.py](scripts/healthcheck.py), so container health probes do not depend on `curl`.

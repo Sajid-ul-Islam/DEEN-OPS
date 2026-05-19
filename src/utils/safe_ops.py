@@ -7,6 +7,8 @@ from typing import Any, Callable, TypeVar
 import pandas as pd
 import streamlit as st
 
+from src.utils.logging import log_error
+
 T = TypeVar("T")
 
 
@@ -78,9 +80,9 @@ def safe_render(
     try:
         return render_fn()
     except Exception as e:
-        import traceback
-        with open("h:\\DEEN-OPS\\safe_render_error_2.log", "a", encoding="utf-8") as f:
-            f.write(f"Exception: {e}\n")
-            f.write(traceback.format_exc() + "\n")
+        try:
+            log_error(e, context="safe_render", details={"fallback_msg": fallback_msg})
+        except Exception:
+            pass
         st.warning(f"{fallback_msg} Error: {e}")
         return None

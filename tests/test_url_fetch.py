@@ -17,7 +17,7 @@ class TestFetchDataframeFromUrl:
         with pytest.raises(ValueError, match="URL cannot be empty"):
             fetch_dataframe_from_url("")
 
-    @patch("src.utils.url_fetch.requests.get")
+    @patch("src.utils.url_fetch.request_with_backoff")
     def test_csv_detection_by_extension(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.headers = {"content-type": "application/octet-stream"}
@@ -29,7 +29,7 @@ class TestFetchDataframeFromUrl:
         assert list(df.columns) == ["a", "b"]
         assert len(df) == 2
 
-    @patch("src.utils.url_fetch.requests.get")
+    @patch("src.utils.url_fetch.request_with_backoff")
     def test_csv_detection_by_query_param(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.headers = {"content-type": "application/octet-stream"}
@@ -43,7 +43,7 @@ class TestFetchDataframeFromUrl:
         assert list(df.columns) == ["x", "y"]
         assert len(df) == 1
 
-    @patch("src.utils.url_fetch.requests.get")
+    @patch("src.utils.url_fetch.request_with_backoff")
     def test_csv_detection_by_content_type(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.headers = {"content-type": "text/csv; charset=utf-8"}
@@ -55,7 +55,7 @@ class TestFetchDataframeFromUrl:
         assert list(df.columns) == ["col1", "col2"]
         assert df.iloc[0]["col1"] == "A"
 
-    @patch("src.utils.url_fetch.requests.get")
+    @patch("src.utils.url_fetch.request_with_backoff")
     def test_excel_fallback_to_csv(self, mock_get):
         """When URL has no CSV indicators and read_excel fails, fall back to CSV."""
         mock_resp = MagicMock()

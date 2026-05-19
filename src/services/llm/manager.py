@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import threading
 
+from src.config.settings import get_llm_provider_keys
+
 # ============================================
 # 1. PROVIDER CONFIGURATIONS (All Free Tiers)
 # ============================================
@@ -86,16 +88,8 @@ class APIKeyManager:
         self.load_keys_from_secrets()
 
     def load_keys_from_secrets(self):
-        # Dynamically load from st.secrets if they exist
-        for provider_key in ["OPENROUTER_KEYS", "GEMINI_KEYS", "GROQ_KEYS", "HF_KEYS"]:
-            provider_id = provider_key.replace("_KEYS", "").lower()
-            if "gemini" in provider_id: provider_id = "gemini_free"
-            elif "groq" in provider_id: provider_id = "groq_free"
-            elif "hf" in provider_id: provider_id = "huggingface"
-
-            keys = st.secrets.get(provider_key, [])
-            if isinstance(keys, str):
-                keys = [keys]
+        # Support the new [llm] section and legacy top-level secrets.
+        for provider_id, keys in get_llm_provider_keys().items():
             for key in keys:
                 self.add_key(provider_id, key)
 

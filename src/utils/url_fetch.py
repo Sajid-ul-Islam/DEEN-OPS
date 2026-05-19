@@ -5,7 +5,8 @@ from __future__ import annotations
 from io import BytesIO, StringIO
 
 import pandas as pd
-import requests
+
+from src.utils.http import request_with_backoff
 
 
 def fetch_dataframe_from_url(url: str, timeout: int = 15) -> pd.DataFrame:
@@ -29,8 +30,7 @@ def fetch_dataframe_from_url(url: str, timeout: int = 15) -> pd.DataFrame:
         raise ValueError("URL cannot be empty.")
 
     url = url.strip()
-    resp = requests.get(url, timeout=timeout)
-    resp.raise_for_status()
+    resp = request_with_backoff("GET", url, timeout=timeout)
 
     content_type = resp.headers.get("content-type", "").lower()
     url_lower = url.lower()

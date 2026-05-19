@@ -1,28 +1,21 @@
 import streamlit as st
 import pandas as pd
-import requests
 from datetime import datetime, timedelta, timezone
 from requests.auth import HTTPBasicAuth
 
-from src.config.settings import get_setting
+from src.config.settings import get_woocommerce_config
 from src.processing.column_detection import scrub_raw_dataframe
+from src.utils.http import request_with_backoff
 from src.utils.logging import log_system_event
 
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_from_woocommerce():
     """Loads live data from WooCommerce REST API orders."""
-    # Check for nested [woocommerce] in st.secrets (from secrets.toml)
-    wc_info = {}
-    try:
-        wc_info = st.secrets.get("woocommerce", {})
-    except Exception:
-        pass
-
-    # Support both nested [woocommerce] table and top-level keys/env vars
-    wc_url = wc_info.get("store_url") or get_setting("WC_URL")
-    wc_key = wc_info.get("consumer_key") or get_setting("WC_KEY")
-    wc_secret = wc_info.get("consumer_secret") or get_setting("WC_SECRET")
+    wc_info = get_woocommerce_config(required=False)
+    wc_url = wc_info.get("store_url")
+    wc_key = wc_info.get("consumer_key")
+    wc_secret = wc_info.get("consumer_secret")
 
     if not wc_url or not wc_key or not wc_secret:
         raise ValueError(
@@ -67,7 +60,14 @@ def load_from_woocommerce():
             
             # First request to get total pages
             try:
-                r = requests.get(endpoint, params={**p, "page": 1}, auth=HTTPBasicAuth(wc_key, wc_secret), timeout=15)
+                auth = HTTPBasicAuth(wc_key, wc_secret)
+                r = request_with_backoff(
+                    "GET",
+                    endpoint,
+                    params={**p, "page": 1},
+                    auth=auth,
+                    timeout=15,
+                )
                 r.raise_for_status()
                 total_pages = int(r.headers.get('X-WP-TotalPages', 1))
                 batch_data = r.json()
@@ -104,13 +104,21 @@ def load_from_woocommerce():
                 
                 if total_pages > 1:
                     from concurrent.futures import ThreadPoolExecutor
+
+                    def fetch_page_json(page_number):
+                        return request_with_backoff(
+                            "GET",
+                            endpoint,
+                            params={**p, "page": page_number},
+                            auth=auth,
+                            timeout=15,
+                        ).json()
+
                     with ThreadPoolExecutor(max_workers=min(total_pages, 8)) as executor:
                         pages_to_fetch = range(2, total_pages + 1)
                         futures = []
                         for pg in pages_to_fetch:
-                            futures.append(executor.submit(
-                                lambda pge=pg: requests.get(endpoint, params={**p, "page": pge}, auth=HTTPBasicAuth(wc_key, wc_secret), timeout=15).json()
-                            ))
+                            futures.append(executor.submit(fetch_page_json, pg))
                         for future in futures:
                             b_rows.extend(process_batch(future.result()))
             except Exception as e:

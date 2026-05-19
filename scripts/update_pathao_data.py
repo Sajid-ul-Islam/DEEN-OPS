@@ -5,24 +5,16 @@ import json
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from src.config.settings import get_pathao_config
 from src.services.pathao.client import PathaoClient
-from src.config.ui_config import PATHAO_CONFIG
 
-# For standalone script usage, manual secrets load if needed
-if not PATHAO_CONFIG or PATHAO_CONFIG.get("username") == "test@pathao.com":
-    try:
-        import toml
-        secrets = toml.load(".streamlit/secrets.toml")
-        if "pathao" in secrets:
-            PATHAO_CONFIG = secrets["pathao"]
-            print("Loaded Pathao config from secrets.toml")
-    except:
-        pass
 
 def update_pathao_data():
-    client = PathaoClient(**PATHAO_CONFIG)
+    client = PathaoClient(**get_pathao_config(required=True))
     print("Fetching cities...")
-    cities = client.get_cities()
+    cities, error = client.get_cities()
+    if error:
+        raise RuntimeError(error)
     
     full_map = {}
     
@@ -30,7 +22,9 @@ def update_pathao_data():
         c_id = city['city_id']
         c_name = city['city_name']
         print(f"Fetching zones for {c_name} (ID: {c_id})...")
-        zones = client.get_zones(c_id)
+        zones, zone_error = client.get_zones(c_id)
+        if zone_error:
+            raise RuntimeError(zone_error)
         
         full_map[c_name] = {
             "city_id": c_id,
@@ -41,7 +35,9 @@ def update_pathao_data():
             z_id = zone['zone_id']
             z_name = zone['zone_name']
             print(f"  Fetching areas for {z_name} (ID: {z_id})...")
-            areas = client.get_areas(z_id)
+            areas, area_error = client.get_areas(z_id)
+            if area_error:
+                raise RuntimeError(area_error)
             
             full_map[c_name]["zones"][z_name] = {
                 "zone_id": z_id,

@@ -122,3 +122,19 @@ The function never crashes on bad date data. Downstream features that require da
 6. **Partial results are acceptable.** Functions like `find_columns()` and `prepare_granular_data()` are designed to return whatever they can compute. Callers should handle missing keys/columns rather than expecting a complete result.
 
 7. **Silent skip for non-critical UI.** The live banner (`src/components/live_banner.py`) catches all exceptions silently because its failure should never interfere with the main page. This is the exception to the "show warnings" rule -- use it only for truly optional, non-interactive elements.
+
+---
+
+## External API Rate Limiting
+
+When working on external integrations, treat rate limiting as a first-class failure mode.
+
+1. **Prefer cached or snapshot-backed reads.** WooCommerce stock and sales sync paths already cache results for short windows. Avoid replacing these with uncached polling loops.
+
+2. **Bound concurrency intentionally.** The WooCommerce fetchers use `ThreadPoolExecutor` with explicit worker caps. If you raise those limits, document why and verify the upstream API can tolerate the change.
+
+3. **Fail soft on bursty operations.** Bulk Pathao status checks and customer-history lookups should return partial results or user-facing warnings instead of retrying indefinitely.
+
+4. **Use least-privilege credentials.** Production API keys should be scoped to the minimum access needed. For WooCommerce, prefer read-only keys for dashboards and analytics jobs when write access is unnecessary.
+
+5. **Document retry expectations.** If an integration adds backoff, quotas, or daily caps, capture the operator-facing behavior in code comments or the service module docstring so rate-limit responses are not mistaken for generic outages.

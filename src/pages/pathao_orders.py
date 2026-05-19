@@ -2,7 +2,6 @@ import json
 import os
 import re
 from io import BytesIO
-import requests
 from requests.auth import HTTPBasicAuth
 
 import pandas as pd
@@ -15,7 +14,7 @@ from src.components.widgets import (
     render_reset_confirm,
     section_card,
 )
-from src.config.ui_config import PATHAO_CONFIG
+from src.config.settings import get_pathao_config, get_woocommerce_config
 from src.processing.order_processor import (
     normalize_manual_item_input,
     process_orders_dataframe,
@@ -24,11 +23,20 @@ from src.services.pathao.status import get_pathao_order_status
 from src.services.pathao.client import PathaoClient
 from src.state.persistence import clear_state_keys, save_state
 from src.utils.file_io import read_uploaded
+from src.utils.http import request_with_backoff
 from src.utils.logging import log_error
 
 REQUIRED_COLUMNS = ["Phone (Billing)"]
 SOURCE_WOOCOM = "WooCommerce Processing"
 SOURCE_UPLOAD = "Upload / URL"
+
+
+def _get_pathao_client():
+    try:
+        return PathaoClient(**get_pathao_config(required=True))
+    except ValueError as exc:
+        st.error(str(exc))
+        return None
 
 
 def _reset_pathao_state():
@@ -64,7 +72,10 @@ def _filter_processing_orders(df):
 def _sync_pathao_map():
     with st.status("Connecting to Pathao API...", expanded=True) as status:
         try:
-            client = PathaoClient(**PATHAO_CONFIG)
+            client = _get_pathao_client()
+            if client is None:
+                status.update(label="Sync blocked", state="error")
+                return
             st.write("Fetching cities...")
             cities, error = client.get_cities()
 
@@ -441,14 +452,10 @@ def _render_item_description_tab():
 
 def _update_woocommerce_status(order_id, status, note=None):
     """Update WooCommerce order status via API."""
-    wc_info = st.secrets.get("woocommerce", {})
-    wc_url = (
-        wc_info.get("store_url")
-        or wc_info.get("url")
-        or os.environ.get("WC_URL")
-    )
-    wc_key = wc_info.get("consumer_key") or os.environ.get("WC_KEY")
-    wc_secret = wc_info.get("consumer_secret") or os.environ.get("WC_SECRET")
+    wc_info = get_woocommerce_config(required=False)
+    wc_url = wc_info.get("store_url")
+    wc_key = wc_info.get("consumer_key")
+    wc_secret = wc_info.get("consumer_secret")
     
     if not all([wc_url, wc_key, wc_secret]):
         return False, "Missing WooCommerce credentials"
@@ -457,12 +464,21 @@ def _update_woocommerce_status(order_id, status, note=None):
     payload = {"status": status}
     
     try:
-        res = requests.put(url, json=payload, auth=HTTPBasicAuth(wc_key, wc_secret), timeout=10)
+        auth = HTTPBasicAuth(wc_key, wc_secret)
+        res = request_with_backoff(
+            "PUT", url, json=payload, auth=auth, timeout=10
+        )
         res.raise_for_status()
         
         if note:
             note_url = f"{url}/notes"
-            requests.post(note_url, json={"note": note, "customer_note": False}, auth=HTTPBasicAuth(wc_key, wc_secret), timeout=10)
+            request_with_backoff(
+                "POST",
+                note_url,
+                json={"note": note, "customer_note": False},
+                auth=auth,
+                timeout=10,
+            )
             
         return True, "Success"
     except Exception as e:
@@ -545,35 +561,44 @@ def _render_status_tracking_tab():
     if phone_clicked and phone_input:
         with st.spinner("Searching Pathao past orders..."):
             try:
-                client = PathaoClient(**PATHAO_CONFIG)
-                headers = client._get_headers()
-                
-                search_url = f"{client.base_url}/aladdin/api/v1/orders"
-                # Pathao merchant dashboard usually uses 'search' for its order table
-                params = {"search": phone_input.strip()}
-                
-                res = requests.get(search_url, headers=headers, params=params, timeout=15)
-                res.raise_for_status()
-                response_json = res.json()
-                
-                # The orders are usually inside data.data for paginated responses
-                data_obj = response_json.get("data", {})
-                orders = data_obj.get("data", []) if isinstance(data_obj, dict) else []
-                
-                if not orders:
-                    st.info("No past orders found in Pathao for this phone number.")
-                else:
-                    st.success(f"Found {len(orders)} order(s) for {phone_input}.")
-                    history_data = []
-                    for o in orders:
-                        history_data.append({
-                            "Consignment ID": o.get("consignment_id", ""),
-                            "Order ID": o.get("merchant_order_id", ""),
-                            "Date": str(o.get("created_at", "")).split(" ")[0],
-                            "Status": str(o.get("order_status", "")).capitalize(),
+                client = _get_pathao_client()
+                if client is not None:
+                    headers = client._get_headers()
+
+                    search_url = f"{client.base_url}/aladdin/api/v1/orders"
+                    # Pathao merchant dashboard usually uses 'search' for its order table
+                    params = {"search": phone_input.strip()}
+
+                    res = request_with_backoff(
+                        "GET",
+                        search_url,
+                        headers=headers,
+                        params=params,
+                        timeout=15,
+                    )
+                    res.raise_for_status()
+                    response_json = res.json()
+
+                    # The orders are usually inside data.data for paginated responses
+                    data_obj = response_json.get("data", {})
+                    orders = (
+                        data_obj.get("data", []) if isinstance(data_obj, dict) else []
+                    )
+
+                    if not orders:
+                        st.info("No past orders found in Pathao for this phone number.")
+                    else:
+                        st.success(f"Found {len(orders)} order(s) for {phone_input}.")
+                        history_data = []
+                        for o in orders:
+                            history_data.append({
+                                "Consignment ID": o.get("consignment_id", ""),
+                                "Order ID": o.get("merchant_order_id", ""),
+                                "Date": str(o.get("created_at", "")).split(" ")[0],
+                                "Status": str(o.get("order_status", "")).capitalize(),
                             "Amount": f"৳{o.get('collected_amount', 0)}"
-                        })
-                    st.dataframe(pd.DataFrame(history_data), use_container_width=True)
+                            })
+                        st.dataframe(pd.DataFrame(history_data), use_container_width=True)
             except Exception as e:
                 st.error(f"Error fetching Pathao history: {e}")
 

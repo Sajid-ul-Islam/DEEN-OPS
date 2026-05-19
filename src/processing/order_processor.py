@@ -196,7 +196,7 @@ def get_short_sub_category(item_name: str) -> str:
         return "Mask"
     if "polo" in name_lower:
         return "Polo"
-    if "turtleneck" or "turtle neck" in name_lower:
+    if "turtleneck" in name_lower or "turtle neck" in name_lower:
         return "Turtleneck"
     
     parts = str(item_name).split(" - ")
@@ -292,7 +292,7 @@ def parse_manual_item_lines(raw_text):
         item_str = item_str.replace(" | ", " - ")
         
         parts = item_str.split(" - ")
-        category = get_short_sub_category(parts[0])
+        category = get_category_for_sales(parts[0])
             
         if category not in cat_map:
             cat_map[category] = {}
@@ -312,15 +312,18 @@ def normalize_manual_item_input(raw_text):
     cat_map, total_qty = parse_manual_item_lines(raw_text)
     
     normalized_items = []
-    for cat, items in cat_map.items():
-        for item, q in items.items():
+    ordered_cat_map = {}
+    for cat, items in sorted(cat_map.items(), key=lambda entry: entry[0]):
+        ordered_items = dict(sorted(items.items(), key=lambda entry: entry[0]))
+        ordered_cat_map[cat] = ordered_items
+        for item, q in ordered_items.items():
             normalized_items.append({
                 "category": cat,
                 "label": item,
                 "qty": q
             })
             
-    full_desc = build_item_description(cat_map, total_qty)
+    full_desc = build_item_description(ordered_cat_map, total_qty)
     return normalized_items, full_desc
 
 
@@ -431,19 +434,25 @@ def process_single_order_group(phone, group, data_cols):
         raw_state = str(first_row.get(data_cols["state_col"], "")).strip()
         raw_city = str(first_row.get(data_cols["city_col"], "")).strip()
 
+        recipient_city = normalize_city_name(raw_state)
+
         address_parts = []
         if raw_address and raw_address.lower() != "nan":
             address_parts.append(raw_address)
         if raw_city and raw_city.lower() != "nan" and raw_city.lower() not in raw_address.lower():
             address_parts.append(raw_city)
-        if raw_state and raw_state.lower() != "nan" and raw_state.lower() not in raw_address.lower():
-            address_parts.append(raw_state)
+        if (
+            recipient_city
+            and recipient_city.lower() != "nan"
+            and recipient_city.lower() not in raw_address.lower()
+            and recipient_city.lower() not in raw_city.lower()
+        ):
+            address_parts.append(recipient_city)
 
         combined_address = ", ".join(address_parts)
         if not combined_address:
             combined_address = str(first_row.get("State Name (Billing)", "")).strip()
 
-        recipient_city = normalize_city_name(raw_state)
         address_val = " ".join(combined_address.split()).title()
 
         recipient_area = ""

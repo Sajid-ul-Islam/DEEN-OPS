@@ -3,61 +3,58 @@
 ## Setup
 
 ```bash
-# Install runtime dependencies
 pip install -r requirements.txt
-
-# Install dev dependencies (testing, linting)
 pip install -r requirements_dev.txt
-
-# Run the app
+pre-commit install
 streamlit run app.py
 ```
 
-## Adding a New Workspace Page
+## Configuration
 
-1. Create `src/pages/your_page.py` with a `render_your_tab()` function
-2. Add the nav label to `PRIMARY_NAV` in `src/config/ui_config.py`
-3. Add the routing case in `app.py` under the `selected_nav` conditionals
-4. Register a reset function if the page uses session state (see existing pages for pattern)
-
-## Adding a New Service Integration
-
-1. Create a module under `src/services/your_service/`
-2. Add API credentials to `.streamlit/secrets.toml`
-3. Load config via `st.secrets["your_service"]` with a fallback in `src/config/ui_config.py`
+- Put local secrets in `.streamlit/secrets.toml`
+- Use environment variables when running in containers or CI
+- Keep new secret keys aligned with [src/config/secrets_schema.json](src/config/secrets_schema.json)
+- Load integration config through `src/config/settings.py`, not `src/config/ui_config.py`
 
 ## Testing
 
 ```bash
-# Run all tests
 pytest tests/ -v
-
-# Run a specific test file
-pytest tests/test_core.py -v
-
-# Run with coverage
 pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 ## Code Organization Rules
 
-- **One responsibility per file**: Each file contains closely related functions, not one function per file
-- **No circular imports**: Each layer imports only from layers below or at the same level
-- **Session state keys**: Never rename existing `st.session_state` keys without updating all references
-- **Caching**: Use `@st.cache_data` for data-returning functions, `@st.cache_resource` for resource objects
-- **Error handling**: Use `src/utils/logging.py` `log_error()` for all error logging
+- Pages orchestrate UI and state, but do not own API client logic
+- Services handle external integrations
+- Processing modules stay focused on data transformation
+- Shared configuration and secret lookup live in `src/config/`
+- Use `src/utils/logging.py` for operational logging and failure capture
 
-## File Conventions
+## Adding a New Workspace Page
 
-- Pages: `src/pages/` - each exports a single `render_*_tab()` or `render_*_page()` function
-- Components: `src/components/` - reusable UI widgets, no data logic
-- Processing: `src/processing/` - pure data transformation, no Streamlit UI calls
-- Services: `src/services/` - external API communication
-- Utils: `src/utils/` - stateless helper functions
+1. Create `src/pages/your_page.py` with a single `render_*` entry point.
+2. Register the nav label in [src/config/ui_config.py](src/config/ui_config.py).
+3. Route it in [app.py](app.py).
+4. Add tests for any non-trivial transformation or integration logic.
+
+## Adding a New Integration
+
+1. Create a module under `src/services/your_service/`.
+2. Add the config contract to [src/config/secrets_schema.json](src/config/secrets_schema.json) if secrets are required.
+3. Resolve credentials via `src/config/settings.py`.
+4. Document rate limits, failure modes, and manual recovery steps.
+
+## Local Workflow
+
+- Run `pre-commit run --all-files` before opening a PR
+- Keep changes scoped; do not edit `_deprecated/` unless you are explicitly cleaning it up
+- Leave unrelated worktree changes untouched
+- Prefer adding tests for config, processing, and service behavior changes
 
 ## Debugging
 
-- **System Logs**: Available in the sidebar under "Maintenance & Settings" > "System Logs"
-- **Error log file**: `data/error_log.json`
-- **Session state**: Inspect via Streamlit's built-in state viewer or `st.write(st.session_state)`
-- **API issues**: Check secrets configuration in `.streamlit/secrets.toml`
+- System Logs: sidebar `Maintenance & Settings > System Logs`
+- Error log file: `data/error_logs.json`
+- Healthcheck script: [scripts/healthcheck.py](scripts/healthcheck.py)
+- Config issues: sidebar `Maintenance & Settings > Configuration Health`

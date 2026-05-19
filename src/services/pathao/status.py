@@ -1,18 +1,13 @@
 """Pathao order status and credential verification helpers."""
 
-import requests
-import streamlit as st
-
+from src.config.settings import get_pathao_config
 from src.services.pathao.client import PathaoClient
+from src.utils.http import request_with_backoff
 
 
 def get_pathao_credentials() -> dict | None:
-    """Extract Pathao credentials from Streamlit secrets."""
-    try:
-        creds = dict(st.secrets["pathao"])
-    except (FileNotFoundError, KeyError, TypeError):
-        return None
-
+    """Extract Pathao credentials from supported config sources."""
+    creds = get_pathao_config(required=False)
     required = ("base_url", "client_id", "client_secret", "username", "password")
     if not all(creds.get(key) for key in required):
         return None
@@ -24,8 +19,8 @@ def _build_pathao_client() -> tuple[PathaoClient | None, str | None]:
     creds = get_pathao_credentials()
     if not creds:
         return None, (
-            "Pathao credentials not found in .streamlit/secrets.toml. "
-            "Please add a complete [pathao] section."
+            "Pathao credentials are missing. Configure a complete [pathao] "
+            "section in .streamlit/secrets.toml or set the PATHAO_* env vars."
         )
 
     try:
@@ -74,7 +69,9 @@ def get_pathao_order_status(consignment_id: str) -> dict:
             return {"error": "Authentication failed. Pathao access token is unavailable."}
 
         status_url = f"{client.base_url}/aladdin/api/v1/orders/{consignment_id}/info"
-        status_response = requests.get(status_url, headers=headers, timeout=10)
+        status_response = request_with_backoff(
+            "GET", status_url, headers=headers, timeout=10
+        )
         if status_response.status_code == 200:
             return status_response.json()
 

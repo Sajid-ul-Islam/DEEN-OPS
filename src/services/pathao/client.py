@@ -3,6 +3,8 @@ import time
 import json
 import os
 
+from src.utils.http import request_with_backoff
+
 class PathaoClient:
     def __init__(self, base_url, client_id, client_secret, username, password):
         self.base_url = base_url.rstrip('/')
@@ -58,7 +60,7 @@ class PathaoClient:
             "grant_type": "password"
         }
         try:
-            res = requests.post(url, json=payload, timeout=10)
+            res = request_with_backoff("POST", url, json=payload, timeout=10)
             if res.status_code == 200:
                 data = res.json()
                 self._save_token(data)
@@ -79,7 +81,7 @@ class PathaoClient:
             "grant_type": "refresh_token"
         }
         try:
-            res = requests.post(url, json=payload, timeout=10)
+            res = request_with_backoff("POST", url, json=payload, timeout=10)
             if res.status_code == 200:
                 self._save_token(res.json())
                 return True
@@ -100,7 +102,7 @@ class PathaoClient:
     def get_cities(self):
         url = f"{self.base_url}/aladdin/api/v1/cities"
         try:
-            res = requests.get(url, headers=self._get_headers(), timeout=10)
+            res = request_with_backoff("GET", url, headers=self._get_headers(), timeout=10)
             if res.status_code == 200:
                 return res.json().get("data", {}).get("data", []), None
             else:
@@ -111,7 +113,7 @@ class PathaoClient:
     def get_zones(self, city_id):
         url = f"{self.base_url}/aladdin/api/v1/cities/{city_id}/zone-list"
         try:
-            res = requests.get(url, headers=self._get_headers(), timeout=10)
+            res = request_with_backoff("GET", url, headers=self._get_headers(), timeout=10)
             if res.status_code == 200:
                 return res.json().get("data", {}).get("data", []), None
             else:
@@ -122,7 +124,7 @@ class PathaoClient:
     def get_areas(self, zone_id):
         url = f"{self.base_url}/aladdin/api/v1/zones/{zone_id}/area-list"
         try:
-            res = requests.get(url, headers=self._get_headers(), timeout=10)
+            res = request_with_backoff("GET", url, headers=self._get_headers(), timeout=10)
             if res.status_code == 200:
                 return res.json().get("data", {}).get("data", []), None
             else:
