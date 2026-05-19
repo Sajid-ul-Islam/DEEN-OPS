@@ -8,6 +8,7 @@ AI-assisted operations workspace for WooCommerce, Pathao, inventory, and reporti
 - WooCommerce and Pathao integrations with local snapshot fallbacks
 - Multi-provider LLM routing for Data Pilot workflows
 - Runtime configuration validation backed by [src/config/secrets_schema.json](src/config/secrets_schema.json)
+- Shared HTTP backoff for WooCommerce, Pathao, and URL ingestion calls
 - Container healthcheck support via [scripts/healthcheck.py](scripts/healthcheck.py)
 
 ## Tech Stack
@@ -70,6 +71,7 @@ Supported env vars:
 - `WC_URL`, `WC_KEY`, `WC_SECRET`
 - `PATHAO_BASE_URL`, `PATHAO_CLIENT_ID`, `PATHAO_CLIENT_SECRET`, `PATHAO_USERNAME`, `PATHAO_PASSWORD`
 - `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `HF_API_KEY`
+- `API_RETRY_MAX_ATTEMPTS`, `API_BACKOFF_FACTOR_SECONDS`, `API_BACKOFF_MAX_SECONDS`
 
 The app now validates partially configured integrations at startup and surfaces issues in the sidebar under `Maintenance & Settings`.
 
@@ -85,6 +87,13 @@ requirements/
 
 - `requirements.txt` installs runtime dependencies
 - `requirements_dev.txt` installs runtime and development tooling
+- `requirements.lock` pins runtime transitive dependencies for Docker and CI
+
+Refresh the lock file from a clean environment with:
+
+```bash
+python scripts/generate_requirements_lock.py
+```
 
 ## Project Structure
 
@@ -117,6 +126,10 @@ pre-commit run --all-files
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [ERROR_HANDLING_GUIDE.md](ERROR_HANDLING_GUIDE.md).
+
+## CI
+
+GitHub Actions runs the test suite from [.github/workflows/tests.yml](.github/workflows/tests.yml) using `requirements_dev.txt`, which is constrained by `requirements.lock`.
 
 ## Deployment Notes
 

@@ -1,3 +1,4 @@
+-c requirements.lock
 -r requirements/base.txt
 -r requirements/integrations.txt
 -r requirements/ai.txt

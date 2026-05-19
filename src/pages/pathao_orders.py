@@ -131,10 +131,10 @@ def _load_processing_orders_from_woocommerce():
         from src.services.woocommerce.client import load_live_source
 
         with st.status("Connecting to WooCommerce API...", expanded=True) as status:
-            st.write("📡 Fetching live orders...")
+            st.write("Ã°Å¸â€œÂ¡ Fetching live orders...")
             df_live, _, _ = load_live_source()
             status.update(label="WooCommerce Sync Complete", state="complete", expanded=False)
-            st.toast("✅ Orders pulled successfully!", icon="🎉")
+            st.toast("Ã¢Å“â€¦ Orders pulled successfully!", icon="Ã°Å¸Å½â€°")
 
     return _filter_processing_orders(df_live)
 
@@ -503,7 +503,7 @@ def _extract_woocommerce_order_id(raw_value):
 
 def _render_status_tracking_tab():
     with st.sidebar:
-        st.markdown("### 📡 Tracking Settings")
+        st.markdown("### Ã°Å¸â€œÂ¡ Tracking Settings")
         track_filter = st.radio(
             "Bulk Report Filter",
             ["All Orders", "Failed & Pending Only"],
@@ -542,7 +542,7 @@ def _render_status_tracking_tab():
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Status", data_obj.get("order_status", "N/A"))
                 c2.metric("Payment Status", data_obj.get("payment_status", "N/A"))
-                c3.metric("Collected Amount", f"৳{data_obj.get('collected_amount', 0)}")
+                c3.metric("Collected Amount", f"Ã Â§Â³{data_obj.get('collected_amount', 0)}")
                 
                 with st.expander("View Full API Response"):
                     st.json(status_data)
@@ -596,7 +596,7 @@ def _render_status_tracking_tab():
                                 "Order ID": o.get("merchant_order_id", ""),
                                 "Date": str(o.get("created_at", "")).split(" ")[0],
                                 "Status": str(o.get("order_status", "")).capitalize(),
-                            "Amount": f"৳{o.get('collected_amount', 0)}"
+                                "Amount": f"Tk {o.get('collected_amount', 0)}"
                             })
                         st.dataframe(pd.DataFrame(history_data), use_container_width=True)
             except Exception as e:
@@ -632,7 +632,7 @@ def _render_status_tracking_tab():
                     order_id_col = next((c for c in cols if "order" in str(c).lower() or "invoice" in str(c).lower()), None)
                 
                 if auto_update_wc == "Enabled" and not order_id_col:
-                    st.warning("⚠️ Auto-Update is enabled, but no 'Order ID' column was detected in your file. WooCommerce updates will be skipped.")
+                    st.warning("Ã¢Å¡Â Ã¯Â¸Â Auto-Update is enabled, but no 'Order ID' column was detected in your file. WooCommerce updates will be skipped.")
 
                 with st.status("Fetching bulk statuses...", expanded=True) as status_ui:
                     results = []

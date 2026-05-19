@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 COPY requirements.txt .
+COPY requirements.lock .
 COPY requirements ./requirements
 
 RUN pip install --no-cache-dir --upgrade pip && \

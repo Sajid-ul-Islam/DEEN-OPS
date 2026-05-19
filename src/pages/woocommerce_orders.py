@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import re
-import requests
-import os
 import io
 from requests.auth import HTTPBasicAuth
+
+from src.config.settings import get_woocommerce_config
 from src.services.pathao.status import get_pathao_order_status
+from src.utils.http import request_with_backoff
 
 def extract_base_order_id(merchant_id):
     """Extracts base WooCommerce order ID from Pathao merchant ID variations."""
@@ -20,15 +21,21 @@ def extract_base_order_id(merchant_id):
 
 def _update_wc_status(order_id, status):
     """Update WooCommerce order status via API."""
-    wc_info = st.secrets.get("woocommerce", {})
-    wc_url = wc_info.get("store_url") or os.environ.get("WC_URL")
-    wc_key = wc_info.get("consumer_key") or os.environ.get("WC_KEY")
-    wc_secret = wc_info.get("consumer_secret") or os.environ.get("WC_SECRET")
+    wc_info = get_woocommerce_config(required=False)
+    wc_url = wc_info.get("store_url")
+    wc_key = wc_info.get("consumer_key")
+    wc_secret = wc_info.get("consumer_secret")
     if not all([wc_url, wc_key, wc_secret]):
         return False
     url = f"{wc_url.rstrip('/')}/wp-json/wc/v3/orders/{order_id}"
     try:
-        res = requests.put(url, json={"status": status}, auth=HTTPBasicAuth(wc_key, wc_secret), timeout=10)
+        res = request_with_backoff(
+            "PUT",
+            url,
+            json={"status": status},
+            auth=HTTPBasicAuth(wc_key, wc_secret),
+            timeout=10,
+        )
         return res.status_code in [200, 201]
     except:
         return False

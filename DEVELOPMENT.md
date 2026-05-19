@@ -15,6 +15,7 @@ streamlit run app.py
 - Use environment variables when running in containers or CI
 - Keep new secret keys aligned with [src/config/secrets_schema.json](src/config/secrets_schema.json)
 - Load integration config through `src/config/settings.py`, not `src/config/ui_config.py`
+- Runtime HTTP retries are controlled by `API_RETRY_MAX_ATTEMPTS`, `API_BACKOFF_FACTOR_SECONDS`, and `API_BACKOFF_MAX_SECONDS`
 
 ## Testing
 
@@ -22,6 +23,16 @@ streamlit run app.py
 pytest tests/ -v
 pytest tests/ --cov=src --cov-report=term-missing
 ```
+
+## Dependency Locking
+
+```bash
+python scripts/generate_requirements_lock.py
+```
+
+- Regenerate `requirements.lock` after changing runtime dependencies
+- `requirements.txt` and `requirements_dev.txt` both consume the lock as constraints
+- The GitHub Actions workflow uses the same entrypoint to avoid CI-only dependency drift
 
 ## Code Organization Rules
 
