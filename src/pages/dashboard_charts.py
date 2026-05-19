@@ -6,7 +6,6 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from src.components.clipboard import render_copy_button
 from src.utils.display import truncate_label
 
 

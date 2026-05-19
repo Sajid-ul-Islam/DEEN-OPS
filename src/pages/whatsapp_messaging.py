@@ -7,7 +7,6 @@ from src.components.widgets import (
     render_action_bar,
     render_file_summary,
     render_reset_confirm,
-    section_card,
 )
 from src.utils.file_io import to_excel_bytes, read_uploaded
 from src.processing.whatsapp_processor import WhatsAppOrderProcessor

@@ -2,13 +2,17 @@ import streamlit as st
 import pandas as pd
 import asyncio
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, List
 
 from src.config.settings import get_setting
 from src.services.llm.manager import init_llm_controller
 
 from src.utils.ml_brain import NeuralBrain
 from src.processing.forecasting import PredictiveIntelligence
+
+@st.cache_resource
+def get_cached_brain():
+    return NeuralBrain()
 
 class AIDataAgent:
     """
@@ -20,7 +24,7 @@ class AIDataAgent:
         self.api_key = api_key
         self.model_name = model_name
         self.controller = init_llm_controller()
-        self.brain = NeuralBrain()
+        self.brain = get_cached_brain()
         self.context_dfs = {
             "sales": st.session_state.get("wc_curr_df"),
             "inventory": st.session_state.get("wc_stock_df"), # Fixed mapping to correct state key

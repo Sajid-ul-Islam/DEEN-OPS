@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from src.utils.logging import log_system_event
 
 
 class PredictiveIntelligence:
@@ -56,7 +57,8 @@ class PredictiveIntelligence:
             y_s = y[:-1]; y_c = y[1:]
             ar_p = np.polyfit(y_s, y_c, 1)
             models["Auto: ARIMA/SARIMA (Auto-Tuned)"] = {"pred": np.insert(np.polyval(ar_p, y_s), 0, y[0]), "fit": ar_p, "type": "ar"}
-        except: pass
+        except Exception as e:
+            log_system_event("FORECAST_ERROR", f"ARIMA auto-tuning failed: {str(e)}")
 
         # Causal Impact (Bayesian)
         models["Auto: Causal Impact (Bayesian)"] = {"pred": (y + np.mean(y))/2, "fit": np.mean(y), "type": "const"}

@@ -1,6 +1,5 @@
 import io
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
 from src.utils.logging import log_error
@@ -8,7 +7,6 @@ from src.state.persistence import clear_state_keys, save_state
 from src.components.widgets import (
     render_action_bar,
     render_reset_confirm,
-    section_card,
 )
 from src.config.ui_config import INVENTORY_LOCATIONS
 from src.inventory import core as inv_core
