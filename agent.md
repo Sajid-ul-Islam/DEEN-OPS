@@ -67,6 +67,7 @@ The project follows a layered structure. Avoid circular imports. Pages should or
 - Data: Pandas and Polars.
 - Charts: Plotly.
 - AI: multi-provider LLM routing.
+- ML Forecasting: Scikit-Learn, XGBoost, and Statsmodels.
 - APIs: WooCommerce REST API and Pathao Courier API.
 ## 6. Session State Rules
 The app depends heavily on `st.session_state`. Do not rename or remove keys casually.
@@ -198,6 +199,7 @@ If you extend parsing, keep it backward compatible and route all output through 
 - **Advanced Chart Grouping & Resilience:** Added intelligent "Others" aggregation for Pie/Donut charts (3% threshold) and dynamic layout scaling (`automargin=True`).
 - **Robust Export Engine:** Created a unified Excel export system with auto-fitting column widths, multi-sheet consolidation, and safe NA dropping.
 - **Graceful Error Handling:** Comprehensive adoption of `safe_render`, `safe_filter`, and `safe_column_access` via `src/utils/safe_ops.py` to prevent UI crashes.
+- **Predictive Intelligence Upgrade:** Replaced mock mathematical forecasting with real Machine Learning models (XGBoost, Random Forest, ARIMA, Holt-Winters) utilizing Scikit-Learn and Statsmodels.
 ## 12. Development Guidance
 - New workspace page:
   follow `DEVELOPMENT.md` for page creation, nav updates, routing, and reset registration.

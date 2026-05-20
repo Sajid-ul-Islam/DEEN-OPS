@@ -58,7 +58,8 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
                         "Status": v.get("stock_status", "unknown").title()
                     })
                 return results
-        except Exception:
+        except Exception as e:
+            print(f"Error fetching variations for Product ID {p_id}: {e}")
             pass
         return []
 
@@ -132,8 +133,7 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
             save_stock_snapshot(df)
         return df
 
-
     except Exception as e:
         log_system_event("STOCK_SYNC_ERROR", str(e))
         st.error(f"Stock fetch failed: {e}")
-        return None
+        return None

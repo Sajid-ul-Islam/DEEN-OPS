@@ -1,3 +1,8 @@
 -r requirements/base.txt
 -r requirements/integrations.txt
 -r requirements/ai.txt
+
+# Machine Learning / Forecasting
+scikit-learn
+xgboost
+statsmodels
