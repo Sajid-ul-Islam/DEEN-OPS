@@ -59,7 +59,6 @@ python scripts/generate_requirements_lock.py
 ## Local Workflow
 
 - Run `pre-commit run --all-files` before opening a PR
-- Keep changes scoped; do not edit `_deprecated/` unless you are explicitly cleaning it up
 - Leave unrelated worktree changes untouched
 - Prefer adding tests for config, processing, and service behavior changes
 

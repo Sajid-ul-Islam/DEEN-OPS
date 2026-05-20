@@ -1,24 +1,5 @@
 import streamlit as st
 
-_original_dataframe = st.dataframe
-
-
-def _numbered_dataframe(data, *args, **kwargs):
-    try:
-        import pandas as pd
-
-        if isinstance(data, pd.DataFrame) or isinstance(data, pd.Series):
-            d = data.copy()
-            if len(d) > 0:
-                d.index = range(1, len(d) + 1)
-            return _original_dataframe(d, *args, **kwargs)
-    except Exception:
-        pass
-    return _original_dataframe(data, *args, **kwargs)
-
-
-st.dataframe = _numbered_dataframe
-
 st.set_page_config(
     page_title="DEEN OPS Terminal",
     page_icon="AH",

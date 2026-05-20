@@ -50,8 +50,6 @@ The project follows a layered structure. Avoid circular imports. Pages should or
   Stateless helpers.
 - `src/config/`
   UI config, constants, settings, environment/secrets access.
-- `_deprecated/`
-  Archived legacy code. Do not build new logic here.
 
 ## 3. Cloud Deployment Considerations (Streamlit Community Cloud)
 - **Ephemeral Filesystem:** Local storage is temporary. Files like `resources/deen_ops.duckdb`, `pathao_map.json`, and CSV snapshots will be wiped when the app restarts or sleeps. The app is built to gracefully handle this by re-syncing from external APIs.

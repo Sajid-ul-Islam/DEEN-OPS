@@ -22,7 +22,7 @@ AI-assisted operations workspace for WooCommerce, Pathao, inventory, and reporti
 ## Quick Start
 
 ```bash
-git clone https://github.com/saajiidi/DEEN-BI.git
+git clone https://github.com/Sajid-ul-Islam/DEEN-OPS.git
 cd DEEN-OPS
 python -m venv .venv
 .venv\Scripts\activate

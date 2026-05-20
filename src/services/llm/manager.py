@@ -5,6 +5,7 @@ import json
 import time
 import asyncio
 import aiohttp
+import hashlib
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -169,6 +170,17 @@ class DynamicLLMController:
         except:
              self.is_cloud = False
 
+        # Caching & Token Tracking
+        self.response_cache: Dict[str, str] = {}
+        self.total_tokens_estimated: int = 0
+
+    def _get_cache_key(self, messages: List[Dict[str, str]]) -> str:
+        msg_str = json.dumps(messages, sort_keys=True)
+        return hashlib.md5(msg_str.encode()).hexdigest()
+
+    def _estimate_tokens(self, text: str) -> int:
+        return len(text) // 4
+
     async def _call_provider_stream_async(self, provider: str, api_key: str, messages: List[Dict[str, str]]) -> Any:
         config = PROVIDERS[provider]
 
@@ -233,6 +245,15 @@ class DynamicLLMController:
             yield "No active LLM nodes found. Please configure API keys in secrets.toml."
             return
 
+        cache_key = self._get_cache_key(messages)
+        if cache_key in self.response_cache:
+            cached_text = self.response_cache[cache_key]
+            chunk_size = max(1, len(cached_text) // 20)
+            for i in range(0, len(cached_text), chunk_size):
+                yield cached_text[i:i+chunk_size]
+                await asyncio.sleep(0.01)
+            return
+
         # Attempt up to 3 different providers on failure
         tried = set()
         for attempt in range(min(3, len(available_providers))):
@@ -248,16 +269,21 @@ class DynamicLLMController:
             
             try:
                 has_yielded = False
+                full_response = ""
                 async for chunk in self._call_provider_stream_async(selected, api_key, messages):
                     if isinstance(chunk, str) and chunk.startswith("Error:"):
                         # If it's a 4xx/5xx error string, don't yield yet, try next provider
                         break
+                    full_response += chunk
                     yield chunk
                     has_yielded = True
                 
                 if has_yielded:
                     success = True
                     self.load_balancer.record_result(selected, True, time.time() - start_time)
+                    self.response_cache[cache_key] = full_response
+                    input_chars = sum(len(m.get("content", "")) for m in messages)
+                    self.total_tokens_estimated += self._estimate_tokens(full_response) + (input_chars // 4)
                     return
             except Exception as e:
                 self.load_balancer.record_result(selected, False, time.time() - start_time)
