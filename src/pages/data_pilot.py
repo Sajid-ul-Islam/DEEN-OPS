@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import asyncio
+import re
 from datetime import datetime
 from typing import Dict, List
 
@@ -10,6 +11,9 @@ from src.services.woocommerce.client import load_live_source
 from src.services.woocommerce.stock import fetch_woocommerce_stock
 
 from src.services.llm.manager import init_llm_controller
+
+# Import Pathao tracking
+from src.services.pathao.status import get_pathao_order_status
 
 from src.utils.ml_brain import NeuralBrain
 from src.processing.forecasting import PredictiveIntelligence
@@ -58,6 +62,16 @@ class AIDataAgent:
             if not anomalies.empty:
                 top = anomalies.iloc[0]
                 insights.append(f"ML ANOMALY: A '{top['type']}' spike was detected on {top['date']} with value ৳{top['value']:,.0f} (Z-Score: {top['score']:.2f}).")
+                
+        # Pathao Live Tracking Intent (Regex extraction for Consignment IDs)
+        pathao_match = re.search(r'(?i)(?:DD|D-|M-)\w+', query)
+        if pathao_match:
+            consignment_id = pathao_match.group(0).upper().strip()
+            status_res = get_pathao_order_status(consignment_id)
+            if "error" not in status_res:
+                data = status_res.get("data", {})
+                live_status = data.get("order_status", "Unknown")
+                insights.append(f"PATHAO LIVE STATUS: Consignment {consignment_id} is currently '{live_status}'. Payment status: {data.get('payment_status')}.")
 
         # General grounding
         for name, df in self.context_dfs.items():
