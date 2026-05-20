@@ -1,1 +1,9 @@
--r requirements/dev.txt
+-r requirements.txt
+
+# Development & Testing Tools
+pytest
+pytest-cov
+pre-commit
+black
+isort
+flake8
