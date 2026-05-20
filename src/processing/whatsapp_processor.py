@@ -247,10 +247,10 @@ class WhatsAppOrderProcessor:
 
         agg_exprs = [
             pl.col(name_col).first(),
-            pl.col(order_id_col).cast(pl.String).drop_nulls().unique().str.join(", "),
-            pl.col(product_col).cast(pl.String).drop_nulls().str.join("\n- "),
-            pl.col(quantity_col).cast(pl.String).drop_nulls().str.join("\n- "),
-            pl.col(price_col).cast(pl.String).drop_nulls().str.join("\n- "),
+            pl.col(order_id_col).cast(pl.String).drop_nulls().unique().list.join(", "),
+            pl.col(product_col).cast(pl.String).drop_nulls().list.join("\n- "),
+            pl.col(quantity_col).cast(pl.String).drop_nulls().list.join("\n- "),
+            pl.col(price_col).cast(pl.String).drop_nulls().list.join("\n- "),
         ]
 
         # Add optional columns to aggregation
