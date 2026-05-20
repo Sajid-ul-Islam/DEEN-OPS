@@ -5,6 +5,10 @@ from datetime import datetime
 from typing import Dict, List
 
 from src.config.settings import get_setting
+# Add direct WooCommerce sync imports
+from src.services.woocommerce.client import load_live_source
+from src.services.woocommerce.stock import fetch_woocommerce_stock
+
 from src.services.llm.manager import init_llm_controller
 
 from src.utils.ml_brain import NeuralBrain
@@ -27,7 +31,9 @@ class AIDataAgent:
         self.brain = get_cached_brain()
         self.context_dfs = {
             "sales": st.session_state.get("wc_curr_df"),
-            "inventory": st.session_state.get("wc_stock_df"), # Fixed mapping to correct state key
+            "inventory_distribution": st.session_state.get("inv_res_data"),
+            "stock_levels": st.session_state.get("wc_stock_df"),
+            "pathao_dispatch": st.session_state.get("pathao_res_df"),
             "uploaded": st.session_state.get("pilot_uploaded_df"),
         }
 
@@ -54,11 +60,11 @@ class AIDataAgent:
                 insights.append(f"ML ANOMALY: A '{top['type']}' spike was detected on {top['date']} with value ৳{top['value']:,.0f} (Z-Score: {top['score']:.2f}).")
 
         # General grounding
-        sales_df = self.context_dfs["sales"]
-        if sales_df is not None and not sales_df.empty:
-            insights.append(f"LIVE DATA: {len(sales_df)} orders active in current shift.")
+        for name, df in self.context_dfs.items():
+            if df is not None and not df.empty:
+                insights.append(f"CONTEXT {name.upper()}: {len(df)} rows available.")
             
-        return " | ".join(insights) if insights else "Context: Real-time operational data synced."
+        return " | ".join(insights) if insights else "Context: No data loaded. Please sync or upload data in other tabs."
 
     def build_messages(self, query: str, history: List[Dict[str, str]]) -> List[Dict[str, str]]:
         grounding = self.get_grounded_insights(query)
@@ -80,12 +86,10 @@ class AIDataAgent:
         try:
             async for chunk in self.controller.get_response_stream_async(messages):
                 yield chunk
-        except Exception:
+        except Exception as e:
+            # Fallback to synchronous call if async streaming fails
             try:
-                try:
-                    yield self.controller.get_response_sync(messages, context="")
-                except TypeError:
-                    yield self.controller.get_response_sync(messages)
+                yield self.controller.get_response_sync(messages)
             except Exception as fallback_err:
                 if "ollama" in self.provider.lower():
                     yield f"\n\n⚠️ **Connection Error:** Ollama is unreachable. Please ensure it is running locally via `ollama serve`.\n\n`Details: {fallback_err}`"
@@ -119,11 +123,7 @@ def render_sidebar_controls():
             model_name = "gpt-4o" if provider == "OpenAI" else "gemini-1.5-flash"
         elif provider == "Ollama (Local)":
             controller = init_llm_controller()
-            try:
-                models = controller.key_manager.get_local_models() if hasattr(controller.key_manager, "get_local_models") else []
-            except Exception:
-                models = []
-                
+            models = controller.key_manager.get_local_models()
             if models:
                 model_name = st.selectbox("Local Model", models)
             else:
@@ -136,6 +136,22 @@ def render_sidebar_controls():
         st.divider()
         st.markdown("### 📁 Knowledge Base")
         
+        if st.button("🔄 Sync from WooCommerce", use_container_width=True, type="primary"):
+            with st.status("Syncing live data...", expanded=True) as status:
+                try:
+                    status.write("📡 Fetching live orders...")
+                    load_live_source()  # This function automatically updates session state
+                    status.write("📦 Fetching stock levels...")
+                    stock_df = fetch_woocommerce_stock()
+                    if stock_df is not None:
+                        st.session_state.wc_stock_df = stock_df
+                    status.update(label="Sync Complete!", state="complete", expanded=False)
+                    st.toast("✅ Live data synced from WooCommerce.")
+                    st.rerun()
+                except Exception as e:
+                    status.update(label="Sync Failed", state="error")
+                    st.error(f"Failed to sync from WooCommerce: {e}")
+
         if "pilot_uploader_key" not in st.session_state:
             st.session_state.pilot_uploader_key = 0
             
@@ -183,12 +199,28 @@ def render_ai_pilot_page():
             st.caption("Live Sales — No data")
 
         # Inventory preview
-        inv_df = st.session_state.get("inv_res_data")
+        inv_df = st.session_state.get("inv_res_data") # This is the distribution matrix
         if inv_df is not None and not inv_df.empty:
-            st.caption(f"Inventory — {len(inv_df)} rows")
+            st.caption(f"Inventory Distribution — {len(inv_df)} rows")
             st.dataframe(inv_df.head(5), use_container_width=True, hide_index=True)
         else:
-            st.caption("Inventory — No data")
+            st.caption("Inventory Distribution — No data")
+
+        # Stock Levels preview
+        stock_df = st.session_state.get("wc_stock_df") # This is the raw stock levels
+        if stock_df is not None and not stock_df.empty:
+            st.caption(f"Stock Levels — {len(stock_df)} rows")
+            st.dataframe(stock_df.head(5), use_container_width=True, hide_index=True)
+        else:
+            st.caption("Stock Levels — No data")
+
+        # Pathao preview
+        pathao_df = st.session_state.get("pathao_res_df")
+        if pathao_df is not None and not pathao_df.empty:
+            st.caption(f"Pathao Dispatch — {len(pathao_df)} rows")
+            st.dataframe(pathao_df.head(5), use_container_width=True, hide_index=True)
+        else:
+            st.caption("Pathao Dispatch — No data")
 
         # Uploaded preview
         up_df = st.session_state.get("pilot_uploaded_df")
