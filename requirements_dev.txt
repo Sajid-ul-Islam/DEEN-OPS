@@ -1,2 +1,1 @@
--c requirements.lock
 -r requirements/dev.txt
