@@ -1,6 +1,21 @@
--r requirements/base.txt
--r requirements/integrations.txt
--r requirements/ai.txt
+# Base / Core
+streamlit==1.35.0
+matplotlib==3.9.0
+pandas==2.2.2
+polars[rtcompat]==0.20.30
+numpy==1.26.4
+plotly==5.22.0
+openpyxl==3.1.2
+xlsxwriter==3.2.0
+toml==0.10.2
+duckdb==1.0.0
+tenacity==8.3.0
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.25.1
+
+# Integrations / AI
+requests
+aiohttp
 
 # Machine Learning / Forecasting
 scikit-learn
