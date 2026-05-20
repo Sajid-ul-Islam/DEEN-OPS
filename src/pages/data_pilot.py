@@ -133,6 +133,8 @@ def render_sidebar_controls():
         if is_cloud:
             st.warning("☁️ **Cloud Mode**: Personal GPU engines (Ollama) restricted. Use Cloud Failover.")
 
+        auto_sync = st.toggle("🔄 Smart Auto-Sync", value=False, help="Automatically fetches fresh data before answering if the knowledge base is empty or older than 15 minutes.")
+
         st.divider()
         st.markdown("### 📁 Knowledge Base")
         
@@ -171,7 +173,7 @@ def render_sidebar_controls():
                 st.session_state.pilot_uploader_key += 1
                 st.rerun()
 
-    return provider, api_key, model_name
+    return provider, api_key, model_name, auto_sync
 
 def render_ai_pilot_page():
     st.markdown("<h1 style='text-align: center; color: #6366f1;'>🚀 DATA PILOT</h1>", unsafe_allow_html=True)
@@ -182,7 +184,7 @@ def render_ai_pilot_page():
         st.session_state.agent_messages = [{"role": "assistant", "content": "Welcome to the Pilot's Seat. How can I analyze your operations today?"}]
 
     # Sidebar
-    provider, api_key, model_name = render_sidebar_controls()
+    provider, api_key, model_name, auto_sync = render_sidebar_controls()
 
     # Two-column layout: Chat (left) + Context Panel (right)
     col_chat, col_context = st.columns([3, 2])
@@ -247,6 +249,24 @@ def render_ai_pilot_page():
 
         # Input Area
         if prompt := st.chat_input("Ask about sales, stock, or your uploaded files..."):
+            # 0. Handle Smart Auto-Sync
+            if auto_sync:
+                last_sync = st.session_state.get("live_sync_time")
+                # Check if data is missing or older than 15 minutes (900 seconds)
+                if not last_sync or (datetime.now() - last_sync).total_seconds() > 900:
+                    with st.status("🔄 Smart Auto-Sync (Data is stale)...", expanded=True) as status:
+                        try:
+                            status.write("📡 Fetching live orders...")
+                            load_live_source()
+                            status.write("📦 Fetching stock levels...")
+                            stock_df = fetch_woocommerce_stock()
+                            if stock_df is not None:
+                                st.session_state.wc_stock_df = stock_df
+                            status.update(label="Knowledge Base Updated!", state="complete", expanded=False)
+                        except Exception as e:
+                            status.update(label="Sync Failed", state="error")
+                            st.error(f"Auto-sync failed: {e}")
+
             # 1. Add user message
             st.session_state.agent_messages.append({"role": "user", "content": prompt})
             with st.chat_message("user", avatar="👤"):
