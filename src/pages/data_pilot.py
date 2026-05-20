@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import asyncio
 import re
+import io
 from datetime import datetime
 from typing import Dict, List
 
@@ -38,6 +39,7 @@ class AIDataAgent:
             "inventory_distribution": st.session_state.get("inv_res_data"),
             "stock_levels": st.session_state.get("wc_stock_df"),
             "pathao_dispatch": st.session_state.get("pathao_res_df"),
+            "pathao_tracking": st.session_state.get("pilot_pathao_tracking_df"),
             "uploaded": st.session_state.get("pilot_uploaded_df"),
         }
 
@@ -168,6 +170,66 @@ def render_sidebar_controls():
                     status.update(label="Sync Failed", state="error")
                     st.error(f"Failed to sync from WooCommerce: {e}")
 
+        if st.button("🔄 Sync Pathao Statuses", use_container_width=True):
+            with st.status("Syncing Pathao statuses...", expanded=True) as status:
+                try:
+                    # 1. Get source dataframe
+                    status.write("Finding order data...")
+                    orders_df = st.session_state.get("wc_full_df")
+                    if orders_df is None or orders_df.empty:
+                        orders_df = st.session_state.get("wc_curr_df")
+
+                    if orders_df is None or orders_df.empty:
+                        st.error("No WooCommerce order data found. Please sync from WooCommerce first.")
+                        status.update(label="Sync Failed", state="error")
+                        st.stop()
+
+                    # 2. Identify columns
+                    status.write("Identifying columns...")
+                    cols = list(orders_df.columns)
+                    consignment_col = next((c for c in cols if any(kw in str(c).lower() for kw in ["tracking", "consignment", "pathao id"])), None)
+                    if not consignment_col:
+                        st.error("Could not auto-detect a 'Tracking' or 'Consignment' column in the order data.")
+                        status.update(label="Sync Failed", state="error")
+                        st.stop()
+
+                    status_col = next((c for c in cols if "status" in str(c).lower()), None)
+                    if not status_col:
+                        st.error("Could not auto-detect an 'Order Status' column.")
+                        status.update(label="Sync Failed", state="error")
+                        st.stop()
+
+                    # 3. Filter for pending orders
+                    status.write("Filtering for pending shipments...")
+                    terminal_statuses = ['completed', 'cancelled', 'refunded', 'failed', 'trash']
+                    pending_df = orders_df[~orders_df[status_col].astype(str).str.lower().isin(terminal_statuses)].copy()
+                    pending_df.dropna(subset=[consignment_col], inplace=True)
+                    pending_df = pending_df[pending_df[consignment_col].astype(str).str.strip().replace('nan', '') != ""]
+                    unique_consignments = pending_df[consignment_col].astype(str).str.strip().unique()
+
+                    if len(unique_consignments) == 0:
+                        st.info("No pending orders with consignment IDs found to track.")
+                        status.update(label="Sync Complete (No Orders)", state="complete", expanded=False)
+                        st.stop()
+
+                    # 4. Fetch statuses
+                    status.write(f"Fetching {len(unique_consignments)} statuses from Pathao...")
+                    results = []
+                    progress_bar = st.progress(0)
+                    for i, cid in enumerate(unique_consignments):
+                        res = get_pathao_order_status(cid)
+                        results.append(res)
+                        progress_bar.progress((i + 1) / len(unique_consignments))
+
+                    # 5. Create and store DataFrame
+                    st.session_state.pilot_pathao_tracking_df = pd.DataFrame(results)
+                    status.update(label="Pathao Sync Complete!", state="complete", expanded=False)
+                    st.toast(f"✅ Synced {len(results)} Pathao statuses.")
+                    st.rerun()
+                except Exception as e:
+                    status.update(label="Sync Failed", state="error")
+                    st.error(f"Failed to sync Pathao statuses: {e}")
+
         if "pilot_uploader_key" not in st.session_state:
             st.session_state.pilot_uploader_key = 0
             
@@ -181,9 +243,11 @@ def render_sidebar_controls():
                 st.error(f"Failed to parse file: {e}")
 
         uploaded_df = st.session_state.get("pilot_uploaded_df")
-        if uploaded_df is not None and not uploaded_df.empty:
+        pathao_track_df = st.session_state.get("pilot_pathao_tracking_df")
+        if (uploaded_df is not None and not uploaded_df.empty) or (pathao_track_df is not None and not pathao_track_df.empty):
             if st.button("Clear Knowledge Base", use_container_width=True):
                 st.session_state.pilot_uploaded_df = None
+                st.session_state.pilot_pathao_tracking_df = None
                 st.session_state.pilot_uploader_key += 1
                 st.rerun()
 
@@ -237,6 +301,36 @@ def render_ai_pilot_page():
             st.dataframe(pathao_df.head(5), use_container_width=True, hide_index=True)
         else:
             st.caption("Pathao Dispatch — No data")
+
+        # Pathao Tracking preview
+        pathao_track_df = st.session_state.get("pilot_pathao_tracking_df")
+        if pathao_track_df is not None and not pathao_track_df.empty:
+            st.caption(f"Pathao Tracking — {len(pathao_track_df)} rows")
+            st.dataframe(pathao_track_df.head(5), use_container_width=True, hide_index=True)
+
+            output_buffer = io.BytesIO()
+            with pd.ExcelWriter(output_buffer, engine="xlsxwriter") as writer:
+                pathao_track_df.to_excel(writer, index=False, sheet_name="Pathao_Tracking")
+                workbook = writer.book
+                worksheet = writer.sheets["Pathao_Tracking"]
+                header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
+                for idx, col in enumerate(pathao_track_df.columns):
+                    worksheet.write(0, idx, str(col), header_format)
+                    try:
+                        max_len = max(pathao_track_df[col].astype(str).map(len).max(), len(str(col))) + 2
+                        worksheet.set_column(idx, idx, min(max_len, 50))
+                    except (ValueError, TypeError):
+                        worksheet.set_column(idx, idx, 20) # Fallback width
+
+            st.download_button(
+                label="📥 Export Tracking Data (Excel)",
+                data=output_buffer.getvalue(),
+                file_name=f"Pathao_Tracking_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+        else:
+            st.caption("Pathao Tracking — No data")
 
         # Uploaded preview
         up_df = st.session_state.get("pilot_uploaded_df")
