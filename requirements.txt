@@ -11,13 +11,13 @@ toml==0.10.2
 duckdb==1.0.0
 tenacity==8.3.0
 fuzzywuzzy==0.18.0
-python-Levenshtein==0.25.1
+Levenshtein==0.25.1
 
 # Integrations / AI
-requests
-aiohttp
+requests==2.32.3
+aiohttp==3.9.5
 
 # Machine Learning / Forecasting
-scikit-learn
-xgboost
-statsmodels
+scikit-learn==1.4.2
+xgboost==2.0.3
+statsmodels==0.14.2
