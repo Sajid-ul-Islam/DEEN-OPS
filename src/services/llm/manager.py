@@ -13,6 +13,7 @@ from collections import defaultdict
 import threading
 
 from src.config.settings import get_llm_provider_keys
+from src.utils.logging import log_system_event
 
 # ============================================
 # 1. PROVIDER CONFIGURATIONS (All Free Tiers)
@@ -249,6 +250,7 @@ class DynamicLLMController:
 
         cache_key = self._get_cache_key(messages)
         if cache_key in self.response_cache:
+            log_system_event("LLM_CACHE_HIT", f"Returning cached response. Cache size: {len(self.response_cache)}")
             cached_text = self.response_cache[cache_key]
             chunk_size = max(1, len(cached_text) // 20)
             for i in range(0, len(cached_text), chunk_size):
@@ -275,6 +277,7 @@ class DynamicLLMController:
                 async for chunk in self._call_provider_stream_async(selected, api_key, messages):
                     if isinstance(chunk, str) and chunk.startswith("Error:"):
                         # If it's a 4xx/5xx error string, don't yield yet, try next provider
+                        log_system_event("LLM_API_ERROR", f"Provider '{selected}' returned status: {chunk}")
                         break
                     full_response += chunk
                     yield chunk
@@ -289,6 +292,7 @@ class DynamicLLMController:
                     return
             except Exception as e:
                 self.load_balancer.record_result(selected, False, time.time() - start_time)
+                log_system_event("LLM_API_ERROR", f"Provider '{selected}' raised exception: {e}")
                 continue
             
         yield "All available AI nodes returned an error or are busy. Please check your API keys or try again later."
@@ -321,7 +325,7 @@ class DynamicLLMController:
             try:
                 loop = asyncio.new_event_loop()
                 return loop.run_until_complete(_run())
-            except:
+            except Exception:
                 return "Error: Async bridge failed."
 
 def init_llm_controller():
