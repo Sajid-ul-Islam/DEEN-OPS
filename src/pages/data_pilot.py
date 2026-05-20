@@ -34,6 +34,18 @@ class AIDataAgent:
         self.model_name = model_name
         self.controller = init_llm_controller()
         self.brain = get_cached_brain()
+        if context_dfs is not None:
+            self.context_dfs = context_dfs
+        else:
+            # Fallback to session state for interactive use
+            self.context_dfs = {
+                "sales": st.session_state.get("wc_curr_df"),
+                "inventory_distribution": st.session_state.get("inv_res_data"),
+                "stock_levels": st.session_state.get("wc_stock_df"),
+                "pathao_dispatch": st.session_state.get("pathao_res_df"),
+                "pathao_tracking": st.session_state.get("pilot_pathao_tracking_df"),
+                "uploaded": st.session_state.get("pilot_uploaded_df"),
+            }
 
     def get_grounded_insights(self, query: str) -> str:
         intent = self.brain.semantic_query_intent(query)

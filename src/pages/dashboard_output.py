@@ -362,11 +362,20 @@ def render_dashboard_output(
     if is_operational:
         dm = get_dispatch_metrics(active_df, today_orders)
         report_text = generate_executive_briefing(today_rev, today_qty, today_orders, today_aov, dm, top)
+        
+        # Create a stable fingerprint of current data to detect changes
+        current_data_fingerprint = f"{today_rev}_{today_orders}_{dm.get('pathao_count', 0)}_{dm.get('other_count', 0)}"
+        
+        # If the underlying data changes, invalidate the cached AI text
+        if st.session_state.get("last_ai_data_fingerprint", "") != current_data_fingerprint:
+            st.session_state.pop("ai_report_text", None)
+            
+        final_report_text = st.session_state.get("ai_report_text", report_text)
 
     buf_pbi = BytesIO()
     with pd.ExcelWriter(buf_pbi, engine="xlsxwriter") as wr:
         if is_operational:
-            df_exec = pd.DataFrame({"Executive Summary": report_text.split('\n')})
+            df_exec = pd.DataFrame({"Executive Summary": final_report_text.split('\n')})
             df_exec.to_excel(wr, sheet_name="Executive Briefing", index=False)
             
         # Inject Core Metrics Sheet
@@ -439,12 +448,97 @@ def render_dashboard_output(
     if is_operational:
         with st.expander("📋 View/Copy Executive Briefing", expanded=False):
             from src.components.clipboard import render_copy_button
-            c1, c2 = st.columns([3, 1])
+            c1, c2, c3 = st.columns([2, 1, 1])
             with c1:
                 st.markdown("##### 🤖 AI Executive Narrative")
+            
             with c2:
-                render_copy_button(report_text, label="📋 Copy Briefing")
-            st.info(report_text)
+                auto_gen = st.toggle("🤖 Auto-Generate AI", value=st.session_state.get("auto_gen_ai_dash", False), key="auto_gen_ai_dash")
+                gen_clicked = st.button("✨ Generate Now", key="gen_ai_narrative_dash", use_container_width=True)
+                
+                data_changed = current_data_fingerprint != st.session_state.get("last_ai_data_fingerprint", "")
+                
+                if gen_clicked or (auto_gen and data_changed):
+                    with st.spinner("🧠 AI Pilot is analyzing today's performance..."):
+                        context_data = {
+                            "sales_summary": summ,
+                            "top_products": top,
+                            "raw_sales_data": active_df,
+                        }
+                        
+                        f_val = locals().get('forecast_val', 0)
+                        forecast_str = ""
+                        if f_val > 0:
+                            forecast_str = f"🔮 *ML Forecast (Tomorrow):* ৳{f_val:,.0f}"
+
+                        top_spotlight_str = ""
+                        if top is not None and not top.empty:
+                            top_5 = top.sort_values("Total Amount", ascending=False).head(5)
+                            top_list = [f"{row.get('Product Name', 'Unknown')} ({row.get('Total Qty', 0)} units, ৳{row.get('Total Amount', 0):,.0f})" for _, row in top_5.iterrows()]
+                            top_spotlight_str = "\nProduct Spotlight (Top 5 Revenue Generators):\n" + "\n".join([f"- {item}" for item in top_list])
+
+                        prompt = f"""
+                        Generate an executive briefing for today's e-commerce operations.
+                        Today's key metrics:
+                        - Revenue: ৳{today_rev:,.0f}
+                        - Orders: {today_orders}
+                        - Items Sold: {today_qty}
+                        - Average Order Value: ৳{today_aov:,.0f}
+
+                        Dispatch Metrics:
+                        - Shipped via Pathao: {dm.get('pathao_count', 0)}
+                        - Shipped via Other: {dm.get('other_count', 0)}
+                        {top_spotlight_str}
+
+                        {forecast_str}
+
+                        Based on the provided context data (sales_summary, top_products), write a concise, professional, and insightful narrative.
+                        Highlight key trends, explicitly analyze and summarize the "Product Spotlight" to point out what is driving revenue, and provide a concluding remark on the day's performance.
+                        The entire response should be a single block of text formatted for WhatsApp (using markdown like *bold* and _italic_).
+                        """
+                        
+                        try:
+                            from src.pages.data_pilot import AIDataAgent
+                            import asyncio
+                            
+                            agent = AIDataAgent(context_dfs=context_data)
+                            
+                            placeholder = st.empty()
+                            full_response = ""
+                            
+                            async def run_ai():
+                                nonlocal full_response
+                                async for chunk in agent.get_response_stream(prompt, history=[]):
+                                    full_response += chunk
+                                    placeholder.info(full_response + "▌")
+                                placeholder.info(full_response)
+                                
+                            try:
+                                loop = asyncio.get_event_loop()
+                                if loop.is_running():
+                                    import threading
+                                    def thread_run():
+                                        new_loop = asyncio.new_event_loop()
+                                        asyncio.set_event_loop(new_loop)
+                                        new_loop.run_until_complete(run_ai())
+                                    t = threading.Thread(target=thread_run)
+                                    t.start()
+                                    t.join()
+                                else:
+                                    loop.run_until_complete(run_ai())
+                            except Exception:
+                                asyncio.run(run_ai())
+
+                            st.session_state.ai_report_text = full_response
+                            st.session_state.last_ai_data_fingerprint = current_data_fingerprint
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"AI generation failed: {e}")
+
+            with c3:
+                render_copy_button(final_report_text, label="📋 Copy Briefing")
+            
+            st.info(final_report_text)
 
     st.divider()
 
