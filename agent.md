@@ -68,7 +68,6 @@ The project follows a layered structure. Avoid circular imports. Pages should or
 - Charts: Plotly.
 - AI: multi-provider LLM routing.
 - APIs: WooCommerce REST API and Pathao Courier API.
-
 ## 6. Session State Rules
 The app depends heavily on `st.session_state`. Do not rename or remove keys casually.
 
@@ -189,7 +188,16 @@ If you extend parsing, keep it backward compatible and route all output through 
 - Eliminated ghost UI previews by actively clearing `inv_*` session state variables on new uploads/URL fetches.
 - Appended transaction IDs directly to Pathao `SpecialInstruction` and `ItemDesc` for 100% Prepaid (SSL/Bkash) orders.
 - Integrated Pathao bulk-sheet generation directly into the Inventory Distribution page.
-
+- **Mobile UI Fix (Apr 21, 2026):** Restored the cover photo (app banner image) visibility in mobile views by removing `display: none` from the `@media` query in `header.py`.
+- **Pandas Type Safety:** Fixed `AttributeError: Can only use .dt accessor with datetimelike values` by ensuring explicit `pd.to_datetime` conversion and handling empty DataFrames in `src/processing/` and `src/state/insights.py`.
+- **Stock Analytics Recovery:** Fixed `raw_qty` undefined error by replacing it with `total_qty` in recovery mode.
+- **Data Integrity:** Replaced fake Association Rules (which used `np.random.rand()`) with actual co-occurrence calculation logic in the dashboard.
+- **Performance Optimization:** Migrated WhatsApp Bulk Processing to use Polars (`pl.LazyFrame`) for significantly faster execution and lower memory footprint.
+- **Fuzzy Matching Integration:** Implemented `fuzzywuzzy` for resilient location detection (Thana/Area/Zone mapping).
+- **UI/UX Overhaul (Terminal Theme):** Implemented glassmorphism metric cards, global fade-in animations, responsive mobile widget stacking, and Data Pilot terminal-themed chat bubbles via CSS injection.
+- **Advanced Chart Grouping & Resilience:** Added intelligent "Others" aggregation for Pie/Donut charts (3% threshold) and dynamic layout scaling (`automargin=True`).
+- **Robust Export Engine:** Created a unified Excel export system with auto-fitting column widths, multi-sheet consolidation, and safe NA dropping.
+- **Graceful Error Handling:** Comprehensive adoption of `safe_render`, `safe_filter`, and `safe_column_access` via `src/utils/safe_ops.py` to prevent UI crashes.
 ## 12. Development Guidance
 - New workspace page:
   follow `DEVELOPMENT.md` for page creation, nav updates, routing, and reset registration.

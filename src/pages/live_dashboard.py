@@ -81,6 +81,7 @@ def render_live_tab():
             if nav_mode != "Today" and nav_mode != "Offline":
                 st.session_state.wc_nav_mode = "Today"
                 st.rerun()
+            return
 
         # Apply Workspace Sub-Filters
         status_col = "Order Status" if "Order Status" in df_live.columns else "Status" if "Status" in df_live.columns else None
@@ -166,5 +167,9 @@ def render_live_tab():
 
     except Exception as e:
         log_system_event("LIVE_FILE_ERROR", str(e))
-        st.error(f"Live source error: {e}")
-        st.info("\U0001f4a1 Tip: If WooCommerce is down, use the '\U0001f4e5 Sales Data Ingestion' tab to upload a local file or paste a public URL.")
+        err_str = str(e).lower()
+        if any(kw in err_str for kw in ["connection", "timeout", "502", "503", "500", "resolve"]):
+            st.error("🌐 **Connection Error:** Failed to reach WooCommerce. The server is currently unreachable or experiencing high traffic.")
+        else:
+            st.error(f"⚠️ **Live Sync Error:** {e}")
+        st.info("💡 **Fallback Mode:** Use the '📥 Sales Data Ingestion' tab to upload a local CSV/Excel export until the live connection is restored.")
