@@ -10,6 +10,7 @@ Usage:
     python src/pages/executive_daily_report.py
 """
 
+import asyncio
 import os
 import sys
 import pandas as pd
@@ -25,8 +26,8 @@ if "wc_sync_mode" not in st.session_state:
 
 from src.config.constants import SHIPPED_STATUSES
 from src.services.woocommerce.client import load_from_woocommerce
-from src.processing.data_processing import prepare_granular_data, aggregate_data
-from src.processing.data_processing import get_dispatch_metrics, generate_executive_briefing
+from src.processing.data_processing import (aggregate_data, get_dispatch_metrics,
+                                            prepare_granular_data)
 from src.processing.forecasting import PredictiveIntelligence
 
 def generate_report_data():
@@ -125,10 +126,54 @@ def generate_report_data():
                 next_day_pred = fc_res[0]['forecast'][0]
                 forecast_str = f"🔮 *ML Forecast (Tomorrow):* ৳{next_day_pred:,.0f}"
 
-    report_text = generate_executive_briefing(
-        today_rev, today_qty, today_orders, today_aov, dm, top,
-        prev_rev=prev_rev, prev_orders=prev_orders, forecast_str=forecast_str
-    )
+    # AI-powered narrative generation
+    print("🧠 Generating AI Executive Narrative...")
+    context_data = {
+        "sales_summary": summ,
+        "top_products": top,
+        "raw_sales_data": df_live,
+    }
+    
+    prompt = f"""
+    Generate an executive briefing for today's e-commerce operations.
+    Today's key metrics:
+    - Revenue: ৳{today_rev:,.0f}
+    - Orders: {today_orders}
+    - Items Sold: {today_qty}
+    - Average Order Value: ৳{today_aov:,.0f}
+
+    Comparison with yesterday:
+    - Yesterday's Revenue: ৳{prev_rev:,.0f}
+    - Yesterday's Orders: {prev_orders}
+
+    Dispatch Metrics:
+    - Shipped via Pathao: {dm.get('pathao_count', 0)}
+    - Shipped via Other: {dm.get('other_count', 0)}
+
+    {forecast_str}
+
+    Based on the provided context data (sales_summary, top_products), write a concise, professional, and insightful narrative.
+    Highlight key trends, mention the top-performing products/categories, and provide a concluding remark on the day's performance.
+    The entire response should be a single block of text formatted for WhatsApp (using markdown like *bold* and _italic_).
+    """
+
+    try:
+        from src.pages.data_pilot import AIDataAgent
+        agent = AIDataAgent(context_dfs=context_data)
+        
+        async def get_narrative():
+            full_response = ""
+            async for chunk in agent.get_response_stream(prompt, history=[]):
+                full_response += chunk
+            return full_response
+        report_text = asyncio.run(get_narrative())
+    except Exception as e:
+        print(f"❌ AI narrative generation failed: {e}. Falling back to template.")
+        from src.processing.data_processing import generate_executive_briefing
+        report_text = generate_executive_briefing(
+            today_rev, today_qty, today_orders, today_aov, dm, top,
+            prev_rev=prev_rev, prev_orders=prev_orders, forecast_str=forecast_str
+        )
     
     return report_text, df_live, summ, top
 

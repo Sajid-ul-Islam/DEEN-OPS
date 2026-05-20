@@ -28,20 +28,12 @@ class AIDataAgent:
     Enhanced AI-BI Agent with NLP Intent Routing & ML Grounding.
     Uses NeuralBrain for intent detection and PredictiveIntelligence for forecasting.
     """
-    def __init__(self, provider="🛡️ Smart Failover (Free Tiers)", api_key=None, model_name=None):
+    def __init__(self, provider="🛡️ Smart Failover (Free Tiers)", api_key=None, model_name=None, context_dfs: Dict[str, pd.DataFrame] = None):
         self.provider = provider
         self.api_key = api_key
         self.model_name = model_name
         self.controller = init_llm_controller()
         self.brain = get_cached_brain()
-        self.context_dfs = {
-            "sales": st.session_state.get("wc_curr_df"),
-            "inventory_distribution": st.session_state.get("inv_res_data"),
-            "stock_levels": st.session_state.get("wc_stock_df"),
-            "pathao_dispatch": st.session_state.get("pathao_res_df"),
-            "pathao_tracking": st.session_state.get("pilot_pathao_tracking_df"),
-            "uploaded": st.session_state.get("pilot_uploaded_df"),
-        }
 
     def get_grounded_insights(self, query: str) -> str:
         intent = self.brain.semantic_query_intent(query)

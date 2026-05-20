@@ -97,6 +97,7 @@ Pathao-specific state currently used:
 - `pathao_manual_items_df`
 - `pathao_manual_desc`
 - `inv_pathao_df` (Used when pushing allocations directly to Pathao from Inventory Distribution)
+- `pilot_pathao_tracking_df` (Stores bulk-synced Pathao tracking data for the AI agent)
 
 ## 7. Operational Dashboard Rules
 The operational dashboard has behavior that should not drift accidentally.
@@ -158,6 +159,8 @@ The Pathao module includes an `Order Tracking` tab that allows bulk tracking via
 - If auto-update is enabled, it uses the `Order ID` column to actively send `completed` statuses back to WooCommerce via API for delivered parcels.
 - Ensure tracking files contain an `Order ID` or `Merchant Order ID` column for this auto-sync to function properly.
 
+The **Data Pilot** also has a bulk sync feature that does not require a file upload; it uses the live WooCommerce data in session to find pending orders with consignment IDs and fetches their statuses.
+
 ## 9. Item Description Helper
 The bulk order processor includes a second tab: `Item Description Helper`.
 
@@ -174,6 +177,25 @@ Supported manual patterns currently include forms like:
 - `Oxford Shirt | SKU123`
 
 If you extend parsing, keep it backward compatible and route all output through the shared normalization helpers.
+
+## 9.1. Data Pilot Rules
+The Data Pilot (`data_pilot.py`) is a conversational AI workspace.
+
+- **Knowledge Base**: The AI agent grounds its answers in the data available in its "Data Context". This data is loaded from other tabs (Live Dashboard, Inventory, Pathao Processor) or uploaded directly.
+
+- **Data Synchronization**:
+    - **Manual Sync**: Users can click "Sync from WooCommerce" or "Sync Pathao Statuses" to load fresh data into the knowledge base.
+    - **Smart Auto-Sync**: An optional toggle that automatically syncs data if it's older than 15 minutes before answering a query.
+    - **Chat Command**: The agent recognizes commands like "sync now" to trigger a data refresh dynamically.
+
+- **Dynamic Intent Routing**:
+    - The agent uses an internal "NeuralBrain" to detect user intent.
+    - **ML Forecasts**: Responds to questions about future sales.
+    - **ML Anomalies**: Detects unusual spikes or dips in sales data.
+    - **Pathao Live Tracking**: Automatically detects Pathao Consignment IDs (e.g., `DD12345`) in the chat, fetches the live status from the Pathao API, and includes it in the answer.
+
+- **Data Context Panel**: The right-hand panel shows a preview of all dataframes currently loaded into the agent's knowledge base, including `live_sales`, `stock_levels`, `pathao_tracking`, and `uploaded_files`. It also includes an export button for the synced Pathao tracking data.
+
 
 ## 10. Known Technical Debt
 - Some older docs still describe the project as `DEEN-BI` or `dashboard_v1`.
@@ -194,6 +216,10 @@ If you extend parsing, keep it backward compatible and route all output through 
 - **Stock Analytics Recovery:** Fixed `raw_qty` undefined error by replacing it with `total_qty` in recovery mode.
 - **Data Integrity:** Replaced fake Association Rules (which used `np.random.rand()`) with actual co-occurrence calculation logic in the dashboard.
 - **Performance Optimization:** Migrated WhatsApp Bulk Processing to use Polars (`pl.LazyFrame`) for significantly faster execution and lower memory footprint.
+- **Data Pilot AI Agent**: Introduced a conversational AI agent (`data_pilot.py`) that can analyze and answer questions about all operational data.
+- **Live Grounding & Intent Routing**: The Data Pilot can perform ML forecasts, detect anomalies, and dynamically track Pathao consignments from chat prompts.
+- **Smart & Manual Sync**: Implemented multiple ways to keep the AI's knowledge base up-to-date, including manual buttons, a "stale data" auto-sync, and chat-based commands.
+- **Pathao Bulk Status Sync & Export**: Added a feature to the Data Pilot to fetch live statuses for all pending Pathao orders, load them into the AI's context, and export them to Excel.
 - **Fuzzy Matching Integration:** Implemented `fuzzywuzzy` for resilient location detection (Thana/Area/Zone mapping).
 - **UI/UX Overhaul (Terminal Theme):** Implemented glassmorphism metric cards, global fade-in animations, responsive mobile widget stacking, and Data Pilot terminal-themed chat bubbles via CSS injection.
 - **Advanced Chart Grouping & Resilience:** Added intelligent "Others" aggregation for Pie/Donut charts (3% threshold) and dynamic layout scaling (`automargin=True`).
