@@ -83,9 +83,10 @@ PROVIDERS = {
 # ============================================
 
 class APIKeyManager:
-    def __init__(self):
+    def __init__(self, is_cloud: bool = False):
         self.keys: Dict[str, List[Dict]] = defaultdict(list)
         self._last_reset_date = datetime.now().date()
+        self.is_cloud = is_cloud
         self.load_keys_from_secrets()
 
     def load_keys_from_secrets(self):
@@ -94,8 +95,8 @@ class APIKeyManager:
             for key in keys:
                 self.add_key(provider_id, key)
 
-        # Add Ollama if reachable
-        if self._check_ollama_alive():
+        # Add Ollama if reachable and not on cloud
+        if not self.is_cloud and self._check_ollama_alive():
             self.add_key("ollama", "local_no_key")
 
     def _check_ollama_alive(self) -> bool:
@@ -155,7 +156,6 @@ class AdaptiveLoadBalancer:
 
 class DynamicLLMController:
     def __init__(self):
-        self.key_manager = APIKeyManager()
         self.load_balancer = AdaptiveLoadBalancer()
         # Robust Cloud Detection
         try:
@@ -169,6 +169,8 @@ class DynamicLLMController:
             self.is_cloud = is_on_cloud
         except:
              self.is_cloud = False
+
+        self.key_manager = APIKeyManager(is_cloud=self.is_cloud)
 
         # Caching & Token Tracking
         self.response_cache: Dict[str, str] = {}
