@@ -1,12 +1,5 @@
 [
     {
-        "timestamp": "2026-04-09 13:02:59",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1460, in render_stock_analytics_tab\n    size_options = sorted(df_item[size_col].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-09 13:13:23",
         "context": "App Bootstrap",
         "error": "invalid syntax (sales_dashboard.py, line 1310)",
@@ -698,5 +691,14 @@
         "error": "unindent does not match any outer indentation level (dashboard_filters.py, line 206)",
         "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\app.py\", line 253, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"E:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"E:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 8, in <module>\n    from src.pages.dashboard_output import render_dashboard_output\n  File \"E:\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 14, in <module>\n    from src.pages.dashboard_filters import render_ingestion_filters\n  File \"E:\\DEEN-OPS\\src\\pages\\dashboard_filters.py\", line 206\n    except Exception as e:\n                          ^\nIndentationError: unindent does not match any outer indentation level\n",
         "details": {}
+    },
+    {
+        "timestamp": "2026-05-20 14:21:15",
+        "context": "safe_render",
+        "error": "[Errno 28] No space left on device",
+        "traceback": "OSError: [Errno 28] No space left on device\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 387, in close\n    self._store_workbook()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 803, in _store_workbook\n    xml_files = packager._create_package()\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\packager.py\", line 140, in _create_package\n    self._write_workbook_rels_file()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\packager.py\", line 623, in _write_workbook_rels_file\n    rels._assemble_xml_file()\n    ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\relationships.py\", line 58, in _assemble_xml_file\n    self._xml_close()\n    ~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\xmlwriter.py\", line 52, in _xml_close\n    self.fh.close()\n    ~~~~~~~~~~~~~^^\nOSError: [Errno 28] No space left on device\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 155, in <lambda>\n    lambda: render_dashboard_output(\n            ~~~~~~~~~~~~~~~~~~~~~~~^\n        drill,\n        ^^^^^^\n    ...<6 lines>...\n        granular_df=df_standard\n        ^^^^^^^^^^^^^^^^^^^^^^^\n    ),\n    ^\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 367, in render_dashboard_output\n    with pd.ExcelWriter(buf_pbi, engine=\"xlsxwriter\") as wr:\n         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_base.py\", line 1353, in __exit__\n    self.close()\n    ~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_base.py\", line 1357, in close\n    self._save()\n    ~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_xlsxwriter.py\", line 239, in _save\n    self.book.close()\n    ~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 389, in close\n    raise FileCreateError(e)\nxlsxwriter.exceptions.FileCreateError: [Errno 28] No space left on device\n",
+        "details": {
+            "fallback_msg": "Dashboard rendering encountered an error."
+        }
     }
 ]
