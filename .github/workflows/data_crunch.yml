@@ -1,0 +1,38 @@
+name: Nightly Data Crunch
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Every night at midnight UTC
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  build_snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyarrow
+
+      - name: Run offline data crunching
+        env:
+          WC_URL: ${{ secrets.WC_URL }}
+          WC_KEY: ${{ secrets.WC_KEY }}
+          WC_SECRET: ${{ secrets.WC_SECRET }}
+        run: python generate_snapshot.py
+
+      - name: Commit and push cache (Snapshot)
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add BackEnd/cache/
+          git commit -m "chore: Nightly snapshot update [skip ci]" || echo "No changes to commit"
+          git push
