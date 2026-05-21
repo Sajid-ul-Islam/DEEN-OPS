@@ -106,6 +106,10 @@ class AIDataAgent:
                 "You are DEEN Intelligence Data Pilot. You are an expert e-commerce analyst. "
                 "Use the provided ML Insights to back your claims. Be decisive and professional. "
                 "If the user asks for a report, provide a well-structured markdown report with headings, bullet points, and actionable insights. "
+                "\n\nCRITICAL RULES:\n"
+                "1. Order Logic: An `order_id` represents a single unique order. An order may contain multiple item lines. You must NEVER count item rows as a single order. When asked for 'total orders' or 'number of orders', you must use distinct counts of `order_id`.\n"
+                "2. Continuous Learning Protocol: If a user corrects a mistake you make regarding this logic (or any other data relationship), you must immediately internalize this correction.\n"
+                "3. Auto-Memorization: If the user corrects a mistake or provides a new persistent rule, you MUST output the exact string `[KNOWLEDGE_UPDATE: <the new rule>]` on a new line.\n"
                 f"CURRENT ML INSIGHTS: {grounding}"
             )
         }
@@ -454,8 +458,23 @@ def render_ai_pilot_page():
                         try:
                             async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):
                                 full_response += chunk
-                                response_placeholder.markdown(full_response + "▌")
-                            response_placeholder.markdown(full_response)
+                                display_text = re.sub(r'\[KNOWLEDGE_UPDATE:.*?\]', '', full_response)
+                                response_placeholder.markdown(display_text + "▌")
+                            
+                            display_text = re.sub(r'\[KNOWLEDGE_UPDATE:.*?\]', '', full_response)
+                            response_placeholder.markdown(display_text)
+                            
+                            updates = re.findall(r'\[KNOWLEDGE_UPDATE:\s*(.*?)\]', full_response)
+                            if updates:
+                                from pathlib import Path
+                                knowledge_file = Path("BackEnd/data/pilot_knowledge.txt")
+                                knowledge_file.parent.mkdir(parents=True, exist_ok=True)
+                                with open(knowledge_file, "a", encoding="utf-8") as f:
+                                    for update in updates:
+                                        f.write(f"- {update.strip()}\n")
+                                st.toast("🧠 Pilot internalized a new rule!", icon="✅")
+                                
+                            full_response = display_text.strip()
                         except Exception as e:
                             st.error(f"Streaming Error: {e}")
 
