@@ -20,7 +20,17 @@ fake_streamlit.session_state = {}
 fake_streamlit.secrets = {}
 fake_streamlit.cache_data = _identity_decorator
 fake_streamlit.cache_resource = _identity_decorator
+fake_streamlit.session_state = {}
+fake_streamlit.secrets = {}
+
+fake_components = types.ModuleType("streamlit.components")
+fake_v1 = types.ModuleType("streamlit.components.v1")
+fake_components.v1 = fake_v1
+fake_streamlit.components = fake_components
+
 sys.modules["streamlit"] = fake_streamlit
+sys.modules["streamlit.components"] = fake_components
+sys.modules["streamlit.components.v1"] = fake_v1
 
 from src.pages import dashboard_output
 
@@ -54,6 +64,27 @@ class _DummyStreamlit:
 
     def expander(self, *args, **kwargs):
         return _DummyContext()
+
+    def toggle(self, *args, **kwargs):
+        return False
+
+    def button(self, *args, **kwargs):
+        return False
+
+    def text_area(self, *args, **kwargs):
+        return ""
+
+    def warning(self, *args, **kwargs):
+        return None
+
+    def success(self, *args, **kwargs):
+        return None
+
+    def error(self, *args, **kwargs):
+        return None
+
+    def empty(self, *args, **kwargs):
+        return _DummyStreamlit(self.session_state)
 
     def columns(self, spec):
         count = spec if isinstance(spec, int) else len(spec)

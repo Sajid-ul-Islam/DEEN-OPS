@@ -1,12 +1,5 @@
 [
     {
-        "timestamp": "2026-04-09 13:13:23",
-        "context": "App Bootstrap",
-        "error": "invalid syntax (sales_dashboard.py, line 1310)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 39, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab, render_stock_analytics_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1310\n    STOCK_SNAPSHOT_PATH = \"resources/stock_snapshot.csv\"\n    ^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-09 13:13:55",
         "context": "App Bootstrap",
         "error": "'<' not supported between instances of 'str' and 'float'",
@@ -699,6 +692,15 @@
         "traceback": "OSError: [Errno 28] No space left on device\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 387, in close\n    self._store_workbook()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 803, in _store_workbook\n    xml_files = packager._create_package()\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\packager.py\", line 140, in _create_package\n    self._write_workbook_rels_file()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\packager.py\", line 623, in _write_workbook_rels_file\n    rels._assemble_xml_file()\n    ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\relationships.py\", line 58, in _assemble_xml_file\n    self._xml_close()\n    ~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\xmlwriter.py\", line 52, in _xml_close\n    self.fh.close()\n    ~~~~~~~~~~~~~^^\nOSError: [Errno 28] No space left on device\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 155, in <lambda>\n    lambda: render_dashboard_output(\n            ~~~~~~~~~~~~~~~~~~~~~~~^\n        drill,\n        ^^^^^^\n    ...<6 lines>...\n        granular_df=df_standard\n        ^^^^^^^^^^^^^^^^^^^^^^^\n    ),\n    ^\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 367, in render_dashboard_output\n    with pd.ExcelWriter(buf_pbi, engine=\"xlsxwriter\") as wr:\n         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_base.py\", line 1353, in __exit__\n    self.close()\n    ~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_base.py\", line 1357, in close\n    self._save()\n    ~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_xlsxwriter.py\", line 239, in _save\n    self.book.close()\n    ~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 389, in close\n    raise FileCreateError(e)\nxlsxwriter.exceptions.FileCreateError: [Errno 28] No space left on device\n",
         "details": {
             "fallback_msg": "Dashboard rendering encountered an error."
+        }
+    },
+    {
+        "timestamp": "2026-05-21 15:12:29",
+        "context": "safe_render",
+        "error": "",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\src\\components\\header.py\", line 64, in render_app_banner\n    b64 = base64.b64encode(f.read()).decode()\n          ~~~~~~~~~~~~~~~~^^^^^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\base64.py\", line 55, in b64encode\n    encoded = binascii.b2a_base64(s, newline=False)\nMemoryError\n",
+        "details": {
+            "fallback_msg": "App banner unavailable."
         }
     }
 ]
