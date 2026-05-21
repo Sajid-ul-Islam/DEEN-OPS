@@ -245,12 +245,15 @@ class WhatsAppOrderProcessor:
         quantity_col = self.config["quantity_col"]
         price_col = self.config["price_col"]
 
+        def _str_join(expr, sep):
+            return expr.str.join(sep) if hasattr(expr.str, "join") else expr.str.concat(sep)
+
         agg_exprs = [
             pl.col(name_col).first(),
-            pl.col(order_id_col).cast(pl.String).drop_nulls().unique().str.join(", "),
-            pl.col(product_col).cast(pl.String).drop_nulls().str.join("\n- "),
-            pl.col(quantity_col).cast(pl.String).drop_nulls().str.join("\n- "),
-            pl.col(price_col).cast(pl.String).drop_nulls().str.join("\n- "),
+            _str_join(pl.col(order_id_col).cast(pl.String).drop_nulls().unique(), ", "),
+            _str_join(pl.col(product_col).cast(pl.String).drop_nulls(), "\n- "),
+            _str_join(pl.col(quantity_col).cast(pl.String).drop_nulls(), "\n- "),
+            _str_join(pl.col(price_col).cast(pl.String).drop_nulls(), "\n- "),
         ]
 
         # Add optional columns to aggregation
