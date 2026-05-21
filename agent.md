@@ -181,7 +181,10 @@ If you extend parsing, keep it backward compatible and route all output through 
 ## 9.1. Data Pilot Rules
 The Data Pilot (`data_pilot.py`) is a conversational AI workspace.
 
+- **Global Data Pilot**: A mini-pilot interface is available globally in the sidebar, allowing quick operational queries without switching tabs.
 - **Knowledge Base**: The AI agent grounds its answers in the data available in its "Data Context". This data is loaded from other tabs (Live Dashboard, Inventory, Pathao Processor) or uploaded directly.
+- **Modern Tab Layout**: The main Data Pilot page is divided into "💬 Pilot Interface" (chat), "🧠 Knowledge Base" (data context previews), and "📑 Generated Reports" (saved AI executive summaries).
+- **Report Generation**: Users can request executive summaries or reports. The agent will format these as markdown, and the UI will automatically save them to the "Generated Reports" tab for downloading.
 
 - **Data Synchronization**:
     - **Manual Sync**: Users can click "Sync from WooCommerce" or "Sync Pathao Statuses" to load fresh data into the knowledge base.
@@ -193,8 +196,7 @@ The Data Pilot (`data_pilot.py`) is a conversational AI workspace.
     - **ML Forecasts**: Responds to questions about future sales.
     - **ML Anomalies**: Detects unusual spikes or dips in sales data.
     - **Pathao Live Tracking**: Automatically detects Pathao Consignment IDs (e.g., `DD12345`) in the chat, fetches the live status from the Pathao API, and includes it in the answer.
-
-- **Data Context Panel**: The right-hand panel shows a preview of all dataframes currently loaded into the agent's knowledge base, including `live_sales`, `stock_levels`, `pathao_tracking`, and `uploaded_files`. It also includes an export button for the synced Pathao tracking data.
+    - **Report Generation**: Detects when the user asks for a summary or report and flags it to save in the session state.
 
 
 ## 10. Known Technical Debt
@@ -220,6 +222,7 @@ The Data Pilot (`data_pilot.py`) is a conversational AI workspace.
 - **Live Grounding & Intent Routing**: The Data Pilot can perform ML forecasts, detect anomalies, and dynamically track Pathao consignments from chat prompts.
 - **Smart & Manual Sync**: Implemented multiple ways to keep the AI's knowledge base up-to-date, including manual buttons, a "stale data" auto-sync, and chat-based commands.
 - **Pathao Bulk Status Sync & Export**: Added a feature to the Data Pilot to fetch live statuses for all pending Pathao orders, load them into the AI's context, and export them to Excel.
+- **Global Data Pilot & Enhanced UI**: Upgraded the AI Data Pilot with a modern tabbed layout (Chat, Knowledge Base, Reports), multi-report generation, and a persistent global sidebar widget for instant access from any workspace.
 - **Fuzzy Matching Integration:** Implemented `fuzzywuzzy` for resilient location detection (Thana/Area/Zone mapping).
 - **UI/UX Overhaul (Terminal Theme):** Implemented glassmorphism metric cards, global fade-in animations, responsive mobile widget stacking, and Data Pilot terminal-themed chat bubbles via CSS injection.
 - **Advanced Chart Grouping & Resilience:** Added intelligent "Others" aggregation for Pie/Donut charts (3% threshold) and dynamic layout scaling (`automargin=True`).
