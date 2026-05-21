@@ -170,6 +170,43 @@ def run_app():
                     st.session_state.confirm_app_reset = False
                     st.rerun()
 
+        st.divider()
+        with st.sidebar.expander("🚀 Global Data Pilot", expanded=False):
+            st.markdown("<small>Ask the AI about your operations directly from here.</small>", unsafe_allow_html=True)
+            global_prompt = st.text_area("Your question:", key="global_pilot_prompt", placeholder="E.g., Summarize today's sales...", height=100)
+            if st.button("Ask Pilot", use_container_width=True, type="primary"):
+                if global_prompt:
+                    with st.spinner("Pilot is thinking..."):
+                        from src.pages.data_pilot import AIDataAgent
+                        import asyncio
+                        agent = AIDataAgent()
+                        
+                        async def fetch_response():
+                            resp = ""
+                            async for chunk in agent.get_response_stream(global_prompt, []):
+                                resp += chunk
+                            return resp
+                            
+                        try:
+                            loop = asyncio.get_event_loop()
+                            if loop.is_running():
+                                import threading
+                                result = []
+                                def thread_run():
+                                    new_loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(new_loop)
+                                    result.append(new_loop.run_until_complete(fetch_response()))
+                                t = threading.Thread(target=thread_run)
+                                t.start()
+                                t.join()
+                                final_resp = result[0]
+                            else:
+                                final_resp = loop.run_until_complete(fetch_response())
+                        except Exception:
+                            final_resp = asyncio.run(fetch_response())
+                            
+                        st.markdown(f"**Pilot:**\n\n{final_resp}")
+
             st.divider()
             st.caption("System Logs")
             logs = get_logs()

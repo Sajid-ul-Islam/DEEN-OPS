@@ -51,23 +51,25 @@ class AIDataAgent:
         intent = self.brain.semantic_query_intent(query)
         insights = []
         
-        if intent["type"] == "ml_forecast":
+        if intent["type"] == "ml_forecast" or "forecast" in query.lower() or "predict" in query.lower():
+            df = self.context_dfs["sales"]
+            if df is not None and not df.empty and "Date" in df.columns and "Total Amount" in df.columns:
+                df_daily = df.copy()
+                df_daily['Day'] = pd.to_datetime(df_daily['Date'], errors='coerce').dt.date
+                series = df_daily.groupby('Day')['Total Amount'].sum()
+                if len(series) >= 3:
+                    forecasts, _ = PredictiveIntelligence.forecast(series)
+                    if forecasts:
+                        best = forecasts[0]
+                        insights.append(f"ML FORECAST: '{best['name']}' predicts next 7 days will total approx ৳{sum(best['forecast']):,.0f}.")
+        
+        if intent["type"] == "ml_anomaly" or "anomaly" in query.lower() or "unusual" in query.lower():
             df = self.context_dfs["sales"]
             if df is not None and not df.empty:
-                df_daily = df.copy()
-                df_daily['Day'] = pd.to_datetime(df_daily['Date']).dt.date
-                series = df_daily.groupby('Day')['Total Amount'].sum()
-                forecasts, _ = PredictiveIntelligence.forecast(series)
-                if forecasts:
-                    best = forecasts[0]
-                    insights.append(f"ML FORECAST: '{best['name']}' predicts next 7 days will total approx ৳{sum(best['forecast']):,.0f}.")
-        
-        elif intent["type"] == "ml_anomaly":
-            df = self.context_dfs["sales"]
-            anomalies = self.brain.detect_anomalies(df)
-            if not anomalies.empty:
-                top = anomalies.iloc[0]
-                insights.append(f"ML ANOMALY: A '{top['type']}' spike was detected on {top['date']} with value ৳{top['value']:,.0f} (Z-Score: {top['score']:.2f}).")
+                anomalies = self.brain.detect_anomalies(df)
+                if not anomalies.empty:
+                    top = anomalies.iloc[0]
+                    insights.append(f"ML ANOMALY: A '{top['type']}' spike was detected on {top['date']} with value ৳{top['value']:,.0f} (Z-Score: {top['score']:.2f}).")
                 
         # Pathao Live Tracking Intent (Regex extraction for Consignment IDs)
         pathao_match = re.search(r'(?i)(?:DD|D-|M-)\w+', query)
@@ -79,10 +81,19 @@ class AIDataAgent:
                 live_status = data.get("order_status", "Unknown")
                 insights.append(f"PATHAO LIVE STATUS: Consignment {consignment_id} is currently '{live_status}'. Payment status: {data.get('payment_status')}.")
 
+        # Report Generation Intent
+        if "report" in query.lower() or "summary" in query.lower():
+             insights.append("ACTION: The user is requesting a comprehensive report or summary. Please format the response as a detailed, structured markdown report covering sales, inventory, and fulfillment performance based on the available data context.")
+
         # General grounding
         for name, df in self.context_dfs.items():
             if df is not None and not df.empty:
-                insights.append(f"CONTEXT {name.upper()}: {len(df)} rows available.")
+                summary = f"{len(df)} rows."
+                if name == "sales" and "Total Amount" in df.columns:
+                    summary += f" Total Revenue: ৳{df['Total Amount'].sum():,.0f}."
+                if name == "stock_levels" and "Stock" in df.columns:
+                    summary += f" Total Stock: {df['Stock'].sum():,.0f} units."
+                insights.append(f"CONTEXT {name.upper()}: {summary}")
             
         return " | ".join(insights) if insights else "Context: No data loaded. Please sync or upload data in other tabs."
 
@@ -94,6 +105,7 @@ class AIDataAgent:
             "content": (
                 "You are DEEN Intelligence Data Pilot. You are an expert e-commerce analyst. "
                 "Use the provided ML Insights to back your claims. Be decisive and professional. "
+                "If the user asks for a report, provide a well-structured markdown report with headings, bullet points, and actionable insights. "
                 f"CURRENT ML INSIGHTS: {grounding}"
             )
         }
@@ -258,8 +270,15 @@ def render_sidebar_controls():
     return provider, api_key, model_name, auto_sync
 
 def render_ai_pilot_page():
-    st.markdown("<h1 style='text-align: center; color: #6366f1;'>🚀 DATA PILOT</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.7;'>Real-time AI Business Intelligence & Prediction Engine</p>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style='text-align: center; margin-bottom: 2rem;'>
+            <h1 style='color: #6366f1; margin-bottom: 0;'>🚀 GLOBAL DATA PILOT</h1>
+            <p style='opacity: 0.7; font-size: 1.1rem;'>Enhanced Knowledge Base & ML Intelligence Engine</p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
 
     # ⚡ Instant Boot: Load Offline Snapshot
     if "snapshot_loaded" not in st.session_state:
@@ -278,170 +297,196 @@ def render_ai_pilot_page():
 
     # Init Messages
     if "agent_messages" not in st.session_state:
-        st.session_state.agent_messages = [{"role": "assistant", "content": "Welcome to the Pilot's Seat. How can I analyze your operations today?"}]
+        st.session_state.agent_messages = [{"role": "assistant", "content": "Welcome to the Pilot's Seat. Ask me about sales, generate reports, or track Pathao live statuses!"}]
+    
+    if "pilot_reports" not in st.session_state:
+        st.session_state.pilot_reports = []
 
     # Sidebar
     provider, api_key, model_name, auto_sync = render_sidebar_controls()
 
-    # Two-column layout: Chat (left) + Context Panel (right)
-    col_chat, col_context = st.columns([3, 2])
+    # Modern Tabs Layout
+    tab_chat, tab_kb, tab_reports = st.tabs(["💬 Pilot Interface", "🧠 Knowledge Base", "📑 Generated Reports"])
 
-    with col_context:
-        st.markdown("#### Data Context")
+    with tab_kb:
+        st.markdown("### 📂 Data Context")
+        st.markdown("The AI currently has access to the following dataframes to ground its answers:")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Live Sales preview
+            sales_df = st.session_state.get("wc_curr_df")
+            if sales_df is not None and not sales_df.empty:
+                st.caption(f"📈 **Live Sales** — {len(sales_df)} rows")
+                st.dataframe(sales_df.head(3), use_container_width=True, hide_index=True)
+            else:
+                st.caption("📈 **Live Sales** — No data")
 
-        # Live Sales preview
-        sales_df = st.session_state.get("wc_curr_df")
-        if sales_df is not None and not sales_df.empty:
-            st.caption(f"Live Sales — {len(sales_df)} rows")
-            st.dataframe(sales_df.head(5), use_container_width=True, hide_index=True)
-        else:
-            st.caption("Live Sales — No data")
+            # Inventory preview
+            inv_df = st.session_state.get("inv_res_data")
+            if inv_df is not None and not inv_df.empty:
+                st.caption(f"📦 **Inventory Distribution** — {len(inv_df)} rows")
+                st.dataframe(inv_df.head(3), use_container_width=True, hide_index=True)
+            else:
+                st.caption("📦 **Inventory Distribution** — No data")
+                
+            # Pathao preview
+            pathao_df = st.session_state.get("pathao_res_df")
+            if pathao_df is not None and not pathao_df.empty:
+                st.caption(f"🚚 **Pathao Dispatch** — {len(pathao_df)} rows")
+                st.dataframe(pathao_df.head(3), use_container_width=True, hide_index=True)
+            else:
+                st.caption("🚚 **Pathao Dispatch** — No data")
 
-        # Inventory preview
-        inv_df = st.session_state.get("inv_res_data") # This is the distribution matrix
-        if inv_df is not None and not inv_df.empty:
-            st.caption(f"Inventory Distribution — {len(inv_df)} rows")
-            st.dataframe(inv_df.head(5), use_container_width=True, hide_index=True)
-        else:
-            st.caption("Inventory Distribution — No data")
+        with col2:
+            # Stock Levels preview
+            stock_df = st.session_state.get("wc_stock_df") 
+            if stock_df is not None and not stock_df.empty:
+                st.caption(f"🏢 **Stock Levels** — {len(stock_df)} rows")
+                st.dataframe(stock_df.head(3), use_container_width=True, hide_index=True)
+            else:
+                st.caption("🏢 **Stock Levels** — No data")
 
-        # Stock Levels preview
-        stock_df = st.session_state.get("wc_stock_df") # This is the raw stock levels
-        if stock_df is not None and not stock_df.empty:
-            st.caption(f"Stock Levels — {len(stock_df)} rows")
-            st.dataframe(stock_df.head(5), use_container_width=True, hide_index=True)
-        else:
-            st.caption("Stock Levels — No data")
+            # Pathao Tracking preview
+            pathao_track_df = st.session_state.get("pilot_pathao_tracking_df")
+            if pathao_track_df is not None and not pathao_track_df.empty:
+                st.caption(f"📍 **Pathao Tracking** — {len(pathao_track_df)} rows")
+                st.dataframe(pathao_track_df.head(3), use_container_width=True, hide_index=True)
+                
+                output_buffer = io.BytesIO()
+                with pd.ExcelWriter(output_buffer, engine="xlsxwriter") as writer:
+                    pathao_track_df.to_excel(writer, index=False, sheet_name="Pathao_Tracking")
+                st.download_button(
+                    label="📥 Export Tracking Data",
+                    data=output_buffer.getvalue(),
+                    file_name=f"Pathao_Tracking_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                )
+            else:
+                st.caption("📍 **Pathao Tracking** — No data")
 
-        # Pathao preview
-        pathao_df = st.session_state.get("pathao_res_df")
-        if pathao_df is not None and not pathao_df.empty:
-            st.caption(f"Pathao Dispatch — {len(pathao_df)} rows")
-            st.dataframe(pathao_df.head(5), use_container_width=True, hide_index=True)
-        else:
-            st.caption("Pathao Dispatch — No data")
+            # Uploaded preview
+            up_df = st.session_state.get("pilot_uploaded_df")
+            if up_df is not None and not up_df.empty:
+                st.caption(f"📁 **Uploaded Files** — {len(up_df)} rows")
+                st.dataframe(up_df.head(3), use_container_width=True, hide_index=True)
+            else:
+                st.caption("📁 **Uploaded Files** — No data")
 
-        # Pathao Tracking preview
-        pathao_track_df = st.session_state.get("pilot_pathao_tracking_df")
-        if pathao_track_df is not None and not pathao_track_df.empty:
-            st.caption(f"Pathao Tracking — {len(pathao_track_df)} rows")
-            st.dataframe(pathao_track_df.head(5), use_container_width=True, hide_index=True)
-
-            output_buffer = io.BytesIO()
-            with pd.ExcelWriter(output_buffer, engine="xlsxwriter") as writer:
-                pathao_track_df.to_excel(writer, index=False, sheet_name="Pathao_Tracking")
-                workbook = writer.book
-                worksheet = writer.sheets["Pathao_Tracking"]
-                header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
-                for idx, col in enumerate(pathao_track_df.columns):
-                    worksheet.write(0, idx, str(col), header_format)
-                    try:
-                        max_len = max(pathao_track_df[col].astype(str).map(len).max(), len(str(col))) + 2
-                        worksheet.set_column(idx, idx, min(max_len, 50))
-                    except (ValueError, TypeError):
-                        worksheet.set_column(idx, idx, 20) # Fallback width
-
-            st.download_button(
-                label="📥 Export Tracking Data (Excel)",
-                data=output_buffer.getvalue(),
-                file_name=f"Pathao_Tracking_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-            )
-        else:
-            st.caption("Pathao Tracking — No data")
-
-        # Uploaded preview
-        up_df = st.session_state.get("pilot_uploaded_df")
-        if up_df is not None and not up_df.empty:
-            st.caption(f"Uploaded — {len(up_df)} rows")
-            st.dataframe(up_df.head(5), use_container_width=True, hide_index=True)
-        else:
-            st.caption("Uploaded — No data")
-
-        # Last analysis intent
-        last_intent = st.session_state.get("pilot_last_intent")
-        if last_intent:
-            st.divider()
-            st.markdown(f"**Last Analysis Intent:** `{last_intent}`")
-
-    with col_chat:
-        # Chat Display
-        chat_container = st.container()
-        with chat_container:
-            for msg in st.session_state.agent_messages:
-                avatar = "🤖" if msg["role"] == "assistant" else "👤"
-                with st.chat_message(msg["role"], avatar=avatar):
-                    st.markdown(msg["content"])
-
-        # Input Area
-        if prompt := st.chat_input("Ask about sales, stock, or your uploaded files..."):
-            # 0. Handle Smart Auto-Sync
-            if auto_sync:
-                last_sync = st.session_state.get("live_sync_time")
-                # Check if data is missing or older than 15 minutes (900 seconds)
-                if not last_sync or (datetime.now() - last_sync).total_seconds() > 900:
-                    with st.status("🔄 Smart Auto-Sync (Data is stale)...", expanded=True) as status:
-                        try:
-                            status.write("📡 Fetching live orders...")
-                            load_live_source()
-                            status.write("📦 Fetching stock levels...")
-                            stock_df = fetch_woocommerce_stock()
-                            if stock_df is not None:
-                                st.session_state.wc_stock_df = stock_df
-                            status.update(label="Knowledge Base Updated!", state="complete", expanded=False)
-                        except Exception as e:
-                            status.update(label="Sync Failed", state="error")
-                            st.error(f"Auto-sync failed: {e}")
-
-            # 1. Add user message
+    with tab_reports:
+        st.markdown("### 📑 AI Generated Reports")
+        
+        if st.button("✨ Auto-Generate Executive Report", type="primary", use_container_width=True):
+            prompt = "Generate a comprehensive executive summary report covering current sales, stock levels, and fulfillment. Use professional formatting."
             st.session_state.agent_messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user", avatar="👤"):
-                st.markdown(prompt)
+            st.rerun()
+            
+        if not st.session_state.pilot_reports:
+            st.info("No reports generated yet. Ask the Pilot to generate a report in the chat, or use the button above.")
+        else:
+            for idx, report in enumerate(reversed(st.session_state.pilot_reports)):
+                with st.expander(f"Report: {report['date']}", expanded=(idx==0)):
+                    st.markdown(report['content'])
+                    st.download_button("📥 Download Markdown", report['content'], file_name=f"Report_{report['date'].replace(':', '-')}.md", key=f"dl_rep_{idx}")
 
-            # 2. Get AI Response
-            with st.chat_message("assistant", avatar="🤖"):
-                response_placeholder = st.empty()
-                full_response = ""
+    with tab_chat:
+        col_chat, col_info = st.columns([3, 1])
+        
+        with col_info:
+            st.info(
+                "**💡 Pro Tips**\n\n"
+                "- **Forecasts:** *'What is the sales forecast for next week?'*\n"
+                "- **Reports:** *'Generate an executive summary report for today.'*\n"
+                "- **Tracking:** *'Track Pathao ID DD123456.'*\n"
+                "- **Anomalies:** *'Are there any anomalies in sales?'*"
+            )
+            last_intent = st.session_state.get("pilot_last_intent")
+            if last_intent:
+                st.caption(f"**Last Intent Detected:** `{last_intent}`")
 
-                agent = AIDataAgent(provider, api_key, model_name)
-                intent_obj = agent.brain.semantic_query_intent(prompt)
-                st.session_state.pilot_last_intent = intent_obj["type"]
+        with col_chat:
+            # Chat Display
+            chat_container = st.container(height=500)
+            with chat_container:
+                for msg in st.session_state.agent_messages:
+                    avatar = "🤖" if msg["role"] == "assistant" else "👤"
+                    with st.chat_message(msg["role"], avatar=avatar):
+                        st.markdown(msg["content"])
 
-                # Optimized Async Bridge for Streamlit
-                async def run_streaming():
-                    nonlocal full_response
+            # Input Area
+            if prompt := st.chat_input("Ask Data Pilot about sales, stock, or request a report..."):
+                # Handle Smart Auto-Sync
+                if auto_sync:
+                    last_sync = st.session_state.get("live_sync_time")
+                    if not last_sync or (datetime.now() - last_sync).total_seconds() > 900:
+                        with st.status("🔄 Smart Auto-Sync (Data is stale)...", expanded=True) as status:
+                            try:
+                                status.write("📡 Fetching live orders...")
+                                load_live_source()
+                                status.write("📦 Fetching stock levels...")
+                                stock_df = fetch_woocommerce_stock()
+                                if stock_df is not None:
+                                    st.session_state.wc_stock_df = stock_df
+                                status.update(label="Knowledge Base Updated!", state="complete", expanded=False)
+                            except Exception as e:
+                                status.update(label="Sync Failed", state="error")
+                                st.error(f"Auto-sync failed: {e}")
+
+                st.session_state.agent_messages.append({"role": "user", "content": prompt})
+                with st.chat_message("user", avatar="👤"):
+                    st.markdown(prompt)
+
+                with st.chat_message("assistant", avatar="🤖"):
+                    response_placeholder = st.empty()
+                    full_response = ""
+
+                    agent = AIDataAgent(provider, api_key, model_name)
+                    intent_obj = agent.brain.semantic_query_intent(prompt)
+                    st.session_state.pilot_last_intent = intent_obj["type"]
+                    
+                    if "report" in prompt.lower() or "summary" in prompt.lower():
+                        st.session_state.pilot_last_intent = "report_generation"
+
+                    async def run_streaming():
+                        nonlocal full_response
+                        try:
+                            async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):
+                                full_response += chunk
+                                response_placeholder.markdown(full_response + "▌")
+                            response_placeholder.markdown(full_response)
+                        except Exception as e:
+                            st.error(f"Streaming Error: {e}")
+
+                    # Safe Loop Execution
                     try:
-                        async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):
-                            full_response += chunk
-                            response_placeholder.markdown(full_response + "▌")
-                        response_placeholder.markdown(full_response)
-                    except Exception as e:
-                        st.error(f"Streaming Error: {e}")
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            import threading
+                            def thread_run():
+                                new_loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(new_loop)
+                                new_loop.run_until_complete(run_streaming())
 
-                # Safe Loop Execution
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        import threading
-                        def thread_run():
-                            new_loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(new_loop)
-                            new_loop.run_until_complete(run_streaming())
+                            t = threading.Thread(target=thread_run)
+                            t.start()
+                            t.join()
+                        else:
+                            loop.run_until_complete(run_streaming())
+                    except Exception:
+                        asyncio.run(run_streaming())
 
-                        t = threading.Thread(target=thread_run)
-                        t.start()
-                        t.join()
-                    else:
-                        loop.run_until_complete(run_streaming())
-                except Exception:
-                    asyncio.run(run_streaming())
+                st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
+                
+                # If report was requested, save it to reports tab
+                if st.session_state.pilot_last_intent == "report_generation":
+                    st.session_state.pilot_reports.append({
+                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "content": full_response
+                    })
 
-            # 3. Save assistant message
-            st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
-
-            # 4. Optional: Insights Chip
-            if len(full_response) > 50:
-                with st.expander("🔍 Intelligence Layer: Brain Routing"):
-                    st.caption(f"Engine: {provider} | Semantic Intent: {intent_obj['type'].upper()}")
-                    st.info("Grounding: Utilizing Multi-Model Predictive Intelligence & Z-Score Anomaly detection for result grounding.")
+                if len(full_response) > 50:
+                    with st.expander("🔍 Intelligence Layer: Brain Routing"):
+                        st.caption(f"Engine: {provider} | Semantic Intent: {st.session_state.pilot_last_intent.upper()}")
+                        st.info("Grounding: Utilizing Multi-Model Predictive Intelligence & Knowledge Base context.")
