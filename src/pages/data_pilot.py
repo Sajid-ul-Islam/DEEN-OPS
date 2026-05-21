@@ -261,6 +261,21 @@ def render_ai_pilot_page():
     st.markdown("<h1 style='text-align: center; color: #6366f1;'>🚀 DATA PILOT</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; opacity: 0.7;'>Real-time AI Business Intelligence & Prediction Engine</p>", unsafe_allow_html=True)
 
+    # ⚡ Instant Boot: Load Offline Snapshot
+    if "snapshot_loaded" not in st.session_state:
+        try:
+            from src.processing.hybrid_data_loader import HybridDataLoader
+            loader = HybridDataLoader()
+            snapshot_df = loader.load_fast()
+            if snapshot_df is not None and not snapshot_df.empty:
+                if "wc_curr_df" not in st.session_state or st.session_state.wc_curr_df is None:
+                    st.session_state.wc_curr_df = snapshot_df
+                    st.session_state.wc_full_df = snapshot_df
+                    st.toast("⚡ Offline Data Snapshot Loaded Instantly!")
+        except Exception as e:
+            st.warning(f"Failed to load offline snapshot: {e}")
+        st.session_state.snapshot_loaded = True
+
     # Init Messages
     if "agent_messages" not in st.session_state:
         st.session_state.agent_messages = [{"role": "assistant", "content": "Welcome to the Pilot's Seat. How can I analyze your operations today?"}]
