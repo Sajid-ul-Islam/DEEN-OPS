@@ -176,14 +176,15 @@ def get_short_sub_category(item_name: str) -> str:
         return "Cargo"
     if "jogger" in name_lower:
         return "Jogger"
+    if "trouser" in name_lower:
+        return "Trouser"
+    if "executive" in name_lower or "formal" in name_lower:
+        return "Formal"
     if "shirt" in name_lower:
         return "Shirt"
     if "wallet" in name_lower:
         return "Wallet"
-    if "trouser" in name_lower:
-        return "Trouser"
-    if "executive formal shirt" in name_lower:
-        return "Formal"
+
     if "t-shirt" in name_lower:
         return "T-Shirt"
     if "belt" in name_lower:

@@ -18,10 +18,12 @@ def get_category_for_sales(name) -> str:
     if not name_str: return "Others"
 
     # 1. HIGH PRIORITY SPECIAL CATEGORIES
+    if _has_any(["panjabi", "punjabi"], name_str): return "Panjabi"
     if _has_any(["sweatshirt", "hoodie", "pullover"], name_str): return "Sweatshirt"
     if "polo" in name_str: return "Polo Shirt"
     if _has_any(["turtleneck", "turtle-neck", "mock neck"], name_str): return "Turtle-Neck"
     if "bundle" in name_str: return "Bundles"
+    if "cuban" in name_str: return "Cuban"
 
     # 2. MAIN CLUSTERS
     if _has_any(["jeans"], name_str): return "Jeans"
@@ -30,7 +32,7 @@ def get_category_for_sales(name) -> str:
         return "T-Shirt"
 
     fs_keywords = ["full sleeve", "long sleeve", "fs", "l/s", "fullsleeve", "full-sleeve"]
-    is_shirt = _has_any(["shirt"], name_str)
+    is_shirt = _has_any(["shirt", "executive", "formal"], name_str) and not _has_any(["pant", "trouser"], name_str)
     
     if is_shirt:
         if _has_any(fs_keywords, name_str) or _has_any(["denim", "flannel", "oxford", "kaftan", "executive", "formal"], name_str):
@@ -92,6 +94,7 @@ def get_sub_category_for_sales(name, category) -> str:
     elif category == "HS Shirt":
         if "contrast" in name_str: return "Contrast Shirt"
         if "casual" in name_str: return "HS Casual Shirt"
+        if "cuban" in name_str: return "Cuban"
         return "HS Shirt"
 
     elif category == "Wallet":
