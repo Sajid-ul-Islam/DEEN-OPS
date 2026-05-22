@@ -234,7 +234,8 @@ def render_excel_merger_tab():
                     styled_df = styled_df.apply(highlight_bottom_rows, axis=1)
                     
                     st.markdown("### Merged Data")
-                    st.dataframe(styled_df, use_container_width=True)
+                    calc_height = min(800, max(400, len(merged_df) * 35 + 43))
+                    st.dataframe(styled_df, use_container_width=True, height=calc_height)
                     
                     output = io.BytesIO()
                     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:

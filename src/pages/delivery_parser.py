@@ -57,7 +57,9 @@ POD"""
                 st.success(f"Parsed {len(parsed_df)} records.")
 
         if st.session_state.get("standard_parsed_df") is not None:
-            st.dataframe(st.session_state.standard_parsed_df, use_container_width=True)
+            df_to_show = st.session_state.standard_parsed_df
+            calc_height = min(800, max(400, len(df_to_show) * 35 + 43))
+            st.dataframe(df_to_show, use_container_width=True, height=calc_height)
             st.download_button(
                 "Download standard parser output",
                 df_to_excel_bytes(st.session_state.standard_parsed_df),
@@ -102,7 +104,9 @@ POD"""
                     st.success(f"Parsed {len(parsed_df)} records using fuzzy fallback.")
 
         if st.session_state.get("fuzzy_parsed_df") is not None:
-            st.dataframe(st.session_state.fuzzy_parsed_df, use_container_width=True)
+            df_to_show_fuzzy = st.session_state.fuzzy_parsed_df
+            calc_height_fuzzy = min(800, max(400, len(df_to_show_fuzzy) * 35 + 43))
+            st.dataframe(df_to_show_fuzzy, use_container_width=True, height=calc_height_fuzzy)
             st.download_button(
                 "Download fuzzy parser output",
                 df_to_excel_bytes(st.session_state.fuzzy_parsed_df),
