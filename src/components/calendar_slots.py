@@ -74,14 +74,20 @@ def render_operational_slots_calendar():
     st.markdown("**⚡ Quick Overrides**")
     
     c_merge = st.toggle("Active Shift (48h)", value=st.session_state.get("override_merge_current", False))
+    c_24h = st.toggle("Active Shift (24h)", value=st.session_state.get("override_24h_current", False))
     p_merge = st.toggle("History Shift (48h)", value=st.session_state.get("override_merge_previous", False))
+    p_24h = st.toggle("History Shift (24h)", value=st.session_state.get("override_24h_previous", False))
     
     if c_merge != st.session_state.get("override_merge_current", False) or \
-       p_merge != st.session_state.get("override_merge_previous", False):
+       c_24h != st.session_state.get("override_24h_current", False) or \
+       p_merge != st.session_state.get("override_merge_previous", False) or \
+       p_24h != st.session_state.get("override_24h_previous", False):
         
         st.toast("⚡ Override settings updated!")
         st.session_state.override_merge_current = c_merge
+        st.session_state.override_24h_current = c_24h
         st.session_state.override_merge_previous = p_merge
+        st.session_state.override_24h_previous = p_24h
         st.session_state.wc_curr_df = None
         st.session_state.wc_prev_df = None
         st.rerun()

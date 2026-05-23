@@ -202,7 +202,7 @@ def load_from_woocommerce():
             
             # Rule: If "Yesterday" was a holiday, merge it into the current active slot (48h)
             day_ending_today = (cutoff_today - timedelta(days=1)).date()
-            if st.session_state.get("override_merge_current") or is_holiday_date(day_ending_today):
+            if st.session_state.get("override_merge_current") or (is_holiday_date(day_ending_today) and not st.session_state.get("override_24h_current")):
                 prev_cutoff = cutoff_today - timedelta(days=2)
 
             # --- DAY BEFORE PREV (Start of Historical Slot) ---
@@ -210,7 +210,8 @@ def load_from_woocommerce():
             
             # Rule: If "The day before the active slot" was a holiday, merge it into the historical slot (48h)
             day_ending_prev = (prev_cutoff - timedelta(days=1)).date()
-            if st.session_state.get("override_merge_previous") or is_holiday_date(day_ending_prev):
+            is_prev_holiday = is_holiday_date(day_ending_prev)
+            if st.session_state.get("override_merge_previous") or (is_prev_holiday and not st.session_state.get("override_24h_previous")):
                 day_before_prev = prev_cutoff - timedelta(days=2)
 
             from src.config.constants import SHIPPED_STATUSES
