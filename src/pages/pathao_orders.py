@@ -514,7 +514,7 @@ def _render_status_tracking_tab():
             "Auto-Update WooCommerce",
             ["Disabled", "Enabled"],
             index=0,
-            help="Automatically update WooCommerce order statuses to 'completed' when Pathao marks them as Delivered."
+                help="Automatically update WooCommerce order statuses to 'completed' when Pathao marks them as Delivered."
         )
 
     section_card(
@@ -525,49 +525,81 @@ def _render_status_tracking_tab():
     st.subheader("Single Order Check")
     c_id, c_btn = st.columns([3, 1])
     with c_id:
-        consignment_id = st.text_input("Consignment ID", placeholder="e.g., DD0000000...", key="pathao_single_track")
+        consignment_id = st.text_input("Consignment ID or Order ID", placeholder="e.g., DD0000000 or 199697", key="pathao_single_track")
     with c_btn:
         st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
         check_clicked = st.button("Check Status", use_container_width=True, type="primary", key="pathao_track_btn")
 
     if check_clicked and consignment_id:
-        with st.spinner("Fetching status..."):
-            status_data = get_pathao_order_status(consignment_id.strip())
-            if "error" in status_data:
-                st.error(status_data["error"])
-            else:
-                st.success("Status retrieved successfully!")
-                data_obj = status_data.get("data", {})
-                
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Status", data_obj.get("order_status", "N/A"))
-                c2.metric("Payment Status", data_obj.get("payment_status", "N/A"))
-                c3.metric("Collected Amount", f"Ã Â§Â³{data_obj.get('collected_amount', 0)}")
-                
-                with st.expander("View Full API Response"):
-                    st.json(status_data)
+        search_term = consignment_id.strip()
+        
+        # Auto-detect if it's a numeric WooCommerce Order ID instead of a Consignment ID
+        if search_term.isdigit() and len(search_term) < 10:
+            st.info(f"Detected WooCommerce Order ID format. Redirecting to Search...")
+            with st.spinner(f"Searching Pathao orders for '{search_term}'..."):
+                try:
+                    client = _get_pathao_client()
+                    if client is not None:
+                        headers = client._get_headers()
+                        search_url = f"{client.base_url}/aladdin/api/v1/orders"
+                        res = request_with_backoff("GET", search_url, headers=headers, params={"search": search_term}, timeout=15)
+                        res.raise_for_status()
+                        orders = res.json().get("data", {}).get("data", [])
+                        
+                        if not orders:
+                            st.error(f"No Pathao orders found matching Order ID '{search_term}'.")
+                        else:
+                            st.success(f"Found order status successfully!")
+                            o = orders[0] # Show the first match
+                            c1, c2, c3 = st.columns(3)
+                            c1.metric("Status", str(o.get("order_status", "N/A")).capitalize())
+                            c2.metric("Payment Status", str(o.get("payment_status", "N/A")).capitalize())
+                            c3.metric("Collected Amount", f"Tk {o.get('collected_amount', 0)}")
+                            with st.expander("View Full Details"):
+                                st.json(o)
+                except Exception as e:
+                    st.error(f"Search failed: {e}")
+        else:
+            with st.spinner("Fetching status by Consignment ID..."):
+                status_data = get_pathao_order_status(search_term)
+                if "error" in status_data:
+                    # Provide a better hint for 401/404 errors on invalid IDs
+                    if "401" in status_data["error"] or "404" in status_data["error"]:
+                        st.error("Error: Pathao rejected this ID. Make sure it's a valid Consignment ID (e.g., DD1234...). For Order IDs, use the search box below.")
+                    else:
+                        st.error(status_data["error"])
+                else:
+                    st.success("Status retrieved successfully!")
+                    data_obj = status_data.get("data", {})
+                    
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Status", data_obj.get("order_status", "N/A"))
+                    c2.metric("Payment Status", data_obj.get("payment_status", "N/A"))
+                    c3.metric("Collected Amount", f"৳{data_obj.get('collected_amount', 0)}")
+                    
+                    with st.expander("View Full API Response"):
+                        st.json(status_data)
 
     st.divider()
 
-    st.subheader("Customer History Check")
-    st.write("Search Pathao to check a customer's past courier orders and delivery success rate.")
-    c_phone, c_phone_btn = st.columns([3, 1])
-    with c_phone:
-        phone_input = st.text_input("Phone Number", placeholder="e.g. 01700000000", key="phone_check_input")
-    with c_phone_btn:
+    st.subheader("Search by Order ID or Phone")
+    st.write("Search Pathao to track a specific WooCommerce Order ID or check a customer's history by Phone.")
+    c_search, c_search_btn = st.columns([3, 1])
+    with c_search:
+        search_input = st.text_input("Order ID or Phone", placeholder="e.g. 193252 or 01700000000", key="search_check_input")
+    with c_search_btn:
         st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
-        phone_clicked = st.button("Check History", use_container_width=True, type="secondary", key="phone_check_btn")
+        search_clicked = st.button("Search Pathao", use_container_width=True, type="secondary", key="search_check_btn")
 
-    if phone_clicked and phone_input:
-        with st.spinner("Searching Pathao past orders..."):
+    if search_clicked and search_input:
+        with st.spinner("Searching Pathao orders..."):
             try:
                 client = _get_pathao_client()
                 if client is not None:
                     headers = client._get_headers()
 
                     search_url = f"{client.base_url}/aladdin/api/v1/orders"
-                    # Pathao merchant dashboard usually uses 'search' for its order table
-                    params = {"search": phone_input.strip()}
+                    params = {"search": search_input.strip()}
 
                     res = request_with_backoff(
                         "GET",
@@ -579,16 +611,15 @@ def _render_status_tracking_tab():
                     res.raise_for_status()
                     response_json = res.json()
 
-                    # The orders are usually inside data.data for paginated responses
                     data_obj = response_json.get("data", {})
                     orders = (
                         data_obj.get("data", []) if isinstance(data_obj, dict) else []
                     )
 
                     if not orders:
-                        st.info("No past orders found in Pathao for this phone number.")
+                        st.info("No orders found in Pathao for this search query.")
                     else:
-                        st.success(f"Found {len(orders)} order(s) for {phone_input}.")
+                        st.success(f"Found {len(orders)} order(s) matching '{search_input}'.")
                         history_data = []
                         for o in orders:
                             history_data.append({
@@ -598,9 +629,62 @@ def _render_status_tracking_tab():
                                 "Status": str(o.get("order_status", "")).capitalize(),
                                 "Amount": f"Tk {o.get('collected_amount', 0)}"
                             })
-                        st.dataframe(pd.DataFrame(history_data), use_container_width=True)
+                        
+                        df_history = pd.DataFrame(history_data)
+                        def highlight_status(col):
+                            return [
+                                'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
+                                if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
+                                else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
+                                else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
+                                else ''
+                                for v in col
+                            ]
+                        st.dataframe(df_history.style.apply(highlight_status, subset=['Status']), use_container_width=True)
             except Exception as e:
-                st.error(f"Error fetching Pathao history: {e}")
+                st.error(f"Error searching Pathao: {e}")
+
+    st.divider()
+
+    st.subheader("Recent Orders Overview")
+    st.write("Fetch the most recent orders directly from Pathao to quickly see what has been delivered, returned, or is still in transit.")
+    if st.button("Fetch Last 50 Pathao Orders", use_container_width=True, key="pathao_recent_btn"):
+        with st.spinner("Fetching recent orders..."):
+            try:
+                client = _get_pathao_client()
+                if client is not None:
+                    headers = client._get_headers()
+                    search_url = f"{client.base_url}/aladdin/api/v1/orders"
+                    res = request_with_backoff("GET", search_url, headers=headers, timeout=15)
+                    res.raise_for_status()
+                    orders = res.json().get("data", {}).get("data", [])
+                    if not orders:
+                        st.info("No recent orders found.")
+                    else:
+                        st.success(f"Successfully retrieved the last {len(orders)} orders.")
+                        history_data = []
+                        for o in orders:
+                            history_data.append({
+                                "Consignment ID": o.get("consignment_id", ""),
+                                "Order ID": o.get("merchant_order_id", ""),
+                                "Date": str(o.get("created_at", "")).split(" ")[0],
+                                "Status": str(o.get("order_status", "")).capitalize(),
+                                "Amount": f"Tk {o.get('collected_amount', 0)}"
+                            })
+                        
+                        df_history = pd.DataFrame(history_data)
+                        def highlight_status(col):
+                            return [
+                                'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
+                                if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
+                                else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
+                                else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
+                                else ''
+                                for v in col
+                            ]
+                        st.dataframe(df_history.style.apply(highlight_status, subset=['Status']), use_container_width=True)
+            except Exception as e:
+                st.error(f"Error fetching recent orders: {e}")
 
     st.divider()
 
