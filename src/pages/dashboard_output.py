@@ -522,6 +522,8 @@ def render_dashboard_output(
                                         asyncio.set_event_loop(new_loop)
                                         new_loop.run_until_complete(run_ai())
                                     t = threading.Thread(target=thread_run)
+                                    from streamlit.runtime.scriptrunner import add_script_run_ctx
+                                    add_script_run_ctx(t)
                                     t.start()
                                     t.join()
                                 else:

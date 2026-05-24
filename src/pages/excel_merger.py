@@ -155,7 +155,43 @@ def render_excel_merger_tab():
                         elif t_col:
                             outlet_map = outlet_df.groupby(t_col)["Stock"].sum().to_dict()
                             merged_df["Outlet Stock"] = merged_df[item_col].map(outlet_map).fillna(0)
+                    # --- Global Inventory (From Distribution Tab) ---
+                    global_inv_map = st.session_state.get("inv_inventory_map")
+                    global_locs = st.session_state.get("inv_active_l", [])
+                    added_global_locs = []
                     
+                    if global_inv_map and global_locs:
+                        from src.inventory.core import build_title_size_key, item_name_to_title_size, normalize_sku
+                        
+                        for loc in global_locs:
+                            col_name = f"Inv: {loc}"
+                            merged_df[col_name] = 0
+                            added_global_locs.append(col_name)
+                            
+                        sku_inv_map = st.session_state.get("inv_sku_map", {})
+                        
+                        for idx, row in merged_df.iterrows():
+                            pl_sku = normalize_sku(str(row[sku_col])) if sku_col != "None" else ""
+                            title, size = item_name_to_title_size(str(row[item_col]))
+                            pl_key = build_title_size_key(title, size)
+                            
+                            inv_key = None
+                            sku_size_key = f"SKU:{pl_sku}_SZ:{size}" if (pl_sku and pl_sku != "0") else ""
+                            
+                            if sku_size_key and sku_size_key in global_inv_map:
+                                inv_key = sku_size_key
+                            elif pl_key and pl_key in global_inv_map:
+                                inv_key = pl_key
+                            elif pl_sku and pl_sku != "0":
+                                if pl_sku in sku_inv_map and sku_inv_map[pl_sku] in global_inv_map:
+                                    inv_key = sku_inv_map[pl_sku]
+                                elif pl_sku in global_inv_map:
+                                    inv_key = pl_sku
+                            
+                            if inv_key and inv_key in global_inv_map:
+                                for loc in global_locs:
+                                    merged_df.at[idx, f"Inv: {loc}"] = global_inv_map[inv_key].get(loc, 0)
+
                     # --- Bottom Row / Totals ---
                     current_date = datetime.now().strftime("%d %b %Y")
                     remarks = f"(Date: {current_date}"
@@ -180,6 +216,8 @@ def render_excel_merger_tab():
                     if sku_col != "None": bottom_row[sku_col] = ""
                     if "Web Stock" in merged_df.columns: bottom_row["Web Stock"] = ""
                     if "Outlet Stock" in merged_df.columns: bottom_row["Outlet Stock"] = ""
+                    for loc_col in added_global_locs:
+                        if loc_col in merged_df.columns: bottom_row[loc_col] = ""
                     
                     merged_df = pd.concat([merged_df, pd.DataFrame([bottom_row])], ignore_index=True)
                     num_bottom_rows = 1
@@ -215,7 +253,11 @@ def render_excel_merger_tab():
                                 if "Outlet Stock" in row: 
                                     tot_stock += pd.to_numeric(row["Outlet Stock"], errors='coerce')
                                     has_stock_data = True
-                                    
+                                for loc_col in added_global_locs:
+                                    if loc_col in row:
+                                        tot_stock += pd.to_numeric(row[loc_col], errors='coerce')
+                                        has_stock_data = True
+                                        
                                 if has_stock_data and req_qty > tot_stock:
                                     styles.loc[idx, qty_col] = f'background-color: {hex_color}; color: #ef4444; font-weight: bold; border: 1px solid #000000;'
                                     

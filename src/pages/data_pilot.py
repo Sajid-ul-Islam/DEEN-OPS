@@ -489,6 +489,8 @@ def render_ai_pilot_page():
                                 new_loop.run_until_complete(run_streaming())
 
                             t = threading.Thread(target=thread_run)
+                            from streamlit.runtime.scriptrunner import add_script_run_ctx
+                            add_script_run_ctx(t)
                             t.start()
                             t.join()
                         else:

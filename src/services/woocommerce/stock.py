@@ -119,8 +119,17 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
 
         # Concurrent Variation Fetching
         if variable_tasks:
+            from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
+            import threading
+            ctx = get_script_run_ctx()
+            
+            def wrapped_fetch(tid, tname):
+                if ctx:
+                    add_script_run_ctx(threading.current_thread(), ctx)
+                return fetch_variations(tid, tname)
+
             with ThreadPoolExecutor(max_workers=10) as executor:
-                futures = {executor.submit(fetch_variations, tid, tname): (tid, tname) for tid, tname in variable_tasks}
+                futures = {executor.submit(wrapped_fetch, tid, tname): (tid, tname) for tid, tname in variable_tasks}
                 for future in as_completed(futures):
                     res = future.result()
                     if res:

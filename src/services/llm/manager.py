@@ -315,6 +315,8 @@ class DynamicLLMController:
                     result.append(new_loop.run_until_complete(_run()))
 
                 t = threading.Thread(target=thread_run)
+                from streamlit.runtime.scriptrunner import add_script_run_ctx
+                add_script_run_ctx(t)
                 t.start()
                 t.join()
                 return result[0] if result else ""
