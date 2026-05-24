@@ -84,8 +84,8 @@ def inject_base_styles():
 
         /* Remove the top gap without touching the sidebar toggle */
         .main .block-container {{
-            padding-top: 0 !important;
-            margin-top: -1.75rem !important;
+            padding-top: 2rem !important;
+            margin-top: 0 !important;
             padding-bottom: 80px !important;
         }}
         .hub-subtitle {{
@@ -191,7 +191,8 @@ def inject_base_styles():
             .block-container {{
                 padding-left: 0.5rem !important;
                 padding-right: 0.5rem !important;
-                margin-top: -2.5rem !important;
+                margin-top: 0 !important;
+                padding-top: 1rem !important;
             }}
             .hub-title {{
                 font-size: 1.2rem !important;
