@@ -93,7 +93,7 @@ def render_operational_metrics(
     html_do = format_delta(do_str)
     html_db = format_delta(db_str)
 
-    extra_metric_label = "Avg Basket"
+    extra_metric_label = "Basket Size"
     extra_metric_value = v_bv
     extra_metric_delta = html_db
     extra_metric_icon = "🛍️"

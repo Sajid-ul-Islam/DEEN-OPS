@@ -26,14 +26,32 @@ def render_performance_analysis(df: pd.DataFrame):
     
     c_window, c_toggle = st.columns(2)
     with c_window:
-        if "perf_zoom_window" not in st.session_state:
-            st.session_state.perf_zoom_window = "14 Days"
-        zoom_opt = st.selectbox(
-            "Zoom Window", 
-            ["7 Days", "14 Days", "30 Days", "All Time"], 
-            key="perf_zoom_window", 
-            label_visibility="collapsed"
-        )
+        zoom_options = ["7 Days", "14 Days", "30 Days", "All Time"]
+        curr_zoom = st.session_state.get("perf_zoom_window", "14 Days")
+        if curr_zoom not in zoom_options: curr_zoom = "14 Days"
+            
+        if hasattr(st, "pills"):
+            zoom_opt = st.pills(
+                "Zoom Window", 
+                zoom_options, 
+                default=curr_zoom,
+                selection_mode="single",
+                label_visibility="collapsed"
+            )
+            if not zoom_opt: zoom_opt = curr_zoom
+        else:
+            zoom_opt = st.radio(
+                "Zoom Window", 
+                zoom_options, 
+                index=zoom_options.index(curr_zoom),
+                horizontal=True,
+                label_visibility="collapsed"
+            )
+            
+        if zoom_opt != curr_zoom:
+            st.session_state.perf_zoom_window = zoom_opt
+            st.rerun()
+            
     with c_toggle:
         if "perf_enable_ml" not in st.session_state:
             st.session_state.perf_enable_ml = False
@@ -316,7 +334,7 @@ def render_dashboard_output(
                     f'<div class="metric-card"><div><div class="metric-label">{label1}</div><div class="metric-value">{m_qty:,.0f}</div></div><div class="metric-icon">📦</div></div>'
                     f'<div class="metric-card"><div><div class="metric-label">REVENUE</div><div class="metric-value">TK {m_rev:,.0f}</div></div><div class="metric-icon">৳</div></div>'
                     f'<div class="metric-card"><div><div class="metric-label">NUMBER OF ORDERS</div><div class="metric-value">{m_ord:,.0f}</div></div><div class="metric-icon">🛒</div></div>'
-                    f'<div class="metric-card"><div><div class="metric-label">AVG / CUSTOMER</div><div class="metric-value">TK {m_bv:,.0f}</div></div><div class="metric-icon">🛍️</div></div>'
+                    f'<div class="metric-card"><div><div class="metric-label">BASKET SIZE</div><div class="metric-value">TK {m_bv:,.0f}</div></div><div class="metric-icon">🛍️</div></div>'
                     '</div>'
                 )
                 st.markdown(ingestion_html, unsafe_allow_html=True)
@@ -383,7 +401,7 @@ def render_dashboard_output(
             {"Metric": "Total Revenue (TK)", "Value": today_rev},
             {"Metric": "Total Items Sold", "Value": today_qty},
             {"Metric": "Total Orders", "Value": today_orders},
-            {"Metric": "Average Customer Value (TK)", "Value": today_aov},
+            {"Metric": "Basket Size (TK)", "Value": today_aov},
         ]
         if is_operational and dm:
             metrics_data.extend([
@@ -483,7 +501,7 @@ def render_dashboard_output(
                         - Revenue: ৳{today_rev:,.0f}
                         - Orders: {today_orders}
                         - Items Sold: {today_qty}
-                        - Average Order Value: ৳{today_aov:,.0f}
+                        - Basket Size: ৳{today_aov:,.0f}
 
                         Dispatch Metrics:
                         - Shipped via Pathao: {dm.get('pathao_count', 0)}

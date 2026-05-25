@@ -232,6 +232,12 @@ div[data-testid="stPills"] {
     border: 1px solid rgba(128, 128, 128, 0.2) !important;
 }
 
+/* Add smooth transition to all pill buttons */
+div[data-testid="stPills"] button,
+div[data-testid="stSegmentedControl"] button {
+    transition: all 0.2s ease !important;
+}
+
 @media (prefers-color-scheme: dark) {
     [data-testid="stSidebar"] div[data-testid="stPills"] {
         background: rgba(15, 23, 42, 0.6) !important;
@@ -249,6 +255,17 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
     background-color: var(--primary) !important;
     color: white !important;
     border-color: var(--primary) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3) !important;
+}
+
+/* --- CUSTOM UNSELECTED PILL HOVER EFFECT --- */
+div[data-testid="stPills"] button:not([aria-checked="true"]):not([aria-pressed="true"]):not([data-pressed="true"]):hover,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]):not([aria-pressed="true"]):hover {
+    border-color: var(--primary) !important;
+    background: var(--primary-glow) !important;
+    color: var(--primary) !important;
+    transform: translateY(-1px);
 }
 
 /* Chat UI Enhancements (Terminal Theme) */
@@ -444,12 +461,14 @@ div[data-testid="column"]:has(.align-right-helper) div[data-testid="stRadio"] > 
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Alignment rules leveraging Streamlit's native Flexbox container */
-div[data-testid="column"]:has(.align-center-helper) div[data-testid="element-container"]:has(div[data-testid="stSegmentedControl"]),
-div[data-testid="column"]:has(.align-center-helper) div[data-testid="element-container"]:has(div[data-testid="stRadio"]) { align-self: center; width: fit-content; }
+/* Alignment rules leveraging Streamlit's native Flexbox container 
+   Made bulletproof across Cloud and Local by targeting the column directly */
+div[data-testid="column"]:has(.align-center-helper) { align-items: center !important; }
+div[data-testid="column"]:has(.align-right-helper) { align-items: flex-end !important; }
+div[data-testid="column"]:has(.align-left-helper) { align-items: flex-start !important; }
 
-div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-container"]:has(div[data-testid="stSegmentedControl"]),
-div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-container"]:has(div[data-testid="stRadio"]) { align-self: flex-end; width: fit-content; }
+div[data-testid="column"]:has(.align-center-helper) div[data-testid="element-container"],
+div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-container"] { width: fit-content; }
 
 .stDateInput > div { border-radius: 10px !important; }
 .holiday-list-item { display: flex; justify-content: space-between; align-items: center; background: rgba(239, 68, 68, 0.05); padding: 4px 10px; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid #ef4444; font-size: 0.8rem; }
@@ -465,10 +484,10 @@ div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-cont
     .banner-controls-margin { margin-top: 15px; margin-bottom: 15px; }
     
     /* Force center alignment for all banner controls on mobile */
-    div[data-testid="column"]:has(.align-left-helper) div[data-testid="element-container"],
-    div[data-testid="column"]:has(.align-center-helper) div[data-testid="element-container"],
-    div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-container"] {
-        align-self: center !important; margin-bottom: 4px;
+    div[data-testid="column"]:has(.align-left-helper),
+    div[data-testid="column"]:has(.align-center-helper),
+    div[data-testid="column"]:has(.align-right-helper) {
+        align-items: center !important; margin-bottom: 4px;
     }
 }
 

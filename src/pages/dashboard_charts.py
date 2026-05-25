@@ -178,11 +178,24 @@ def render_spotlight(
     st.subheader("\U0001f525 Products Spotlight")
     sc1, sc2 = st.columns([1, 1])
     with sc1:
-        strategy = st.selectbox(
-            "Spotlight Strategy",
-            ["Top 10", "Top 20", "Underperformers", "Custom Range"],
-            key="spotlight_strat",
-        )
+        strat_opts = ["Top 10", "Top 20", "Last 10", "Last 20", "Underperformers", "Custom Range", "Custom Order"]
+        if hasattr(st, "pills"):
+            strategy = st.pills(
+                "Spotlight Strategy",
+                strat_opts,
+                default="Top 10",
+                key="spotlight_strat",
+                selection_mode="single",
+            )
+            if not strategy: strategy = "Top 10"
+        else:
+            strategy = st.radio(
+                "Spotlight Strategy",
+                strat_opts,
+                index=0,
+                key="spotlight_strat",
+                horizontal=True,
+            )
 
     limit = 10
     ascending = False
@@ -192,14 +205,17 @@ def render_spotlight(
     elif strategy == "Top 20":
         limit = 20
         ascending = False
-    elif strategy == "Underperformers":
+    elif strategy in ["Last 10", "Underperformers"]:
         limit = 10
+        ascending = True
+    elif strategy == "Last 20":
+        limit = 20
         ascending = True
 
     # Ensure top is sorted descending by amount so custom range and limits slice correctly
     top = top.sort_values("Total Amount", ascending=False).reset_index(drop=True)
 
-    if strategy == "Custom Range" and not top.empty:
+    if strategy in ["Custom Range", "Custom Order"] and not top.empty:
         with sc2:
             c_range = st.slider("Select Rank Range", 1, len(top), (1, min(10, len(top))))
             spotlight = top.iloc[c_range[0] - 1 : c_range[1]].sort_values("Total Amount", ascending=True)

@@ -140,7 +140,7 @@ def generate_report_data():
     - Revenue: ৳{today_rev:,.0f}
     - Orders: {today_orders}
     - Items Sold: {today_qty}
-    - Average Order Value: ৳{today_aov:,.0f}
+    - Basket Size: ৳{today_aov:,.0f}
 
     Comparison with yesterday:
     - Yesterday's Revenue: ৳{prev_rev:,.0f}

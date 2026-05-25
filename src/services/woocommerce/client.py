@@ -119,10 +119,14 @@ def load_from_woocommerce():
         # Specialized Fetching Strategy for Operational Cycle
         if sync_mode == "Operational Cycle":
             now_bd = datetime.now(tz_bd)
-            
-            # Simplified API fetch window: Just pull unconditionally the last 5 days
+
+            # Read user-configured shift cutoff (default 17:30 BD time)
+            _shift_h = st.session_state.get("shift_cutoff_hour", 17)
+            _shift_m = st.session_state.get("shift_cutoff_minute", 30)
+
+            # Simplified API fetch window: pull the last 5 days from the cutoff anchor
             # This robustly covers any manual 48h merges and long weekend shifts
-            prev_start = now_bd.replace(hour=17, minute=30, second=0, microsecond=0) - timedelta(days=5)
+            prev_start = now_bd.replace(hour=_shift_h, minute=_shift_m, second=0, microsecond=0) - timedelta(days=5)
 
             params["after"] = prev_start.isoformat()
             params["before"] = now_bd.replace(hour=23, minute=59, second=59).isoformat()
@@ -177,8 +181,12 @@ def load_from_woocommerce():
             now_bd = datetime.now(tz_bd)
             ref_now = now_bd.replace(tzinfo=None)
 
-            # THE ANCHOR: Today's 17:30 Cutoff
-            cutoff_today = ref_now.replace(hour=17, minute=30, second=0, microsecond=0)
+            # Read user-configured shift cutoff (default 17:30 BD time)
+            _shift_h = st.session_state.get("shift_cutoff_hour", 17)
+            _shift_m = st.session_state.get("shift_cutoff_minute", 30)
+
+            # THE ANCHOR: Today's cutoff at the user-configured time
+            cutoff_today = ref_now.replace(hour=_shift_h, minute=_shift_m, second=0, microsecond=0)
 
             # --- DYNAMIC HOLIDAY DETECTION ---
             holiday_list = st.session_state.get("operational_holidays", [])

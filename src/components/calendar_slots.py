@@ -175,4 +175,15 @@ def render_operational_slots_calendar():
                     st.session_state.wc_prev_df = None
                     st.rerun()
 
+    st.divider()
+
+    st.markdown("**📦 Order Limit Options**")
+    order_limit_opt = st.selectbox(
+        "Fetch Limit",
+        ["Last 10", "Last 20", "Custom Order"],
+        key="operational_slot_order_limit"
+    )
+    if order_limit_opt == "Custom Order":
+        st.number_input("Custom Order Count", min_value=1, value=50, key="operational_slot_custom_order_count")
+
     st.info("💡 Fridays are marked as holidays by default.")
