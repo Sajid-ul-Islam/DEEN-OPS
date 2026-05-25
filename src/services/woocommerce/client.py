@@ -126,14 +126,14 @@ def load_from_woocommerce():
 
             params["after"] = prev_start.isoformat()
             params["before"] = now_bd.replace(hour=23, minute=59, second=59).isoformat()
-            params["status"] = "processing,completed,shipped,on-hold,pending,confirmed"
+            params["status"] = "processing,completed,shipped,on-hold,pending,waiting,confirmed"
 
             rows = fetch_batch(params)
 
             # Request 2: Global Open Orders
             global_params = {
                 "per_page": 100,
-                "status": "on-hold,pending,confirmed",
+                "status": "on-hold,pending,waiting,confirmed",
                 "orderby": "date",
                 "order": "desc"
             }
@@ -155,7 +155,7 @@ def load_from_woocommerce():
             end_time = st.session_state.get("wc_sync_end_time", datetime.now().time())
             params["after"] = f"{start_date}T{start_time.strftime('%H:%M:%S')}"
             params["before"] = f"{end_date}T{end_time.strftime('%H:%M:%S')}"
-            params["status"] = "processing,completed,shipped,on-hold,pending,confirmed"
+            params["status"] = "processing,completed,shipped,on-hold,pending,waiting,confirmed"
 
             rows = fetch_batch(params)
 
@@ -208,7 +208,7 @@ def load_from_woocommerce():
             is_shipped = df_full["Order Status"].isin(SHIPPED_STATUSES)
             is_processing = df_full["Order Status"] == "processing"
             is_hold = df_full["Order Status"] == "on-hold"
-            is_waiting = df_full["Order Status"] == "pending"
+            is_waiting = df_full["Order Status"].isin(["pending", "waiting"])
 
             # REFINED CUTOFFS (Allow 30 min buffer for sync latency)
             shipped_limit = cutoff_today + timedelta(minutes=30)

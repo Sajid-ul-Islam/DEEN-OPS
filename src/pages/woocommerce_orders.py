@@ -330,7 +330,7 @@ def _render_live_orders_view():
                 if str(v).lower() in ['cancelled', 'failed', 'refunded', 'trash']
                 else 'color: #10b981; font-weight: 600;' if str(v).lower() in ['completed', 'shipped', 'confirmed']
                 else 'color: #3b82f6; font-weight: 500;' if str(v).lower() in ['processing']
-                else 'color: #f59e0b; font-weight: 500;' if str(v).lower() in ['on-hold', 'pending', 'pending payment']
+                else 'color: #f59e0b; font-weight: 500;' if str(v).lower() in ['on-hold', 'pending', 'pending payment', 'waiting']
                 else ''
                 for v in col
             ]
@@ -437,7 +437,7 @@ def render_woocommerce_orders_tab():
                             use_container_width=True
                         )
 
-            status_options = ["processing", "on-hold", "pending", "completed", "shipped", "confirmed", "cancelled", "refunded", "failed"]
+            status_options = ["processing", "on-hold", "pending", "waiting", "completed", "shipped", "confirmed", "cancelled", "refunded", "failed"]
             display_df["WC Status"] = display_df["WC Status"].astype(str).str.lower()
 
             edited_df = st.data_editor(

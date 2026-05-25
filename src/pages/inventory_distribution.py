@@ -87,7 +87,7 @@ def render_distribution_tab(search_q):
                 
                 status_col = "Order Status" if "Order Status" in df_live.columns else "Status" if "Status" in df_live.columns else None
                 if status_col:
-                    df_live = df_live[df_live[status_col].astype(str).str.lower().isin(["processing", "on-hold", "pending"])]
+                    df_live = df_live[df_live[status_col].astype(str).str.lower().isin(["processing", "on-hold", "pending", "waiting"])]
                     
                 source_name = "Dashboard_Live_Today"
                 st.info("⚡ Instant Pull: Using Today's Active Shift data (Processing/On-Hold) from Dashboard.")
@@ -97,7 +97,7 @@ def render_distribution_tab(search_q):
                     df_live, source_name, _ = load_live_source()
                     status_col = "Order Status" if "Order Status" in df_live.columns else "Status" if "Status" in df_live.columns else None
                     if status_col:
-                        df_live = df_live[df_live[status_col].astype(str).str.lower().isin(["processing", "on-hold", "pending"])]
+                        df_live = df_live[df_live[status_col].astype(str).str.lower().isin(["processing", "on-hold", "pending", "waiting"])]
 
             master_df = df_live
             st.session_state.inv_master_df_live = master_df
