@@ -39,18 +39,6 @@ def load_from_woocommerce():
             "order": "desc"
         }
 
-        # Specialized Fetching Strategy for Operational Cycle
-        if sync_mode == "Operational Cycle":
-            now_bd = datetime.now(tz_bd)
-            
-            # Simplified API fetch window: Just pull unconditionally the last 5 days
-            # This robustly covers any manual 48h merges and long weekend shifts
-            prev_start = now_bd.replace(hour=17, minute=30, second=0, microsecond=0) - timedelta(days=5)
-
-            params["after"] = prev_start.isoformat()
-            params["before"] = now_bd.replace(hour=23, minute=59, second=59).isoformat()
-            params["status"] = "processing,completed,shipped,on-hold,pending,confirmed"
-
         def fetch_batch(p):
             # Optimize payload size by requesting only necessary fields
             fields = "id,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total"

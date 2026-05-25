@@ -1,6 +1,18 @@
 import streamlit as st
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time, timedelta
 from src.state.persistence import save_state
+
+# Default shift cutoff: 17:30 (5:30 PM Bangladesh time)
+DEFAULT_SHIFT_HOUR = 17
+DEFAULT_SHIFT_MINUTE = 30
+
+
+def get_shift_cutoff_time() -> time:
+    """Returns the user-configured shift cutoff time, falling back to 17:30."""
+    h = st.session_state.get("shift_cutoff_hour", DEFAULT_SHIFT_HOUR)
+    m = st.session_state.get("shift_cutoff_minute", DEFAULT_SHIFT_MINUTE)
+    return time(h, m)
+
 
 def render_operational_slots_calendar():
     """
@@ -12,6 +24,63 @@ def render_operational_slots_calendar():
     
     hols = st.session_state.operational_holidays
 
+    # ── Custom Shift Cutoff ──────────────────────────────────────────────────
+    st.markdown("**⏰ Shift Cutoff Time**")
+    st.caption("Orders are split into Active / History slots at this time each day (BD time).")
+
+    current_hour = st.session_state.get("shift_cutoff_hour", DEFAULT_SHIFT_HOUR)
+    current_minute = st.session_state.get("shift_cutoff_minute", DEFAULT_SHIFT_MINUTE)
+
+    col_h, col_m, col_apply = st.columns([2, 2, 2])
+    with col_h:
+        new_hour = st.number_input(
+            "Hour (0–23)",
+            min_value=0,
+            max_value=23,
+            value=current_hour,
+            step=1,
+            key="shift_cutoff_hour_input",
+            label_visibility="collapsed",
+            help="Hour in 24h format (BD time)",
+        )
+        st.caption(f"Hour: **{new_hour:02d}**")
+    with col_m:
+        new_minute = st.selectbox(
+            "Minute",
+            options=[0, 15, 30, 45],
+            index=[0, 15, 30, 45].index(current_minute) if current_minute in [0, 15, 30, 45] else 2,
+            key="shift_cutoff_minute_input",
+            label_visibility="collapsed",
+            format_func=lambda x: f":{x:02d}",
+        )
+        st.caption(f"Min: **:{new_minute:02d}**")
+    with col_apply:
+        st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
+        if st.button("✅ Apply", use_container_width=True, key="apply_shift_cutoff"):
+            changed = (
+                new_hour != current_hour or new_minute != current_minute
+            )
+            st.session_state.shift_cutoff_hour = new_hour
+            st.session_state.shift_cutoff_minute = new_minute
+            if changed:
+                # Invalidate cached data so next sync uses the new cutoff
+                st.session_state.wc_curr_df = None
+                st.session_state.wc_prev_df = None
+                save_state()
+                st.toast(
+                    f"✅ Shift cutoff set to {new_hour:02d}:{new_minute:02d} BD time. "
+                    "Next sync will use the new boundary.",
+                    icon="⏰",
+                )
+                st.rerun()
+
+    # Show current active cutoff
+    active_cutoff = get_shift_cutoff_time()
+    st.info(f"Active cutoff: **{active_cutoff.strftime('%I:%M %p')}** BD time")
+
+    st.divider()
+
+    # ── Operational Holidays ─────────────────────────────────────────────────
     st.markdown("**📅 Operational Holidays**")
     
     selected_range = st.date_input(
