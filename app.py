@@ -53,12 +53,13 @@ def run_app():
     import os
     from src.pages.whatsapp_messaging import render_wp_tab
 
-    # Ensure Pathao Processor is available in the nav menu
-    if not any("Pathao" in item or "Bulk Order" in item for item in PRIMARY_NAV):
+    # Ensure Pathao Processor is in the nav — check by exact substring to avoid emoji prefix mismatch
+    if not any("Pathao Processor" in item for item in PRIMARY_NAV):
         PRIMARY_NAV.append("📦 Pathao Processor")
 
-    # Remove Excel Merger / Product Listing from navigation as it is now a sub-feature of Inventory Distribution
-    PRIMARY_NAV = [item for item in PRIMARY_NAV if "Excel Merger" not in item and "Product Listing" not in item]
+    # Remove Excel Merger / Product Listing in-place (mutate the list, don't rebind the name)
+    # Rebinding would create a local variable and leave the module-level list unchanged on next rerun.
+    PRIMARY_NAV[:] = [item for item in PRIMARY_NAV if "Excel Merger" not in item and "Product Listing" not in item]
 
     init_state()
     inject_base_styles()
@@ -170,43 +171,6 @@ def run_app():
                     st.session_state.confirm_app_reset = False
                     st.rerun()
 
-        st.divider()
-        with st.sidebar.expander("🚀 Global Data Pilot", expanded=False):
-            st.markdown("<small>Ask the AI about your operations directly from here.</small>", unsafe_allow_html=True)
-            global_prompt = st.text_area("Your question:", key="global_pilot_prompt", placeholder="E.g., Summarize today's sales...", height=100)
-            if st.button("Ask Pilot", use_container_width=True, type="primary"):
-                if global_prompt:
-                    with st.spinner("Pilot is thinking..."):
-                        from src.pages.data_pilot import AIDataAgent
-                        import asyncio
-                        agent = AIDataAgent()
-                        
-                        async def fetch_response():
-                            resp = ""
-                            async for chunk in agent.get_response_stream(global_prompt, []):
-                                resp += chunk
-                            return resp
-                            
-                        try:
-                            loop = asyncio.get_event_loop()
-                            if loop.is_running():
-                                import threading
-                                result = []
-                                def thread_run():
-                                    new_loop = asyncio.new_event_loop()
-                                    asyncio.set_event_loop(new_loop)
-                                    result.append(new_loop.run_until_complete(fetch_response()))
-                                t = threading.Thread(target=thread_run)
-                                t.start()
-                                t.join()
-                                final_resp = result[0]
-                            else:
-                                final_resp = loop.run_until_complete(fetch_response())
-                        except Exception:
-                            final_resp = asyncio.run(fetch_response())
-                            
-                        st.markdown(f"**Pilot:**\n\n{final_resp}")
-
             st.divider()
             st.caption("System Logs")
             logs = get_logs()
@@ -221,8 +185,18 @@ def run_app():
                         os.remove(ERROR_LOG_FILE)
                     st.rerun()
 
+        st.divider()
+        # Data Pilot shortcut — replaces the heavy inline expander that duplicated the full page
+        if st.button("🚀 Open Data Pilot", use_container_width=True, key="sidebar_pilot_shortcut"):
+            st.session_state["_nav_override"] = "🚀 Data Pilot"
+            st.rerun()
+
     # Placeholder for Unified Header
     header_container = st.empty()
+
+    # Handle nav override from sidebar shortcut buttons
+    if st.session_state.get("_nav_override"):
+        selected_nav = st.session_state.pop("_nav_override")
 
     if st.session_state.get("show_animation"):
         render_bike_animation()
@@ -263,19 +237,21 @@ def run_app():
         def render_header_right():
             from src.components.clock import render_dynamic_clock
 
-            # 1. Live banner — passive stats on all pages
-            # Removed as requested
-
-            # 2. Show dynamic clock only on pages without the app banner
+            # Show dynamic clock only on pages without the app banner
             if selected_nav != "📈 Live Dashboard":
                 render_dynamic_clock(st.session_state.get("live_sync_time"))
 
-            # 3. Show tool-specific banners
+            # Show tool-specific banners
             banner = st.session_state.get("header_status_banner", "")
             if banner:
                 st.markdown(f'<div style="margin-top:8px;">{banner}</div>', unsafe_allow_html=True)
 
-        render_header(render_header_right)
+        # On Live Dashboard the banner already contains the title — skip the title row
+        # to avoid a double header. On all other pages render the full header.
+        if selected_nav != "📈 Live Dashboard":
+            render_header(render_header_right)
+        else:
+            render_header_right()
 
     # Reset banner for next run to avoid bleeding into other pages
     st.session_state.header_status_banner = ""

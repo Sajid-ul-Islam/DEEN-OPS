@@ -467,7 +467,7 @@ def render_ai_pilot_page():
                             updates = re.findall(r'\[KNOWLEDGE_UPDATE:\s*(.*?)\]', full_response)
                             if updates:
                                 from pathlib import Path
-                                knowledge_file = Path("BackEnd/data/pilot_knowledge.txt")
+                                knowledge_file = Path("data/pilot_knowledge.txt")
                                 knowledge_file.parent.mkdir(parents=True, exist_ok=True)
                                 with open(knowledge_file, "a", encoding="utf-8") as f:
                                     for update in updates:
