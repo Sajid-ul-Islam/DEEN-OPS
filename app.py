@@ -109,12 +109,26 @@ def run_app():
         st.divider()
 
         st.subheader("🚀 COMMAND NAV")
-        selected_nav = st.sidebar.radio(
-            "Select Workspace",
-            PRIMARY_NAV,
-            label_visibility="collapsed",
-            index=PRIMARY_NAV.index("📈 Live Dashboard") if "📈 Live Dashboard" in PRIMARY_NAV else 0
-        )
+        
+        default_nav = "📈 Live Dashboard" if "📈 Live Dashboard" in PRIMARY_NAV else PRIMARY_NAV[0]
+        
+        if hasattr(st, "pills"):
+            selected_nav = st.sidebar.pills(
+                "Select Workspace",
+                options=PRIMARY_NAV,
+                default=default_nav,
+                selection_mode="single",
+                label_visibility="collapsed"
+            )
+            if not selected_nav:
+                selected_nav = default_nav
+        else:
+            selected_nav = st.sidebar.radio(
+                "Select Workspace",
+                PRIMARY_NAV,
+                label_visibility="collapsed",
+                index=PRIMARY_NAV.index(default_nav)
+            )
 
         with st.sidebar.expander("📅 Operational Slots", expanded=False):
             from src.components.calendar_slots import render_operational_slots_calendar

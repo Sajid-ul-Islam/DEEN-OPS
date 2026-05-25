@@ -154,14 +154,14 @@ div[data-testid="stTab"] button {
     padding: 10px 20px !important;
 }
 div[data-testid="stTab"] button:hover {
-    color: #1d4ed8 !important;
-    background: rgba(29, 78, 216, 0.04) !important;
+    color: var(--primary) !important;
+    background: var(--primary-glow) !important;
     border-radius: 8px 8px 0 0 !important;
 }
 div[data-testid="stTab"] button[aria-selected="true"] {
-    color: #1d4ed8 !important;
+    color: var(--primary) !important;
     font-weight: 700 !important;
-    border-bottom: 2px solid #1d4ed8 !important;
+    border-bottom: 2px solid var(--primary) !important;
 }
 
 @media (max-width: 900px) {
@@ -214,6 +214,41 @@ div[data-testid="stRadio"] > div[role="radiogroup"] {
     padding: 8px 16px;
     border-radius: 12px;
     border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* --- ST.PILLS GLASSMORPHISM (SIDEBAR & MAIN) --- */
+div[data-testid="stPills"] {
+    background: linear-gradient(145deg, var(--background-secondary, rgba(128, 128, 128, 0.05)) 0%, rgba(128, 128, 128, 0.01) 100%);
+    backdrop-filter: blur(12px);
+    padding: 6px !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Sidebar specific adjustments to match the terminal theme */
+[data-testid="stSidebar"] div[data-testid="stPills"] {
+    background: rgba(15, 23, 42, 0.05) !important;
+    border: 1px solid rgba(128, 128, 128, 0.2) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    [data-testid="stSidebar"] div[data-testid="stPills"] {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+}
+
+/* --- CUSTOM SELECTED PILL/SEGMENTED CONTROL COLOR --- */
+div[data-testid="stPills"] button[aria-checked="true"],
+div[data-testid="stPills"] button[aria-pressed="true"],
+div[data-testid="stPills"] button[data-pressed="true"],
+div[data-testid="stSegmentedControl"] button[aria-checked="true"],
+div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+    background: var(--primary) !important;
+    background-color: var(--primary) !important;
+    color: white !important;
+    border-color: var(--primary) !important;
 }
 
 /* Chat UI Enhancements (Terminal Theme) */
@@ -385,11 +420,36 @@ div[data-testid="stDataFrame"]:hover::before { opacity: 1; }
 .app-banner-title { color: white; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
 .app-banner-subtitle { color: rgba(255, 255, 255, 0.7); font-size: 0.95rem; }
 .app-banner-clock-area { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); padding: 10px 18px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.15); z-index: 10; text-align: right; min-width: max-content; }
-.banner-controls-shelf { margin-top: -85px; margin-bottom: 45px; margin-left: 35px; z-index: 100; position: relative; display: flex; justify-content: flex-start; align-items: center; pointer-events: none; }
-.banner-controls-shelf > div { pointer-events: auto; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(12px); padding: 4px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; }
-.banner-controls-shelf label p { color: white !important; font-size: 0.8rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: 0.05em; }
-.banner-controls-shelf [data-testid="stRadio"],
-.banner-controls-shelf [data-testid="stSegmentedControl"] { margin-bottom: -15px; }
+
+/* --- MODERN BANNER CONTROLS (Segmented & Radio) --- */
+.banner-controls-margin {
+    margin-top: -85px;
+    margin-bottom: 35px;
+    position: relative;
+    z-index: 100;
+}
+
+div[data-testid="column"]:has(.align-left-helper) div[data-testid="stSegmentedControl"],
+div[data-testid="column"]:has(.align-center-helper) div[data-testid="stSegmentedControl"],
+div[data-testid="column"]:has(.align-right-helper) div[data-testid="stSegmentedControl"],
+div[data-testid="column"]:has(.align-left-helper) div[data-testid="stRadio"] > div[role="radiogroup"],
+div[data-testid="column"]:has(.align-center-helper) div[data-testid="stRadio"] > div[role="radiogroup"],
+div[data-testid="column"]:has(.align-right-helper) div[data-testid="stRadio"] > div[role="radiogroup"] {
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(12px) !important;
+    padding: 6px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    width: fit-content;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Alignment rules leveraging Streamlit's native Flexbox container */
+div[data-testid="column"]:has(.align-center-helper) div[data-testid="element-container"]:has(div[data-testid="stSegmentedControl"]),
+div[data-testid="column"]:has(.align-center-helper) div[data-testid="element-container"]:has(div[data-testid="stRadio"]) { align-self: center; width: fit-content; }
+
+div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-container"]:has(div[data-testid="stSegmentedControl"]),
+div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-container"]:has(div[data-testid="stRadio"]) { align-self: flex-end; width: fit-content; }
 
 .stDateInput > div { border-radius: 10px !important; }
 .holiday-list-item { display: flex; justify-content: space-between; align-items: center; background: rgba(239, 68, 68, 0.05); padding: 4px 10px; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid #ef4444; font-size: 0.8rem; }
@@ -401,7 +461,15 @@ div[data-testid="stDataFrame"]:hover::before { opacity: 1; }
     .app-banner-title { font-size: 1.4rem; }
     .app-banner-subtitle { font-size: 0.85rem; }
     .app-banner-clock-area { text-align: left; background: rgba(0,0,0,0.2); padding: 12px !important; margin-top: 5px; width: 100%; box-sizing: border-box; }
-    .banner-controls-shelf { margin-top: 10px; margin-bottom: 25px; margin-left: 0; justify-content: center; }
+    
+    .banner-controls-margin { margin-top: 15px; margin-bottom: 15px; }
+    
+    /* Force center alignment for all banner controls on mobile */
+    div[data-testid="column"]:has(.align-left-helper) div[data-testid="element-container"],
+    div[data-testid="column"]:has(.align-center-helper) div[data-testid="element-container"],
+    div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-container"] {
+        align-self: center !important; margin-bottom: 4px;
+    }
 }
 
 /* --- RESPONSIVE WIDGET STACKING (Tablet to Mobile Flow) --- */

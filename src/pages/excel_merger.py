@@ -7,7 +7,13 @@ def render_excel_merger_tab():
     st.subheader("📑 Product Listing")
     st.markdown("Generate a consolidated product listing by merging unique items and summing their quantities.")
     
-    source_mode = st.radio("Select Source", ["WooCommerce Orders", "Upload File"], horizontal=True)
+    source_opts = ["WooCommerce Orders", "Upload File"]
+    if hasattr(st, "pills"):
+        source_mode = st.pills("Select Source", source_opts, default=source_opts[0], selection_mode="single")
+        if not source_mode: 
+            source_mode = source_opts[0]
+    else:
+        source_mode = st.radio("Select Source", source_opts, horizontal=True)
     
     if source_mode == "WooCommerce Orders":
         c1, c2 = st.columns(2)

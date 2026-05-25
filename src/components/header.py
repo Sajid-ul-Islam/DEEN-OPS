@@ -87,6 +87,7 @@ def render_banner_mode_controls():
     """Renders operational mode segmented controls at the bottom-left of the banner area."""
     nav_mode = st.session_state.get("wc_nav_mode", "Today")
     mode_options = ["Last Day", "Active", "Queue"]
+    mode_icons = {"Last Day": "⏳", "Active": "⚡", "Queue": "📥"}
     mode_to_state = {"Last Day": "Prev", "Active": "Today", "Queue": "Backlog"}
     state_to_mode = {v: k for k, v in mode_to_state.items()}
     current_idx = mode_options.index(state_to_mode.get(nav_mode, "Active"))
@@ -95,15 +96,17 @@ def render_banner_mode_controls():
     has_segmented = hasattr(st, "segmented_control")
 
     with st.container():
-        st.markdown('<div class="banner-controls-shelf">', unsafe_allow_html=True)
+        st.markdown('<div class="banner-controls-margin"></div>', unsafe_allow_html=True)
         
-        c1, c2, c3, _ = st.columns([1.5, 1.5, 2, 0.5])
+        c1, c2, c3 = st.columns([1, 1.5, 1])
         with c1:
+            st.markdown('<span class="align-left-helper"></span>', unsafe_allow_html=True)
             if has_segmented:
                 selected_mode = st.segmented_control(
                     "Op Mode",
                     mode_options,
                     default=mode_options[current_idx],
+                    format_func=lambda x: f"{mode_icons.get(x, '')} {x}".strip(),
                     key="banner_op_mode_seg",
                     label_visibility="collapsed"
                 )
@@ -115,46 +118,51 @@ def render_banner_mode_controls():
                     mode_options,
                     index=current_idx,
                     horizontal=True,
+                    format_func=lambda x: f"{mode_icons.get(x, '')} {x}".strip(),
                     key="banner_op_mode_radio",
                     label_visibility="collapsed"
                 )
         
         with c2:
+            st.markdown('<span class="align-center-helper"></span>', unsafe_allow_html=True)
             if nav_mode == "Today":
                 opts_filter = ["All Orders", "Shipped Only", "Processing Only"]
+                filter_icons = {"All Orders": "📦", "Shipped Only": "🚚", "Processing Only": "⚙️"}
                 curr_filter = st.session_state.get("live_order_filter", "All Orders")
                 if curr_filter not in opts_filter: curr_filter = "All Orders"
                     
                 if has_segmented:
                     sel_filter = st.segmented_control(
                         "Shift View", opts_filter, default=curr_filter,
+                        format_func=lambda x: f"{filter_icons.get(x, '')} {x}".strip(),
                         key="live_order_filter_seg", label_visibility="collapsed"
                     )
                 else:
-                    sel_filter = st.radio("Shift View", opts_filter, index=opts_filter.index(curr_filter), horizontal=True, key="live_order_filter_radio", label_visibility="collapsed")
+                    sel_filter = st.radio("Shift View", opts_filter, index=opts_filter.index(curr_filter), horizontal=True, format_func=lambda x: f"{filter_icons.get(x, '')} {x}".strip(), key="live_order_filter_radio", label_visibility="collapsed")
 
                 if sel_filter and sel_filter != curr_filter:
                     st.session_state.live_order_filter = sel_filter
                     st.rerun()
                 
         with c3:
+            st.markdown('<span class="align-right-helper"></span>', unsafe_allow_html=True)
             opts_view = ["Category", "Sub-Category"]
+            view_icons = {"Category": "🏷️", "Sub-Category": "📑"}
             curr_view = st.session_state.get("perf_outlook_view", "Sub-Category")
             if curr_view not in opts_view: curr_view = "Sub-Category"
                 
             if has_segmented:
                 sel_view = st.segmented_control(
                     "Chart View", opts_view, default=curr_view,
+                    format_func=lambda x: f"{view_icons.get(x, '')} {x}".strip(),
                     key="perf_outlook_view_seg", label_visibility="collapsed"
                 )
             else:
-                sel_view = st.radio("Chart View", opts_view, index=opts_view.index(curr_view), horizontal=True, key="perf_outlook_view_radio", label_visibility="collapsed")
+                sel_view = st.radio("Chart View", opts_view, index=opts_view.index(curr_view), horizontal=True, format_func=lambda x: f"{view_icons.get(x, '')} {x}".strip(), key="perf_outlook_view_radio", label_visibility="collapsed")
 
             if sel_view and sel_view != curr_view:
                 st.session_state.perf_outlook_view = sel_view
                 st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
     new_nav = mode_to_state[selected_mode]
     if new_nav != nav_mode:

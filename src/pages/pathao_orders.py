@@ -174,13 +174,25 @@ def _render_processing_tab():
         "Order Source",
         "Choose whether to pull active processing orders from WooCommerce or process a user-supplied file.",
     )
-    source_mode = st.radio(
-        "Select input source",
-        [SOURCE_WOOCOM, SOURCE_UPLOAD],
-        horizontal=True,
-        key="pathao_source_mode",
-        label_visibility="collapsed",
-    )
+    
+    if hasattr(st, "pills"):
+        source_mode = st.pills(
+            "Select input source",
+            [SOURCE_WOOCOM, SOURCE_UPLOAD],
+            default=SOURCE_WOOCOM,
+            selection_mode="single",
+            key="pathao_source_mode",
+            label_visibility="collapsed",
+        )
+        if not source_mode: source_mode = SOURCE_WOOCOM
+    else:
+        source_mode = st.radio(
+            "Select input source",
+            [SOURCE_WOOCOM, SOURCE_UPLOAD],
+            horizontal=True,
+            key="pathao_source_mode",
+            label_visibility="collapsed",
+        )
 
     if st.session_state.get("pathao_source_mode_last") != source_mode:
         st.session_state.pathao_source_mode_last = source_mode
@@ -504,18 +516,38 @@ def _extract_woocommerce_order_id(raw_value):
 def _render_status_tracking_tab():
     with st.sidebar:
         st.markdown("### Ã°Å¸â€œÂ¡ Tracking Settings")
-        track_filter = st.radio(
-            "Bulk Report Filter",
-            ["All Orders", "Failed & Pending Only"],
-            index=0,
-            help="Filter out successfully delivered orders from the downloaded report."
-        )
-        auto_update_wc = st.radio(
-            "Auto-Update WooCommerce",
-            ["Disabled", "Enabled"],
-            index=0,
+        
+        if hasattr(st, "pills"):
+            track_filter = st.pills(
+                "Bulk Report Filter",
+                ["All Orders", "Failed & Pending Only"],
+                default="All Orders",
+                selection_mode="single",
+                help="Filter out successfully delivered orders from the downloaded report."
+            )
+            if not track_filter: track_filter = "All Orders"
+            
+            auto_update_wc = st.pills(
+                "Auto-Update WooCommerce",
+                ["Disabled", "Enabled"],
+                default="Disabled",
+                selection_mode="single",
                 help="Automatically update WooCommerce order statuses to 'completed' when Pathao marks them as Delivered."
-        )
+            )
+            if not auto_update_wc: auto_update_wc = "Disabled"
+        else:
+            track_filter = st.radio(
+                "Bulk Report Filter",
+                ["All Orders", "Failed & Pending Only"],
+                index=0,
+                help="Filter out successfully delivered orders from the downloaded report."
+            )
+            auto_update_wc = st.radio(
+                "Auto-Update WooCommerce",
+                ["Disabled", "Enabled"],
+                index=0,
+                help="Automatically update WooCommerce order statuses to 'completed' when Pathao marks them as Delivered."
+            )
 
     section_card(
         "Live Order Tracking",

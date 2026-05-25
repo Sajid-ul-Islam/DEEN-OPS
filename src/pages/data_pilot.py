@@ -144,11 +144,20 @@ def render_sidebar_controls():
         if not is_cloud:
             engines.append("Ollama (Local)")
 
-        provider = st.selectbox(
-            "Intelligence Engine",
-            engines,
-            index=0
-        )
+        if hasattr(st, "pills"):
+            provider = st.pills(
+                "Intelligence Engine",
+                engines,
+                default=engines[0],
+                selection_mode="single"
+            )
+            if not provider: provider = engines[0]
+        else:
+            provider = st.selectbox(
+                "Intelligence Engine",
+                engines,
+                index=0
+            )
 
         api_key, model_name = None, None
         if provider == "🛡️ Smart Failover (Free Tiers)":
@@ -169,7 +178,19 @@ def render_sidebar_controls():
         if is_cloud:
             st.warning("☁️ **Cloud Mode**: Personal GPU engines (Ollama) restricted. Use Cloud Failover.")
 
-        auto_sync = st.toggle("🔄 Smart Auto-Sync", value=False, help="Automatically fetches fresh data before answering if the knowledge base is empty or older than 15 minutes.")
+        if hasattr(st, "pills"):
+            sync_opts = ["Manual Sync", "Smart Auto-Sync"]
+            sync_choice = st.pills(
+                "Data Sync Mode", 
+                sync_opts, 
+                default="Manual Sync", 
+                selection_mode="single", 
+                help="Smart Auto-Sync fetches fresh data before answering if the knowledge base is empty or older than 15 mins."
+            )
+            if not sync_choice: sync_choice = "Manual Sync"
+            auto_sync = (sync_choice == "Smart Auto-Sync")
+        else:
+            auto_sync = st.toggle("🔄 Smart Auto-Sync", value=False, help="Automatically fetches fresh data before answering if the knowledge base is empty or older than 15 minutes.")
 
         st.divider()
         st.markdown("### 📁 Knowledge Base")
