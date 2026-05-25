@@ -11,7 +11,7 @@ PRIMARY_NAV = [
     "🧩 Delivery Data Parser",
     "🚀 Data Pilot",
     "🛒 WooCommerce Orders",
-    "📑 Excel Merger",
+    # "📑 Excel Merger" is now a sub-tab inside Inventory Distribution — not a top-level nav item.
 ]
 
 CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"

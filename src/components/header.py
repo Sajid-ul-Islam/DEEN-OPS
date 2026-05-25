@@ -109,7 +109,7 @@ def render_banner_mode_controls():
             if nav_mode == "Today":
                 st.radio(
                     "Shift View",
-                    ["All Orders", "Shipped Only"],
+                    ["All Orders", "Shipped Only", "Processing Only"],
                     horizontal=True,
                     key="live_order_filter",
                     label_visibility="collapsed"

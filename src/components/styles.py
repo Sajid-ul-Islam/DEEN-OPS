@@ -13,7 +13,7 @@ def inject_base_styles():
             --surface: var(--background-color, #f8fafc);
             --border: rgba(128, 128, 128, 0.15);
             --text-main: var(--text-color, #0f172a);
-            --text-muted: #64748b;
+            --text-muted: #475569;
             --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --step-surface: var(--background-color, #f8fafc);
             --step-text: var(--text-color, #0f172a);
@@ -54,7 +54,8 @@ def inject_base_styles():
             align-items: center;
             font-size: 0.8rem;
             border-top: 1px solid rgba(128, 128, 128, 0.2);
-            z-index: 999;
+            z-index: 998;
+            scrollbar-gutter: stable;
         }}
         .hub-footer a {{
             color: inherit;
@@ -77,7 +78,7 @@ def inject_base_styles():
             background: rgba(29, 78, 216, 0.02);
             border-left: 4px solid var(--primary);
             border-bottom: 1px solid var(--border);
-            padding: 12px 20px;
+            padding: 12px 24px;
             margin-bottom: 24px;
             border-radius: 0 12px 12px 0;
         }}
@@ -90,6 +91,7 @@ def inject_base_styles():
         }}
         .hub-subtitle {{
             margin: 0;
+            margin-bottom: 8px;
             color: var(--text-muted);
             font-size: 0.95rem;
         }}
@@ -135,18 +137,13 @@ def inject_base_styles():
             transform: translateY(-1px);
         }}
 
-        /* 3. Action Glow for success/primary steps */
-        @keyframes success-pulse {{
-            0% {{ box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }}
-            70% {{ box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }}
-            100% {{ box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }}
-        }}
+        /* Download button — hover-only glow, no infinite animation (WCAG 2.3.3) */
         div[data-testid="stDownloadButton"] button {{
-            animation: success-pulse 2s infinite;
             border: 1px solid #10b981 !important;
-            transition: all 0.2s ease !important;
+            transition: box-shadow 0.3s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease !important;
         }}
         div[data-testid="stDownloadButton"] button:hover {{
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25) !important;
             transform: scale(1.02);
             background: #059669 !important;
             color: white !important;
@@ -175,6 +172,7 @@ def inject_base_styles():
         }}
         div[data-testid="stTab"] button[aria-selected="true"] {{
             color: #1d4ed8 !important;
+            font-weight: 700 !important;
             border-bottom: 2px solid #1d4ed8 !important;
         }}
 
@@ -242,18 +240,23 @@ def inject_base_styles():
             padding: 1.2rem !important;
             margin-bottom: 1rem !important;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
-            transition: all 0.3s ease !important;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
             color: #e2e8f0 !important;
         }}
         .stChatMessage:hover {{
-            transform: translateX(4px);
             border-color: rgba(16, 185, 129, 0.5) !important;
             box-shadow: 0 0 12px rgba(16, 185, 129, 0.1) !important;
         }}
-        .stChatMessage [data-testid="stChatMessageContent"],
-        .stChatMessage [data-testid="stChatMessageContent"] p,
+        /* Limit monospace to code elements only; use readable font for prose */
         .stChatMessage [data-testid="stChatMessageContent"] code {{
             font-family: 'Courier New', Courier, monospace !important;
+            font-size: 0.9rem !important;
+            line-height: 1.6 !important;
+            color: #e2e8f0 !important;
+        }}
+        .stChatMessage [data-testid="stChatMessageContent"],
+        .stChatMessage [data-testid="stChatMessageContent"] p {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
             font-size: 1rem !important;
             line-height: 1.6 !important;
             color: #e2e8f0 !important;
@@ -303,7 +306,7 @@ def inject_base_styles():
             transition: opacity 0.4s ease;
         }}
         .metric-card:hover {{ 
-            transform: translateY(-5px) scale(1.01); 
+            transform: translateY(-3px) scale(1.01); 
             border-color: rgba(59, 130, 246, 0.3); 
             box-shadow: 0 12px 30px -5px rgba(59, 130, 246, 0.15); 
         }}
@@ -312,7 +315,7 @@ def inject_base_styles():
         .metric-icon {{
             font-size: 26px; width: 50px; height: 50px;
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             color: #3b82f6; margin-left: 15px; flex-shrink: 0;
             z-index: 1;
@@ -325,7 +328,7 @@ def inject_base_styles():
         .metric-label {{
             color: var(--text-muted, #888); font-size: 0.75rem;
             font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.08em; margin-bottom: 4px;
+            letter-spacing: 0.05em; margin-bottom: 4px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }}
         .metric-value {{
@@ -417,7 +420,7 @@ def inject_base_styles():
         }}
         
         /* --- RESPONSIVE WIDGET STACKING (Tablet to Mobile Flow) --- */
-        @media (max-width: 800px) {{
+        @media (max-width: 600px) {{
             div[data-testid="column"] {{
                 min-width: 100% !important;
                 width: 100% !important;
