@@ -137,6 +137,15 @@ class AIDataAgent:
 # ------------------------------
 def render_sidebar_controls():
     with st.sidebar:
+        st.markdown(
+            """
+            <div style="text-align: center; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid rgba(128,128,128,0.2);">
+                <h2 style="margin: 0; font-size: 1.4rem; background: -webkit-linear-gradient(45deg, #3b82f6, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em;">⚙️ Control Panel</h2>
+                <p style="font-size: 0.8rem; color: #64748b; margin-top: 4px; margin-bottom: 0;">Intelligence Engine Configuration</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
         # Cloud/Local Detection
         is_cloud = init_llm_controller().is_cloud
 
