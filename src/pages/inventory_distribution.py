@@ -140,6 +140,65 @@ def render_distribution_tab(search_q):
     st.markdown("---")
     sync_live_web_stock = st.toggle("Sync Live Web Stock (Ecom)", value=True, help="Turn on to automatically fetch real-time web stock for Ecom location if a file is not manually uploaded.")
 
+    # ── Outlet Priority ──────────────────────────────────────────────────────
+    with st.expander("⚙️ Dispatch Priority Order", expanded=False):
+        st.caption(
+            "Drag to reorder — the top outlet is tried first when suggesting dispatch. "
+            "Default: Ecom-Mirpur → Wari → Cumilla → Sylhet."
+        )
+        default_priority = ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"]
+        # Persist across reruns
+        if "inv_priority_order" not in st.session_state:
+            st.session_state.inv_priority_order = default_priority.copy()
+
+        current_priority = st.session_state.inv_priority_order
+
+        # Render as a numbered multiselect that the user can reorder by toggling
+        # (Streamlit has no native drag-sort; we use a selectbox-based rank editor)
+        st.markdown("**Set rank for each outlet (1 = highest priority):**")
+        rank_cols = st.columns(len(default_priority))
+        new_order_map = {}
+        used_ranks = set()
+        valid = True
+        for i, loc in enumerate(default_priority):
+            with rank_cols[i]:
+                current_rank = (
+                    current_priority.index(loc) + 1
+                    if loc in current_priority
+                    else i + 1
+                )
+                rank = st.number_input(
+                    loc,
+                    min_value=1,
+                    max_value=len(default_priority),
+                    value=current_rank,
+                    step=1,
+                    key=f"inv_rank_{loc}",
+                )
+                if rank in used_ranks:
+                    valid = False
+                used_ranks.add(rank)
+                new_order_map[rank] = loc
+
+        if valid and len(new_order_map) == len(default_priority):
+            new_priority = [new_order_map[r] for r in sorted(new_order_map)]
+            if new_priority != current_priority:
+                st.session_state.inv_priority_order = new_priority
+                st.rerun()
+        elif not valid:
+            st.warning("Each outlet must have a unique rank. Duplicate ranks detected.")
+
+        st.info(
+            "Current order: **"
+            + " → ".join(st.session_state.inv_priority_order)
+            + "**"
+        )
+
+        if st.button("Reset to Default", key="inv_priority_reset", use_container_width=True):
+            st.session_state.inv_priority_order = default_priority.copy()
+            st.rerun()
+    # ────────────────────────────────────────────────────────────────────────
+
     analyze_clicked, clear_clicked = render_action_bar(
         primary_label="Analyze distribution",
         primary_key="inv_analyze_btn",
@@ -207,6 +266,7 @@ def render_distribution_tab(search_q):
                     INVENTORY_LOCATIONS,
                     sku_col,
                     sku_map,
+                    priority_locations=st.session_state.get("inv_priority_order"),
                 )
 
                 if "Fulfillment" in result_df.columns:
@@ -266,6 +326,7 @@ def render_distribution_tab(search_q):
                         locations,
                         sku_col,
                         sku_map,
+                        priority_locations=st.session_state.get("inv_priority_order"),
                     )
             else:
                 df = st.session_state.inv_res_data.copy()
@@ -309,31 +370,27 @@ def render_distribution_tab(search_q):
                 return ['background-color: rgba(220, 38, 38, 0.2); color: #991b1b; font-weight: bold;'] * len(row)
             return [''] * len(row)
 
-        # Render UI Tabs
-        tab_all, tab_ecom, tab_wari, tab_cumilla, tab_sylhet, tab_split, tab_oos = st.tabs([
-            "All Orders", "Ecom-Mirpur", "Wari", "Cumilla", "Sylhet", "Multiple / Split", "Out of Stock"
-        ])
+        # Render UI Tabs — dynamic based on priority order
+        _priority = st.session_state.get("inv_priority_order", ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"])
+        _tab_labels = ["All Orders"] + _priority + ["Multiple / Split", "Out of Stock"]
+        _tabs = st.tabs(_tab_labels)
+
         def get_df_height(data_len):
             return min(800, max(400, data_len * 35 + 43))
 
-        with tab_all: 
+        with _tabs[0]:  # All Orders
             st.dataframe(df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(df)))
-        with tab_ecom: 
-            sub_df = df[df["Dispatch Suggestion"] == "Ecom-Mirpur"]
-            st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
-        with tab_wari: 
-            sub_df = df[df["Dispatch Suggestion"] == "Wari"]
-            st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
-        with tab_cumilla: 
-            sub_df = df[df["Dispatch Suggestion"] == "Cumilla"]
-            st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
-        with tab_sylhet: 
-            sub_df = df[df["Dispatch Suggestion"] == "Sylhet"]
-            st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
-        with tab_split: 
+
+        for _i, _loc_label in enumerate(_priority):
+            with _tabs[_i + 1]:
+                sub_df = df[df["Dispatch Suggestion"] == _loc_label]
+                st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
+
+        with _tabs[len(_priority) + 1]:  # Multiple / Split
             sub_df = df[df["Dispatch Suggestion"] == "Multiple / Split"]
             st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
-        with tab_oos: 
+
+        with _tabs[len(_priority) + 2]:  # Out of Stock
             sub_df = df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"]
             st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
 
@@ -378,14 +435,14 @@ def render_distribution_tab(search_q):
                     return colors
                 return get_row_colors
 
-            sheets_data = [
-                ("All Orders", None),
-                ("Ecom-Mirpur", "Ecom-Mirpur"),
-                ("Wari", "Wari"),
-                ("Cumilla", "Cumilla"),
-                ("Sylhet", "Sylhet"),
+            sheets_data = [("All Orders", None)]
+            for _loc_label in _priority:
+                # Excel sheet names max 31 chars
+                _sheet = _loc_label[:31]
+                sheets_data.append((_sheet, _loc_label))
+            sheets_data += [
                 ("Multiple Split", "Multiple / Split"),
-                ("Out of Stock", "OOS / Unfulfillable")
+                ("Out of Stock",   "OOS / Unfulfillable"),
             ]
             
             sheet_names_to_format = [("Distribution Metrics", df_metrics)]

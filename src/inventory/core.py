@@ -276,12 +276,42 @@ def add_stock_columns_from_inventory(
     locations: list[str],
     sku_col: Optional[str] = None,
     sku_to_title_size: Optional[Dict[str, str]] = None,
+    priority_locations: Optional[list[str]] = None,
 ) -> Tuple[pd.DataFrame, int]:
     """
     Add one column per location to product_df by matching Item Name -> Title - Size,
     or by SKU when available. When matching by SKU, item name must equal that SKU's Title-Size.
+
+    priority_locations: ordered list of outlet names to try first when suggesting dispatch.
+    Defaults to ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"] if not provided.
     Returns (output_df, matched_row_count).
     """
+    # Build the ordered list of (suggestion_label, keyword_list) pairs
+    # Each entry maps a human-readable label to the location keywords used in try_allocate.
+    _LOCATION_KEYWORDS = {
+        "Ecom-Mirpur": ["ecom", "mirpur"],
+        "Wari":        ["wari"],
+        "Cumilla":     ["cumilla"],
+        "Sylhet":      ["sylhet"],
+    }
+    # Add any extra locations not in the default map (use lowercase name as keyword)
+    for loc in locations:
+        label = loc  # use the raw location name as label
+        if label not in _LOCATION_KEYWORDS:
+            _LOCATION_KEYWORDS[label] = [loc.lower()]
+
+    if priority_locations:
+        # Build ordered list from user priority, then append remaining locations
+        ordered_labels = list(priority_locations)
+        for loc in locations:
+            label = loc if loc not in ["Ecom", "Mirpur"] else "Ecom-Mirpur"
+            if label not in ordered_labels:
+                ordered_labels.append(label)
+    else:
+        ordered_labels = ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"]
+        for loc in locations:
+            if loc not in ["Ecom", "Mirpur"] and loc not in ordered_labels:
+                ordered_labels.append(loc)
     df = product_df.copy().reset_index(drop=True)
     matched = set()
     sku_to_inv_key = sku_to_title_size or {}
@@ -464,24 +494,23 @@ def add_stock_columns_from_inventory(
                     return success
 
                 full_locs = []
-                if try_allocate(["ecom", "mirpur"], commit=False): full_locs.append("Ecom-Mirpur")
-                if try_allocate(["wari"], commit=False): full_locs.append("Wari")
-                if try_allocate(["cumilla"], commit=False): full_locs.append("Cumilla")
-                if try_allocate(["sylhet"], commit=False): full_locs.append("Sylhet")
+                for label in ordered_labels:
+                    kws = _LOCATION_KEYWORDS.get(label, [label.lower()])
+                    if try_allocate(kws, commit=False):
+                        full_locs.append(label)
 
                 full_locs_str = ", ".join(full_locs) if full_locs else "None"
                 for idx in group_indices:
                     full_order_locs_list[idx] = full_locs_str
 
-                if try_allocate(["ecom", "mirpur"], commit=True):
-                    suggestion = "Ecom-Mirpur"
-                elif try_allocate(["wari"], commit=True):
-                    suggestion = "Wari"
-                elif try_allocate(["cumilla"], commit=True):
-                    suggestion = "Cumilla"
-                elif try_allocate(["sylhet"], commit=True):
-                    suggestion = "Sylhet"
-                else:
+                suggestion = None
+                for label in ordered_labels:
+                    kws = _LOCATION_KEYWORDS.get(label, [label.lower()])
+                    if try_allocate(kws, commit=True):
+                        suggestion = label
+                        break
+
+                if suggestion is None:
                     if try_allocate([loc.lower() for loc in locations], commit=True):
                         suggestion = "Multiple / Split"
                     else:
