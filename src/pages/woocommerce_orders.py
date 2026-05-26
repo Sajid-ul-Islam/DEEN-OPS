@@ -344,7 +344,7 @@ def render_woocommerce_orders_tab():
     st.markdown("<p style='opacity: 0.8;'>Live synchronization view and tracking for WooCommerce operations.</p>", unsafe_allow_html=True)
     st.divider()
 
-    tab_live, tab_track = st.tabs(["🛒 Live Orders View", "🚚 WC × Pathao Tracking"])
+    tab_live, tab_track = st.tabs([":material/shopping_cart: Live Orders View", ":material/local_shipping: WC × Pathao Tracking"])
 
     with tab_live:
         _render_live_orders_view()

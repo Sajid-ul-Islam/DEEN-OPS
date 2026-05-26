@@ -122,16 +122,32 @@ def run_app():
         st.link_button("🌐 Launch DEEN BI", CLOUD_APP_URL, use_container_width=True, type="primary")
         st.divider()
 
-        st.markdown('<div class="command-nav-header">🚀 COMMAND NAV</div>', unsafe_allow_html=True)
+        st.markdown('<div class="command-nav-header"><span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 6px; font-size: 1.4rem;">rocket_launch</span>COMMAND NAV</div>', unsafe_allow_html=True)
         
         default_nav = "📈 Live Dashboard" if "📈 Live Dashboard" in PRIMARY_NAV else PRIMARY_NAV[0]
         
+        def format_nav(item):
+            nav_icons = {
+                "📈 Live Dashboard": ":material/dashboard: Live Dashboard",
+                "📦 Pathao Processor": ":material/local_shipping: Pathao Processor",
+                "📦 Bulk Order Processor": ":material/local_shipping: Pathao Processor",
+                "💬 WhatsApp Messaging": ":material/chat: WhatsApp Messaging",
+                "📊 Inventory Distribution": ":material/inventory_2: Inventory Distribution",
+                "📦 Current Stock Analytics": ":material/analytics: Stock Analytics",
+                "🧩 Delivery Data Parser": ":material/data_object: Delivery Parser",
+                "📥 Sales Data Ingestion": ":material/cloud_download: Sales Ingestion",
+                "🚀 Data Pilot": ":material/smart_toy: Data Pilot",
+                "🛒 WooCommerce Orders": ":material/shopping_cart: WooCommerce Orders"
+            }
+            return nav_icons.get(item, item)
+
         if hasattr(st, "pills"):
             selected_nav = st.sidebar.pills(
                 "Select Workspace",
                 options=PRIMARY_NAV,
                 default=default_nav,
                 selection_mode="single",
+                format_func=format_nav,
                 label_visibility="collapsed"
             )
             if not selected_nav:
@@ -141,15 +157,16 @@ def run_app():
                 "Select Workspace",
                 PRIMARY_NAV,
                 label_visibility="collapsed",
+                format_func=format_nav,
                 index=PRIMARY_NAV.index(default_nav)
             )
 
-        with st.sidebar.expander("📅 Operational Slots", expanded=False):
+        with st.sidebar.expander(":material/event: Operational Slots", expanded=False):
             from src.components.calendar_slots import render_operational_slots_calendar
             render_operational_slots_calendar()
 
         st.divider()
-        with st.sidebar.expander("🛠️ Maintenance & Settings", expanded=False):
+        with st.sidebar.expander(":material/build: Maintenance & Settings", expanded=False):
             st.caption("Configuration Health")
             if config_issues:
                 st.warning("Some integrations are partially configured.")
@@ -215,7 +232,7 @@ def run_app():
 
         st.divider()
         # Data Pilot shortcut — replaces the heavy inline expander that duplicated the full page
-        if st.button("🚀 Open Data Pilot", use_container_width=True, key="sidebar_pilot_shortcut"):
+        if st.button(":material/smart_toy: Open Data Pilot", use_container_width=True, key="sidebar_pilot_shortcut"):
             st.session_state["_nav_override"] = "🚀 Data Pilot"
             st.rerun()
 
@@ -242,7 +259,7 @@ def run_app():
     elif selected_nav == "💬 WhatsApp Messaging":
         safe_render(render_wp_tab, fallback_msg="WhatsApp Messaging unavailable.")
     elif selected_nav == "📊 Inventory Distribution":
-        dist_tab, merge_tab = st.tabs(["📦 Distribution Matrix", "📑 Product Listing"])
+        dist_tab, merge_tab = st.tabs([":material/inventory_2: Distribution Matrix", ":material/list_alt: Product Listing"])
         with dist_tab:
             safe_render(lambda: render_distribution_tab(search_q=st.session_state.get("inv_matrix_search", "")), fallback_msg="Inventory Distribution unavailable.")
         with merge_tab:

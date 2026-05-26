@@ -33,7 +33,7 @@ Unpaid
 View
 POD"""
 
-    tab1, tab2 = st.tabs(["Standard Parser", "Fuzzy Parser"])
+    tab1, tab2 = st.tabs([":material/rule: Standard Parser", ":material/psychology_alt: Fuzzy Parser"])
 
     with tab1:
         raw_text = st.text_area(

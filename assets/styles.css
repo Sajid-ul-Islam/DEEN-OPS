@@ -405,6 +405,40 @@ div[data-testid="stSegmentedControl"] button {
     box-shadow: 0 8px 25px -5px rgba(139, 92, 246, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
 }
 
+/* --- SIDEBAR EXPANDERS (Terminal Theme) --- */
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+    background: rgba(15, 23, 42, 0.4) !important;
+    border: 1px solid rgba(128, 128, 128, 0.2) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stExpander"]:hover {
+    border-color: rgba(59, 130, 246, 0.5) !important;
+    box-shadow: 0 4px 20px -2px rgba(59, 130, 246, 0.15) !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+    background: transparent !important;
+    padding: 10px 14px !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+    background: rgba(59, 130, 246, 0.08) !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stExpander"] summary p {
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.02em !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stExpanderDetails"] {
+    padding: 12px 14px !important;
+    border-top: 1px solid rgba(128, 128, 128, 0.15) !important;
+}
+
 /* --- PROMINENT SIDEBAR LOGO --- */
 .sidebar-logo-container {
     display: flex;

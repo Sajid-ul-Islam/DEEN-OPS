@@ -353,7 +353,7 @@ def render_ai_pilot_page():
     provider, api_key, model_name, auto_sync = render_sidebar_controls()
 
     # Modern Tabs Layout
-    tab_chat, tab_kb, tab_reports = st.tabs(["💬 Pilot Interface", "🧠 Knowledge Base", "📑 Generated Reports"])
+    tab_chat, tab_kb, tab_reports = st.tabs([":material/chat: Pilot Interface", ":material/psychology: Knowledge Base", ":material/description: Generated Reports"])
 
     with tab_kb:
         st.markdown("### 📂 Data Context")
@@ -463,7 +463,26 @@ def render_ai_pilot_page():
                         st.markdown(msg["content"])
 
             # Input Area
-            if prompt := st.chat_input("Ask Data Pilot about sales, stock, or request a report..."):
+            audio_bytes = None
+            if hasattr(st, "audio_input"):
+                audio_bytes = st.audio_input("Speak to Data Pilot", label_visibility="collapsed")
+                
+            prompt = st.chat_input("Ask Data Pilot about sales, stock, or request a report...")
+            
+            if audio_bytes and audio_bytes != st.session_state.get("last_audio_bytes"):
+                st.session_state.last_audio_bytes = audio_bytes
+                
+                st.session_state.agent_messages.append({"role": "user", "content": "*(🎤 Voice Command Captured)*"})
+                with st.chat_message("user", avatar="👤"):
+                    st.markdown("*(🎤 Voice Command Captured)*")
+                    st.audio(audio_bytes)
+                
+                with st.chat_message("assistant", avatar="🤖"):
+                    msg = "I received your voice message! 🎙️\n\nTo process spoken commands, please integrate a Speech-to-Text model (like OpenAI Whisper or Gemini Audio) into my `DynamicLLMController`."
+                    st.markdown(msg)
+                    st.session_state.agent_messages.append({"role": "assistant", "content": msg})
+                
+            elif prompt:
                 # Handle Smart Auto-Sync
                 if auto_sync:
                     last_sync = st.session_state.get("live_sync_time")

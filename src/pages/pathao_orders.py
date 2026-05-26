@@ -967,7 +967,7 @@ def _render_status_tracking_tab():
 
 
 def render_pathao_tab():
-    processing_tab, helper_tab, tracking_tab = st.tabs(["Order Processing", "Item Description Helper", "Order Tracking"])
+    processing_tab, helper_tab, tracking_tab = st.tabs([":material/settings: Order Processing", ":material/build: Item Description Helper", ":material/local_shipping: Order Tracking"])
     with processing_tab:
         _render_processing_tab()
     with helper_tab:

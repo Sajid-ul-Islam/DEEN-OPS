@@ -599,6 +599,10 @@ def render_dashboard_output(
                 render_copy_button(final_report_text, label="📋 Copy Briefing")
             
             st.info(final_report_text)
+            
+            if hasattr(st, "feedback"):
+                st.markdown("<div style='margin-top: 10px; margin-bottom: -10px; font-size: 0.85rem; color: #94a3b8; font-weight: 600;'>Rate this AI Narrative:</div>", unsafe_allow_html=True)
+                st.feedback("stars", key=f"ai_briefing_feedback_{current_data_fingerprint}")
 
     st.divider()
 

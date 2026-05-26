@@ -1,5 +1,5 @@
 # Base / Core
-streamlit==1.35.0
+streamlit>=1.42.0
 matplotlib==3.9.0
 pandas==2.2.2
 polars[rtcompat]==0.20.30

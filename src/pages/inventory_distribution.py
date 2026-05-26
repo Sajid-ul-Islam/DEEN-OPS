@@ -389,7 +389,7 @@ def render_distribution_tab(search_q):
 
         # Render UI Tabs — dynamic based on priority order
         _priority = st.session_state.get("inv_priority_order", ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"])
-        _tab_labels = ["All Orders"] + _priority + ["Multiple / Split", "Out of Stock"]
+        _tab_labels = [":material/all_inbox: All Orders"] + [f":material/store: {loc}" for loc in _priority] + [":material/call_split: Multiple / Split", ":material/warning: Out of Stock"]
         _tabs = st.tabs(_tab_labels)
 
         def get_df_height(data_len):
