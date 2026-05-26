@@ -520,10 +520,11 @@ def render_ai_pilot_page():
                     import time
                     
                     q = queue.Queue()
+                    chat_history = st.session_state.agent_messages[:-1]
                     
                     async def fetch_stream():
                         try:
-                            async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):
+                            async for chunk in agent.get_response_stream(prompt, chat_history):
                                 q.put({"chunk": chunk})
                         except Exception as e:
                             q.put({"error": e})
