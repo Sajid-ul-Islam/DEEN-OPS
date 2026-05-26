@@ -175,7 +175,7 @@ def render_spotlight(
             prev_top = prev_top.groupby(prev_group_cols, as_index=False).agg(agg_dict)
             prev_top.rename(columns={"Clean_Product": "Product Name"}, inplace=True)
 
-    st.subheader("\U0001f525 Products Spotlight")
+    st.subheader("🔥 Products Spotlight")
     sc1, sc2 = st.columns([1, 1])
     with sc1:
         strat_opts = ["Top 10", "Top 20", "Last 10", "Last 20", "Underperformers", "Custom Range", "Custom Order"]

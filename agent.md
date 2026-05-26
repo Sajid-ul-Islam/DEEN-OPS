@@ -55,6 +55,8 @@ The project follows a layered structure. Avoid circular imports. Pages should or
 - **Ephemeral Filesystem:** Local storage is temporary. Files like `resources/deen_ops.duckdb`, `pathao_map.json`, and CSV snapshots will be wiped when the app restarts or sleeps. The app is built to gracefully handle this by re-syncing from external APIs.
 - **No Background Workers:** Streamlit Cloud does not support running background daemon processes like Celery or Redis. All syncs and API requests must run synchronously when triggered by user interaction.
 - **Dependencies:** Any third-party package used (like `tenacity`, `duckdb`, `polars`) must be explicitly present in `requirements.txt`.
+- **Plotly Image Export (`kaleido`):** Streamlit Cloud sometimes struggles with the `kaleido` package required to export Plotly charts as PNGs. The app has a safe fallback built into `snapshot.py` to export JSON if `kaleido` crashes or is missing.
+- **Async LLM Streaming (`aiohttp`):** The Data Pilot uses `aiohttp` to perform asynchronous streaming from the LLM APIs to prevent blocking the Streamlit UI thread. Ensure `aiohttp` is in `requirements.txt`.
 
 ## 4. UI/UX Design Guidelines
 - **Feedback & Loading:** Prefer `st.toast()` and `st.status()` over `st.spinner()` for a smoother, less disruptive user experience during background network tasks.
@@ -66,7 +68,7 @@ The project follows a layered structure. Avoid circular imports. Pages should or
 - Frontend: Streamlit with heavy custom CSS injection.
 - Data: Pandas and Polars.
 - Charts: Plotly.
-- AI: multi-provider LLM routing.
+- AI: multi-provider LLM routing (using `aiohttp` for async streaming).
 - ML Forecasting: Scikit-Learn, XGBoost, and Statsmodels.
 - APIs: WooCommerce REST API and Pathao Courier API.
 ## 6. Session State Rules
@@ -225,6 +227,7 @@ The Data Pilot (`data_pilot.py`) is a conversational AI workspace.
 - **Global Data Pilot & Enhanced UI**: Upgraded the AI Data Pilot with a modern tabbed layout (Chat, Knowledge Base, Reports), multi-report generation, and a persistent global sidebar widget for instant access from any workspace.
 - **Fuzzy Matching Integration:** Implemented `fuzzywuzzy` for resilient location detection (Thana/Area/Zone mapping).
 - **UI/UX Overhaul (Terminal Theme):** Implemented glassmorphism metric cards, global fade-in animations, responsive mobile widget stacking, and Data Pilot terminal-themed chat bubbles via CSS injection.
+- **Premium UI Polish:** Added glowing hover states for the "Launch DEEN BI" CTA, a prominent sidebar logo block, capsule-styled segmented controls with inset shadows, custom CSS-driven tooltips, and an active pill pulse animation.
 - **Advanced Chart Grouping & Resilience:** Added intelligent "Others" aggregation for Pie/Donut charts (3% threshold) and dynamic layout scaling (`automargin=True`).
 - **Robust Export Engine:** Created a unified Excel export system with auto-fitting column widths, multi-sheet consolidation, and safe NA dropping.
 - **Graceful Error Handling:** Comprehensive adoption of `safe_render`, `safe_filter`, and `safe_column_access` via `src/utils/safe_ops.py` to prevent UI crashes.

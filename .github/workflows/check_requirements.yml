@@ -1,0 +1,22 @@
+name: Dependency Checker
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  check-requirements:
+    name: Check Requirements AST
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          
+      - name: Run requirements AST check
+        run: python scripts/check_requirements.py

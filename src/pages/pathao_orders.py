@@ -6,6 +6,7 @@ from requests.auth import HTTPBasicAuth
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
 
 from src.components.status import render_status_toggle
 from src.components.widgets import (
@@ -131,10 +132,10 @@ def _load_processing_orders_from_woocommerce():
         from src.services.woocommerce.client import load_live_source
 
         with st.status("Connecting to WooCommerce API...", expanded=True) as status:
-            st.write("Ã°Å¸â€œÂ¡ Fetching live orders...")
+            st.write("📡 Fetching live orders...")
             df_live, _, _ = load_live_source()
             status.update(label="WooCommerce Sync Complete", state="complete", expanded=False)
-            st.toast("Ã¢Å“â€¦ Orders pulled successfully!", icon="Ã°Å¸Å½â€°")
+            st.toast("✅ Orders pulled successfully!", icon="🎉")
 
     return _filter_processing_orders(df_live)
 
@@ -515,7 +516,7 @@ def _extract_woocommerce_order_id(raw_value):
 
 def _render_status_tracking_tab():
     with st.sidebar:
-        st.markdown("### Ã°Å¸â€œÂ¡ Tracking Settings")
+        st.markdown("### 📡 Tracking Settings")
         
         if hasattr(st, "pills"):
             track_filter = st.pills(
@@ -583,10 +584,35 @@ def _render_status_tracking_tab():
                         else:
                             st.success(f"Found order status successfully!")
                             o = orders[0] # Show the first match
-                            c1, c2, c3 = st.columns(3)
-                            c1.metric("Status", str(o.get("order_status", "N/A")).capitalize())
-                            c2.metric("Payment Status", str(o.get("payment_status", "N/A")).capitalize())
-                            c3.metric("Collected Amount", f"Tk {o.get('collected_amount', 0)}")
+                            status_val = str(o.get("order_status", "N/A")).capitalize()
+                            payment_val = str(o.get("payment_status", "N/A")).capitalize()
+                            collected_val = f"৳{float(o.get('collected_amount', 0)):,.0f}" if str(o.get('collected_amount', 0)).replace('.','',1).isdigit() else f"৳{o.get('collected_amount', 0)}"
+
+                            st.markdown(f"""
+                            <div class="metric-container" style="animation: slideUpFade 0.5s ease-out forwards;">
+                                <div class="metric-card">
+                                    <div class="metric-content">
+                                        <div class="metric-label">Order Status</div>
+                                        <div class="metric-value" style="font-size: 1.5rem;">{status_val}</div>
+                                    </div>
+                                    <div class="metric-icon">📦</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-content">
+                                        <div class="metric-label">Payment Status</div>
+                                        <div class="metric-value" style="font-size: 1.5rem;">{payment_val}</div>
+                                    </div>
+                                    <div class="metric-icon">💳</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-content">
+                                        <div class="metric-label">Collected Amount</div>
+                                        <div class="metric-value" style="font-size: 1.5rem;">{collected_val}</div>
+                                    </div>
+                                    <div class="metric-icon">💰</div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
                             with st.expander("View Full Details"):
                                 st.json(o)
                 except Exception as e:
@@ -604,10 +630,35 @@ def _render_status_tracking_tab():
                     st.success("Status retrieved successfully!")
                     data_obj = status_data.get("data", {})
                     
-                    c1, c2, c3 = st.columns(3)
-                    c1.metric("Status", data_obj.get("order_status", "N/A"))
-                    c2.metric("Payment Status", data_obj.get("payment_status", "N/A"))
-                    c3.metric("Collected Amount", f"৳{data_obj.get('collected_amount', 0)}")
+                    status_val = str(data_obj.get("order_status", "N/A")).capitalize()
+                    payment_val = str(data_obj.get("payment_status", "N/A")).capitalize()
+                    collected_val = f"৳{float(data_obj.get('collected_amount', 0)):,.0f}" if str(data_obj.get('collected_amount', 0)).replace('.','',1).isdigit() else f"৳{data_obj.get('collected_amount', 0)}"
+
+                    st.markdown(f"""
+                    <div class="metric-container" style="animation: slideUpFade 0.5s ease-out forwards;">
+                        <div class="metric-card">
+                            <div class="metric-content">
+                                <div class="metric-label">Order Status</div>
+                                <div class="metric-value" style="font-size: 1.5rem;">{status_val}</div>
+                            </div>
+                            <div class="metric-icon">📦</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-content">
+                                <div class="metric-label">Payment Status</div>
+                                <div class="metric-value" style="font-size: 1.5rem;">{payment_val}</div>
+                            </div>
+                            <div class="metric-icon">💳</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-content">
+                                <div class="metric-label">Collected Amount</div>
+                                <div class="metric-value" style="font-size: 1.5rem;">{collected_val}</div>
+                            </div>
+                            <div class="metric-icon">💰</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
                     
                     with st.expander("View Full API Response"):
                         st.json(status_data)
@@ -654,12 +705,13 @@ def _render_status_tracking_tab():
                         st.success(f"Found {len(orders)} order(s) matching '{search_input}'.")
                         history_data = []
                         for o in orders:
+                            amount_str = f"৳{float(o.get('collected_amount', 0)):,.0f}" if str(o.get('collected_amount', 0)).replace('.','',1).isdigit() else f"৳{o.get('collected_amount', 0)}"
                             history_data.append({
                                 "Consignment ID": o.get("consignment_id", ""),
                                 "Order ID": o.get("merchant_order_id", ""),
                                 "Date": str(o.get("created_at", "")).split(" ")[0],
                                 "Status": str(o.get("order_status", "")).capitalize(),
-                                "Amount": f"Tk {o.get('collected_amount', 0)}"
+                                "Amount": amount_str
                             })
                         
                         df_history = pd.DataFrame(history_data)
@@ -696,12 +748,13 @@ def _render_status_tracking_tab():
                         st.success(f"Successfully retrieved the last {len(orders)} orders.")
                         history_data = []
                         for o in orders:
+                            amount_str = f"৳{float(o.get('collected_amount', 0)):,.0f}" if str(o.get('collected_amount', 0)).replace('.','',1).isdigit() else f"৳{o.get('collected_amount', 0)}"
                             history_data.append({
                                 "Consignment ID": o.get("consignment_id", ""),
                                 "Order ID": o.get("merchant_order_id", ""),
                                 "Date": str(o.get("created_at", "")).split(" ")[0],
                                 "Status": str(o.get("order_status", "")).capitalize(),
-                                "Amount": f"Tk {o.get('collected_amount', 0)}"
+                                "Amount": amount_str
                             })
                         
                         df_history = pd.DataFrame(history_data)
@@ -748,7 +801,7 @@ def _render_status_tracking_tab():
                     order_id_col = next((c for c in cols if "order" in str(c).lower() or "invoice" in str(c).lower()), None)
                 
                 if auto_update_wc == "Enabled" and not order_id_col:
-                    st.warning("Ã¢Å¡Â Ã¯Â¸Â Auto-Update is enabled, but no 'Order ID' column was detected in your file. WooCommerce updates will be skipped.")
+                    st.warning("⚠️ Auto-Update is enabled, but no 'Order ID' column was detected in your file. WooCommerce updates will be skipped.")
 
                 with st.status("Fetching bulk statuses...", expanded=True) as status_ui:
                     results = []
@@ -807,6 +860,68 @@ def _render_status_tracking_tab():
 
                 updated_df = pd.DataFrame(results)
                 
+                total_orders = len(updated_df)
+                delivered = len(updated_df[updated_df["Live Status"].astype(str).str.lower().str.contains("delivered")])
+                failed = len(updated_df[updated_df["Live Status"].astype(str).str.lower().str.contains("return|failed|cancel|error")])
+                in_transit = total_orders - delivered - failed
+                
+                st.markdown(f"""
+                <div class="metric-container metric-container-4" style="animation: slideUpFade 0.5s ease-out forwards;">
+                    <div class="metric-card">
+                        <div class="metric-content">
+                            <div class="metric-label">Total Tracked</div>
+                            <div class="metric-value" style="font-size: 1.5rem;">{total_orders}</div>
+                        </div>
+                        <div class="metric-icon">📋</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-content">
+                            <div class="metric-label">Delivered</div>
+                            <div class="metric-value" style="font-size: 1.5rem; color: #10b981;">{delivered}</div>
+                        </div>
+                        <div class="metric-icon">✅</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-content">
+                            <div class="metric-label">In Transit</div>
+                            <div class="metric-value" style="font-size: 1.5rem; color: #3b82f6;">{in_transit}</div>
+                        </div>
+                        <div class="metric-icon">🚚</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-content">
+                            <div class="metric-label">Failed / Return</div>
+                            <div class="metric-value" style="font-size: 1.5rem; color: #ef4444;">{failed}</div>
+                        </div>
+                        <div class="metric-icon">❌</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("#### 📊 Delivery Ratios")
+                status_summary = updated_df["Live Status"].value_counts().reset_index()
+                status_summary.columns = ["Status", "Count"]
+
+                color_map = {}
+                for status in status_summary["Status"]:
+                    s_lower = str(status).lower()
+                    if any(x in s_lower for x in ['return', 'failed', 'cancel', 'error']):
+                        color_map[status] = '#ef4444'
+                    elif 'delivered' in s_lower:
+                        color_map[status] = '#10b981'
+                    elif any(x in s_lower for x in ['transit', 'processing', 'assigned']):
+                        color_map[status] = '#3b82f6'
+                    else:
+                        color_map[status] = '#f59e0b'
+
+                fig = px.pie(status_summary, names="Status", values="Count", hole=0.5, color="Status", color_discrete_map=color_map)
+                fig.update_traces(textposition='inside', textinfo='percent+label')
+                fig.update_layout(margin=dict(t=20, b=20, l=10, r=10), showlegend=False, height=350)
+                
+                c_pie, _ = st.columns([1, 2])
+                with c_pie:
+                    st.plotly_chart(fig, use_container_width=True)
+
                 if track_filter == "Failed & Pending Only":
                     updated_df = updated_df[~updated_df["Live Status"].astype(str).str.lower().str.contains("delivered")]
                     st.info(f"Filtered out delivered orders. Showing {len(updated_df)} remaining orders.")

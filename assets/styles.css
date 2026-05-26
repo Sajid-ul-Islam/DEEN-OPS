@@ -154,17 +154,28 @@ div[data-testid="stPopover"] button:hover {
     transform: translateY(-1px);
 }
 
-/* Download button — hover-only glow, no infinite animation (WCAG 2.3.3) */
+/* --- PREMIUM DOWNLOAD BUTTONS --- */
 div[data-testid="stDownloadButton"] button {
-    border: 1px solid #10b981 !important;
-    transition: box-shadow 0.3s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease !important;
+    background: linear-gradient(145deg, #10b981 0%, #059669 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em !important;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 div[data-testid="stDownloadButton"] button:hover {
-    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25) !important;
-    transform: scale(1.02);
-    background: #059669 !important;
-    color: white !important;
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 8px 20px -4px rgba(16, 185, 129, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
+    background: linear-gradient(145deg, #34d399 0%, #10b981 100%) !important;
+    color: #ffffff !important;
+}
+
+div[data-testid="stDownloadButton"] button:active {
+    transform: translateY(0) scale(0.98) !important;
+    box-shadow: 0 2px 4px -1px rgba(16, 185, 129, 0.4) !important;
 }
 
 /* Global button hover scaling */
@@ -261,6 +272,39 @@ div[data-testid="stRadio"]>div[role="radiogroup"] {
     border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
+/* --- ST SEGMENTED CONTROL MODERN CAPSULE STYLING --- */
+div[data-testid="stSegmentedControl"]>div[data-baseweb="button-group"] {
+    gap: 4px !important;
+    background-color: transparent !important;
+}
+
+div[data-testid="stSegmentedControl"] button {
+    border-radius: 50px !important;
+    border: 1px solid transparent !important;
+    font-weight: 600 !important;
+    padding: 4px 14px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+div[data-testid="stSegmentedControl"] button:focus-visible {
+    outline: 2px solid var(--primary) !important;
+    outline-offset: 2px !important;
+    border-radius: 50px !important;
+}
+
+/* Modern Label Styling for Banner Segmented Controls */
+div[data-testid="stColumn"]:has(.align-left-helper) div[data-testid="stSegmentedControl"] label[data-testid="stWidgetLabel"],
+div[data-testid="stColumn"]:has(.align-center-helper) div[data-testid="stSegmentedControl"] label[data-testid="stWidgetLabel"],
+div[data-testid="stColumn"]:has(.align-right-helper) div[data-testid="stSegmentedControl"] label[data-testid="stWidgetLabel"] {
+    font-size: 0.7rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700 !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    margin-bottom: 6px;
+    padding-left: 10px;
+}
+
 /* --- ST.PILLS GLASSMORPHISM (SIDEBAR & MAIN) --- */
 div[data-testid="stPills"] {
     background: linear-gradient(145deg, var(--background-secondary, rgba(128, 128, 128, 0.05)) 0%, rgba(128, 128, 128, 0.01) 100%);
@@ -328,6 +372,78 @@ div[data-testid="stSegmentedControl"] button {
     }
 }
 
+/* --- PREMIUM DEEN BI LAUNCH BUTTON --- */
+@keyframes launchButtonGradient {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+[data-testid="stSidebar"] [data-testid="stLinkButton"] a {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #10b981 100%) !important;
+    background-size: 200% auto !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+    border-radius: 12px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 4px 15px -3px rgba(59, 130, 246, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+    animation: launchButtonGradient 4s ease infinite !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stLinkButton"] a:hover {
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 8px 25px -5px rgba(139, 92, 246, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
+}
+
+/* --- PROMINENT SIDEBAR LOGO --- */
+.sidebar-logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.4) 100%);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px -2px rgba(59, 130, 246, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.sidebar-logo-container:hover {
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 4px 25px -2px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.sidebar-logo-text {
+    font-size: 1.5rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    background: linear-gradient(90deg, #3b82f6, #10b981);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.1;
+}
+
+.sidebar-logo-sub {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
 /* --- CUSTOM SELECTED PILL/SEGMENTED CONTROL COLOR --- */
 div[data-testid="stPills"] button[aria-checked="true"],
 div[data-testid="stPills"] button[aria-pressed="true"],
@@ -339,7 +455,27 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
     color: white !important;
     border-color: var(--primary) !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3) !important;
+    box-shadow: 0 6px 16px rgba(29, 78, 216, 0.4) !important;
+}
+
+/* --- ACTIVE SIDEBAR PILL PULSE --- */
+@keyframes activeSidebarPillPulse {
+    0% {
+        box-shadow: 0 6px 16px rgba(29, 78, 216, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 6px 24px rgba(59, 130, 246, 0.8), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+    }
+
+    100% {
+        box-shadow: 0 6px 16px rgba(29, 78, 216, 0.4);
+    }
+}
+
+[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-checked="true"] {
+    animation: activeSidebarPillPulse 3s ease-in-out infinite !important;
+    border-color: rgba(59, 130, 246, 0.6) !important;
 }
 
 /* --- CUSTOM UNSELECTED PILL HOVER EFFECT --- */
@@ -673,7 +809,108 @@ div[data-testid="stDataFrame"]:hover::before {
     min-width: max-content;
 }
 
+/* --- COMMAND NAV PULSE ANIMATION --- */
+@keyframes commandNavPulse {
+    0% {
+        opacity: 0.8;
+        text-shadow: 0 0 10px rgba(59, 130, 246, 0);
+    }
+
+    50% {
+        opacity: 1;
+        text-shadow: 0 0 18px rgba(59, 130, 246, 0.6);
+    }
+
+    100% {
+        opacity: 0.8;
+        text-shadow: 0 0 10px rgba(59, 130, 246, 0);
+    }
+}
+
+.command-nav-header {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
+    letter-spacing: 0.05em;
+    margin-top: 10px;
+    margin-bottom: 12px;
+    animation: commandNavPulse 3s ease-in-out infinite;
+}
+
+/* --- CUSTOM INFO TOOLTIP --- */
+.op-slots-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: help;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.op-slots-tooltip::after {
+    content: "ℹ️";
+    font-size: 0.75rem;
+    margin-left: 6px;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.op-slots-tooltip:hover::after {
+    opacity: 1;
+}
+
+.op-slots-tooltip-text {
+    visibility: hidden;
+    width: 240px;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.88) 100%);
+    color: #f8fafc;
+    text-align: left;
+    border-radius: 8px;
+    padding: 10px 14px;
+    position: absolute;
+    z-index: 9999;
+    bottom: 130%;
+    left: 0;
+    transform: translateY(8px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
+    line-height: 1.4;
+}
+
+.op-slots-tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 24px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: rgba(59, 130, 246, 0.4) transparent transparent transparent;
+}
+
+.op-slots-tooltip:hover .op-slots-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* --- MODERN BANNER CONTROLS (Segmented & Radio) --- */
+@keyframes slideUpFade {
+    0% {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .banner-controls-margin {
     margin-top: -85px;
     margin-bottom: 35px;
@@ -681,37 +918,46 @@ div[data-testid="stDataFrame"]:hover::before {
     z-index: 100;
 }
 
-div[data-testid="column"]:has(.align-left-helper) div[data-testid="stSegmentedControl"],
-div[data-testid="column"]:has(.align-center-helper) div[data-testid="stSegmentedControl"],
-div[data-testid="column"]:has(.align-right-helper) div[data-testid="stSegmentedControl"],
-div[data-testid="column"]:has(.align-left-helper) div[data-testid="stRadio"]>div[role="radiogroup"],
-div[data-testid="column"]:has(.align-center-helper) div[data-testid="stRadio"]>div[role="radiogroup"],
-div[data-testid="column"]:has(.align-right-helper) div[data-testid="stRadio"]>div[role="radiogroup"] {
+div[data-testid="stColumn"]:has(.align-left-helper) div[data-testid="stSegmentedControl"],
+div[data-testid="stColumn"]:has(.align-center-helper) div[data-testid="stSegmentedControl"],
+div[data-testid="stColumn"]:has(.align-right-helper) div[data-testid="stSegmentedControl"],
+div[data-testid="stColumn"]:has(.align-left-helper) div[data-testid="stRadio"]>div[role="radiogroup"],
+div[data-testid="stColumn"]:has(.align-center-helper) div[data-testid="stRadio"]>div[role="radiogroup"],
+div[data-testid="stColumn"]:has(.align-right-helper) div[data-testid="stRadio"]>div[role="radiogroup"] {
     background: rgba(15, 23, 42, 0.6) !important;
-    backdrop-filter: blur(12px) !important;
-    padding: 6px !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(16px) !important;
+    padding: 6px 8px !important;
+    border-radius: 50px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     width: fit-content;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.05);
 }
 
 /* Alignment rules leveraging Streamlit's native Flexbox container 
    Made bulletproof across Cloud and Local by targeting the column directly */
-div[data-testid="column"]:has(.align-center-helper) {
+div[data-testid="stColumn"]:has(.align-center-helper)>div[data-testid="stVerticalBlock"] {
     align-items: center !important;
+    opacity: 0;
+    animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.2s;
 }
 
-div[data-testid="column"]:has(.align-right-helper) {
+div[data-testid="stColumn"]:has(.align-right-helper)>div[data-testid="stVerticalBlock"] {
     align-items: flex-end !important;
+    opacity: 0;
+    animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.3s;
 }
 
-div[data-testid="column"]:has(.align-left-helper) {
+div[data-testid="stColumn"]:has(.align-left-helper)>div[data-testid="stVerticalBlock"] {
     align-items: flex-start !important;
+    opacity: 0;
+    animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.1s;
 }
 
-div[data-testid="column"]:has(.align-center-helper) div[data-testid="element-container"],
-div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-container"] {
+div[data-testid="stColumn"]:has(.align-center-helper) div[data-testid="stElementContainer"],
+div[data-testid="stColumn"]:has(.align-right-helper) div[data-testid="stElementContainer"] {
     width: fit-content;
 }
 
@@ -775,17 +1021,29 @@ div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-cont
     }
 
     /* Force center alignment for all banner controls on mobile */
-    div[data-testid="column"]:has(.align-left-helper),
-    div[data-testid="column"]:has(.align-center-helper),
-    div[data-testid="column"]:has(.align-right-helper) {
+    div[data-testid="stColumn"]:has(.align-left-helper)>div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.align-center-helper)>div[data-testid="stVerticalBlock"],
+    div[data-testid="stColumn"]:has(.align-right-helper)>div[data-testid="stVerticalBlock"] {
         align-items: center !important;
         margin-bottom: 4px;
+    }
+
+    /* Force vertical stacking of the banner control row to prevent overlapping */
+    div[data-testid="stHorizontalBlock"]:has(.align-left-helper) {
+        flex-direction: column !important;
+        gap: 12px !important;
+        align-items: center !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.align-left-helper)>div[data-testid="stColumn"] {
+        width: 100% !important;
+        min-width: 100% !important;
     }
 }
 
 /* --- RESPONSIVE WIDGET STACKING (Tablet to Mobile Flow) --- */
 @media (max-width: 600px) {
-    div[data-testid="column"] {
+    div[data-testid="stColumn"] {
         min-width: 100% !important;
         width: 100% !important;
     }
@@ -799,6 +1057,28 @@ div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-cont
 
     .footer-separator {
         display: none;
+    }
+
+    /* Prevent iOS auto-zoom on input focus which heavily breaks mobile layouts */
+    input,
+    select,
+    textarea,
+    div[data-baseweb="select"] {
+        font-size: 16px !important;
+    }
+
+    /* Sticky Data Pilot Chat Input on Mobile */
+    div[data-testid="stChatInput"] {
+        position: fixed !important;
+        bottom: calc(55px + env(safe-area-inset-bottom)) !important;
+        left: 3% !important;
+        width: 94% !important;
+        z-index: 1050 !important;
+    }
+
+    div[data-testid="stChatInput"]>div {
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2) !important;
+        border-radius: 16px !important;
     }
 }
 
@@ -879,6 +1159,7 @@ div[data-testid="column"]:has(.align-right-helper) div[data-testid="element-cont
 /* General dark mode enforcement for custom HTML text */
 @media (prefers-color-scheme: dark) {
 
+    .command-nav-header,
     .hub-title,
     .hub-subtitle,
     .metric-value,

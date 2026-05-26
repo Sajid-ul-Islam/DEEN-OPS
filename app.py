@@ -20,7 +20,7 @@ def run_app():
     config_issues = validate_runtime_configuration()
 
     if is_auth_configured:
-        if not st.experimental_user.is_logged_in:
+        if not st.user.is_logged_in:
             from src.components.styles import inject_base_styles
             inject_base_styles()
             st.markdown("<div style='margin-top:100px;'></div>", unsafe_allow_html=True)
@@ -97,10 +97,24 @@ def run_app():
         pass
 
     with st.sidebar:
+        # --- Prominent Sidebar Branding ---
+        st.markdown(
+            """
+            <div class="sidebar-logo-container">
+                <div style="font-size: 26px; line-height: 1;">🛡️</div>
+                <div>
+                    <div class="sidebar-logo-text">DEEN-OPS</div>
+                    <div class="sidebar-logo-sub">COMMAND TERMINAL</div>
+                </div>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+
         # User Authentication Context
-        if is_auth_configured and st.experimental_user.is_logged_in:
-            with st.sidebar.expander(f"👤 {st.experimental_user.name}", expanded=False):
-                st.caption(f"📧 {st.experimental_user.email}")
+        if is_auth_configured and st.user.is_logged_in:
+            with st.sidebar.expander(f"👤 {st.user.name}", expanded=False):
+                st.caption(f"📧 {st.user.email}")
                 if st.button("Logout", use_container_width=True, type="secondary"):
                     st.logout()
             st.divider()
@@ -108,7 +122,7 @@ def run_app():
         st.link_button("🌐 Launch DEEN BI", CLOUD_APP_URL, use_container_width=True, type="primary")
         st.divider()
 
-        st.subheader("🚀 COMMAND NAV")
+        st.markdown('<div class="command-nav-header">🚀 COMMAND NAV</div>', unsafe_allow_html=True)
         
         default_nav = "📈 Live Dashboard" if "📈 Live Dashboard" in PRIMARY_NAV else PRIMARY_NAV[0]
         

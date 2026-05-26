@@ -45,7 +45,7 @@ def render_ingestion_filters(
     if granular_df is None and not is_manual:
         return drill, summ, top, basket, active_df
 
-    with st.expander("\U0001f6e0\ufe0f Filter Intelligence", expanded=True):
+    with st.expander("🛠️ Filter Intelligence", expanded=True):
         working_df = granular_df.copy() if granular_df is not None else pd.DataFrame(
             columns=["Category", "Product Name", "Size", "Date"]
         )
@@ -146,7 +146,7 @@ def render_ingestion_filters(
 
         with c5:
             st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
-            if st.button("\U0001f504", use_container_width=True, type="primary", help="Sync Fresh Data"):
+            if st.button("🔄", use_container_width=True, type="primary", help="Sync Fresh Data"):
                 if isinstance(sel_range, tuple) and len(sel_range) == 2:
                     s_d, e_d = sel_range
                     st.session_state["wc_sync_mode"] = "Custom Range"

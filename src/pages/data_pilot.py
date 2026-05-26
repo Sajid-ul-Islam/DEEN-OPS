@@ -23,6 +23,25 @@ from src.processing.forecasting import PredictiveIntelligence
 def get_cached_brain():
     return NeuralBrain()
 
+# --- ML Caching Helpers to Speed Up AI Queries ---
+@st.cache_data(ttl=1800, show_spinner=False)
+def _get_cached_forecast(df: pd.DataFrame):
+    if df is None or df.empty or "Date" not in df.columns or "Total Amount" not in df.columns:
+        return None
+    df_daily = df.copy()
+    df_daily['Day'] = pd.to_datetime(df_daily['Date'], errors='coerce').dt.date
+    series = df_daily.groupby('Day')['Total Amount'].sum()
+    if len(series) >= 3:
+        forecasts, _ = PredictiveIntelligence.forecast(series)
+        return forecasts
+    return None
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _get_cached_anomalies(df: pd.DataFrame):
+    if df is None or df.empty:
+        return pd.DataFrame()
+    return get_cached_brain().detect_anomalies(df)
+
 class AIDataAgent:
     """
     Enhanced AI-BI Agent with NLP Intent Routing & ML Grounding.
@@ -53,23 +72,17 @@ class AIDataAgent:
         
         if intent["type"] == "ml_forecast" or "forecast" in query.lower() or "predict" in query.lower():
             df = self.context_dfs["sales"]
-            if df is not None and not df.empty and "Date" in df.columns and "Total Amount" in df.columns:
-                df_daily = df.copy()
-                df_daily['Day'] = pd.to_datetime(df_daily['Date'], errors='coerce').dt.date
-                series = df_daily.groupby('Day')['Total Amount'].sum()
-                if len(series) >= 3:
-                    forecasts, _ = PredictiveIntelligence.forecast(series)
-                    if forecasts:
-                        best = forecasts[0]
-                        insights.append(f"ML FORECAST: '{best['name']}' predicts next 7 days will total approx ৳{sum(best['forecast']):,.0f}.")
+            forecasts = _get_cached_forecast(df)
+            if forecasts:
+                best = forecasts[0]
+                insights.append(f"ML FORECAST: '{best['name']}' predicts next 7 days will total approx ৳{sum(best['forecast']):,.0f}.")
         
         if intent["type"] == "ml_anomaly" or "anomaly" in query.lower() or "unusual" in query.lower():
             df = self.context_dfs["sales"]
-            if df is not None and not df.empty:
-                anomalies = self.brain.detect_anomalies(df)
-                if not anomalies.empty:
-                    top = anomalies.iloc[0]
-                    insights.append(f"ML ANOMALY: A '{top['type']}' spike was detected on {top['date']} with value ৳{top['value']:,.0f} (Z-Score: {top['score']:.2f}).")
+            anomalies = _get_cached_anomalies(df)
+            if not anomalies.empty:
+                top = anomalies.iloc[0]
+                insights.append(f"ML ANOMALY: A '{top['type']}' spike was detected on {top['date']} with value ৳{top['value']:,.0f} (Z-Score: {top['score']:.2f}).")
                 
         # Pathao Live Tracking Intent (Regex extraction for Consignment IDs)
         pathao_match = re.search(r'(?i)(?:DD|D-|M-)\w+', query)
@@ -483,50 +496,86 @@ def render_ai_pilot_page():
                     if "report" in prompt.lower() or "summary" in prompt.lower():
                         st.session_state.pilot_last_intent = "report_generation"
 
-                    async def run_streaming():
-                        nonlocal full_response
+                    import queue
+                    import threading
+                    import time
+                    
+                    q = queue.Queue()
+                    
+                    async def fetch_stream():
                         try:
                             async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):
-                                full_response += chunk
-                                display_text = re.sub(r'\[KNOWLEDGE_UPDATE:.*?\]', '', full_response)
-                                response_placeholder.markdown(display_text + "▌")
-                            
-                            display_text = re.sub(r'\[KNOWLEDGE_UPDATE:.*?\]', '', full_response)
-                            response_placeholder.markdown(display_text)
-                            
-                            updates = re.findall(r'\[KNOWLEDGE_UPDATE:\s*(.*?)\]', full_response)
-                            if updates:
-                                from pathlib import Path
-                                knowledge_file = Path("data/pilot_knowledge.txt")
-                                knowledge_file.parent.mkdir(parents=True, exist_ok=True)
-                                with open(knowledge_file, "a", encoding="utf-8") as f:
-                                    for update in updates:
-                                        f.write(f"- {update.strip()}\n")
-                                st.toast("🧠 Pilot internalized a new rule!", icon="✅")
-                                
-                            full_response = display_text.strip()
+                                q.put({"chunk": chunk})
                         except Exception as e:
-                            st.error(f"Streaming Error: {e}")
+                            q.put({"error": e})
+                        finally:
+                            q.put({"done": True})
 
-                    # Safe Loop Execution
-                    try:
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
-                            import threading
-                            def thread_run():
-                                new_loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(new_loop)
-                                new_loop.run_until_complete(run_streaming())
+                    def thread_run():
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        new_loop.run_until_complete(fetch_stream())
+                        new_loop.close()
 
-                            t = threading.Thread(target=thread_run)
-                            from streamlit.runtime.scriptrunner import add_script_run_ctx
-                            add_script_run_ctx(t)
-                            t.start()
-                            t.join()
-                        else:
-                            loop.run_until_complete(run_streaming())
-                    except Exception:
-                        asyncio.run(run_streaming())
+                    t = threading.Thread(target=thread_run)
+                    t.start()
+                    
+                    while True:
+                        try:
+                            msg = q.get(timeout=0.1)
+                        except queue.Empty:
+                            if not t.is_alive():
+                                break
+                            continue
+                            
+                        if "done" in msg:
+                            break
+                        if "error" in msg:
+                            st.error(f"Streaming Error: {msg['error']}")
+                            break
+                            
+                        full_response += msg["chunk"]
+                        
+                        # Drain the queue to batch updates and prevent WebSocket flooding
+                        done_flag = False
+                        while not q.empty():
+                            try:
+                                next_msg = q.get_nowait()
+                                if "done" in next_msg:
+                                    done_flag = True
+                                    break
+                                if "error" in next_msg:
+                                    st.error(f"Streaming Error: {next_msg['error']}")
+                                    done_flag = True
+                                    break
+                                full_response += next_msg["chunk"]
+                            except queue.Empty:
+                                break
+                                
+                        display_text = re.sub(r'\[KNOWLEDGE_UPDATE:.*?\]', '', full_response)
+                        response_placeholder.markdown(display_text + "▌")
+                        
+                        if done_flag:
+                            break
+                            
+                        # Throttle UI updates to ~20 FPS to prevent mobile WebSocket flooding
+                        time.sleep(0.05)
+                    t.join()
+                    
+                    display_text = re.sub(r'\[KNOWLEDGE_UPDATE:.*?\]', '', full_response)
+                    response_placeholder.markdown(display_text)
+                    
+                    updates = re.findall(r'\[KNOWLEDGE_UPDATE:\s*(.*?)\]', full_response)
+                    if updates:
+                        from pathlib import Path
+                        knowledge_file = Path("data/pilot_knowledge.txt")
+                        knowledge_file.parent.mkdir(parents=True, exist_ok=True)
+                        with open(knowledge_file, "a", encoding="utf-8") as f:
+                            for update in updates:
+                                f.write(f"- {update.strip()}\n")
+                        st.toast("🧠 Pilot internalized a new rule!", icon="✅")
+                        
+                    full_response = display_text.strip()
 
                 st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
                 

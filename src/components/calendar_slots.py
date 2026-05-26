@@ -25,7 +25,12 @@ def render_operational_slots_calendar():
     hols = st.session_state.operational_holidays
 
     # ── Custom Shift Cutoff ──────────────────────────────────────────────────
-    st.markdown("**⏰ Shift Cutoff Time**")
+    st.markdown(
+        """<div class="op-slots-tooltip">⏰ Shift Cutoff Time
+            <span class="op-slots-tooltip-text">Orders processed after this time are automatically rolled into the next operational shift.</span>
+        </div>""",
+        unsafe_allow_html=True
+    )
     st.caption("Orders are split into Active / History slots at this time each day (BD time).")
 
     current_hour = st.session_state.get("shift_cutoff_hour", DEFAULT_SHIFT_HOUR)
@@ -81,7 +86,12 @@ def render_operational_slots_calendar():
     st.divider()
 
     # ── Operational Holidays ─────────────────────────────────────────────────
-    st.markdown("**📅 Operational Holidays**")
+    st.markdown(
+        """<div class="op-slots-tooltip">📅 Operational Holidays
+            <span class="op-slots-tooltip-text">Mark non-working days here. Operations metrics will bridge across these days without penalizing your lead times.</span>
+        </div>""",
+        unsafe_allow_html=True
+    )
     
     selected_range = st.date_input(
         "Range Selector",

@@ -22,7 +22,7 @@ def render_performance_analysis(df: pd.DataFrame):
         return
 
     st.divider()
-    st.subheader("\U0001f4c8 Time-Series Performance Analysis")
+    st.subheader("📈 Time-Series Performance Analysis")
     
     c_window, c_toggle = st.columns(2)
     with c_window:
@@ -56,7 +56,7 @@ def render_performance_analysis(df: pd.DataFrame):
         if "perf_enable_ml" not in st.session_state:
             st.session_state.perf_enable_ml = False
         enable_ml = st.checkbox(
-            "\U0001f680 Enable ML Forecasting", 
+            "🚀 Enable ML Forecasting", 
             key="perf_enable_ml", 
             help="Apply Predictive Intelligence models to forecast future trends."
         )
@@ -186,7 +186,7 @@ def render_performance_analysis(df: pd.DataFrame):
         st.plotly_chart(fig_ord, use_container_width=True, config={"displayModeBar": False})
 
         if enable_ml and standings_rev is not None and not isinstance(standings_rev, str):
-             with st.expander("\U0001f3c6 ML Forecasting Tournament Standings"):
+             with st.expander("🏆 ML Forecasting Tournament Standings"):
                  st.write("**Revenue Performance Leaderboard** (MAE Comparison)")
                  st.dataframe(standings_rev, hide_index=True, use_container_width=True)
                  st.caption("Lower error indicates better historical accuracy for this specific metric.")
@@ -524,30 +524,70 @@ def render_dashboard_output(
                             placeholder = st.empty()
                             full_response = ""
                             
-                            async def run_ai():
-                                nonlocal full_response
-                                async for chunk in agent.get_response_stream(prompt, history=[]):
-                                    full_response += chunk
-                                    placeholder.info(full_response + "▌")
-                                placeholder.info(full_response)
+                            import queue
+                            import threading
+                            import time
+                            
+                            q = queue.Queue()
+                            
+                            async def fetch_stream():
+                                try:
+                                    async for chunk in agent.get_response_stream(prompt, history=[]):
+                                        q.put({"chunk": chunk})
+                                except Exception as e:
+                                    q.put({"error": e})
+                                finally:
+                                    q.put({"done": True})
+                                    
+                            def thread_run():
+                                new_loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(new_loop)
+                                new_loop.run_until_complete(fetch_stream())
+                                new_loop.close()
                                 
-                            try:
-                                loop = asyncio.get_event_loop()
-                                if loop.is_running():
-                                    import threading
-                                    def thread_run():
-                                        new_loop = asyncio.new_event_loop()
-                                        asyncio.set_event_loop(new_loop)
-                                        new_loop.run_until_complete(run_ai())
-                                    t = threading.Thread(target=thread_run)
-                                    from streamlit.runtime.scriptrunner import add_script_run_ctx
-                                    add_script_run_ctx(t)
-                                    t.start()
-                                    t.join()
-                                else:
-                                    loop.run_until_complete(run_ai())
-                            except Exception:
-                                asyncio.run(run_ai())
+                            t = threading.Thread(target=thread_run)
+                            t.start()
+                            
+                            while True:
+                                try:
+                                    msg = q.get(timeout=0.1)
+                                except queue.Empty:
+                                    if not t.is_alive():
+                                        break
+                                    continue
+                                    
+                                if "done" in msg:
+                                    break
+                                if "error" in msg:
+                                    st.error(f"AI Streaming Error: {msg['error']}")
+                                    break
+                                full_response += msg["chunk"]
+                                
+                                # Drain the queue to batch updates and prevent WebSocket flooding
+                                done_flag = False
+                                while not q.empty():
+                                    try:
+                                        next_msg = q.get_nowait()
+                                        if "done" in next_msg:
+                                            done_flag = True
+                                            break
+                                        if "error" in next_msg:
+                                            st.error(f"AI Streaming Error: {next_msg['error']}")
+                                            done_flag = True
+                                            break
+                                        full_response += next_msg["chunk"]
+                                    except queue.Empty:
+                                        break
+                                        
+                                placeholder.info(full_response + "▌")
+                                
+                                if done_flag:
+                                    break
+                                    
+                                # Throttle UI updates to ~20 FPS to prevent mobile WebSocket flooding
+                                time.sleep(0.05)
+                            t.join()
+                            placeholder.info(full_response)
 
                             st.session_state.ai_report_text = full_response
                             st.session_state.last_ai_data_fingerprint = current_data_fingerprint

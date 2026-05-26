@@ -29,7 +29,7 @@ def render_manual_tab():
 
     render_reset_confirm("Sales Data Ingestion", "manual", _reset_manual_state)
 
-    st.info("\U0001f4ca Consolidate and analyze sales data. WooCommerce pull is active by default.")
+    st.info("📊 Consolidate and analyze sales data. WooCommerce pull is active by default.")
 
     # v10.7 Auto-Load Intelligence with Snapshot Fallback
     if st.session_state.get("manual_df") is None and not st.session_state.get("manual_autoload_attempted", False):
@@ -40,7 +40,7 @@ def render_manual_tab():
             st.session_state.manual_df = snap_df
             st.session_state.manual_source_name = "Last_Synced_Snapshot (30 Days)"
             st.session_state["wc_sync_mode"] = "Custom Range"
-            st.toast("\u26a1 Loaded Sales from Snapshot")
+            st.toast("⚡ Loaded Sales from Snapshot")
             st.rerun()
         else:
             # 2. If no snapshot, run API load
@@ -65,7 +65,7 @@ def render_manual_tab():
                         st.session_state.manual_source_name = src_res
                         save_sales_snapshot(df_res)
                         status.update(label="API Sync Complete", state="complete", expanded=False)
-                        st.toast("\u2705 API Sync Complete!")
+                        st.toast("✅ API Sync Complete!")
                         st.rerun()
                 except Exception:
                     status.update(label="API Sync Failed", state="error", expanded=False)
@@ -76,8 +76,8 @@ def render_manual_tab():
     source_name = st.session_state.get("manual_source_name", "")
 
     # Optional Sources Expander
-    with st.expander("\U0001f4e4 Optional: External Source (Upload / URL)"):
-        uploaded_file = st.file_uploader("\U0001f4c2 Drag and drop sales file", type=["xlsx", "csv"], key="manual_uploader_v2")
+    with st.expander("📤 Optional: External Source (Upload / URL)"):
+        uploaded_file = st.file_uploader("📂 Drag and drop sales file", type=["xlsx", "csv"], key="manual_uploader_v2")
         if uploaded_file:
             df_up = read_sales_file(uploaded_file, uploaded_file.name)
             if df_up is not None:
@@ -86,7 +86,7 @@ def render_manual_tab():
                 df = df_up
                 source_name = uploaded_file.name
 
-        url_input = st.text_input("\U0001f310 Or paste a public CSV/XLSX URL", key="manual_url_input")
+        url_input = st.text_input("🌐 Or paste a public CSV/XLSX URL", key="manual_url_input")
         if url_input and st.button("Fetch from URL", use_container_width=True, type="secondary", key="manual_url_fetch"):
             try:
                 from src.utils.url_fetch import fetch_dataframe_from_url
