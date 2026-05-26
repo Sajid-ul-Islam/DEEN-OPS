@@ -56,8 +56,18 @@ def render_distribution_tab(search_q):
             except Exception as e:
                 st.error(f"URL fetch failed: {e}")
 
+    import os
+    import io
     loc_files = {}
     loc_cols = st.columns(len(INVENTORY_LOCATIONS))
+
+    default_files = {
+        "Mirpur": "Mir.xlsx",
+        "Wari": "War.xlsx",
+        "Cumilla": "Cum.xlsx",
+        "Sylhet": "Syl.xlsx"
+    }
+
     for i, loc in enumerate(INVENTORY_LOCATIONS):
         with loc_cols[i]:
             if loc == "Ecom":
@@ -66,13 +76,20 @@ def render_distribution_tab(search_q):
                     st.caption("✅ Using Cached Web Stock")
                     loc_files[loc] = st.session_state.get(f"inv_l_{loc}_df")
 
-                # Instruction
-
             uploaded = st.file_uploader(
                 f"{loc}", key=f"inv_l_{loc}", type=["xlsx", "csv"]
             )
             if uploaded:
                 loc_files[loc] = uploaded
+            elif loc in default_files:
+                default_path = os.path.join("src", "inventory", default_files[loc])
+                if os.path.exists(default_path):
+                    with open(default_path, "rb") as f:
+                        file_bytes = f.read()
+                    default_obj = io.BytesIO(file_bytes)
+                    default_obj.name = default_files[loc]
+                    loc_files[loc] = default_obj
+                    st.caption(f"✅ Default: {default_files[loc]}")
 
     master_df = None
     title_col = None
