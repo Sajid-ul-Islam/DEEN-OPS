@@ -90,6 +90,8 @@ def render_distribution_tab(search_q):
                     default_obj.name = default_files[loc]
                     loc_files[loc] = default_obj
                     st.caption(f"✅ Default: {default_files[loc]}")
+                else:
+                    st.caption("ℹ️ No default file")
 
     master_df = None
     title_col = None

@@ -291,6 +291,8 @@ def render_dashboard_output(
             # Fallback if m_df is None
             active_df = granular_df if granular_df is not None else pd.DataFrame()
             drill, summ, top, basket = None, None, None, {}
+                m_df, c_df, nav_mode, dummy_mapping, wc_raw_mapping, forecast_val, avg_proc_time
+            )
 
     else:
         # Ingestion mode filters

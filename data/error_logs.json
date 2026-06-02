@@ -1,19 +1,5 @@
 [
     {
-        "timestamp": "2026-04-09 13:15:41",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1524, in render_stock_analytics_tab\n    size_options = sorted(df_item[size_col].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-09 13:31:40",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1552, in render_stock_analytics_tab\n    size_options = sorted(df_item[size_col].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-09 13:32:16",
         "context": "App Bootstrap",
         "error": "'<' not supported between instances of 'str' and 'float'",
@@ -701,6 +687,22 @@
         "context": "App Bootstrap",
         "error": "name 'margin' is not defined",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 263, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 65, in run_app\n    inject_base_styles()\n    ~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\src\\components\\styles.py\", line 408, in inject_base_styles\n    .banner-controls-shelf [data-testid=\"stSegmentedControl\"] { margin-bottom: -15px; }\n                                                                ^^^^^^\nNameError: name 'margin' is not defined\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-06-02 17:38:02",
+        "context": "safe_render",
+        "error": "[Errno 28] No space left on device",
+        "traceback": "OSError: [Errno 28] No space left on device\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 387, in close\n    self._store_workbook()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 803, in _store_workbook\n    xml_files = packager._create_package()\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\packager.py\", line 138, in _create_package\n    self._write_content_types_file()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\packager.py\", line 500, in _write_content_types_file\n    content._assemble_xml_file()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\contenttypes.py\", line 77, in _assemble_xml_file\n    self._xml_close()\n    ~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\xmlwriter.py\", line 52, in _xml_close\n    self.fh.close()\n    ~~~~~~~~~~~~~^^\nOSError: [Errno 28] No space left on device\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 155, in <lambda>\n    lambda: render_dashboard_output(\n            ~~~~~~~~~~~~~~~~~~~~~~~^\n        drill,\n        ^^^^^^\n    ...<6 lines>...\n        granular_df=df_standard\n        ^^^^^^^^^^^^^^^^^^^^^^^\n    ),\n    ^\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 394, in render_dashboard_output\n    with pd.ExcelWriter(buf_pbi, engine=\"xlsxwriter\") as wr:\n         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_base.py\", line 1353, in __exit__\n    self.close()\n    ~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_base.py\", line 1357, in close\n    self._save()\n    ~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\io\\excel\\_xlsxwriter.py\", line 239, in _save\n    self.book.close()\n    ~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\workbook.py\", line 389, in close\n    raise FileCreateError(e)\nxlsxwriter.exceptions.FileCreateError: [Errno 28] No space left on device\n",
+        "details": {
+            "fallback_msg": "Dashboard rendering encountered an error."
+        }
+    },
+    {
+        "timestamp": "2026-06-02 17:49:24",
+        "context": "App Bootstrap",
+        "error": "unindent does not match any outer indentation level (dashboard_output.py, line 309)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 308, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 46, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 8, in <module>\n    from src.pages.dashboard_output import render_dashboard_output\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 309\n    full_df = st.session_state.get(\"wc_full_df\")\n                                                ^\nIndentationError: unindent does not match any outer indentation level\n",
         "details": {}
     }
 ]
