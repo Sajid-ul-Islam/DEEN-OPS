@@ -218,6 +218,8 @@ def render_sidebar_controls():
         st.markdown("### 📁 Knowledge Base")
         
         if st.button("🔄 Sync from WooCommerce", use_container_width=True, type="primary"):
+            # Lock navigation to Data Pilot during sync
+            st.session_state["_nav_override"] = "🚀 Data Pilot"
             with st.status("Syncing live data...", expanded=True) as status:
                 try:
                     status.write("📡 Fetching live orders...")
@@ -234,6 +236,8 @@ def render_sidebar_controls():
                     st.error(f"Failed to sync from WooCommerce: {e}")
 
         if st.button("🔄 Sync Pathao Statuses", use_container_width=True):
+            # Lock navigation to Data Pilot during sync
+            st.session_state["_nav_override"] = "🚀 Data Pilot"
             with st.status("Syncing Pathao statuses...", expanded=True) as status:
                 try:
                     # 1. Get source dataframe
@@ -309,6 +313,8 @@ def render_sidebar_controls():
         pathao_track_df = st.session_state.get("pilot_pathao_tracking_df")
         if (uploaded_df is not None and not uploaded_df.empty) or (pathao_track_df is not None and not pathao_track_df.empty):
             if st.button("Clear Knowledge Base", use_container_width=True):
+                # Lock navigation to Data Pilot during clear
+                st.session_state["_nav_override"] = "🚀 Data Pilot"
                 st.session_state.pilot_uploaded_df = None
                 st.session_state.pilot_pathao_tracking_df = None
                 st.session_state.pilot_uploader_key += 1
@@ -327,6 +333,17 @@ def render_ai_pilot_page():
         unsafe_allow_html=True
     )
 
+    # ⚡ Preserve chat state during sidebar reruns
+    if "agent_messages" not in st.session_state:
+        st.session_state.agent_messages = [{"role": "assistant", "content": "Welcome to the Pilot's Seat. Ask me about sales, generate reports, or track Pathao live statuses!"}]
+    
+    if "pilot_reports" not in st.session_state:
+        st.session_state.pilot_reports = []
+
+    # ⚡ Lock navigation to Data Pilot to prevent sidebar reruns from changing it
+    if "_nav_override" in st.session_state and st.session_state["_nav_override"] != "🚀 Data Pilot":
+        st.session_state["_nav_override"] = "🚀 Data Pilot"
+
     # ⚡ Instant Boot: Load Offline Snapshot
     if "snapshot_loaded" not in st.session_state:
         try:
@@ -341,13 +358,6 @@ def render_ai_pilot_page():
         except Exception as e:
             st.warning(f"Failed to load offline snapshot: {e}")
         st.session_state.snapshot_loaded = True
-
-    # Init Messages
-    if "agent_messages" not in st.session_state:
-        st.session_state.agent_messages = [{"role": "assistant", "content": "Welcome to the Pilot's Seat. Ask me about sales, generate reports, or track Pathao live statuses!"}]
-    
-    if "pilot_reports" not in st.session_state:
-        st.session_state.pilot_reports = []
 
     # Sidebar
     provider, api_key, model_name, auto_sync = render_sidebar_controls()
@@ -426,6 +436,8 @@ def render_ai_pilot_page():
         st.markdown("### 📑 AI Generated Reports")
         
         if st.button("✨ Auto-Generate Executive Report", type="primary", use_container_width=True):
+            # Lock navigation to Data Pilot during report generation
+            st.session_state["_nav_override"] = "🚀 Data Pilot"
             prompt = "Generate a comprehensive executive summary report covering current sales, stock levels, and fulfillment. Use professional formatting."
             st.session_state.agent_messages.append({"role": "user", "content": prompt})
             st.rerun()
@@ -483,6 +495,9 @@ def render_ai_pilot_page():
                     st.session_state.agent_messages.append({"role": "assistant", "content": msg})
                 
             elif prompt:
+                # Store the current navigation state before processing
+                original_nav = st.session_state.get("_nav_override")
+                
                 # Handle Smart Auto-Sync
                 if auto_sync:
                     last_sync = st.session_state.get("live_sync_time")
@@ -597,14 +612,18 @@ def render_ai_pilot_page():
                         
                     full_response = display_text.strip()
 
-                st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
-                
-                # If report was requested, save it to reports tab
-                if st.session_state.pilot_last_intent == "report_generation":
-                    st.session_state.pilot_reports.append({
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "content": full_response
-                    })
+                    st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
+                    
+                    # Restore navigation override if it was set by sidebar (prevents nav change)
+                    if original_nav and "_nav_override" not in st.session_state:
+                        st.session_state["_nav_override"] = original_nav
+                    
+                    # If report was requested, save it to reports tab
+                    if st.session_state.pilot_last_intent == "report_generation":
+                        st.session_state.pilot_reports.append({
+                            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "content": full_response
+                        })
 
                 if len(full_response) > 50:
                     with st.expander("🔍 Intelligence Layer: Brain Routing"):

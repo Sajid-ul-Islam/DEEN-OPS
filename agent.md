@@ -262,3 +262,72 @@ Secrets/config:
 
 ---
 *End of blueprint. Keep this file aligned with actual behavior, not aspirational behavior.*
+
+## 14. AI Agent Skills & Best Practices
+
+### Skill Files Location
+This project includes AI agent skill files in `.kiro/skills/` directory that define best practices and prevent common bugs:
+
+| File | Purpose |
+|------|---------|
+| `navigation-stability.md` | Prevents navigation changes after sidebar reruns and chat interactions |
+| `code-quality.md` | Prevents syntax errors, duplicate code blocks, and indentation issues |
+| `session-state-management.md` | Ensures proper session state initialization and persistence |
+
+### Why These Skills Matter
+The project has experienced issues where:
+1. Sidebar button clicks trigger `st.rerun()` which can change navigation unexpectedly
+2. Session state initialized in wrong order gets overwritten
+3. Duplicate `else:` blocks cause syntax errors
+4. Undefined variables referenced in broken code branches
+
+### Agent Guidelines When Modifying Code
+
+**ALWAYS check these skill files before making changes:**
+
+1. **Navigation Stability** - When adding sidebar buttons that call `st.rerun()`:
+   - Add `st.session_state["_nav_override"] = "Current Page"` before the rerun
+   - Store original nav before chat input processing
+   - Restore nav after response
+
+2. **Code Quality** - Before editing any Python file:
+   - Run `python -m py_compile "file.py"` to verify syntax
+   - Check for duplicate `else:` blocks with `findstr /N "^\s*else:" "file.py"`
+   - Ensure consistent 4-space indentation
+
+3. **Session State** - Always initialize state at page start:
+   - Initialize critical session state BEFORE rendering any components
+   - Use single initialization per state variable
+   - Check `if "key" not in st.session_state:` pattern
+
+**Example Fix Pattern:**
+```python
+# BEFORE (problematic):
+def render_page():
+    render_sidebar()  # May trigger rerun
+    if "messages" not in st.session_state:  # Too late!
+        st.session_state.messages = []
+
+# AFTER (fixed):
+def render_page():
+    # Lock navigation
+    if "_nav_override" not in st.session_state:
+        st.session_state["_nav_override"] = "Current Page"
+    
+    # Initialize state at START
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    
+    # Now safe to render
+    render_sidebar()
+    for msg in st.session_state.messages:
+        st.write(msg)
+```
+
+### File Path Conventions
+- Skill files: `.kiro/skills/*.md` (workspace-level, for all agents)
+- Main guide: `agent.md` (project-level, main reference)
+- Steering files: `.kiro/steering/*.md` (conditional context)
+
+---
+*End of blueprint. Keep this file aligned with actual behavior, not aspirational behavior.*
