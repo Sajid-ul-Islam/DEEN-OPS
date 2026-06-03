@@ -54,21 +54,21 @@ div[role="tabpanel"],
 }
 
 .hub-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: var(--background-color);
-    color: var(--text-color);
-    padding: 12px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.8rem;
-    border-top: 1px solid rgba(128, 128, 128, 0.2);
-    z-index: 998;
-    scrollbar-gutter: stable;
-}
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: var(--background-color);
+        color: var(--text-color);
+        padding: 12px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+        border-top: 1px solid rgba(128, 128, 128, 0.2);
+        z-index: 1000;
+        scrollbar-gutter: stable;
+    }
 
 .hub-footer a {
     color: inherit;
@@ -1107,7 +1107,7 @@ div[data-testid="stColumn"]:has(.align-right-helper) div[data-testid="stElementC
         bottom: calc(55px + env(safe-area-inset-bottom)) !important;
         left: 3% !important;
         width: 94% !important;
-        z-index: 1050 !important;
+        z-index: 999 !important;
     }
 
     div[data-testid="stChatInput"]>div {
@@ -1213,9 +1213,20 @@ div[data-testid="stColumn"]:has(.align-right-helper) div[data-testid="stElementC
     }
 
     .hub-footer {
-        background: #0e1117 !important;
-        color: #cbd5e1 !important;
-        border-top-color: rgba(255, 255, 255, 0.1) !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: var(--background-color);
+        color: var(--text-color);
+        padding: 12px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+        border-top: 1px solid rgba(128, 128, 128, 0.2);
+        z-index: 1000;
+        scrollbar-gutter: stable;
     }
 
     .hub-title-row {
@@ -1223,3 +1234,4 @@ div[data-testid="stColumn"]:has(.align-right-helper) div[data-testid="stElementC
         border-bottom-color: rgba(255, 255, 255, 0.1) !important;
     }
 }
+
