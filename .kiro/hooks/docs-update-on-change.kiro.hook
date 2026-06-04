@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "name": "Update Docs on Source Changes",
+  "description": "Listen to Python source files and related assets, then prompt agent to update documentation in README or docs folder",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.py",
+      "*.md",
+      "*.css"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review the recent source file changes and determine if any documentation in README.md or the docs folder needs to be updated. If changes were made to code that affects usage, APIs, or features, suggest relevant documentation updates."
+  },
+  "workspaceFolderName": "DEEN-OPS",
+  "shortName": "docs-update-on-change"
+}
