@@ -11,6 +11,11 @@ from src.config.settings import get_setting
 from src.services.woocommerce.client import load_live_source
 from src.services.woocommerce.stock import fetch_woocommerce_stock
 
+# Vectorization for RAG
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
 from src.services.llm.manager import init_llm_controller
 
 # Import Pathao tracking
@@ -65,6 +70,52 @@ class AIDataAgent:
                 "pathao_tracking": st.session_state.get("pilot_pathao_tracking_df"),
                 "uploaded": st.session_state.get("pilot_uploaded_df"),
             }
+        self.vectorizer = TfidfVectorizer(stop_words='english', lowercase=True)
+
+    def _get_vector_context(self, query: str, top_k: int = 15) -> str:
+        """
+        Performs RAG retrieval by vectorizing dataframe rows and finding the most 
+        semantically relevant records to the query.
+        """
+        documents = []
+        
+        # 1. Flatten DataFrames into searchable text documents
+        for name, df in self.context_dfs.items():
+            if df is not None and not df.empty:
+                # Limit RAG context size for performance; focus on most recent if possible
+                working_df = df.tail(500) if len(df) > 500 else df
+                
+                # Convert rows to descriptive strings
+                for _, row in working_df.iterrows():
+                    row_str = f"Source: {name} | " + " | ".join([f"{k}: {v}" for k, v in row.items() if pd.notna(v)])
+                    documents.append(row_str)
+        
+        if not documents:
+            return ""
+
+        try:
+            # 2. Vectorize the knowledge base
+            tfidf_matrix = self.vectorizer.fit_transform(documents)
+            
+            # 3. Vectorize the query
+            query_vec = self.vectorizer.transform([query])
+            
+            # 4. Compute Similarity
+            cosine_sim = cosine_similarity(query_vec, tfidf_matrix).flatten()
+            
+            # 5. Retrieve top K matches
+            related_indices = cosine_sim.argsort()[-top_k:][::-1]
+            
+            relevant_chunks = []
+            for idx in related_indices:
+                if cosine_sim[idx] > 0.05: # Threshold to filter out irrelevant noise
+                    relevant_chunks.append(documents[idx])
+            
+            if relevant_chunks:
+                return "\nRELEVANT DATA RECORDS FOUND:\n" + "\n".join(relevant_chunks)
+            return ""
+        except Exception as e:
+            return f"\n(RAG Retrieval Error: {str(e)})\n"
 
     def get_grounded_insights(self, query: str) -> str:
         intent = self.brain.semantic_query_intent(query)
@@ -97,6 +148,11 @@ class AIDataAgent:
         # Report Generation Intent
         if "report" in query.lower() or "summary" in query.lower():
              insights.append("ACTION: The user is requesting a comprehensive report or summary. Please format the response as a detailed, structured markdown report covering sales, inventory, and fulfillment performance based on the available data context.")
+
+        # RAG Retrieval: Vectorized context injection
+        rag_context = self._get_vector_context(query)
+        if rag_context:
+            insights.append(rag_context)
 
         # General grounding
         for name, df in self.context_dfs.items():
