@@ -3,10 +3,11 @@ import pandas as pd
 import asyncio
 import re
 import io
+import os
 from datetime import datetime
 from typing import Dict, List
 
-from src.config.settings import get_setting
+from src.config.settings import get_setting, load_secrets_schema
 # Add direct WooCommerce sync imports
 from src.services.woocommerce.client import load_live_source
 from src.services.woocommerce.stock import fetch_woocommerce_stock
@@ -70,16 +71,57 @@ class AIDataAgent:
                 "pathao_tracking": st.session_state.get("pilot_pathao_tracking_df"),
                 "uploaded": st.session_state.get("pilot_uploaded_df"),
             }
+        self.app_knowledge = self._load_app_knowledge()
         self.vectorizer = TfidfVectorizer(stop_words='english', lowercase=True)
 
-    def _get_vector_context(self, query: str, top_k: int = 15) -> str:
+    def _load_app_knowledge(self) -> List[str]:
+        """Loads project blueprints, source code logic, and API schemas into the knowledge base."""
+        knowledge = []
+        # 1. Core Documentation & Blueprints
+        docs = ["agent.md", "README.md", "data_pilot.md", "DEAD_CODE_REPORT.md", "ERROR_HANDLING_GUIDE.md", "DEVELOPMENT.md"]
+        for doc in docs:
+            if os.path.exists(doc):
+                try:
+                    with open(doc, "r", encoding="utf-8") as f:
+                        knowledge.append(f"KNOWLEDGE_TYPE: Documentation | FILE: {doc}\n{f.read()[:4000]}")
+                except: pass
+        
+        # 2. REST API Schema & Contracts (Answers 'rest api data' context)
+        try:
+            schema = load_secrets_schema()
+            if schema:
+                knowledge.append(f"KNOWLEDGE_TYPE: REST API Definition & Secrets Schema\n{str(schema)}")
+        except: pass
+            
+        # 3. Source Code Logic (Sampling key orchestration files)
+        src_samples = [
+            "src/config/constants.py",
+            "src/config/settings.py",
+            "src/processing/data_processing.py",
+            "src/services/woocommerce/client.py",
+            "src/services/pathao/client.py",
+            "src/services/llm/manager.py",
+            "app.py"
+        ]
+        for src in src_samples:
+            if os.path.exists(src):
+                try:
+                    with open(src, "r", encoding="utf-8") as f:
+                        knowledge.append(f"KNOWLEDGE_TYPE: Source Code Architecture | FILE: {src}\n{f.read()[:3000]}")
+                except: pass
+        return knowledge
+
+    def _get_vector_context(self, query: str, top_k: int = 20) -> str:
         """
-        Performs RAG retrieval by vectorizing dataframe rows and finding the most 
-        semantically relevant records to the query.
+        Performs RAG retrieval by vectorizing dataframe rows and app-level knowledge,
+        finding the most semantically relevant items to the query.
         """
         documents = []
         
-        # 1. Flatten DataFrames into searchable text documents
+        # 1. Include static App Knowledge (Docs/Source/API Schema)
+        documents.extend(self.app_knowledge)
+        
+        # 2. Flatten DataFrames into searchable text documents
         for name, df in self.context_dfs.items():
             if df is not None and not df.empty:
                 # Limit RAG context size for performance; focus on most recent if possible
@@ -275,7 +317,7 @@ def render_sidebar_controls():
         
         if st.button("🔄 Sync from WooCommerce", use_container_width=True, type="primary"):
             # Lock navigation to Data Pilot during sync
-            st.session_state["_nav_override"] = "🚀 Data Pilot"
+            st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
             with st.status("Syncing live data...", expanded=True) as status:
                 try:
                     status.write("📡 Fetching live orders...")
@@ -293,7 +335,7 @@ def render_sidebar_controls():
 
         if st.button("🔄 Sync Pathao Statuses", use_container_width=True):
             # Lock navigation to Data Pilot during sync
-            st.session_state["_nav_override"] = "🚀 Data Pilot"
+            st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
             with st.status("Syncing Pathao statuses...", expanded=True) as status:
                 try:
                     # 1. Get source dataframe
@@ -370,7 +412,7 @@ def render_sidebar_controls():
         if (uploaded_df is not None and not uploaded_df.empty) or (pathao_track_df is not None and not pathao_track_df.empty):
             if st.button("Clear Knowledge Base", use_container_width=True):
                 # Lock navigation to Data Pilot during clear
-                st.session_state["_nav_override"] = "🚀 Data Pilot"
+                st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
                 st.session_state.pilot_uploaded_df = None
                 st.session_state.pilot_pathao_tracking_df = None
                 st.session_state.pilot_uploader_key += 1
@@ -397,8 +439,8 @@ def render_ai_pilot_page():
         st.session_state.pilot_reports = []
 
     # ⚡ Lock navigation to Data Pilot to prevent sidebar reruns from changing it
-    if "_nav_override" in st.session_state and st.session_state["_nav_override"] != "🚀 Data Pilot":
-        st.session_state["_nav_override"] = "🚀 Data Pilot"
+    if "_nav_override" in st.session_state and st.session_state["_nav_override"] != ":material/rocket_launch: Data Pilot":
+        st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
 
     # ⚡ Instant Boot: Load Offline Snapshot
     if "snapshot_loaded" not in st.session_state:
@@ -493,7 +535,7 @@ def render_ai_pilot_page():
         
         if st.button("✨ Auto-Generate Executive Report", type="primary", use_container_width=True):
             # Lock navigation to Data Pilot during report generation
-            st.session_state["_nav_override"] = "🚀 Data Pilot"
+            st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
             prompt = "Generate a comprehensive executive summary report covering current sales, stock levels, and fulfillment. Use professional formatting."
             st.session_state.agent_messages.append({"role": "user", "content": prompt})
             st.rerun()

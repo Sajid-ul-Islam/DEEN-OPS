@@ -308,16 +308,46 @@ def render_distribution_tab(search_q):
 
     if st.session_state.get("inv_res_data") is not None:
         st.divider()
-        st.subheader("🧮 Live Scenario Simulator")
-        st.markdown("Adjust the sliders below to simulate demand and supply changes. The distribution matrix will recalculate in real-time.")
         
-        sc1, sc2 = st.columns(2)
-        with sc1:
-            sim_demand_adj = st.slider("Simulate Demand / Order Volume (%)", -50, 200, 0, step=10, help="Simulate a percentage change in requested order quantities.")
-        with sc2:
-            sim_supply_adj = st.slider("Simulate Supply / Stock Level (%)", -50, 100, 0, step=10, help="Simulate a percentage change in available stock across all locations.")
+        st.markdown("""
+            <style>
+            .live-pulse {
+                display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+                background: #10b981; margin-right: 8px;
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 1);
+                animation: pulse-green 2s infinite;
+            }
+            @keyframes pulse-green {
+                0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+                70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+                100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+            }
+            .sim-badge {
+                background: rgba(245, 158, 11, 0.15); color: #d97706; 
+                padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; 
+                font-weight: 700; border: 1px solid rgba(217, 119, 6, 0.3);
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        sim_demand_adj = 0
+        sim_supply_adj = 0
+        
+        with st.container(border=True):
+            st.markdown(
+                '<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">'
+                '<div style="display: flex; align-items: center;"><div class="live-pulse"></div>'
+                '<h3 style="margin: 0; font-size: 1.25rem;">Live Scenario Simulator</h3></div>'
+                '</div>', unsafe_allow_html=True
+            )
+            sc1, sc2 = st.columns(2)
+            with sc1:
+                sim_demand_adj = st.slider("Simulate Demand Volume (%)", -50, 200, 0, step=10)
+            with sc2:
+                sim_supply_adj = st.slider("Simulate Supply Level (%)", -50, 100, 0, step=10)
             
         if sim_demand_adj != 0 or sim_supply_adj != 0:
+            st.toast("⚡ Simulation Mode Active", icon="🧪")
             master_df = st.session_state.get("inv_master_df_live")
             inventory_map = st.session_state.get("inv_inventory_map")
             sku_map = st.session_state.get("inv_sku_map")
@@ -358,14 +388,18 @@ def render_distribution_tab(search_q):
         
         oos_rate = (oos_count / total_orders * 100) if total_orders > 0 else 0
         
-        sim_html = (
+        
+        sim_badge_html = '<span class="sim-badge">SIMULATED DATA</span>' if (sim_demand_adj != 0 or sim_supply_adj != 0) else '<span style="color: #64748b; font-size: 0.75rem;">LIVE SNAPSHOT</span>'
+        
+        st.markdown(
+            f'<div style="margin: 1.5rem 0 0.5rem 0;">{sim_badge_html}</div>'
             '<div class="metric-container">'
             f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Items</div><div class="metric-value">{total_orders:,.0f}</div></div><div class="metric-icon">📦</div></div>'
-            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Out of Stock Rate</div><div class="metric-value">{oos_rate:.1f}%</div></div><div class="metric-icon">⚠️</div></div>'
+            f'<div class="metric-card" style="border-left: 4px solid {"#ef4444" if oos_rate > 10 else "#10b981"}"><div class="metric-content"><div class="metric-label">Out of Stock Rate</div><div class="metric-value">{oos_rate:.1f}%</div></div><div class="metric-icon">⚠️</div></div>'
             f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Split Parcels</div><div class="metric-value">{split_count:,.0f}</div></div><div class="metric-icon">✂️</div></div>'
-            '</div>'
+            '</div>', 
+            unsafe_allow_html=True
         )
-        st.markdown(sim_html, unsafe_allow_html=True)
         st.divider()
 
         title_key = st.session_state.inv_t_col

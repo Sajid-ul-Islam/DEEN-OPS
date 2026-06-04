@@ -174,7 +174,7 @@ def render_ai_pilot_page():
 def render_ai_pilot_page():
     # Lock navigation first
     if "_nav_override" not in st.session_state:
-        st.session_state["_nav_override"] = "🚀 Data Pilot"
+        st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
     
     # Initialize state
     if "agent_messages" not in st.session_state:
@@ -195,7 +195,7 @@ if st.button("Sync"):
 
 # AFTER - Navigation locked
 if st.button("Sync"):
-    st.session_state["_nav_override"] = "🚀 Data Pilot"
+    st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
     sync_data()
     st.rerun()
 ```
@@ -354,7 +354,7 @@ def render_page():
 def render_ai_pilot_page():
     # Navigation lock (critical for stability)
     if "_nav_override" not in st.session_state:
-        st.session_state["_nav_override"] = "🚀 Data Pilot"
+        st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
     
     # Chat state (critical for UX)
     if "agent_messages" not in st.session_state:
@@ -373,7 +373,7 @@ def render_ai_pilot_page():
 ```python
 # All sidebar buttons that call st.rerun() must lock navigation
 if st.button("Action"):
-    st.session_state["_nav_override"] = "🚀 Data Pilot"
+    st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
     process_action()
     st.rerun()  # Navigation is locked
 ```

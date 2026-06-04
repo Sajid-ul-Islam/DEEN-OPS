@@ -135,26 +135,26 @@ def generate_report_data():
     }
     
     prompt = f"""
-    Generate an executive briefing for today's e-commerce operations.
-    Today's key metrics:
-    - Revenue: ৳{today_rev:,.0f}
-    - Orders: {today_orders}
-    - Items Sold: {today_qty}
-    - Basket Size: ৳{today_aov:,.0f}
+    Generate a high-impact executive briefing for today's e-commerce operations.
+    
+    *Core Metrics:*
+    - Today: ৳{today_rev:,.0f} revenue, {today_orders} orders ({today_qty} items).
+    - Avg Basket: ৳{today_aov:,.0f}.
+    - Yesterday: ৳{prev_rev:,.0f} revenue, {prev_orders} orders.
+    - Logistics: {dm.get('pathao_count', 0)} Pathao, {dm.get('other_count', 0)} other.
+    - Prediction: {forecast_str}
 
-    Comparison with yesterday:
-    - Yesterday's Revenue: ৳{prev_rev:,.0f}
-    - Yesterday's Orders: {prev_orders}
+    *Contextual Data (sales_summary, top_products):*
+    - Use this to identify growth categories or specific product surges.
 
-    Dispatch Metrics:
-    - Shipped via Pathao: {dm.get('pathao_count', 0)}
-    - Shipped via Other: {dm.get('other_count', 0)}
-
-    {forecast_str}
-
-    Based on the provided context data (sales_summary, top_products), write a concise, professional, and insightful narrative.
-    Highlight key trends, mention the top-performing products/categories, and provide a concluding remark on the day's performance.
-    The entire response should be a single block of text formatted for WhatsApp (using markdown like *bold* and _italic_).
+    *Instructions:*
+    Write a structured, professional narrative optimized for WhatsApp.
+    1. 📊 *Performance Snapshot*: Trend analysis vs yesterday.
+    2. 🏆 *Top Movers*: Highlight categories or SKUs driving today's volume.
+    3. 🚚 *Logistics Status*: Efficiency of current dispatch operations.
+    4. 💡 *Strategic Outlook*: A concise, actionable tactical note for tomorrow based on metrics and forecasts.
+    
+    Use emojis appropriately and keep it readable. Use *bold* for emphasis.
     """
 
     try:

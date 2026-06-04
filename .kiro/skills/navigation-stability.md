@@ -33,7 +33,7 @@ if st.button("Do something"):
 # AFTER (fixed):
 if st.button("Do something"):
     # Lock navigation to current page
-    st.session_state["_nav_override"] = "🚀 Data Pilot"
+    st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
     process_data()
     st.rerun()
 ```
