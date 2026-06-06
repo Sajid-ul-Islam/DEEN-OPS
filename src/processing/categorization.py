@@ -23,7 +23,7 @@ def get_category_for_sales(name) -> str:
     if "polo" in name_str: return "Polo Shirt"
     if _has_any(["turtleneck", "turtle-neck", "mock neck"], name_str): return "Turtle-Neck"
     if "bundle" in name_str: return "Bundles"
-    if "cuban" in name_str: return "Cuban"
+    if "cuban" in name_str: return "Cuban Shirt"
 
     # 2. MAIN CLUSTERS
     if _has_any(["jeans"], name_str): return "Jeans"
