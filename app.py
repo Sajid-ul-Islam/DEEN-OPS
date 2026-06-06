@@ -101,11 +101,13 @@ def run_app():
         st.markdown(
             """
             <div class="sidebar-logo-container">
-                <div style="font-size: 26px; line-height: 1;">🛡️</div>
-                <div>
+                <div style="font-size: 28px; line-height: 1; filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));">🛡️</div>
+                <div style="flex: 1; min-width: 0;">
                     <div class="sidebar-logo-text">DEEN-OPS</div>
-                    <div class="sidebar-logo-sub">COMMAND TERMINAL</div>
+                    <div class="sidebar-logo-sub">Command Terminal</div>
+                    <div class="sidebar-version-badge">v10.0</div>
                 </div>
+                <div class="sidebar-status-dot" title="System Online"></div>
             </div>
             """, 
             unsafe_allow_html=True
@@ -122,7 +124,7 @@ def run_app():
         st.link_button("🌐 Launch DEEN BI", CLOUD_APP_URL, use_container_width=True, type="primary")
         st.divider()
 
-        st.markdown('<div class="command-nav-header"><span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 6px; font-size: 1.4rem;">rocket_launch</span>COMMAND NAV</div>', unsafe_allow_html=True)
+        st.markdown('<div class="command-nav-header"><span style="opacity:0.5;">⬡</span> Navigation</div>', unsafe_allow_html=True)
         
         default_nav = "📈 Live Dashboard" if "📈 Live Dashboard" in PRIMARY_NAV else PRIMARY_NAV[0]
         
