@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from datetime import datetime, timedelta, timezone
-from io import BytesIO
 
 from src.config.constants import SHIPPED_STATUSES
 from src.processing.data_processing import get_dispatch_metrics, generate_executive_briefing
@@ -13,6 +12,7 @@ from src.pages.dashboard_filters import render_ingestion_filters
 from src.pages.dashboard_metrics import render_operational_metrics
 from src.processing.forecasting import PredictiveIntelligence
 from src.services.woocommerce.client import get_items_sold_label
+from src.pages.excel_exporter import export_to_styled_excel
 from src.utils.safe_ops import safe_render
 
 
@@ -243,34 +243,11 @@ def render_dashboard_output(
                  status_col_c = "Order Status" if "Order Status" in c_df.columns else "Status" if "Status" in c_df.columns else None
 
              if order_view_mode == "Shipped Only":
-                 if status_col_m:
-                     # Modification-aware operational filtering for "Shift Sales"
-                     m_slot_key = "wc_curr_slot" if nav_mode == "Today" else "wc_prev_slot" if nav_mode == "Prev" else None
-                     m_slot = st.session_state.get(m_slot_key)
-                     
-                     if m_slot and "mod_dt_parsed" in m_df.columns:
-                         ms, me = m_slot
-                         m_df = m_df[
-                             (m_df[status_col_m].astype(str).str.lower().isin(SHIPPED_STATUSES)) &
-                             (m_df["mod_dt_parsed"] >= ms) &
-                             (m_df["mod_dt_parsed"] <= (me + timedelta(minutes=30)))
-                         ]
-                     else:
-                         m_df = m_df[m_df[status_col_m].astype(str).str.lower().isin(SHIPPED_STATUSES)]
-                     
-                 if c_df is not None and status_col_c:
-                         # Comparison slot boundaries
-                         c_slot_key = "wc_prev_slot" if nav_mode == "Today" else "wc_curr_slot" if nav_mode == "Prev" else None
-                         c_slot = st.session_state.get(c_slot_key)
-                         if c_slot and "mod_dt_parsed" in c_df.columns:
-                             cs, ce = c_slot
-                             c_df = c_df[
-                                 (c_df[status_col_c].astype(str).str.lower().isin(SHIPPED_STATUSES)) &
-                                 (c_df["mod_dt_parsed"] >= cs) &
-                                 (c_df["mod_dt_parsed"] <= (ce + timedelta(minutes=30)))
-                             ]
-                         else:
-                             c_df = c_df[c_df[status_col_c].astype(str).str.lower().isin(SHIPPED_STATUSES)]
+                 from src.processing.data_processing import filter_shipped_by_slot
+                 m_df = filter_shipped_by_slot(m_df, nav_mode, is_comparison=False)
+                 if c_df is not None:
+                     c_df = filter_shipped_by_slot(c_df, nav_mode, is_comparison=True)
+
              elif order_view_mode == "Processing Only":
                  if status_col_m:
                      m_df = m_df[m_df[status_col_m].astype(str).str.lower() == "processing"]
@@ -374,65 +351,34 @@ def render_dashboard_output(
             
         final_report_text = st.session_state.get("ai_report_text", report_text)
 
-    buf_pbi = BytesIO()
-    with pd.ExcelWriter(buf_pbi, engine="xlsxwriter") as wr:
-        if is_operational:
-            df_exec = pd.DataFrame({"Executive Summary": final_report_text.split('\n')})
-            df_exec.to_excel(wr, sheet_name="Executive Briefing", index=False)
-            
-        # Inject Core Metrics Sheet
-        metrics_data = [
-            {"Metric": "Total Revenue (TK)", "Value": today_rev},
-            {"Metric": "Total Items Sold", "Value": today_qty},
-            {"Metric": "Total Orders", "Value": today_orders},
-            {"Metric": "Basket Size (TK)", "Value": today_aov},
-        ]
-        if is_operational and dm:
-            metrics_data.extend([
-                {"Metric": "Pending Dispatch", "Value": dm.get("pending", 0)},
-                {"Metric": "Dispatched", "Value": dm.get("dispatched", 0)},
-                {"Metric": "Dispatch Rate (%)", "Value": dm.get("dispatch_rate", 0)}
-            ])
-        df_metrics = pd.DataFrame(metrics_data)
-        df_metrics.to_excel(wr, sheet_name="Core Metrics", index=False)
+    # Prepare data for centralized exporter
+    export_data = {}
+    if is_operational:
+        export_data["Executive Briefing"] = pd.DataFrame({"Executive Summary": final_report_text.split('\n')})
 
-        if summ is not None and not summ.empty:
-            summ.to_excel(wr, sheet_name="Category Summary", index=False)
-        if top is not None and not top.empty:
-            top.to_excel(wr, sheet_name="Top Products", index=False)
-        if active_df is not None and not active_df.empty:
-            active_df.to_excel(wr, sheet_name="Raw Shift Data", index=False)
+    # Inject Core Metrics Sheet
+    metrics_data = [
+        {"Metric": "Total Revenue (TK)", "Value": today_rev},
+        {"Metric": "Total Items Sold", "Value": today_qty},
+        {"Metric": "Total Orders", "Value": today_orders},
+        {"Metric": "Basket Size (TK)", "Value": today_aov},
+    ]
+    if is_operational and dm:
+        metrics_data.extend([
+            {"Metric": "Pending Dispatch", "Value": dm.get("pending", 0)},
+            {"Metric": "Dispatched", "Value": dm.get("dispatched", 0)},
+            {"Metric": "Dispatch Rate (%)", "Value": dm.get("dispatch_rate", 0)}
+        ])
+    export_data["Core Metrics"] = pd.DataFrame(metrics_data)
 
-        workbook = wr.book
-        header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
+    if summ is not None and not summ.empty:
+        export_data["Category Summary"] = summ
+    if top is not None and not top.empty:
+        export_data["Top Products"] = top
+    if active_df is not None and not active_df.empty:
+        export_data["Raw Shift Data"] = active_df
 
-        # Auto-format column widths & apply header styles
-        sheets_to_format = [
-            ("Core Metrics", df_metrics),
-            ("Category Summary", summ if summ is not None else pd.DataFrame()),
-            ("Top Products", top if top is not None else pd.DataFrame()),
-            ("Raw Shift Data", active_df if active_df is not None else pd.DataFrame())
-        ]
-        if is_operational:
-            sheets_to_format.insert(0, ("Executive Briefing", df_exec))
-            
-        for sheet_name, df_ref in sheets_to_format:
-            if sheet_name in wr.sheets and not df_ref.empty:
-                ws = wr.sheets[sheet_name]
-                for idx, col in enumerate(df_ref.columns):
-                    ws.write(0, idx, str(col), header_format)
-                    
-                    try:
-                        # Drop NA to avoid 'nan' skewing length, calculate actual max string length
-                        col_data = df_ref[col].dropna().astype(str)
-                        max_val_len = col_data.map(len).max() if not col_data.empty else 0
-                        # Add a +4 buffer for cell padding, bold headers, and font scaling
-                        max_len = max(max_val_len, len(str(col))) + 4
-                    except Exception:
-                        max_len = len(str(col)) + 4
-                    
-                    # Cap max width at 100 to prevent unreadably wide columns
-                    ws.set_column(idx, idx, min(max_len, 100))
+    excel_report_bytes = export_to_styled_excel(export_data)
 
     export_date_str = datetime.now().strftime('%Y%m%d')
     if not is_operational:
@@ -614,7 +560,7 @@ def render_dashboard_output(
     with c1:
         st.download_button(
             label="💾 Export Full Analytics (Excel)",
-            data=buf_pbi.getvalue(),
+            data=excel_report_bytes,
             file_name=f"DEEN_Analytics_Report_{export_date_str}.xlsx",
             type="primary",
             use_container_width=True

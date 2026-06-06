@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from io import BytesIO
 from itertools import combinations
 from collections import Counter
 
 from src.processing.categorization import get_category_for_sales, get_sub_category_for_sales
+from src.pages.excel_exporter import export_to_styled_excel
 from src.services.woocommerce.stock import fetch_woocommerce_stock
 from src.utils.product import get_base_product_name, get_size_from_name
 from src.utils.snapshots import load_stock_snapshot
@@ -269,36 +269,23 @@ def render_stock_analytics_tab():
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
         st.divider()
-        buf_stock = BytesIO()
-        with pd.ExcelWriter(buf_stock, engine="xlsxwriter") as wr:
-            stock_metrics = pd.DataFrame([
-                {"Metric": "Total Warehouse Units", "Value": total_qty},
-                {"Metric": f"Low Stock SKUs (<{low_thresh})", "Value": low_stock},
-                {"Metric": "Total Inventory Value (TK)", "Value": val_stock}
-            ])
-            stock_metrics.to_excel(wr, sheet_name="Stock Metrics", index=False)
-            cat_summ.to_excel(wr, sheet_name="Category Summary", index=False)
-            filtered_df.to_excel(wr, sheet_name="Granular Stock Details", index=False)
+        
+        stock_metrics = pd.DataFrame([
+            {"Metric": "Total Warehouse Units", "Value": total_qty},
+            {"Metric": f"Low Stock SKUs (<{low_thresh})", "Value": low_stock},
+            {"Metric": "Total Inventory Value (TK)", "Value": val_stock}
+        ])
 
-            workbook = wr.book
-            header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
-
-            # Auto-format column widths & apply header styles
-            for sheet_name, df_ref in [
-                ("Stock Metrics", stock_metrics),
-                ("Category Summary", cat_summ),
-                ("Granular Stock Details", filtered_df)
-            ]:
-                if sheet_name in wr.sheets and not df_ref.empty:
-                    ws = wr.sheets[sheet_name]
-                    for idx, col in enumerate(df_ref.columns):
-                        ws.write(0, idx, str(col), header_format)
-                        max_len = max(df_ref[col].astype(str).map(len).max(), len(str(col))) + 2
-                        ws.set_column(idx, idx, min(max_len, 50))
+        export_data = {
+            "Stock Metrics": stock_metrics,
+            "Category Summary": cat_summ,
+            "Granular Stock Details": filtered_df
+        }
+        excel_bytes = export_to_styled_excel(export_data)
 
         st.download_button(
             label="💾 Download Comprehensive Stock Report (Excel)",
-            data=buf_stock.getvalue(),
+            data=excel_bytes,
             file_name=f"DEEN_Stock_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
             type="primary",
             use_container_width=True

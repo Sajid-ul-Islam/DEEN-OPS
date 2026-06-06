@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
+from src.pages.excel_exporter import export_to_styled_excel
 
 def render_excel_merger_tab():
     st.subheader("📑 Product Listing")
@@ -285,22 +286,13 @@ def render_excel_merger_tab():
                     calc_height = min(800, max(400, len(merged_df) * 35 + 43))
                     st.dataframe(styled_df, use_container_width=True, height=calc_height)
                     
-                    output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        styled_df.to_excel(writer, index=False, sheet_name='Product Listing')
-                        
-                        workbook = writer.book
-                        worksheet = writer.sheets['Product Listing']
-                        header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
-                        
-                        for idx, col in enumerate(merged_df.columns):
-                            worksheet.write(0, idx, str(col), header_format)
-                            max_len = max(merged_df[col].astype(str).map(len).max(), len(str(col))) + 2
-                            worksheet.set_column(idx, idx, min(max_len, 50))
+                    # Export using centralized utility with alternating colors based on SKU or Item
+                    group_col_for_export = sku_col if sku_col != "None" else item_col
+                    excel_bytes = export_to_styled_excel({"Product Listing": merged_df}, group_by_col=group_col_for_export)
                     
                     st.download_button(
                         label="📥 Download Merged Excel",
-                        data=output.getvalue(),
+                        data=excel_bytes,
                         file_name=f"product_listing_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )

@@ -11,6 +11,7 @@ from src.components.widgets import (
 from src.config.ui_config import INVENTORY_LOCATIONS
 from src.inventory import core as inv_core
 from src.utils.file_io import read_uploaded
+from src.pages.excel_exporter import export_to_styled_excel
 
 
 def _reset_inventory_state():
@@ -447,120 +448,35 @@ def render_distribution_tab(search_q):
             sub_df = df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"]
             st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
 
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-            loc_totals = [{"Metric": "Total SKUs Analyzed", "Value": df.shape[0] if hasattr(df, 'shape') else len(df)}]
-            for loc in active_locations:
-                if loc in df.columns:
-                    loc_totals.append({"Metric": f"Total Units ({loc})", "Value": pd.to_numeric(df[loc], errors='coerce').sum()})
-            df_metrics = pd.DataFrame(loc_totals)
-            df_metrics.to_excel(writer, index=False, sheet_name="Distribution Metrics")
-            
-            group_col = inv_core.get_group_by_column(df)
+        # Prepare data for centralized exporter
+        export_data = {}
 
-            def make_color_func(target_df):
-                def get_row_colors(col_series):
-                    colors = []
-                    color_idx = 0
-                    current_val = None
-                    
-                    group_vals = target_df[group_col].values
-                    col_vals = col_series.values
-                    
-                    for i, val in enumerate(group_vals):
-                        val_str = str(val).strip().lower()
-                        if pd.notna(val) and val_str != "" and val_str != "nan":
-                            if current_val != val_str:
-                                current_val = val_str
-                                color_idx = 1 - color_idx
-                        else:
-                            current_val = None
-                            color_idx = 0
-                            
-                        bg_color = '#E8F2FF' if color_idx == 1 else '#FFFFFF'
-                        font_style = ''
-                        
-                        if col_series.name == "Fulfillment" and "Stock Exhausted by Prior Orders" in str(col_vals[i]):
-                            bg_color = '#FEE2E2'
-                            font_style = 'color: #DC2626; font-weight: bold;'
-                            
-                        colors.append(f'background-color: {bg_color}; {font_style}')
-                    return colors
-                return get_row_colors
+        # 1. Metrics sheet
+        loc_totals = [{"Metric": "Total SKUs Analyzed", "Value": len(df)}]
+        for loc in active_locations:
+            if loc in df.columns:
+                loc_totals.append({"Metric": f"Total Units ({loc})", "Value": pd.to_numeric(df[loc], errors='coerce').sum()})
+        export_data["Distribution Metrics"] = pd.DataFrame(loc_totals)
 
-            sheets_data = [("All Orders", None)]
-            for _loc_label in _priority:
-                # Excel sheet names max 31 chars
-                _sheet = _loc_label[:31]
-                sheets_data.append((_sheet, _loc_label))
-            sheets_data += [
-                ("Multiple Split", "Multiple / Split"),
-                ("Out of Stock",   "OOS / Unfulfillable"),
-            ]
-            
-            sheet_names_to_format = [("Distribution Metrics", df_metrics)]
+        # 2. Partitioned sheets
+        sheets_to_process = [("All Orders", None)]
+        for _loc_label in _priority:
+            sheets_to_process.append((_loc_label[:31], _loc_label))
+        sheets_to_process += [
+            ("Multiple Split", "Multiple / Split"),
+            ("Out of Stock",   "OOS / Unfulfillable"),
+        ]
 
-            for sheet_name, suggestion_val in sheets_data:
-                if suggestion_val is None:
-                    tab_df = df.copy()
-                else:
-                    tab_df = df[df["Dispatch Suggestion"] == suggestion_val].copy()
-                
-                if tab_df.empty and suggestion_val is not None:
-                    continue
+        for sheet_name, suggestion_val in sheets_to_process:
+            tab_df = df.copy() if suggestion_val is None else df[df["Dispatch Suggestion"] == suggestion_val].copy()
+            if not tab_df.empty or suggestion_val is None:
+                export_data[sheet_name] = tab_df
 
-                styled = False
-                if group_col:
-                    try:
-                        color_func = make_color_func(tab_df)
-                        styled_df = tab_df.style.apply(color_func, axis=0)
-                        styled_df.to_excel(writer, index=False, sheet_name=sheet_name)
-                        styled = True
-                    except Exception as e:
-                        log_error(e, context="Excel Styling")
-                
-                if not styled:
-                    tab_df.to_excel(writer, index=False, sheet_name=sheet_name)
-                
-                sheet_names_to_format.append((sheet_name, tab_df))
-
-            workbook = writer.book
-            header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
-
-            # Auto-format column widths & apply header styles
-            for sheet_name, df_ref in sheet_names_to_format:
-                if sheet_name in writer.sheets and not df_ref.empty:
-                    ws = writer.sheets[sheet_name]
-                    for idx, col in enumerate(df_ref.columns):
-                        ws.write(0, idx, str(col), header_format)
-                        try:
-                            max_len = max(df_ref[col].astype(str).map(lambda x: len(str(x))).max(), len(str(col))) + 2
-                            ws.set_column(idx, idx, min(max_len, 50))
-                        except Exception as e:
-                            import traceback
-                            with open("h:\\DEEN-OPS\\excel_format_error.log", "a", encoding="utf-8") as f:
-                                f.write(traceback.format_exc())
-                            max_len = len(str(col)) + 2
-                            ws.set_column(idx, idx, min(max_len, 50))
-                        
-                    # Apply Excel Data Grouping (Outline) for orders with multiple items
-                    if group_col and group_col in df_ref.columns:
-                        current_group = None
-                        for row_idx in range(len(df_ref)):
-                            val = df_ref.iloc[row_idx][group_col]
-                            val_str = str(val).strip() if pd.notna(val) else ""
-                            if val_str and val_str == current_group:
-                                # Group additional items under the first row of the order
-                                try:
-                                    ws.set_row(row_idx + 1, None, None, {'level': 1})
-                                except Exception:
-                                    pass
-                            else:
-                                current_group = val_str
+        excel_report_bytes = export_to_styled_excel(export_data)
 
         st.download_button(
             "Download distribution report",
-            output.getvalue(),
+            excel_report_bytes,
             "Stock_Distribution.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
@@ -604,23 +520,10 @@ def render_distribution_tab(search_q):
         
         with c_pathao2:
             if st.session_state.get("inv_pathao_df") is not None:
-                p_output = io.BytesIO()
-                with pd.ExcelWriter(p_output, engine="xlsxwriter") as p_writer:
-                    st.session_state.inv_pathao_df.to_excel(p_writer, index=False, sheet_name="Pathao")
-                    workbook = p_writer.book
-                    header_format = workbook.add_format({'bold': True, 'bg_color': '#4F81BD', 'font_color': 'white', 'border': 1})
-                    ws = p_writer.sheets["Pathao"]
-                    for idx, col in enumerate(st.session_state.inv_pathao_df.columns):
-                        ws.write(0, idx, str(col), header_format)
-                        try:
-                            max_len = max(st.session_state.inv_pathao_df[col].astype(str).map(lambda x: len(str(x))).max(), len(str(col))) + 2
-                            ws.set_column(idx, idx, min(max_len, 50))
-                        except Exception:
-                            ws.set_column(idx, idx, 20)
-                            
+                p_excel_bytes = export_to_styled_excel({"Pathao": st.session_state.inv_pathao_df})
                 st.download_button(
                     "📥 Download Pathao Excel",
-                    p_output.getvalue(),
+                    p_excel_bytes,
                     "Pathao_Bulk_From_Inventory.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     type="primary",

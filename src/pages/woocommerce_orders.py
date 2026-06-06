@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import re
-import io
+from src.pages.excel_exporter import export_to_styled_excel
 from requests.auth import HTTPBasicAuth
 
 from src.config.settings import get_woocommerce_config
@@ -426,12 +426,10 @@ def render_woocommerce_orders_tab():
                 unmatched_df = display_df[display_df["Pathao ID"] == "Not Found"].copy()
                 if not unmatched_df.empty:
                     with c_action:
-                        buf = io.BytesIO()
-                        with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
-                            unmatched_df.to_excel(writer, index=False, sheet_name="Unmatched Orders")
+                        excel_bytes = export_to_styled_excel({"Unmatched Orders": unmatched_df})
                         st.download_button(
                             label=f"📥 Download {len(unmatched_df)} Unmatched Orders",
-                            data=buf.getvalue(),
+                            data=excel_bytes,
                             file_name="Unmatched_WC_Orders.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             use_container_width=True

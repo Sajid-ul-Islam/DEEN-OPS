@@ -25,6 +25,7 @@ from src.services.pathao.client import PathaoClient
 from src.state.persistence import clear_state_keys, save_state
 from src.utils.file_io import read_uploaded
 from src.utils.http import request_with_backoff
+from src.pages.excel_exporter import export_to_styled_excel
 from src.utils.logging import log_error
 
 REQUIRED_COLUMNS = ["Phone (Billing)"]
@@ -339,28 +340,11 @@ def _render_processing_tab():
 
         c1, c2 = st.columns(2)
         with c1:
-            buf_pathao = BytesIO()
-            with pd.ExcelWriter(buf_pathao, engine="xlsxwriter") as writer:
-                result_df.to_excel(writer, sheet_name="Pathao", index=False)
-                workbook = writer.book
-                header_format = workbook.add_format(
-                    {
-                        "bold": True,
-                        "bg_color": "#4F81BD",
-                        "font_color": "white",
-                        "border": 1,
-                    }
-                )
-
-                ws = writer.sheets["Pathao"]
-                for idx, col in enumerate(result_df.columns):
-                    ws.write(0, idx, str(col), header_format)
-                    max_len = max(result_df[col].astype(str).map(len).max(), len(str(col))) + 2
-                    ws.set_column(idx, idx, min(max_len, 50))
+            pathao_excel_bytes = export_to_styled_excel({"Pathao": result_df}, group_by_col="Order ID")
 
             st.download_button(
                 "Download repaired file",
-                buf_pathao.getvalue(),
+                pathao_excel_bytes,
                 "Pathao_Final.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="primary",
@@ -392,28 +376,11 @@ def _render_processing_tab():
 
             vlink_df = st.session_state.get("pathao_vlink_df")
             if vlink_df is not None:
-                buf_vlink = BytesIO()
-                with pd.ExcelWriter(buf_vlink, engine="xlsxwriter") as writer:
-                    vlink_df.to_excel(writer, sheet_name="Verification", index=False)
-                    workbook = writer.book
-                    header_format = workbook.add_format(
-                        {
-                            "bold": True,
-                            "bg_color": "#4F81BD",
-                            "font_color": "white",
-                            "border": 1,
-                        }
-                    )
-
-                    ws = writer.sheets["Verification"]
-                    for idx, col in enumerate(vlink_df.columns):
-                        ws.write(0, idx, str(col), header_format)
-                        max_len = max(vlink_df[col].astype(str).map(len).max(), len(str(col))) + 2
-                        ws.set_column(idx, idx, min(max_len, 80))
+                vlink_excel_bytes = export_to_styled_excel({"Verification": vlink_df}, group_by_col="Order ID")
 
                 st.download_button(
                     "Download Verification Report",
-                    buf_vlink.getvalue(),
+                    vlink_excel_bytes,
                     "Deliveries_Verification.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
@@ -939,22 +906,11 @@ def _render_status_tracking_tab():
                 styled_df = updated_df.style.apply(highlight_live_status, subset=['Live Status'])
                 st.dataframe(styled_df, use_container_width=True)
                 
-                buf_bulk = BytesIO()
-                with pd.ExcelWriter(buf_bulk, engine="xlsxwriter") as writer:
-                    updated_df.to_excel(writer, sheet_name="Live_Statuses", index=False)
-                    workbook = writer.book
-                    header_format = workbook.add_format(
-                        {"bold": True, "bg_color": "#4F81BD", "font_color": "white", "border": 1}
-                    )
-                    ws = writer.sheets["Live_Statuses"]
-                    for idx, col in enumerate(updated_df.columns):
-                        ws.write(0, idx, str(col), header_format)
-                        max_len = max(updated_df[col].astype(str).map(len).max(), len(str(col))) + 2
-                        ws.set_column(idx, idx, min(max_len, 50))
+                bulk_status_excel_bytes = export_to_styled_excel({"Live_Statuses": updated_df})
 
                 st.download_button(
                     "Download Updated Report",
-                    buf_bulk.getvalue(),
+                    bulk_status_excel_bytes,
                     "Bulk_Statuses.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     type="primary",
