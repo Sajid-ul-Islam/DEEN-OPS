@@ -10,6 +10,40 @@ import streamlit as st
 from src.processing.data_processing import aggregate_data, prepare_granular_data
 
 
+def _generate_sparkline_svg(values: list[float], color: str = "#3b82f6") -> str:
+    """Generates a lightweight normalized SVG path for metric trends."""
+    if not values or len(values) < 3:  # Need at least 3 points for a meaningful trend
+        return ""
+    
+    # Normalize values to fit 100x30 SVG coordinate system
+    min_v, max_v = min(values), max(values)
+    rng = max_v - min_v if max_v != min_v else 1
+    
+    points = []
+    width = 100
+    height = 30
+    step = width / (len(values) - 1)
+    
+    for i, v in enumerate(values):
+        x = i * step
+        # Use 4px padding top/bottom to prevent clipping line caps
+        y = height - ((v - min_v) / rng * (height - 8)) - 4
+        points.append(f"{x:.1f},{y:.1f}")
+    
+    path_data = "M " + " L ".join(points)
+    # Create a closed path for the area fill
+    area_data = path_data + f" L {width:.1f},{height:.1f} L 0.0,{height:.1f} Z"
+    
+    return f"""
+    <div class="metric-sparkline">
+        <svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none">
+            <path d="{area_data}" fill="{color}" fill-opacity="0.15" />
+            <path d="{path_data}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+    </div>
+    """
+
+
 def render_operational_metrics(
     m_df,
     c_df,
@@ -120,6 +154,33 @@ def render_operational_metrics(
                 extra_metric_icon = "⏳"
         except Exception:
             pass
+            
+    # ── 24-Hour Trend Extraction ──
+    s_qty, s_rev, s_ord, s_bv = "", "", "", ""
+    if not m_df.empty and nav_mode != "Backlog":
+        try:
+            date_col = wc_raw_mapping.get("date", "Order Date")
+            t_df = m_df.copy()
+            t_df["_dt"] = pd.to_datetime(t_df[date_col], errors="coerce").dt.tz_localize(None)
+            t_df = t_df.dropna(subset=["_dt"])
+            
+            if not t_df.empty:
+                t_df["_hr"] = t_df["_dt"].dt.floor("H")
+                hr_grp = t_df.groupby("_hr")
+                
+                t_qty_vals = hr_grp["Quantity"].sum().tolist()
+                t_rev_vals = hr_grp.apply(lambda x: (x["Quantity"] * x["Item Cost"]).sum()).tolist()
+                t_ord_vals = hr_grp[wc_raw_mapping.get("order_id", "Order ID")].nunique().tolist()
+                
+                s_qty = _generate_sparkline_svg(t_qty_vals, "#3b82f6")
+                s_rev = _generate_sparkline_svg(t_rev_vals, "#10b981")
+                s_ord = _generate_sparkline_svg(t_ord_vals, "#6366f1")
+                
+                # For Basket Size trend (Average Basket Value per hour)
+                t_bv_vals = [ (r / o if o > 0 else 0) for r, o in zip(t_rev_vals, t_ord_vals)]
+                s_bv = _generate_sparkline_svg(t_bv_vals, "#f59e0b")
+        except Exception:
+            pass
 
     l1 = "Backlog Items" if nav_mode == "Backlog" else "Gross Items"
     l2 = "Backlog Rev" if nav_mode == "Backlog" else "Revenue"
@@ -127,7 +188,7 @@ def render_operational_metrics(
 
     gross_items_card = (
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l1}</div>'
-        f'<div class="metric-value">{v_qty}</div>{html_dq}</div>'
+        f'<div class="metric-value">{v_qty}</div>{html_dq}{s_qty}</div>'
         '<div class="metric-icon">📦</div></div>'
     )
 
@@ -135,11 +196,12 @@ def render_operational_metrics(
         '<div class="metric-container metric-container-4">'
         f"{gross_items_card}"
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l2}</div>'
-        f'<div class="metric-value">{v_rev}</div>{html_dr}</div><div class="metric-icon">৳</div></div>'
+        f'<div class="metric-value">{v_rev}</div>{html_dr}{s_rev}</div><div class="metric-icon">৳</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l3}</div>'
-        f'<div class="metric-value">{v_ord}</div>{html_do}</div><div class="metric-icon">🛒</div></div>'
+        f'<div class="metric-value">{v_ord}</div>{html_do}{s_ord}</div><div class="metric-icon">🛒</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{extra_metric_label}</div>'
-        f'<div class="metric-value">{extra_metric_value}</div>{extra_metric_delta}</div>'
+        f'<div class="metric-value">{extra_metric_value}</div>{extra_metric_delta}'
+        f'{s_bv if nav_mode != "Backlog" else ""}</div>'
         f'<div class="metric-icon">{extra_metric_icon}</div></div>'
         "</div>"
     )

@@ -210,12 +210,15 @@ def render_stock_analytics_tab():
         total_qty = current_stocks.sum()
         low_stock = (current_stocks < low_thresh).sum()
         val_stock = (current_stocks * df_sim["Price"]).sum()
+        
+        # Apply glowing effect if low stock items exceed 20% of the selection
+        glow_class = "critical-glow" if (low_stock / len(df_sim) > 0.2) else ""
 
         # Compact HTML
         stock_html = (
             '<div class="metric-container">'
             f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Warehouse Units</div><div class="metric-value">{total_qty:,.0f}</div></div><div class="metric-icon">🏠</div></div>'
-            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Low Stock (<{low_thresh})</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
+            f'<div class="metric-card {glow_class}"><div class="metric-content"><div class="metric-label">Low Stock (<{low_thresh})</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
             f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Inventory Value</div><div class="metric-value">৳ {val_stock:,.0f}</div></div><div class="metric-icon">💰</div></div>'
             '</div>'
         )

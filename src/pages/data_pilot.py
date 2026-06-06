@@ -86,6 +86,14 @@ class AIDataAgent:
                         knowledge.append(f"KNOWLEDGE_TYPE: Documentation | FILE: {doc}\n{f.read()[:4000]}")
                 except: pass
         
+        # 1.1 Persistent User-Taught Rules (Memory)
+        learned_path = "data/pilot_knowledge.txt"
+        if os.path.exists(learned_path):
+            try:
+                with open(learned_path, "r", encoding="utf-8") as f:
+                    knowledge.append(f"KNOWLEDGE_TYPE: Learned Operational Rules\n{f.read()}")
+            except: pass
+        
         # 2. REST API Schema & Contracts (Answers 'rest api data' context)
         try:
             schema = load_secrets_schema()

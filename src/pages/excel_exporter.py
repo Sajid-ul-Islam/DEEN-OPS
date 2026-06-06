@@ -19,10 +19,18 @@ def export_to_styled_excel(df_dict: dict[str, pd.DataFrame], group_by_col: str |
         # Format for alternating rows
         alt_format = workbook.add_format({'bg_color': '#E8F2FF', 'border': 1})
         base_format = workbook.add_format({'bg_color': '#FFFFFF', 'border': 1})
+        
+        # Specialized Number Formats
+        currency_format = workbook.add_format({'num_format': '৳ #,##0', 'border': 1})
+        percent_format = workbook.add_format({'num_format': '0.0%', 'border': 1})
 
         for sheet_name, df in df_dict.items():
             if df.empty:
                 continue
+                
+            # Detect column types for formatting
+            currency_cols = [c for c in df.columns if any(kw in str(c).lower() for kw in ["amount", "revenue", "cost", "price", "value"])]
+            percent_cols = [c for c in df.columns if any(kw in str(c).lower() for kw in ["rate", "percentage", "yield"])]
                 
             df.to_excel(writer, index=False, sheet_name=sheet_name[:31])
             worksheet = writer.sheets[sheet_name[:31]]
@@ -50,8 +58,15 @@ def export_to_styled_excel(df_dict: dict[str, pd.DataFrame], group_by_col: str |
                     
                     fmt = alt_format if use_alt else base_format
                     
-                    # Set row format (row_num + 1 because of header)
-                    worksheet.set_row(row_num + 1, None, fmt)
+                    # Apply specialized formatting to specific columns while keeping row color
+                    for c_idx, col_name in enumerate(df.columns):
+                        cell_val = df.iloc[row_num, c_idx]
+                        target_fmt = fmt
+                        if col_name in currency_cols: target_fmt = currency_format
+                        elif col_name in percent_cols: target_fmt = percent_format
+                        
+                        if use_alt and target_fmt == fmt: target_fmt = alt_format
+                        worksheet.write(row_num + 1, c_idx, cell_val, target_fmt)
             else:
                 # Standard border for all rows if no grouping
                 for row_num in range(len(df)):
