@@ -5,6 +5,7 @@ import re
 import io
 import os
 from datetime import datetime
+import plotly.express as px
 from typing import Dict, List
 
 from src.config.settings import get_setting, load_secrets_schema
@@ -537,6 +538,27 @@ def render_ai_pilot_page():
                 st.dataframe(up_df.head(3), use_container_width=True, hide_index=True)
             else:
                 st.caption("📁 **Uploaded Files** — No data")
+
+        # --- RAG Score Visualization ---
+        rag_analysis = st.session_state.get("pilot_latest_rag_analysis")
+        if rag_analysis:
+            st.divider()
+            st.markdown("### 🔍 Semantic Match Map")
+            st.caption("Visualizing retrieval scores from the last query. Higher scores indicate stronger semantic relevance.")
+            
+            df_rag = pd.DataFrame(rag_analysis).sort_values("Score", ascending=True)
+            
+            fig_rag = px.bar(
+                df_rag, 
+                x="Score", 
+                y="Data Point", 
+                orientation='h',
+                title="Top-K Retrieval Confidence",
+                color="Score",
+                color_continuous_scale="Viridis"
+            )
+            fig_rag.update_layout(margin=dict(l=0, r=20, t=40, b=0), height=300 + (len(df_rag) * 15), showlegend=False, coloraxis_showscale=False)
+            st.plotly_chart(fig_rag, use_container_width=True)
 
     with tab_reports:
         st.markdown("### 📑 AI Generated Reports")
