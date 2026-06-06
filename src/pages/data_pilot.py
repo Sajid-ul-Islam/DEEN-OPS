@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import plotly.express as px
 from typing import Dict, List
+import plotly.express as px
 
 from src.config.settings import get_setting, load_secrets_schema
 # Add direct WooCommerce sync imports
