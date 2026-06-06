@@ -826,6 +826,7 @@ def _render_status_tracking_tab():
                     status_ui.update(label="Bulk check complete!", state="complete", expanded=False)
 
                 updated_df = pd.DataFrame(results)
+                st.session_state["pathao_bulk_result_df"] = updated_df
                 
                 total_orders = len(updated_df)
                 delivered = len(updated_df[updated_df["Live Status"].astype(str).str.lower().str.contains("delivered")])
@@ -922,11 +923,290 @@ def _render_status_tracking_tab():
             st.error(f"Error processing file: {e}")
 
 
+
+def _render_auto_dispatch_tab():
+    """Feature #1: Push processed Pathao orders directly via Pathao API (bulk create)."""
+    section_card(
+        "Auto-Dispatch to Pathao — One-Click API Push",
+        "Automatically create consignments on Pathao for all processed orders without manual portal upload.",
+    )
+
+    result_df = st.session_state.get("pathao_res_df")
+    if result_df is None or result_df.empty:
+        st.info("⚡ No processed orders found. Go to **Order Processing** tab first, pull orders and run 'Process orders'.")
+        return
+
+    st.success(f"✅ {len(result_df)} processed orders ready for dispatch.")
+
+    with st.expander("📄 Preview Orders for Dispatch", expanded=False):
+        st.dataframe(result_df.head(20), use_container_width=True)
+
+    with st.expander("⚙️ Dispatch Settings", expanded=True):
+        dc1, dc2, dc3 = st.columns(3)
+        with dc1:
+            item_type = st.selectbox("Item Type", [2, 1, 3], format_func=lambda x: {2: "Parcel", 1: "Document", 3: "Fragile"}[x])
+        with dc2:
+            delivery_type = st.selectbox("Delivery Type", [48, 12], format_func=lambda x: {48: "Normal (48h)", 12: "Express (12h)"}[x])
+        with dc3:
+            special_instructions = st.text_input("Special Instructions", placeholder="Handle with care...")
+
+    if st.button("🚀 Push to Pathao API", type="primary", use_container_width=True, key="pathao_autodispatch_btn"):
+        client = _get_pathao_client()
+        if client is None:
+            return
+
+        success_count = 0
+        fail_count = 0
+        fail_details = []
+
+        with st.status(f"Dispatching {len(result_df)} orders to Pathao...", expanded=True) as dispatch_status:
+            progress = st.progress(0)
+            total = len(result_df)
+
+            for i, (_, row) in enumerate(result_df.iterrows()):
+                try:
+                    # Build Pathao order payload from processed dataframe columns
+                    payload = {
+                        "merchant_order_id": str(row.get("Order ID", f"ORD-{i}")),
+                        "recipient_name": str(row.get("Name", "Customer")),
+                        "recipient_phone": str(row.get("Phone", "")).replace(" ", ""),
+                        "recipient_address": str(row.get("Address", "")),
+                        "recipient_city": int(row.get("CityId", 1)),
+                        "recipient_zone": int(row.get("ZoneId", 1)),
+                        "recipient_area": int(row.get("AreaId", 0)) if row.get("AreaId") else None,
+                        "delivery_type": delivery_type,
+                        "item_type": item_type,
+                        "special_instruction": str(row.get("SpecialInstruction", special_instructions)),
+                        "item_quantity": int(row.get("Qty", 1)),
+                        "item_weight": float(row.get("Weight", 0.5)),
+                        "amount_to_collect": float(row.get("COD", row.get("Total", 0))),
+                        "item_description": str(row.get("ItemDesc", "")),
+                    }
+                    # Remove None fields
+                    payload = {k: v for k, v in payload.items() if v is not None and v != ""}
+
+                    headers = client._get_headers()
+                    from src.utils.http import request_with_backoff
+                    res = request_with_backoff(
+                        "POST",
+                        f"{client.base_url}/aladdin/api/v1/orders",
+                        json=payload,
+                        headers=headers,
+                        timeout=15,
+                    )
+                    res.raise_for_status()
+                    resp_data = res.json().get("data", {})
+                    consignment_id = resp_data.get("consignment_id", "Created")
+                    st.write(f"✅ Order {payload['merchant_order_id']} → Consignment: {consignment_id}")
+                    success_count += 1
+                except Exception as exc:
+                    fail_count += 1
+                    fail_details.append({"Order": str(row.get("Order ID", i)), "Error": str(exc)})
+                    st.write(f"❌ Order {row.get('Order ID', i)}: {exc}")
+
+                progress.progress((i + 1) / total)
+
+            if fail_count == 0:
+                dispatch_status.update(label=f"✅ All {success_count} orders dispatched!", state="complete", expanded=False)
+            else:
+                dispatch_status.update(label=f"⚠️ {success_count} dispatched, {fail_count} failed", state="error", expanded=True)
+
+        if fail_details:
+            with st.expander(f"❌ {fail_count} Failed Orders"):
+                st.dataframe(pd.DataFrame(fail_details), use_container_width=True)
+
+
+def _render_delivery_health_tab():
+    """Feature #2: Delivery Health Dashboard — return rates, delivery rates, district breakdown."""
+    section_card(
+        "Delivery Health Dashboard",
+        "Analyze delivery rates, return rates, and average delivery time from your bulk tracking history.",
+    )
+
+    bulk_df_key = "pathao_bulk_result_df"
+    bulk_df = st.session_state.get(bulk_df_key)
+
+    if bulk_df is None:
+        st.info("📊 No bulk tracking data available. Run a Bulk Status Check in the **Order Tracking** tab first.")
+        return
+
+    if "Live Status" not in bulk_df.columns:
+        st.warning("⚠️ The loaded data doesn't have a 'Live Status' column. Please run a fresh bulk check.")
+        return
+
+    total = len(bulk_df)
+    status_series = bulk_df["Live Status"].astype(str).str.lower()
+
+    delivered = status_series.str.contains("delivered").sum()
+    returned = status_series.str.contains("return").sum()
+    failed = status_series.str.contains("fail|cancel").sum()
+    in_transit = total - delivered - returned - failed
+
+    delivery_rate = delivered / total * 100 if total > 0 else 0
+    return_rate = returned / total * 100 if total > 0 else 0
+
+    # KPI Cards
+    health_html = (
+        '<div class="metric-container metric-container-4">'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">DELIVERY RATE</div>'
+        f'<div class="metric-value" style="color:#10b981;">{delivery_rate:.1f}%</div></div><div class="metric-icon">✅</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">RETURN RATE</div>'
+        f'<div class="metric-value" style="color:#ef4444;">{return_rate:.1f}%</div></div><div class="metric-icon">🔄</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">IN TRANSIT</div>'
+        f'<div class="metric-value" style="color:#3b82f6;">{in_transit}</div></div><div class="metric-icon">🚚</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">TOTAL TRACKED</div>'
+        f'<div class="metric-value">{total}</div></div><div class="metric-icon">📦</div></div>'
+        '</div>'
+    )
+    st.markdown(health_html, unsafe_allow_html=True)
+
+    # Status Donut
+    import plotly.graph_objects as go
+    fig_donut = go.Figure(go.Pie(
+        labels=["Delivered", "Returned", "Failed/Cancelled", "In Transit"],
+        values=[delivered, returned, failed, in_transit],
+        hole=0.55,
+        marker_colors=["#10b981", "#ef4444", "#f59e0b", "#3b82f6"],
+        textinfo="label+percent",
+        hovertemplate="%{label}: %{value} orders (%{percent})<extra></extra>",
+    ))
+    fig_donut.update_layout(title="Dispatch Status Breakdown", margin=dict(l=10, r=10, t=40, b=10), height=320, showlegend=False)
+
+    d1, d2 = st.columns(2)
+    with d1:
+        st.plotly_chart(fig_donut, use_container_width=True, config={"displayModeBar": False})
+
+    with d2:
+        # District breakdown if address / district col is available
+        dist_col = next((c for c in bulk_df.columns if any(kw in str(c).lower() for kw in ["city", "district", "zone"])), None)
+        if dist_col:
+            dist_df = bulk_df.groupby(dist_col)["Live Status"].agg(
+                total="count",
+                delivered=lambda s: s.astype(str).str.lower().str.contains("delivered").sum(),
+                returned=lambda s: s.astype(str).str.lower().str.contains("return").sum(),
+            ).reset_index()
+            dist_df["Delivery Rate %"] = (dist_df["delivered"] / dist_df["total"] * 100).round(1)
+            dist_df = dist_df.sort_values("total", ascending=False).head(10)
+            fig_dist = px.bar(
+                dist_df, x=dist_col, y=["delivered", "returned"],
+                title="Delivery vs Return by District",
+                color_discrete_sequence=["#10b981", "#ef4444"],
+                barmode="stack",
+            )
+            fig_dist.update_layout(margin=dict(l=10, r=10, t=40, b=30), height=320, showlegend=True)
+            st.plotly_chart(fig_dist, use_container_width=True, config={"displayModeBar": False})
+        else:
+            st.info("No city/district column detected for district-level breakdown.")
+
+    # Action: Flag high-return orders
+    if return_rate > 15:
+        st.error(f"⚠️ High Return Rate Detected: {return_rate:.1f}%. Review addresses and product quality.")
+
+    with st.expander("📊 Full Health Report"):
+        st.dataframe(bulk_df, use_container_width=True)
+
+
+def _render_wc_notes_tab():
+    """Feature #9: Write WooCommerce order notes/status updates from within DEEN OPS."""
+    section_card(
+        "WooCommerce Order Notes Sync",
+        "Write dispatch notes or update order statuses directly back to WooCommerce without opening the admin portal.",
+    )
+
+    nc1, nc2 = st.columns(2)
+    with nc1:
+        order_id_note = st.text_input("WooCommerce Order ID", placeholder="e.g. 4821", key="wc_note_order_id")
+    with nc2:
+        new_status = st.selectbox(
+            "New Status (optional)",
+            ["— Don't change status —", "processing", "completed", "on-hold", "cancelled"],
+            key="wc_note_status_sel",
+        )
+
+    note_text = st.text_area(
+        "Note / Message",
+        placeholder="e.g. Dispatched via Pathao. Consignment: DD0001234. ETA: 2 days.",
+        height=100,
+        key="wc_note_text",
+    )
+
+    col_send, col_quick = st.columns(2)
+    with col_send:
+        if st.button("💬 Post Note to WooCommerce", type="primary", use_container_width=True, key="wc_note_send_btn"):
+            if not order_id_note.strip():
+                st.warning("Enter a WooCommerce Order ID.")
+            else:
+                target_status = None if new_status.startswith("—") else new_status
+                with st.spinner("Posting to WooCommerce..."):
+                    ok, msg = _update_woocommerce_status(
+                        order_id_note.strip(),
+                        target_status or "processing",
+                        note=note_text.strip() or None,
+                    )
+                if ok:
+                    st.success(f"✅ Note posted to Order #{order_id_note} successfully.")
+                else:
+                    st.error(f"❌ Failed: {msg}")
+
+    with col_quick:
+        # Quick dispatch note from Pathao result
+        result_df_n = st.session_state.get("pathao_res_df")
+        if result_df_n is not None and not result_df_n.empty:
+            if st.button("🚚 Bulk: Post Dispatch Notes", type="secondary", use_container_width=True, key="wc_bulk_notes_btn"):
+                ok_count = 0
+                fail_count = 0
+                progress_n = st.progress(0)
+                total_n = len(result_df_n)
+                for i, (_, row) in enumerate(result_df_n.iterrows()):
+                    wc_id = str(row.get("Order ID", "")).strip()
+                    if not wc_id or wc_id.lower() in {"nan", "none"}:
+                        continue
+                    parsed_id = _extract_woocommerce_order_id(wc_id)
+                    if not parsed_id:
+                        continue
+                    note_auto = f"Dispatched via Pathao. Items: {row.get('ItemDesc', 'N/A')}. COD: ৳{row.get('COD', 0)}."
+                    ok_n, _ = _update_woocommerce_status(parsed_id, "processing", note=note_auto)
+                    if ok_n:
+                        ok_count += 1
+                    else:
+                        fail_count += 1
+                    progress_n.progress((i + 1) / total_n)
+                st.success(f"✅ {ok_count} notes posted. {fail_count} failed.")
+        else:
+            st.caption("💡 Process orders in the Order Processing tab to enable bulk dispatch notes.")
+
+    st.divider()
+    st.markdown("#### 🗒️ Quick Note Templates")
+    templates = [
+        ("🚚 Dispatched", "Dispatched via Pathao. Expected delivery: 2-3 business days."),
+        ("❌ Cancelled", "Order cancelled per customer request. Refund initiated."),
+        ("🔄 On Hold", "Order placed on hold pending stock confirmation."),
+        ("✅ Delivered", "Order delivered successfully. Payment collected."),
+    ]
+    for label, tmpl in templates:
+        if st.button(label, key=f"wc_tmpl_{label}", use_container_width=True):
+            st.session_state["wc_note_text"] = tmpl
+            st.rerun()
+
+
 def render_pathao_tab():
-    processing_tab, helper_tab, tracking_tab = st.tabs([":material/settings: Order Processing", ":material/build: Item Description Helper", ":material/local_shipping: Order Tracking"])
+    processing_tab, helper_tab, tracking_tab, dispatch_tab, health_tab, notes_tab = st.tabs([
+        ":material/settings: Order Processing",
+        ":material/build: Item Description Helper",
+        ":material/local_shipping: Order Tracking",
+        ":material/rocket_launch: Auto-Dispatch",
+        ":material/analytics: Delivery Health",
+        ":material/edit_note: WC Notes Sync",
+    ])
     with processing_tab:
         _render_processing_tab()
     with helper_tab:
         _render_item_description_tab()
     with tracking_tab:
         _render_status_tracking_tab()
+    with dispatch_tab:
+        _render_auto_dispatch_tab()
+    with health_tab:
+        _render_delivery_health_tab()
+    with notes_tab:
+        _render_wc_notes_tab()

@@ -564,12 +564,25 @@ def render_ai_pilot_page():
     with tab_reports:
         st.markdown("### 📑 AI Generated Reports")
         
-        if st.button("✨ Auto-Generate Executive Report", type="primary", use_container_width=True):
-            # Lock navigation to Data Pilot during report generation
-            st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
-            prompt = "Generate a comprehensive executive summary report covering current sales, stock levels, and fulfillment. Use professional formatting."
-            st.session_state.agent_messages.append({"role": "user", "content": prompt})
-            st.rerun()
+        col_rep1, col_rep2 = st.columns(2)
+        with col_rep1:
+            if st.button("✨ Auto-Generate Executive Report", type="primary", use_container_width=True):
+                # Lock navigation to Data Pilot during report generation
+                st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
+                prompt = "Generate a comprehensive executive summary report covering current sales, stock levels, and fulfillment. Use professional formatting."
+                st.session_state.agent_messages.append({"role": "user", "content": prompt})
+                st.rerun()
+                
+        with col_rep2:
+            if st.button("👥 Customer Segmentation Analysis", type="secondary", use_container_width=True):
+                st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
+                prompt = (
+                    "Using the available sales data, segment customers into 'First-Time', "
+                    "'Repeat', and 'High-Value' buckets based on their order history and phone numbers. "
+                    "Provide counts and revenue contribution for each segment. Present the result as a detailed markdown report."
+                )
+                st.session_state.agent_messages.append({"role": "user", "content": prompt})
+                st.rerun()
             
         if not st.session_state.pilot_reports:
             st.info("No reports generated yet. Ask the Pilot to generate a report in the chat, or use the button above.")

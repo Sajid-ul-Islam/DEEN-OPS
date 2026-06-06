@@ -1,0 +1,68 @@
+{
+  "date": "2026-06-06",
+  "shifts": [
+    {
+      "ts": "2026-06-06T15:34:27.867370+06:00",
+      "label": "Today",
+      "revenue": 160486.0,
+      "orders": 108,
+      "qty": 194,
+      "aov": 1485.98,
+      "top_products": [
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - L",
+          "revenue": 3982.0
+        },
+        {
+          "name": "Blue Raven Drop Shoulder T-Shirt - XL",
+          "revenue": 3360.0
+        },
+        {
+          "name": "Grey Jeans - Slim Fit - 32",
+          "revenue": 3339.0
+        },
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 3180.0
+        },
+        {
+          "name": "Lavender Semi Formal Panjabi - 44",
+          "revenue": 3108.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-06T15:57:50.809934+06:00",
+      "label": "Today",
+      "revenue": 158208.0,
+      "orders": 106,
+      "qty": 191,
+      "aov": 1492.53,
+      "top_products": [
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - L",
+          "revenue": 3982.0
+        },
+        {
+          "name": "Blue Raven Drop Shoulder T-Shirt - XL",
+          "revenue": 3360.0
+        },
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 3180.0
+        },
+        {
+          "name": "Lavender Semi Formal Panjabi - 44",
+          "revenue": 3108.0
+        },
+        {
+          "name": "Sky Blue Executive Formal Shirt - L",
+          "revenue": 2980.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 318694.0,
+  "daily_orders": 214,
+  "daily_qty": 385
+}

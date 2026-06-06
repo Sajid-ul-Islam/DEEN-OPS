@@ -14,6 +14,7 @@ from src.processing.forecasting import PredictiveIntelligence
 from src.services.woocommerce.client import get_items_sold_label
 from src.pages.excel_exporter import export_to_styled_excel
 from src.utils.safe_ops import safe_render
+from src.utils.metric_history import load_snapshot_history
 
 
 def render_performance_analysis(df: pd.DataFrame):
@@ -536,26 +537,196 @@ def render_dashboard_output(
 
     st.divider()
 
-    # v15.0: Calculate comparison top items for velocity indicators
-    prev_top = None
-    if st.session_state.get("wc_sync_mode") == "Operational Cycle":
-        nav_mode = st.session_state.get("wc_nav_mode", "Today")
-        comp_df = None
-        if nav_mode == "Today":
-            comp_df = st.session_state.get("wc_prev_df")
-        elif nav_mode == "Prev":
-            # Comparison for yesterday is today (passive)
-            comp_df = st.session_state.get("wc_curr_df")
-        
-        if comp_df is not None and not comp_df.empty:
-            from src.processing.data_processing import aggregate_data
-            _, _, prev_top, _ = aggregate_data(comp_df, wc_raw_mapping)
+    # ── BOTTOM SECTION: Goals | History | Handover | WhatsApp | Export ──────────
+    bottom_tabs = st.tabs([
+        "🎯 Shift Goals",
+        "📅 30-Day History",
+        "📝 Shift Handover",
+        "💬 WhatsApp Quick-Send",
+    ])
 
-    from src.pages.dashboard_charts import render_spotlight
-    render_spotlight(top, color_map, prev_top=prev_top)
+    # Tab 1: Goal Setting (Feature #3)
+    with bottom_tabs[0]:
+        st.markdown("#### 🎯 Set Shift Targets")
+        st.caption("Targets appear as progress bars on the Core Metrics KPI cards above.")
+        goals = st.session_state.get("shift_goals", {})
+        gc1, gc2, gc3 = st.columns(3)
+        with gc1:
+            rev_g = st.number_input(
+                "💰 Revenue Goal (৳)",
+                min_value=0, max_value=5_000_000,
+                value=int(goals.get("revenue", 0)), step=5000,
+                key="goal_revenue_input",
+            )
+        with gc2:
+            ord_g = st.number_input(
+                "🛒 Order Goal",
+                min_value=0, max_value=5000,
+                value=int(goals.get("orders", 0)), step=10,
+                key="goal_orders_input",
+            )
+        with gc3:
+            st.markdown('<div style="padding-top:28px;"></div>', unsafe_allow_html=True)
+            if st.button("✅ Apply Goals", use_container_width=True, type="primary", key="apply_goals_btn"):
+                st.session_state["shift_goals"] = {"revenue": rev_g, "orders": ord_g}
+                st.session_state["_last_snap_key"] = ""  # force re-save snapshot
+                st.success(f"Goals set — Revenue: ৳{rev_g:,} | Orders: {ord_g}")
+                st.rerun()
+
+    # Tab 2: 30-Day History (Feature #5)
+    with bottom_tabs[1]:
+        st.markdown("#### 📈 30-Day Revenue & Order Trend")
+        hist_df = load_snapshot_history(30)
+        if hist_df.empty:
+            st.info("📂 No history snapshots yet. Metrics are saved automatically each time the dashboard loads with live data.")
+        else:
+            import plotly.graph_objects as go
+            fig_hist = go.Figure()
+            fig_hist.add_trace(go.Bar(
+                x=hist_df["date"].dt.strftime("%d %b"),
+                y=hist_df["revenue"],
+                name="Revenue",
+                marker_color="rgba(59,130,246,0.7)",
+                hovertemplate="%{x}<br>Revenue: ৳%{y:,.0f}<extra></extra>",
+            ))
+            fig_hist.add_trace(go.Scatter(
+                x=hist_df["date"].dt.strftime("%d %b"),
+                y=hist_df["orders"],
+                name="Orders",
+                yaxis="y2",
+                mode="lines+markers",
+                line=dict(color="#10b981", width=2),
+                marker=dict(size=5),
+                hovertemplate="%{x}<br>Orders: %{y}<extra></extra>",
+            ))
+            fig_hist.update_layout(
+                yaxis=dict(title="Revenue (৳)", showgrid=True, gridcolor="rgba(128,128,128,0.1)"),
+                yaxis2=dict(title="Orders", overlaying="y", side="right", showgrid=False),
+                legend=dict(orientation="h", y=1.05),
+                margin=dict(l=10, r=10, t=30, b=10),
+                height=320,
+            )
+            st.plotly_chart(fig_hist, use_container_width=True, config={"displayModeBar": False})
+            with st.expander("Raw History Table"):
+                st.dataframe(
+                    hist_df.rename(columns={"date": "Date", "revenue": "Revenue (৳)", "orders": "Orders", "qty": "Units"})
+                    .assign(**{"Date": hist_df["date"].dt.strftime("%Y-%m-%d")})
+                    .sort_values("Date", ascending=False),
+                    use_container_width=True, hide_index=True,
+                )
+
+    # Tab 3: Shift Handover Report (Feature #8)
+    with bottom_tabs[2]:
+        st.markdown("#### 📝 Shift Handover Report")
+        st.caption("Generate a formatted summary ready to share with the next shift or management.")
+        if st.button("✨ Generate Handover Report", type="primary", use_container_width=True, key="gen_handover_btn"):
+            dm_h = get_dispatch_metrics(active_df, today_orders) if active_df is not None and not active_df.empty else {}
+
+            top_lines = ""
+            if top is not None and not top.empty:
+                name_col_h = "Product Name" if "Product Name" in top.columns else top.columns[0]
+                amt_col_h = "Total Amount" if "Total Amount" in top.columns else None
+                qty_col_h = "Total Qty" if "Total Qty" in top.columns else None
+                for _, row in top.sort_values(amt_col_h, ascending=False).head(5).iterrows() if amt_col_h else []:
+                    top_lines += f"  • {row.get(name_col_h, 'Unknown')} — {row.get(qty_col_h, 0):.0f} units | ৳{row.get(amt_col_h, 0):,.0f}\n"
+
+            goals_h = st.session_state.get("shift_goals", {})
+            rev_goal_h = goals_h.get("revenue", 0)
+            rev_pct_h = f"{today_rev / rev_goal_h * 100:.0f}%" if rev_goal_h > 0 else "No target set"
+
+            now_bd = datetime.now(timezone(timedelta(hours=6)))
+            handover_text = (
+                f"*🛡️ DEEN OPS — Shift Handover Report*\n"
+                f"Generated: {now_bd.strftime('%d %b %Y, %I:%M %p')} (BD)\n\n"
+                f"*📊 Shift Summary*\n"
+                f"  Revenue: ৳{today_rev:,.0f}{f' ({rev_pct_h} of target)' if rev_goal_h else ''}\n"
+                f"  Orders: {today_orders}\n"
+                f"  Units Sold: {today_qty:.0f}\n"
+                f"  Basket Size: ৳{today_aov:,.0f}\n\n"
+                f"*🚚 Dispatch Status*\n"
+                f"  Shipped: {dm_h.get('dispatched', 0)}\n"
+                f"  Pending: {dm_h.get('pending', 0)}\n"
+                f"  Dispatch Rate: {dm_h.get('dispatch_rate', 0):.0f}%\n\n"
+                f"*🔥 Top Products*\n{top_lines if top_lines else '  N/A'}\n"
+                f"*Next Shift:* Please check backlog for {dm_h.get('pending', 0)} pending orders."
+            )
+            st.session_state["shift_handover_text"] = handover_text
+
+        if st.session_state.get("shift_handover_text"):
+            from src.components.clipboard import render_copy_button
+            render_copy_button(st.session_state["shift_handover_text"], label="📋 Copy Handover")
+            st.code(st.session_state["shift_handover_text"], language="text")
+
+    # Tab 4: WhatsApp Quick-Send (Feature #4)
+    with bottom_tabs[3]:
+        st.markdown("#### 💬 WhatsApp Quick-Send")
+        st.caption("Generate wa.me links for processing orders directly from today's live data — no file upload needed.")
+
+        src_df = st.session_state.get("wc_curr_df")
+        if src_df is None or src_df.empty:
+            st.info("📡 No live data loaded. Sync the Live Dashboard first.")
+        else:
+            status_col_wp = "Order Status" if "Order Status" in src_df.columns else "Status" if "Status" in src_df.columns else None
+            wp_df = src_df.copy()
+            if status_col_wp:
+                wp_df = wp_df[wp_df[status_col_wp].astype(str).str.lower() == "processing"]
+
+            if wp_df.empty:
+                st.warning("⚠️ No processing orders in the current live data to message.")
+            else:
+                st.success(f"⚡ Found {wp_df[status_col_wp].value_counts().get('processing', len(wp_df))} processing orders ready to message.")
+
+                # Detect phone column
+                phone_col = next(
+                    (c for c in wp_df.columns if any(kw in str(c).lower() for kw in ["phone", "mobile", "contact"])),
+                    None,
+                )
+                name_col_wp = next(
+                    (c for c in wp_df.columns if any(kw in str(c).lower() for kw in ["billing name", "full name", "name"])),
+                    None,
+                )
+
+                if not phone_col:
+                    st.error("❌ Could not detect a phone number column in the data.")
+                else:
+                    custom_msg_wp = st.text_area(
+                        "Message Template",
+                        value="Assalamu Alaikum! Your DEEN order is being processed and will be dispatched shortly. Thank you for your order! 🙏",
+                        height=80,
+                        key="wp_quicksend_msg",
+                    )
+
+                    if st.button("📲 Generate Links", type="primary", use_container_width=True, key="wp_quicksend_btn"):
+                        import urllib.parse
+                        links = []
+                        for _, row in wp_df.iterrows():
+                            phone = str(row.get(phone_col, "")).strip().replace(" ", "").replace("-", "")
+                            if not phone or phone.lower() in {"nan", "none"}:
+                                continue
+                            if phone.startswith("0"):
+                                phone = "880" + phone[1:]
+                            elif not phone.startswith("880"):
+                                phone = "880" + phone
+                            name_wp = str(row.get(name_col_wp, "Valued Customer")) if name_col_wp else "Valued Customer"
+                            msg = custom_msg_wp.replace("{name}", name_wp.strip())
+                            wa_link = f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
+                            links.append({"Name": name_wp, "Phone": phone, "WhatsApp Link": wa_link})
+
+                        if links:
+                            links_df_wp = pd.DataFrame(links)
+                            st.session_state["wp_quicksend_links"] = links_df_wp
+                            st.success(f"✅ Generated {len(links_df_wp)} WhatsApp links.")
+
+                    ql_df = st.session_state.get("wp_quicksend_links")
+                    if ql_df is not None and not ql_df.empty:
+                        st.dataframe(ql_df.head(20), use_container_width=True, hide_index=True)
+                        for _, row in ql_df.head(15).iterrows():
+                            st.link_button(
+                                f"📱 {row['Name']} ({row['Phone']})",
+                                row["WhatsApp Link"],
+                            )
 
     st.divider()
-    
     c1, c2 = st.columns(2)
     with c1:
         st.download_button(

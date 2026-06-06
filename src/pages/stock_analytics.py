@@ -231,6 +231,36 @@ def render_stock_analytics_tab():
                 fallback_msg="Bundle intelligence section unavailable.",
             )
 
+        # ── Feature #6: Multi-Location Stock Alerts ─────────────────────────────
+        from src.config.ui_config import INVENTORY_LOCATIONS
+        loc_cols = [c for c in df_sim.columns if any(l.lower() in c.lower() for l in INVENTORY_LOCATIONS)]
+        
+        if loc_cols:
+            st.divider()
+            st.markdown("#### 🏪 Multi-Location Stock Alerts")
+            st.caption("Monitoring SKU thresholds across all active branch locations.")
+            
+            # Find SKUs that are low in ANY specific location
+            low_loc_alerts = []
+            for _, row in df_sim.iterrows():
+                for loc in loc_cols:
+                    loc_val = pd.to_numeric(row.get(loc, 0), errors="coerce")
+                    if pd.notna(loc_val) and loc_val > 0 and loc_val < low_thresh:
+                        low_loc_alerts.append({
+                            "Product": row.get("Product", "Unknown"),
+                            "Location": loc,
+                            "Qty": loc_val
+                        })
+                        
+            if low_loc_alerts:
+                st.error(f"⚠️ **{len(low_loc_alerts)} Location-Specific Low Stock Alerts Detected!**")
+                with st.expander("View Branch Alerts", expanded=True):
+                    alert_df = pd.DataFrame(low_loc_alerts)
+                    st.dataframe(alert_df, use_container_width=True, hide_index=True)
+            else:
+                st.success("✅ All branches have healthy stock levels above the threshold.")
+        # ────────────────────────────────────────────────────────────────────────
+
         st.divider()
         display_label = "Sub-Category"
 

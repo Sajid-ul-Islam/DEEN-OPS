@@ -1,4 +1,4 @@
-"""Operational metrics rendering: KPI cards, deltas, and status breakdown."""
+"""Operational metrics rendering: KPI cards, deltas, status breakdown, and goal tracking."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from src.processing.data_processing import aggregate_data, prepare_granular_data
+from src.utils.metric_history import save_shift_snapshot, load_snapshot_history
 
 
 def _generate_sparkline_svg(values: list[float], color: str = "#3b82f6") -> str:
@@ -206,6 +207,64 @@ def render_operational_metrics(
         "</div>"
     )
 
+
     st.markdown(card_html, unsafe_allow_html=True)
+
+    # ── Feature #3: Goal Threshold Alerts ──────────────────────────────────────
+    goals = st.session_state.get("shift_goals", {})
+    rev_goal = goals.get("revenue", 0)
+    ord_goal = goals.get("orders", 0)
+
+    if rev_goal > 0 or ord_goal > 0:
+        st.markdown("###### 🎯 Shift Goal Progress")
+        g1, g2 = st.columns(2)
+        with g1:
+            if rev_goal > 0:
+                pct = min(m_rev / rev_goal, 1.0)
+                color = "#10b981" if pct >= 1.0 else "#f59e0b" if pct >= 0.7 else "#ef4444"
+                label = "✅ Goal Reached!" if pct >= 1.0 else f"৳{m_rev:,.0f} / ৳{rev_goal:,.0f}"
+                st.markdown(
+                    f'<div style="margin-bottom:8px;">'  
+                    f'<span style="font-size:0.72rem;font-weight:700;color:{color};letter-spacing:0.05em;">'
+                    f'💰 REVENUE — {label}</span>'
+                    f'<div style="background:rgba(255,255,255,0.08);border-radius:6px;height:8px;margin-top:4px;overflow:hidden;">'
+                    f'<div style="background:{color};width:{pct*100:.1f}%;height:100%;border-radius:6px;'
+                    f'transition:width 0.6s ease;"></div></div></div>',
+                    unsafe_allow_html=True,
+                )
+        with g2:
+            if ord_goal > 0:
+                pct_o = min(m_ord / ord_goal, 1.0)
+                color_o = "#10b981" if pct_o >= 1.0 else "#f59e0b" if pct_o >= 0.7 else "#ef4444"
+                label_o = "✅ Goal Reached!" if pct_o >= 1.0 else f"{m_ord} / {ord_goal} orders"
+                st.markdown(
+                    f'<div style="margin-bottom:8px;">'
+                    f'<span style="font-size:0.72rem;font-weight:700;color:{color_o};letter-spacing:0.05em;">'
+                    f'🛒 ORDERS — {label_o}</span>'
+                    f'<div style="background:rgba(255,255,255,0.08);border-radius:6px;height:8px;margin-top:4px;overflow:hidden;">'
+                    f'<div style="background:{color_o};width:{pct_o*100:.1f}%;height:100%;border-radius:6px;'
+                    f'transition:width 0.6s ease;"></div></div></div>',
+                    unsafe_allow_html=True,
+                )
+
+    # ── Feature #5: Auto-Save Shift Snapshot ───────────────────────────────────
+    # Only save once per render cycle, silently — keyed by data fingerprint
+    snap_key = f"{m_rev:.0f}_{m_ord}_{m_qty}"
+    if st.session_state.get("_last_snap_key") != snap_key and m_ord > 0:
+        top_list = []
+        if top is not None and not top.empty:
+            name_col = "Product Name" if "Product Name" in top.columns else top.columns[0]
+            amt_col = "Total Amount" if "Total Amount" in top.columns else None
+            for _, row in top.sort_values(amt_col, ascending=False).head(5).iterrows() if amt_col else []:
+                top_list.append({"name": str(row.get(name_col, "")), "revenue": float(row.get(amt_col, 0))})
+        save_shift_snapshot(
+            revenue=float(m_rev),
+            orders=int(m_ord),
+            qty=int(m_qty),
+            aov=float(m_bv),
+            shift_label=nav_mode,
+            top_products=top_list,
+        )
+        st.session_state["_last_snap_key"] = snap_key
 
     return drill, summ, top, basket, active_df
