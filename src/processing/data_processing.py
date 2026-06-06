@@ -7,6 +7,45 @@ from src.utils.product import get_base_product_name, get_size_from_name
 from src.utils.logging import log_system_event
 
 
+def filter_shipped_by_slot(df, nav_mode, is_comparison=False):
+    """Filters a DataFrame to shipped statuses, optionally narrowing by slot boundaries.
+
+    Args:
+        df: The order DataFrame to filter.
+        nav_mode: Current navigation mode ('Today', 'Prev', 'Backlog').
+        is_comparison: If True, applies the comparison slot (opposite of main slot).
+
+    Returns:
+        Filtered DataFrame containing only shipped orders within the relevant slot window.
+    """
+    import streamlit as st
+    from datetime import timedelta
+    from src.config.constants import SHIPPED_STATUSES
+
+    status_col = "Order Status" if "Order Status" in df.columns else "Status" if "Status" in df.columns else None
+
+    if status_col is None:
+        return df
+
+    # Determine which slot key to use
+    if not is_comparison:
+        slot_key = "wc_curr_slot" if nav_mode == "Today" else "wc_prev_slot" if nav_mode == "Prev" else None
+    else:
+        slot_key = "wc_prev_slot" if nav_mode == "Today" else "wc_curr_slot" if nav_mode == "Prev" else None
+
+    slot = st.session_state.get(slot_key) if slot_key else None
+
+    if slot and "mod_dt_parsed" in df.columns:
+        slot_start, slot_end = slot
+        return df[
+            (df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)) &
+            (df["mod_dt_parsed"] >= slot_start) &
+            (df["mod_dt_parsed"] <= (slot_end + timedelta(minutes=30)))
+        ]
+    else:
+        return df[df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)]
+
+
 def process_data(df, selected_cols):
     """Main entry point for initial data processing. Returns granular sanitized data + aggregates."""
     df_standard, timeframe = prepare_granular_data(df, selected_cols)
