@@ -232,12 +232,6 @@ def run_app():
                         os.remove(ERROR_LOG_FILE)
                     st.rerun()
 
-        st.divider()
-        # Data Pilot shortcut — replaces the heavy inline expander that duplicated the full page
-        if st.button(":material/smart_toy: Open Data Pilot", use_container_width=True, key="sidebar_pilot_shortcut"):
-            st.session_state["_nav_override"] = "🚀 Data Pilot"
-            st.rerun()
-
     # Placeholder for Unified Header
     header_container = st.empty()
 

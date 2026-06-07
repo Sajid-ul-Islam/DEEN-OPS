@@ -686,39 +686,31 @@ def render_ai_pilot_page():
                 st.caption(f"**Last Intent Detected:** `{last_intent}`")
 
         with col_chat:
-            # Chat Display
-            chat_container = st.container(height=500)
-            with chat_container:
-                for msg in st.session_state.agent_messages:
-                    avatar = "🤖" if msg["role"] == "assistant" else "👤"
-                    with st.chat_message(msg["role"], avatar=avatar):
-                        st.markdown(msg["content"])
-
-            # Input Area
+            # 1. Capture Inputs
             audio_bytes = None
             if hasattr(st, "audio_input"):
                 audio_bytes = st.audio_input("Speak to Data Pilot", label_visibility="collapsed")
                 
             prompt = st.chat_input("Ask Data Pilot about sales, stock, or request a report...")
             
+            # Handle audio transcription mapping to prompt
             if audio_bytes and audio_bytes != st.session_state.get("last_audio_bytes"):
                 st.session_state.last_audio_bytes = audio_bytes
                 
-                st.session_state.agent_messages.append({"role": "user", "content": "*(🎤 Voice Command Captured)*"})
-                with st.chat_message("user", avatar="👤"):
-                    st.markdown("*(🎤 Voice Command Captured)*")
-                    st.audio(audio_bytes)
+                with st.spinner("🎧 Transcribing audio command..."):
+                    from src.services.llm.manager import init_llm_controller
+                    controller = init_llm_controller()
+                    transcription = controller.transcribe_audio(audio_bytes.getvalue())
+                    
+                if transcription and not transcription.startswith("*(Failed"):
+                    prompt = transcription  # Treat it as a standard prompt
+                else:
+                    st.session_state.agent_messages.append({"role": "user", "content": "*(🎤 Voice Command Captured)*"})
+                    st.session_state.agent_messages.append({"role": "assistant", "content": transcription})
                 
-                with st.chat_message("assistant", avatar="🤖"):
-                    msg = "I received your voice message! 🎙️\n\nTo process spoken commands, please integrate a Speech-to-Text model (like OpenAI Whisper or Gemini Audio) into my `DynamicLLMController`."
-                    st.markdown(msg)
-                    st.session_state.agent_messages.append({"role": "assistant", "content": msg})
-                
-            elif prompt:
-                # Store the current navigation state before processing
-                original_nav = st.session_state.get("_nav_override")
-                
-                # Handle Smart Auto-Sync
+            original_nav = st.session_state.get("_nav_override")
+            
+            if prompt:
                 if auto_sync:
                     last_sync = st.session_state.get("live_sync_time")
                     if not last_sync or (datetime.now() - last_sync).total_seconds() > 900:
@@ -736,189 +728,214 @@ def render_ai_pilot_page():
                                 st.error(f"Auto-sync failed: {e}")
 
                 st.session_state.agent_messages.append({"role": "user", "content": prompt})
-                with st.chat_message("user", avatar="👤"):
-                    st.markdown(prompt)
+                
+            # 2. Render Chat Container (History + Live Stream)
+            chat_container = st.container(height=500)
+            with chat_container:
+                for msg in st.session_state.agent_messages:
+                    if msg["role"] == "system":
+                        continue # Hide internal system outputs from UI
+                    avatar = "🤖" if msg["role"] == "assistant" else "👤"
+                    with st.chat_message(msg["role"], avatar=avatar):
+                        st.markdown(msg["content"])
+                        if "audio" in msg and msg.get("audio"):
+                            st.audio(msg["audio"])
 
-                with st.chat_message("assistant", avatar="🤖"):
-                    response_placeholder = st.empty()
-                    full_response = ""
+                if prompt:
+                    with st.chat_message("assistant", avatar="🤖"):
+                        response_placeholder = st.empty()
+                        full_response = ""
 
-                    agent = AIDataAgent(provider, api_key, model_name)
-                    intent_obj = agent.brain.semantic_query_intent(prompt)
-                    st.session_state.pilot_last_intent = intent_obj["type"]
+                        agent = AIDataAgent(provider, api_key, model_name)
+                        intent_obj = agent.brain.semantic_query_intent(prompt)
+                        st.session_state.pilot_last_intent = intent_obj["type"]
                     
-                    if "report" in prompt.lower() or "summary" in prompt.lower():
-                        st.session_state.pilot_last_intent = "report_generation"
+                        if "report" in prompt.lower() or "summary" in prompt.lower():
+                            st.session_state.pilot_last_intent = "report_generation"
 
-                    import queue
-                    import threading
-                    import time
+                        import queue
+                        import threading
+                        import time
                     
-                    q = queue.Queue()
-                    chat_history = st.session_state.agent_messages[:-1]
+                        q = queue.Queue()
+                        chat_history = st.session_state.agent_messages[:-1]
                     
-                    async def fetch_stream():
-                        try:
-                            async for chunk in agent.get_response_stream(prompt, chat_history):
-                                q.put({"chunk": chunk})
-                        except Exception as e:
-                            q.put({"error": e})
-                        finally:
-                            q.put({"done": True})
-
-                    def thread_run():
-                        new_loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(new_loop)
-                        new_loop.run_until_complete(fetch_stream())
-                        new_loop.close()
-
-                    t = threading.Thread(target=thread_run)
-                    t.start()
-                    
-                    while True:
-                        try:
-                            msg = q.get(timeout=0.1)
-                        except queue.Empty:
-                            if not t.is_alive():
-                                break
-                            continue
-                            
-                        if "done" in msg:
-                            break
-                        if "error" in msg:
-                            st.error(f"Streaming Error: {msg['error']}")
-                            break
-                            
-                        full_response += msg["chunk"]
-                        
-                        # Drain the queue to batch updates and prevent WebSocket flooding
-                        done_flag = False
-                        while not q.empty():
+                        async def fetch_stream():
                             try:
-                                next_msg = q.get_nowait()
-                                if "done" in next_msg:
-                                    done_flag = True
-                                    break
-                                if "error" in next_msg:
-                                    st.error(f"Streaming Error: {next_msg['error']}")
-                                    done_flag = True
-                                    break
-                                full_response += next_msg["chunk"]
+                                async for chunk in agent.get_response_stream(prompt, chat_history):
+                                    q.put({"chunk": chunk})
+                            except Exception as e:
+                                q.put({"error": e})
+                            finally:
+                                q.put({"done": True})
+
+                        def thread_run():
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            new_loop.run_until_complete(fetch_stream())
+                            new_loop.close()
+
+                        t = threading.Thread(target=thread_run)
+                        t.start()
+                    
+                        while True:
+                            try:
+                                msg = q.get(timeout=0.1)
                             except queue.Empty:
+                                if not t.is_alive():
+                                    break
+                                continue
+                            
+                            if "done" in msg:
                                 break
+                            if "error" in msg:
+                                st.error(f"Streaming Error: {msg['error']}")
+                                break
+                            
+                            full_response += msg["chunk"]
+                        
+                            # Drain the queue to batch updates and prevent WebSocket flooding
+                            done_flag = False
+                            while not q.empty():
+                                try:
+                                    next_msg = q.get_nowait()
+                                    if "done" in next_msg:
+                                        done_flag = True
+                                        break
+                                    if "error" in next_msg:
+                                        st.error(f"Streaming Error: {next_msg['error']}")
+                                        done_flag = True
+                                        break
+                                    full_response += next_msg["chunk"]
+                                except queue.Empty:
+                                    break
                                 
+                            display_text = re.sub(r'\[MEMORY_SET:.*?\]', '', full_response)
+                            display_text = re.sub(r'\[SQL_QUERY:.*?\]', '', display_text, flags=re.DOTALL)
+                            display_text = re.sub(r'\[PLOTLY_CODE:.*?\]', '', display_text, flags=re.DOTALL)
+                            display_text = re.sub(r'\[DATA_TRANSFORM:.*?\]', '', display_text, flags=re.DOTALL)
+                            display_text = re.sub(r'\[DOWNLOAD_DATA\]', '', display_text, flags=re.IGNORECASE)
+                            response_placeholder.markdown(display_text + "▌")
+                        
+                            if done_flag:
+                                break
+                            
+                            # Throttle UI updates to ~20 FPS to prevent mobile WebSocket flooding
+                            time.sleep(0.05)
+                        t.join()
+                    
                         display_text = re.sub(r'\[MEMORY_SET:.*?\]', '', full_response)
                         display_text = re.sub(r'\[SQL_QUERY:.*?\]', '', display_text, flags=re.DOTALL)
                         display_text = re.sub(r'\[PLOTLY_CODE:.*?\]', '', display_text, flags=re.DOTALL)
                         display_text = re.sub(r'\[DATA_TRANSFORM:.*?\]', '', display_text, flags=re.DOTALL)
                         display_text = re.sub(r'\[DOWNLOAD_DATA\]', '', display_text, flags=re.IGNORECASE)
-                        response_placeholder.markdown(display_text + "▌")
-                        
-                        if done_flag:
-                            break
-                            
-                        # Throttle UI updates to ~20 FPS to prevent mobile WebSocket flooding
-                        time.sleep(0.05)
-                    t.join()
+                        response_placeholder.markdown(display_text)
                     
-                    display_text = re.sub(r'\[MEMORY_SET:.*?\]', '', full_response)
-                    display_text = re.sub(r'\[SQL_QUERY:.*?\]', '', display_text, flags=re.DOTALL)
-                    display_text = re.sub(r'\[PLOTLY_CODE:.*?\]', '', display_text, flags=re.DOTALL)
-                    display_text = re.sub(r'\[DATA_TRANSFORM:.*?\]', '', display_text, flags=re.DOTALL)
-                    display_text = re.sub(r'\[DOWNLOAD_DATA\]', '', display_text, flags=re.IGNORECASE)
-                    response_placeholder.markdown(display_text)
-                    
-                    updates = re.findall(r'\[MEMORY_SET:\s*(.*?)\s*\|\s*(.*?)\]', full_response)
-                    if updates:
-                        for key, rule in updates:
-                            agent.agent_memory.set_memory(key.strip(), rule.strip())
-                        st.toast("🧠 Pilot internalized a new rule to long-term memory!", icon="✅")
+                        updates = re.findall(r'\[MEMORY_SET:\s*(.*?)\s*\|\s*(.*?)\]', full_response)
+                        if updates:
+                            for key, rule in updates:
+                                agent.agent_memory.set_memory(key.strip(), rule.strip())
+                            st.toast("🧠 Pilot internalized a new rule to long-term memory!", icon="✅")
                         
-                    full_response = display_text.strip()
+                        full_response = display_text.strip()
 
-                    st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
+                        st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
                     
-                    last_sql_df = None
-                    sql_queries = re.findall(r'\[SQL_QUERY:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
-                    if sql_queries:
-                        from src.processing.hybrid_data_loader import HybridDataLoader
-                        loader = HybridDataLoader()
-                        for sql in sql_queries:
-                            st.info(f"⚙️ **Executing DuckDB SQL:**\n```sql\n{sql.strip()}\n```")
-                            df_res = loader.query_sql(sql.strip())
-                            if df_res is not None and not df_res.empty:
-                                last_sql_df = df_res
-                                st.dataframe(df_res, use_container_width=True)
-                                # Append result silently so the AI has context for the next turn
-                                st.session_state.agent_messages.append({
-                                    "role": "system",
-                                    "content": f"System executed your SQL query: {sql}\n\nResult:\n{df_res.head(50).to_csv(index=False)}"
-                                })
-                            else:
-                                st.warning("SQL query returned no results or encountered an error.")
-                                st.session_state.agent_messages.append({
-                                    "role": "system",
-                                    "content": f"System executed your SQL query: {sql}\n\nResult: Query Failed or Empty."
-                                })
-                                
-                    plotly_codes = re.findall(r'\[PLOTLY_CODE:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
-                    if plotly_codes:
-                        for code in plotly_codes:
-                            st.info(f"📊 **Rendering Auto-Generated Chart:**\n```python\n{code.strip()}\n```")
-                            try:
-                                local_vars = {"df": agent.context_dfs.get("sales", pd.DataFrame()), "px": px}
-                                if last_sql_df is not None:
-                                    local_vars["sql_df"] = last_sql_df
-                                exec(code.strip(), globals(), local_vars)
-                                if "fig" in local_vars:
-                                    st.plotly_chart(local_vars["fig"], use_container_width=True)
-                            except Exception as e:
-                                st.error(f"Chart Generation Error: {e}")
-                                
-                    transform_codes = re.findall(r'\[DATA_TRANSFORM:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
-                    if transform_codes:
-                        for code in transform_codes:
-                            st.info(f"🧹 **Applying Data Transformation:**\n```python\n{code.strip()}\n```")
-                            try:
-                                target_df = st.session_state.get("wc_curr_df")
-                                if target_df is not None:
-                                    local_vars = {"df": target_df.copy(), "pd": pd, "np": np}
-                                    exec(code.strip(), {"__builtins__": __builtins__}, local_vars)
-                                    st.session_state.wc_curr_df = local_vars["df"]
-                                    st.success("Data transformation applied successfully to the live session!")
-                                    # Force reload context
-                                    agent.context_dfs["sales"] = local_vars["df"]
+                        last_sql_df = None
+                        sql_queries = re.findall(r'\[SQL_QUERY:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
+                        if sql_queries:
+                            from src.processing.hybrid_data_loader import HybridDataLoader
+                            loader = HybridDataLoader()
+                            for sql in sql_queries:
+                                st.info(f"⚙️ **Executing DuckDB SQL:**\n```sql\n{sql.strip()}\n```")
+                                df_res = loader.query_sql(sql.strip())
+                                if df_res is not None and not df_res.empty:
+                                    last_sql_df = df_res
+                                    st.dataframe(df_res, use_container_width=True)
+                                    # Append result silently so the AI has context for the next turn
+                                    st.session_state.agent_messages.append({
+                                        "role": "system",
+                                        "content": f"System executed your SQL query: {sql}\n\nResult:\n{df_res.head(50).to_csv(index=False)}"
+                                    })
                                 else:
-                                    st.warning("No live data found to transform.")
-                            except Exception as e:
-                                st.error(f"Data Transformation Error: {e}")
+                                    st.warning("SQL query returned no results or encountered an error.")
+                                    st.session_state.agent_messages.append({
+                                        "role": "system",
+                                        "content": f"System executed your SQL query: {sql}\n\nResult: Query Failed or Empty."
+                                    })
+                                
+                        plotly_codes = re.findall(r'\[PLOTLY_CODE:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
+                        if plotly_codes:
+                            for code in plotly_codes:
+                                st.info(f"📊 **Rendering Auto-Generated Chart:**\n```python\n{code.strip()}\n```")
+                                try:
+                                    local_vars = {"df": agent.context_dfs.get("sales", pd.DataFrame()), "px": px}
+                                    if last_sql_df is not None:
+                                        local_vars["sql_df"] = last_sql_df
+                                    exec(code.strip(), globals(), local_vars)
+                                    if "fig" in local_vars:
+                                        st.plotly_chart(local_vars["fig"], use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Chart Generation Error: {e}")
+                                
+                        transform_codes = re.findall(r'\[DATA_TRANSFORM:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
+                        if transform_codes:
+                            for code in transform_codes:
+                                st.info(f"🧹 **Applying Data Transformation:**\n```python\n{code.strip()}\n```")
+                                try:
+                                    target_df = st.session_state.get("wc_curr_df")
+                                    if target_df is not None:
+                                        local_vars = {"df": target_df.copy(), "pd": pd, "np": np}
+                                        exec(code.strip(), {"__builtins__": __builtins__}, local_vars)
+                                        st.session_state.wc_curr_df = local_vars["df"]
+                                        st.success("Data transformation applied successfully to the live session!")
+                                        # Force reload context
+                                        agent.context_dfs["sales"] = local_vars["df"]
+                                    else:
+                                        st.warning("No live data found to transform.")
+                                except Exception as e:
+                                    st.error(f"Data Transformation Error: {e}")
 
-                    if re.search(r'\[DOWNLOAD_DATA\]', full_response, flags=re.IGNORECASE):
-                        target_df = st.session_state.get("wc_curr_df")
-                        if target_df is not None and not target_df.empty:
-                            csv_data = target_df.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label="📥 Download Cleaned Dataset (CSV)",
-                                data=csv_data,
-                                file_name=f"DEEN_Data_Export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                                mime="text/csv",
-                                use_container_width=True
-                            )
-                        else:
-                            st.warning("No live data available to download.")
+                        if re.search(r'\[DOWNLOAD_DATA\]', full_response, flags=re.IGNORECASE):
+                            target_df = st.session_state.get("wc_curr_df")
+                            if target_df is not None and not target_df.empty:
+                                csv_data = target_df.to_csv(index=False).encode('utf-8')
+                                st.download_button(
+                                    label="📥 Download Cleaned Dataset (CSV)",
+                                    data=csv_data,
+                                    file_name=f"DEEN_Data_Export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                    mime="text/csv",
+                                    use_container_width=True
+                                )
+                            else:
+                                st.warning("No live data available to download.")
 
-                    # Restore navigation override if it was set by sidebar (prevents nav change)
-                    if original_nav and "_nav_override" not in st.session_state:
-                        st.session_state["_nav_override"] = original_nav
+                # 3. Inject Auto-Scroll Script at the absolute bottom of the container
+                st.markdown('<div id="pilot-chat-bottom"></div>', unsafe_allow_html=True)
+                st.markdown(
+                    """
+                    <script>
+                        setTimeout(function() {
+                            var el = window.parent.document.getElementById('pilot-chat-bottom');
+                            if (el) {
+                                el.scrollIntoView({behavior: 'smooth', block: 'end'});
+                            }
+                        }, 100);
+                    </script>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            # 4. Post-Process State (Navigation & Reports)
+            if prompt:
+                if original_nav and "_nav_override" not in st.session_state:
+                    st.session_state["_nav_override"] = original_nav
+                
+                if st.session_state.get("pilot_last_intent") == "report_generation":
+                    st.session_state.pilot_reports.append({
+                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "content": full_response
+                    })
                     
-                    # If report was requested, save it to reports tab
-                    if st.session_state.pilot_last_intent == "report_generation":
-                        st.session_state.pilot_reports.append({
-                            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "content": full_response
-                        })
-
-                if len(full_response) > 50:
-                    with st.expander("🔍 Intelligence Layer: Brain Routing"):
-                        st.caption(f"Engine: {provider} | Semantic Intent: {st.session_state.pilot_last_intent.upper()}")
-                        st.info("Grounding: Utilizing Multi-Model Predictive Intelligence & Knowledge Base context.")
+                # Rerun to cleanly re-render state with new items
+                st.rerun()

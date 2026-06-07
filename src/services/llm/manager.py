@@ -184,6 +184,27 @@ class DynamicLLMController:
     def _estimate_tokens(self, text: str) -> int:
         return len(text) // 4
 
+    def transcribe_audio(self, audio_bytes: bytes) -> str:
+        """Transcribe audio using Groq Whisper API (whisper-large-v3-turbo)."""
+        key_res = self.key_manager.get_next_key("groq_free")
+        if key_res:
+            api_key, _ = key_res
+            try:
+                import requests
+                url = "https://api.groq.com/openai/v1/audio/transcriptions"
+                headers = {"Authorization": f"Bearer {api_key}"}
+                files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
+                data = {"model": "whisper-large-v3-turbo"}
+                resp = requests.post(url, headers=headers, files=files, data=data, timeout=15)
+                if resp.status_code == 200:
+                    return resp.json().get("text", "").strip()
+                else:
+                    log_system_event("AUDIO_API_ERROR", f"Groq Whisper failed: {resp.status_code} - {resp.text}")
+            except Exception as e:
+                log_system_event("AUDIO_API_ERROR", f"Groq Whisper exception: {e}")
+                
+        return "*(Failed to transcribe audio. Ensure Groq API key is configured.)*"
+
     async def _call_provider_stream_async(self, provider: str, api_key: str, messages: List[Dict[str, str]]) -> Any:
         config = PROVIDERS[provider]
 
@@ -334,7 +355,7 @@ def init_llm_controller():
     # Force re-init if old controller is detected
     if "llm_controller" in st.session_state:
         # Check for the latest method/signature change indicator
-        if not hasattr(st.session_state.llm_controller, "is_cloud"):
+        if not hasattr(st.session_state.llm_controller, "is_cloud") or not hasattr(st.session_state.llm_controller, "transcribe_audio"):
             del st.session_state.llm_controller
 
     if "llm_controller" not in st.session_state:
