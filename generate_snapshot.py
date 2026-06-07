@@ -47,14 +47,10 @@ def crunch_heavy_calculations():
             # Incremental logic: filter only new orders
             df_new = df_new[df_new["Order ID"] > latest_order_id].copy()
     except Exception as e:
-        print(f"[{datetime.now()}] WooCommerce fetch failed, generating dummy data...")
-        # Mock incremental data
-        start_id = latest_order_id + 1
-        df_new = pd.DataFrame({
-            "Order ID": range(start_id, start_id + 50),
-            "Item Name": [f"Product {i}" for i in range(start_id, start_id + 50)],
-            "Amount": np.random.rand(50) * 100
-        })
+        print(f"[{datetime.now()}] WooCommerce fetch failed: {e}")
+        print(f"[{datetime.now()}] Aborting snapshot generation to prevent database corruption with mock data.")
+        conn.close()
+        return
 
     if df_new.empty:
         print(f"[{datetime.now()}] No new records to sync. Snapshot is up to date.")
@@ -94,4 +90,3 @@ def crunch_heavy_calculations():
 
 if __name__ == "__main__":
     crunch_heavy_calculations()
-
