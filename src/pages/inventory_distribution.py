@@ -44,7 +44,7 @@ def render_distribution_tab(search_q):
             key="dist_live",
         )
     with c_url:
-        url_input = st.text_input("Paste public CSV/XLSX URL", key="dist_url_input", label_visibility="collapsed", placeholder="Paste public CSV/XLSX URL...")
+        url_input = st.text_input("Paste public CSV/XLSX/G-Sheet URL", key="dist_url_input", label_visibility="collapsed", placeholder="Paste public CSV/XLSX/G-Sheet URL...")
         if url_input and st.button("Fetch URL", use_container_width=True, type="secondary", key="dist_url_fetch"):
             try:
                 from src.utils.url_fetch import fetch_dataframe_from_url
@@ -80,6 +80,7 @@ def render_distribution_tab(search_q):
             uploaded = st.file_uploader(
                 f"{loc}", key=f"inv_l_{loc}", type=["xlsx", "csv"]
             )
+            
             if uploaded:
                 loc_files[loc] = uploaded
             elif loc in default_files:
@@ -204,6 +205,7 @@ def render_distribution_tab(search_q):
             new_priority = [new_order_map[r] for r in sorted(new_order_map)]
             if new_priority != current_priority:
                 st.session_state.inv_priority_order = new_priority
+                st.session_state.inv_auto_analyze = True
                 st.rerun()
         elif not valid:
             st.warning("Each outlet must have a unique rank. Duplicate ranks detected.")
@@ -216,6 +218,7 @@ def render_distribution_tab(search_q):
 
         if st.button("Reset to Default", key="inv_priority_reset", use_container_width=True):
             st.session_state.inv_priority_order = default_priority.copy()
+            st.session_state.inv_auto_analyze = True
             st.rerun()
     # ────────────────────────────────────────────────────────────────────────
 

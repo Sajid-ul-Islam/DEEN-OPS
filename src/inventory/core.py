@@ -449,6 +449,8 @@ def add_stock_columns_from_inventory(
     full_order_locs_list = [""] * len(df)
     items_in_order_list = [1] * len(df)
     fulfillment_status = [""] * len(df)
+    suggested_alternatives = [""] * len(df)
+    split_courier_warning = [""] * len(df)
 
     group_col = get_group_by_column(df)
     temp_group_added = False
@@ -540,7 +542,23 @@ def add_stock_columns_from_inventory(
                     source_key = stock_sources[idx]
                     needed = qty_needed[idx]
 
+                    if suggestion == "Multiple / Split":
+                        split_courier_warning[idx] = "⚠️ Est. ৳60+ Extra Cost"
+
                     if suggestion == "OOS / Unfulfillable":
+                        alt_list = []
+                        raw_item = df.loc[idx, item_name_col] if item_name_col in df.columns else ""
+                        title_str, _ = item_name_to_title_size(str(raw_item))
+                        if title_str:
+                            title_norm = normalize_key(title_str).casefold()
+                            for k, locs in running_inv.items():
+                                if str(k).startswith("sku:"): continue
+                                if title_norm in str(k) and k != source_key:
+                                    if sum(locs.values()) > 0:
+                                        alt_list.append(str(k).title())
+                                        if len(alt_list) >= 2: break
+                        suggested_alternatives[idx] = " | ".join(alt_list) if alt_list else "No alternative found"
+
                         if not source_key:
                             fulfillment_status[idx] = "❌ No Match"
                             oos_locations_list[idx] = "All Locations"
@@ -587,6 +605,8 @@ def add_stock_columns_from_inventory(
     df["Fulfillment"] = fulfillment_status
     df["OOS Locations"] = oos_locations_list
     df["Dispatch Suggestion"] = dispatch_suggestions
+    df["Suggested Alternative"] = suggested_alternatives
+    df["Split Courier Warning"] = split_courier_warning
 
     if group_col:
         suffix_map = {
