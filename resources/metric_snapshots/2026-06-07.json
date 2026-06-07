@@ -420,9 +420,39 @@
           "revenue": 1590.0
         }
       ]
+    },
+    {
+      "ts": "2026-06-07T17:37:27.965901+06:00",
+      "label": "Today",
+      "revenue": 63683.0,
+      "orders": 41,
+      "qty": 73,
+      "aov": 1553.24,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 44",
+          "revenue": 1794.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 1590.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 1590.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 745097.5,
-  "daily_orders": 498,
-  "daily_qty": 919
+  "daily_revenue": 808780.5,
+  "daily_orders": 539,
+  "daily_qty": 992
 }
