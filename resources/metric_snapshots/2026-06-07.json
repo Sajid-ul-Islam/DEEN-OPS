@@ -1,0 +1,68 @@
+{
+  "date": "2026-06-07",
+  "shifts": [
+    {
+      "ts": "2026-06-07T09:21:27.566653+06:00",
+      "label": "Today",
+      "revenue": 45383.5,
+      "orders": 32,
+      "qty": 60,
+      "aov": 1418.23,
+      "top_products": [
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 1590.0
+        },
+        {
+          "name": "Grey Semi Formal Panjabi - 44",
+          "revenue": 1494.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - M",
+          "revenue": 1490.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - XL",
+          "revenue": 1490.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-07T09:22:38.973992+06:00",
+      "label": "Today",
+      "revenue": 45383.5,
+      "orders": 32,
+      "qty": 60,
+      "aov": 1418.23,
+      "top_products": [
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 1590.0
+        },
+        {
+          "name": "Grey Semi Formal Panjabi - 44",
+          "revenue": 1494.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - XL",
+          "revenue": 1490.0
+        },
+        {
+          "name": "White Executive Formal Shirt - M",
+          "revenue": 1490.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 90767.0,
+  "daily_orders": 64,
+  "daily_qty": 120
+}

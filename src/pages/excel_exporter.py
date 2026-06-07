@@ -16,13 +16,29 @@ def export_to_styled_excel(df_dict: dict[str, pd.DataFrame], group_by_col: str |
             'border': 1
         })
 
-        # Format for alternating rows
-        alt_format = workbook.add_format({'bg_color': '#E8F2FF', 'border': 1})
-        base_format = workbook.add_format({'bg_color': '#FFFFFF', 'border': 1})
+        format_cache = {}
         
-        # Specialized Number Formats
-        currency_format = workbook.add_format({'num_format': '৳ #,##0', 'border': 1})
-        percent_format = workbook.add_format({'num_format': '0.0%', 'border': 1})
+        def get_fmt(bg_color, is_top, is_bottom, is_left, is_right, is_currency=False, is_percent=False):
+            key = (bg_color, is_top, is_bottom, is_left, is_right, is_currency, is_percent)
+            if key in format_cache:
+                return format_cache[key]
+            
+            props = {
+                'bg_color': bg_color,
+                'top': 2 if is_top else 1,
+                'bottom': 2 if is_bottom else 1,
+                'left': 2 if is_left else 1,
+                'right': 2 if is_right else 1
+            }
+            
+            if is_currency:
+                props['num_format'] = '৳ #,##0'
+            elif is_percent:
+                props['num_format'] = '0.0%'
+                
+            fmt = workbook.add_format(props)
+            format_cache[key] = fmt
+            return fmt
 
         for sheet_name, df in df_dict.items():
             if df.empty:
@@ -41,35 +57,59 @@ def export_to_styled_excel(df_dict: dict[str, pd.DataFrame], group_by_col: str |
                 max_len = max(df[col].astype(str).map(len).max(), len(str(col))) + 2
                 worksheet.set_column(idx, idx, min(max_len, 60))
             
-            # Apply alternating row colors if a grouping column is provided
-            if group_by_col and group_by_col in df.columns:
-                col_idx = df.columns.get_loc(group_by_col)
-                current_group_val = None
+            # Auto-detect group column if not provided
+            group_col_sheet = group_by_col
+            if not group_col_sheet:
+                for c in ["Order Number", "Order ID", "Order #", "Phone (Billing)", "Phone", "Cons. ID"]:
+                    if c in df.columns:
+                        group_col_sheet = c
+                        break
+
+            if group_col_sheet and group_col_sheet in df.columns:
+                col_idx = df.columns.get_loc(group_col_sheet)
+                group_boundaries = []
+                current_val = None
+                start_row = 0
+                for i in range(len(df)):
+                    val = df.iloc[i, col_idx]
+                    if i == 0:
+                        current_val = val
+                        start_row = i
+                    elif val != current_val:
+                        group_boundaries.append((start_row, i - 1))
+                        current_val = val
+                        start_row = i
+                group_boundaries.append((start_row, len(df) - 1))
+
                 use_alt = False
-                
-                # Row 0 is header, data starts at Row 1
-                for row_num in range(len(df)):
-                    val = df.iloc[row_num, col_idx]
+                for start_idx, end_idx in group_boundaries:
+                    use_alt = not use_alt
+                    bg_col = '#E8F2FF' if use_alt else '#FFFFFF'
                     
-                    # Toggle color when group value changes
-                    if val != current_group_val:
-                        current_group_val = val
-                        use_alt = not use_alt
-                    
-                    fmt = alt_format if use_alt else base_format
-                    
-                    # Apply specialized formatting to specific columns while keeping row color
-                    for c_idx, col_name in enumerate(df.columns):
-                        cell_val = df.iloc[row_num, c_idx]
-                        target_fmt = fmt
-                        if col_name in currency_cols: target_fmt = currency_format
-                        elif col_name in percent_cols: target_fmt = percent_format
+                    for row_num in range(start_idx, end_idx + 1):
+                        is_top = (row_num == start_idx)
+                        is_bottom = (row_num == end_idx)
                         
-                        if use_alt and target_fmt == fmt: target_fmt = alt_format
-                        worksheet.write(row_num + 1, c_idx, cell_val, target_fmt)
+                        for c_idx, col_name in enumerate(df.columns):
+                            is_left = (c_idx == 0)
+                            is_right = (c_idx == len(df.columns) - 1)
+                            is_curr = col_name in currency_cols
+                            is_perc = col_name in percent_cols
+                            
+                            fmt = get_fmt(bg_col, is_top, is_bottom, is_left, is_right, is_curr, is_perc)
+                            val = df.iloc[row_num, c_idx]
+                            if pd.isna(val):
+                                val = ""
+                            worksheet.write(row_num + 1, c_idx, val, fmt)
             else:
-                # Standard border for all rows if no grouping
                 for row_num in range(len(df)):
-                    worksheet.set_row(row_num + 1, None, base_format)
+                    for c_idx, col_name in enumerate(df.columns):
+                        is_curr = col_name in currency_cols
+                        is_perc = col_name in percent_cols
+                        fmt = get_fmt('#FFFFFF', False, False, False, False, is_curr, is_perc)
+                        val = df.iloc[row_num, c_idx]
+                        if pd.isna(val):
+                            val = ""
+                        worksheet.write(row_num + 1, c_idx, val, fmt)
                 
     return output.getvalue()

@@ -90,9 +90,69 @@
           "revenue": 2980.0
         }
       ]
+    },
+    {
+      "ts": "2026-06-06T17:09:55.930034+06:00",
+      "label": "Today",
+      "revenue": 170796.5,
+      "orders": 113,
+      "qty": 210,
+      "aov": 1511.47,
+      "top_products": [
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 4770.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - L",
+          "revenue": 3982.0
+        },
+        {
+          "name": "Blue Raven Drop Shoulder T-Shirt - XL",
+          "revenue": 3360.0
+        },
+        {
+          "name": "Lavender Semi Formal Panjabi - 44",
+          "revenue": 3108.0
+        },
+        {
+          "name": "Sky Blue Executive Formal Shirt - L",
+          "revenue": 2980.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-06T17:29:51.470318+06:00",
+      "label": "Today",
+      "revenue": 167625.0,
+      "orders": 112,
+      "qty": 205,
+      "aov": 1496.65,
+      "top_products": [
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 4770.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - L",
+          "revenue": 3982.0
+        },
+        {
+          "name": "Blue Raven Drop Shoulder T-Shirt - XL",
+          "revenue": 3360.0
+        },
+        {
+          "name": "Lavender Semi Formal Panjabi - 44",
+          "revenue": 3108.0
+        },
+        {
+          "name": "Burgundy Floral Casual Half Shirt - L",
+          "revenue": 2900.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 490281.5,
-  "daily_orders": 327,
-  "daily_qty": 595
+  "daily_revenue": 828703.0,
+  "daily_orders": 552,
+  "daily_qty": 1010
 }

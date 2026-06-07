@@ -493,8 +493,27 @@ def add_stock_columns_from_inventory(
                         running_inv.update(temp_inv)
                     return success
 
+                # Dynamic priority based on delivery address
+                current_order_labels = list(ordered_labels)
+                order_address = ""
+                for addr_col in ["Shipping City", "Shipping Address 1", "Shipping Address", "Address", "City"]:
+                    if addr_col in df.columns:
+                        first_idx = group_indices[0]
+                        val = df.loc[first_idx, addr_col]
+                        if pd.notna(val):
+                            order_address += " " + str(val).lower()
+                
+                if order_address.strip():
+                    for label in current_order_labels:
+                        if label == "Ecom-Mirpur": continue
+                        kws = _LOCATION_KEYWORDS.get(label, [label.lower()])
+                        if any(kw in order_address for kw in kws):
+                            current_order_labels.remove(label)
+                            current_order_labels.insert(0, label)
+                            break
+
                 full_locs = []
-                for label in ordered_labels:
+                for label in current_order_labels:
                     kws = _LOCATION_KEYWORDS.get(label, [label.lower()])
                     if try_allocate(kws, commit=False):
                         full_locs.append(label)
@@ -504,7 +523,7 @@ def add_stock_columns_from_inventory(
                     full_order_locs_list[idx] = full_locs_str
 
                 suggestion = None
-                for label in ordered_labels:
+                for label in current_order_labels:
                     kws = _LOCATION_KEYWORDS.get(label, [label.lower()])
                     if try_allocate(kws, commit=True):
                         suggestion = label

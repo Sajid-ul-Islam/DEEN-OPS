@@ -1,26 +1,5 @@
 [
     {
-        "timestamp": "2026-04-09 13:40:15",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1552, in render_stock_analytics_tab\n    size_options = sorted(df_item[size_col].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-09 13:40:20",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1552, in render_stock_analytics_tab\n    size_options = sorted(df_item[size_col].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-09 13:40:37",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1552, in render_stock_analytics_tab\n    size_options = sorted(df_item[size_col].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-09 13:41:01",
         "context": "App Bootstrap",
         "error": "'<' not supported between instances of 'str' and 'float'",
@@ -707,6 +686,33 @@
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 155, in <lambda>\n    lambda: render_dashboard_output(\n            ~~~~~~~~~~~~~~~~~~~~~~~^\n        drill,\n        ^^^^^^\n    ...<6 lines>...\n        granular_df=df_standard\n        ^^^^^^^^^^^^^^^^^^^^^^^\n    ),\n    ^\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\dashboard_output.py\", line 246, in render_dashboard_output\n    from src.processing.data_processing import filter_shipped_by_slot\nImportError: cannot import name 'filter_shipped_by_slot' from 'src.processing.data_processing' (H:\\Repo\\DEEN-OPS\\src\\processing\\data_processing.py)\n",
         "details": {
             "fallback_msg": "Dashboard rendering encountered an error."
+        }
+    },
+    {
+        "timestamp": "2026-06-07 09:36:51",
+        "context": "safe_render",
+        "error": "NAN/INF not supported in write_number() without 'nan_inf_to_errors' Workbook() option",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 266, in <lambda>\n    safe_render(lambda: render_distribution_tab(search_q=st.session_state.get(\"inv_matrix_search\", \"\")), fallback_msg=\"Inventory Distribution unavailable.\")\n                        ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 475, in render_distribution_tab\n    excel_report_bytes = export_to_styled_excel(export_data)\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\excel_exporter.py\", line 100, in export_to_styled_excel\n    worksheet.write(row_num + 1, c_idx, df.iloc[row_num, c_idx], fmt)\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 114, in cell_wrapper\n    return method(self, *args, **kwargs)\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 488, in write\n    return self._write(row, col, *args)\n           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 542, in _write\n    return self._write_number(row, col, *args)\n           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 670, in _write_number\n    raise TypeError(\n    ...<2 lines>...\n    )\nTypeError: NAN/INF not supported in write_number() without 'nan_inf_to_errors' Workbook() option\n",
+        "details": {
+            "fallback_msg": "Inventory Distribution unavailable."
+        }
+    },
+    {
+        "timestamp": "2026-06-07 09:38:35",
+        "context": "safe_render",
+        "error": "NAN/INF not supported in write_number() without 'nan_inf_to_errors' Workbook() option",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 266, in <lambda>\n    safe_render(lambda: render_distribution_tab(search_q=st.session_state.get(\"inv_matrix_search\", \"\")), fallback_msg=\"Inventory Distribution unavailable.\")\n                        ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 510, in render_distribution_tab\n    excel_report_bytes = export_to_styled_excel(export_data)\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\excel_exporter.py\", line 100, in export_to_styled_excel\n    worksheet.write(row_num + 1, c_idx, df.iloc[row_num, c_idx], fmt)\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 114, in cell_wrapper\n    return method(self, *args, **kwargs)\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 488, in write\n    return self._write(row, col, *args)\n           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 542, in _write\n    return self._write_number(row, col, *args)\n           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 670, in _write_number\n    raise TypeError(\n    ...<2 lines>...\n    )\nTypeError: NAN/INF not supported in write_number() without 'nan_inf_to_errors' Workbook() option\n",
+        "details": {
+            "fallback_msg": "Inventory Distribution unavailable."
+        }
+    },
+    {
+        "timestamp": "2026-06-07 09:38:49",
+        "context": "safe_render",
+        "error": "NAN/INF not supported in write_number() without 'nan_inf_to_errors' Workbook() option",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 266, in <lambda>\n    safe_render(lambda: render_distribution_tab(search_q=st.session_state.get(\"inv_matrix_search\", \"\")), fallback_msg=\"Inventory Distribution unavailable.\")\n                        ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 510, in render_distribution_tab\n    excel_report_bytes = export_to_styled_excel(export_data)\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\excel_exporter.py\", line 100, in export_to_styled_excel\n    worksheet.write(row_num + 1, c_idx, df.iloc[row_num, c_idx], fmt)\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 114, in cell_wrapper\n    return method(self, *args, **kwargs)\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 488, in write\n    return self._write(row, col, *args)\n           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 542, in _write\n    return self._write_number(row, col, *args)\n           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\xlsxwriter\\worksheet.py\", line 670, in _write_number\n    raise TypeError(\n    ...<2 lines>...\n    )\nTypeError: NAN/INF not supported in write_number() without 'nan_inf_to_errors' Workbook() option\n",
+        "details": {
+            "fallback_msg": "Inventory Distribution unavailable."
         }
     }
 ]

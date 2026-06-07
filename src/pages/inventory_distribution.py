@@ -401,6 +401,41 @@ def render_distribution_tab(search_q):
             '</div>', 
             unsafe_allow_html=True
         )
+        
+        st.divider()
+        st.subheader("📊 Distribution Analytics")
+        import plotly.express as px
+        
+        c_chart1, c_chart2 = st.columns(2)
+        with c_chart1:
+            if "Dispatch Suggestion" in df.columns:
+                sugg_counts = df["Dispatch Suggestion"].value_counts().reset_index()
+                sugg_counts.columns = ["Suggestion", "Count"]
+                fig_sugg = px.pie(
+                    sugg_counts, 
+                    values="Count", 
+                    names="Suggestion", 
+                    hole=0.4,
+                    title="Dispatch Suggestion Breakdown"
+                )
+                fig_sugg.update_traces(textposition='inside', textinfo='percent+label')
+                fig_sugg.update_layout(showlegend=False, margin=dict(t=40, b=10, l=10, r=10), height=350)
+                st.plotly_chart(fig_sugg, use_container_width=True)
+                
+        with c_chart2:
+            if "Fulfillment" in df.columns:
+                fulfill_counts = df["Fulfillment"].value_counts().reset_index()
+                fulfill_counts.columns = ["Status", "Count"]
+                fig_ful = px.bar(
+                    fulfill_counts, 
+                    x="Status", 
+                    y="Count",
+                    title="Fulfillment Status",
+                    color="Status"
+                )
+                fig_ful.update_layout(showlegend=False, margin=dict(t=40, b=10, l=10, r=10), xaxis_title="", yaxis_title="Items", height=350)
+                st.plotly_chart(fig_ful, use_container_width=True)
+                
         st.divider()
 
         title_key = st.session_state.inv_t_col
