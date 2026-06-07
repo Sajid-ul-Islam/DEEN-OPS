@@ -7,34 +7,38 @@ class NeuralBrain:
     
     @staticmethod
     def detect_anomalies(df: pd.DataFrame, column: str = "Total Amount") -> pd.DataFrame:
-        """ML-based anomaly detection using Z-Score."""
-        if df is None or df.empty or column not in df.columns:
+        """Vectorized ML-based anomaly detection using Z-Score."""
+        if df is None or df.empty or column not in df.columns or "Date" not in df.columns:
             return pd.DataFrame()
             
-        # Group by date to get daily series
-        df_daily = df.copy()
-        df_daily['date_eval'] = pd.to_datetime(df_daily['Date']).dt.date
-        series = df_daily.groupby('date_eval')[column].sum()
+        # Direct groupby without copying the entire dataframe
+        dates = pd.to_datetime(df['Date']).dt.date
+        series = df.groupby(dates)[column].sum()
         
         if len(series) < 5:
             return pd.DataFrame()
             
         mean = series.mean()
         std = series.std()
-        if std == 0: std = 1
+        if std == 0: 
+            std = 1
         
         z_scores = (series - mean) / std
-        anomalies = series[np.abs(z_scores) > 1.5] # 1.5 sigma for "interesting" events
+        anomalies_mask = np.abs(z_scores) > 1.5
         
-        res = []
-        for d, val in anomalies.items():
-            res.append({
-                "date": d,
-                "value": val,
-                "type": "High" if val > mean else "Low",
-                "score": abs(z_scores[d])
-            })
-        return pd.DataFrame(res)
+        if not anomalies_mask.any():
+            return pd.DataFrame()
+            
+        anomalies = series[anomalies_mask]
+        anomaly_scores = np.abs(z_scores[anomalies_mask])
+        
+        # Vectorized dataframe creation
+        return pd.DataFrame({
+            "date": anomalies.index,
+            "value": anomalies.values,
+            "type": np.where(anomalies.values > mean, "High", "Low"),
+            "score": anomaly_scores.values
+        })
 
     @staticmethod
     def semantic_query_intent(query: str) -> dict:

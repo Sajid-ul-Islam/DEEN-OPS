@@ -37,7 +37,7 @@ def _update_wc_status(order_id, status):
             timeout=10,
         )
         return res.status_code in [200, 201]
-    except:
+    except Exception:
         return False
 
 def _render_live_orders_view():

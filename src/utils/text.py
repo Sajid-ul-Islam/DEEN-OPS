@@ -15,7 +15,6 @@ def normalize_city_name(city_name):
     c_lower = c.lower()
 
     # ISO 3166-2:BD District Mappings (standard for WooCommerce BD)
-    # ISO 3166-2:BD District Mappings (standard for WooCommerce BD)
     bd_states = {
         "BD-01": "Bandarban",
         "BD-02": "Barguna",

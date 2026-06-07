@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from io import BytesIO, StringIO
 
 import pandas as pd
@@ -33,7 +34,6 @@ def fetch_dataframe_from_url(url: str, timeout: int = 15) -> pd.DataFrame:
     
     # Auto-convert standard Google Sheets URLs to CSV export URLs
     if "docs.google.com/spreadsheets" in url and "export?format=csv" not in url:
-        import re
         match = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
         if match:
             doc_id = match.group(1)
