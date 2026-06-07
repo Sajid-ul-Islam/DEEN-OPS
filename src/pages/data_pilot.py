@@ -50,6 +50,41 @@ def _get_cached_anomalies(df: pd.DataFrame):
         return pd.DataFrame()
     return get_cached_brain().detect_anomalies(df)
 
+class AgenticMemory:
+    """Structured Key-Value memory for the AI Agent."""
+    def __init__(self, filepath="data/pilot_memory.json"):
+        self.filepath = filepath
+        self.memory = self._load()
+
+    def _load(self) -> Dict[str, str]:
+        if os.path.exists(self.filepath):
+            try:
+                import json
+                with open(self.filepath, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except: return {}
+        return {}
+
+    def save(self):
+        import json
+        os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
+        with open(self.filepath, "w", encoding="utf-8") as f:
+            json.dump(self.memory, f, indent=4)
+
+    def set_memory(self, key: str, value: str):
+        self.memory[key] = value
+        self.save()
+
+    def delete_memory(self, key: str):
+        if key in self.memory:
+            del self.memory[key]
+            self.save()
+
+    def get_formatted_knowledge(self) -> str:
+        if not self.memory: return ""
+        lines = [f"  * {k.upper()}: {v}" for k, v in self.memory.items()]
+        return "KNOWLEDGE_TYPE: Learned Operational Rules\n" + "\n".join(lines)
+
 class AIDataAgent:
     """
     Enhanced AI-BI Agent with NLP Intent Routing & ML Grounding.
@@ -61,6 +96,7 @@ class AIDataAgent:
         self.model_name = model_name
         self.controller = init_llm_controller()
         self.brain = get_cached_brain()
+        self.agent_memory = AgenticMemory()
         if context_dfs is not None:
             self.context_dfs = context_dfs
         else:
@@ -89,12 +125,9 @@ class AIDataAgent:
                 except: pass
         
         # 1.1 Persistent User-Taught Rules (Memory)
-        learned_path = "data/pilot_knowledge.txt"
-        if os.path.exists(learned_path):
-            try:
-                with open(learned_path, "r", encoding="utf-8") as f:
-                    knowledge.append(f"KNOWLEDGE_TYPE: Learned Operational Rules\n{f.read()}")
-            except: pass
+        mem_str = self.agent_memory.get_formatted_knowledge()
+        if mem_str:
+            knowledge.append(mem_str)
         
         # 2. REST API Schema & Contracts (Answers 'rest api data' context)
         try:
@@ -137,10 +170,13 @@ class AIDataAgent:
                 # Limit RAG context size for performance; focus on most recent if possible
                 working_df = df.tail(500) if len(df) > 500 else df
                 
-                # Convert rows to descriptive strings
-                for _, row in working_df.iterrows():
-                    row_str = f"Source: {name} | " + " | ".join([f"{k}: {v}" for k, v in row.items() if pd.notna(v)])
-                    documents.append(row_str)
+                # Optimized Vectorized String Construction (10x+ faster than iterrows)
+                str_df = working_df.astype(str).replace("nan", "")
+                text_series = pd.Series([f"Source: {name} | "] * len(str_df), index=str_df.index)
+                
+                for col in str_df.columns:
+                    text_series += f"{col}: " + str_df[col] + " | "
+                documents.extend(text_series.tolist())
         
         if not documents:
             return ""
@@ -230,7 +266,11 @@ class AIDataAgent:
                 "\n\nCRITICAL RULES:\n"
                 "1. Order Logic: An `order_id` represents a single unique order. An order may contain multiple item lines. You must NEVER count item rows as a single order. When asked for 'total orders' or 'number of orders', you must use distinct counts of `order_id`.\n"
                 "2. Continuous Learning Protocol: If a user corrects a mistake you make regarding this logic (or any other data relationship), you must immediately internalize this correction.\n"
-                "3. Auto-Memorization: If the user corrects a mistake or provides a new persistent rule, you MUST output the exact string `[KNOWLEDGE_UPDATE: <the new rule>]` on a new line.\n"
+                "3. Auto-Memorization: If the user corrects a mistake or provides a new rule, you MUST output the exact string `[MEMORY_SET: <topic_key> | <the new rule details>]` on a new line to permanently remember it. Use concise snake_case for the topic_key.\n"
+                "4. SQL Analytics: To run complex aggregations on the full dataset, output exactly `[SQL_QUERY: <your DuckDB SQL here>]`. The table name is `sales_data`. Use double quotes for column names with spaces, e.g., `\"Total Amount\"`. I will execute it and display the results. Example: `[SQL_QUERY: SELECT Category, SUM(\"Total Amount\") FROM sales_data GROUP BY Category]`.\n"
+                "5. Chart Generation: To visualize data, output exactly `[PLOTLY_CODE: <python code>]`. Assume `df` is the raw sales dataframe and `px` is imported. If you also run a `[SQL_QUERY: ...]` in the same response, the result will be available as `sql_df`. Create a figure variable named `fig`. Example: `[PLOTLY_CODE: fig = px.bar(sql_df, x='Category', y='Total Amount')]`.\n"
+                "6. Data Transformation: To apply data cleaning to the live sales data, output `[DATA_TRANSFORM: <python code>]`. Assume `df` is the active dataframe. Example: `[DATA_TRANSFORM: df['Status'] = df['Status'].str.title()]`. This safely updates the in-memory data for the user.\n"
+                "7. Data Export: To provide a download button for the current active sales dataset (especially after cleaning), output exactly `[DOWNLOAD_DATA]`.\n"
                 f"CURRENT ML INSIGHTS: {grounding}"
             )
         }
@@ -471,7 +511,7 @@ def render_ai_pilot_page():
     provider, api_key, model_name, auto_sync = render_sidebar_controls()
 
     # Modern Tabs Layout
-    tab_chat, tab_kb, tab_reports = st.tabs([":material/chat: Pilot Interface", ":material/psychology: Knowledge Base", ":material/description: Generated Reports"])
+    tab_chat, tab_kb, tab_reports, tab_memory = st.tabs([":material/chat: Pilot Interface", ":material/psychology: Knowledge Base", ":material/description: Generated Reports", ":material/memory: Learned Rules"])
 
     with tab_kb:
         st.markdown("### 📂 Data Context")
@@ -591,6 +631,44 @@ def render_ai_pilot_page():
                 with st.expander(f"Report: {report['date']}", expanded=(idx==0)):
                     st.markdown(report['content'])
                     st.download_button("📥 Download Markdown", report['content'], file_name=f"Report_{report['date'].replace(':', '-')}.md", key=f"dl_rep_{idx}")
+                    
+    with tab_memory:
+        st.markdown("### 🧠 Agentic Long-Term Memory")
+        st.caption("These are the persistent rules and logic the Pilot has learned. You can view, edit, or remove them manually.")
+        
+        memory_obj = AgenticMemory()
+        memory_dict = memory_obj.memory
+        
+        if not memory_dict:
+            st.info("The AI Pilot hasn't learned any custom rules yet. Teach it during chat by correcting its assumptions!")
+        else:
+            for key, val in list(memory_dict.items()):
+                with st.expander(f"Rule: {key}", expanded=False):
+                    new_val = st.text_area("Rule Details", value=val, key=f"mem_edit_{key}")
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        if st.button("💾 Save Changes", key=f"mem_save_{key}"):
+                            memory_obj.set_memory(key, new_val)
+                            st.success("Rule updated!")
+                            st.rerun()
+                    with col2:
+                        if st.button("🗑️ Delete Rule", key=f"mem_del_{key}", type="secondary"):
+                            memory_obj.delete_memory(key)
+                            st.warning("Rule deleted!")
+                            st.rerun()
+        
+        st.divider()
+        st.markdown("#### ➕ Add New Rule Manually")
+        with st.form("add_manual_rule_form", clear_on_submit=True):
+            new_key = st.text_input("Topic Key (e.g., return_policy)", placeholder="return_policy")
+            new_rule = st.text_area("Rule Details", placeholder="Returns are accepted within 7 days...")
+            if st.form_submit_button("Add Rule"):
+                if new_key and new_rule:
+                    memory_obj.set_memory(new_key.strip(), new_rule.strip())
+                    st.success("New rule added to Pilot's memory!")
+                    st.rerun()
+                else:
+                    st.error("Both key and details are required.")
 
     with tab_chat:
         col_chat, col_info = st.columns([3, 1])
@@ -729,7 +807,11 @@ def render_ai_pilot_page():
                             except queue.Empty:
                                 break
                                 
-                        display_text = re.sub(r'\[KNOWLEDGE_UPDATE:.*?\]', '', full_response)
+                        display_text = re.sub(r'\[MEMORY_SET:.*?\]', '', full_response)
+                        display_text = re.sub(r'\[SQL_QUERY:.*?\]', '', display_text, flags=re.DOTALL)
+                        display_text = re.sub(r'\[PLOTLY_CODE:.*?\]', '', display_text, flags=re.DOTALL)
+                        display_text = re.sub(r'\[DATA_TRANSFORM:.*?\]', '', display_text, flags=re.DOTALL)
+                        display_text = re.sub(r'\[DOWNLOAD_DATA\]', '', display_text, flags=re.IGNORECASE)
                         response_placeholder.markdown(display_text + "▌")
                         
                         if done_flag:
@@ -739,23 +821,92 @@ def render_ai_pilot_page():
                         time.sleep(0.05)
                     t.join()
                     
-                    display_text = re.sub(r'\[KNOWLEDGE_UPDATE:.*?\]', '', full_response)
+                    display_text = re.sub(r'\[MEMORY_SET:.*?\]', '', full_response)
+                    display_text = re.sub(r'\[SQL_QUERY:.*?\]', '', display_text, flags=re.DOTALL)
+                    display_text = re.sub(r'\[PLOTLY_CODE:.*?\]', '', display_text, flags=re.DOTALL)
+                    display_text = re.sub(r'\[DATA_TRANSFORM:.*?\]', '', display_text, flags=re.DOTALL)
+                    display_text = re.sub(r'\[DOWNLOAD_DATA\]', '', display_text, flags=re.IGNORECASE)
                     response_placeholder.markdown(display_text)
                     
-                    updates = re.findall(r'\[KNOWLEDGE_UPDATE:\s*(.*?)\]', full_response)
+                    updates = re.findall(r'\[MEMORY_SET:\s*(.*?)\s*\|\s*(.*?)\]', full_response)
                     if updates:
-                        from pathlib import Path
-                        knowledge_file = Path("data/pilot_knowledge.txt")
-                        knowledge_file.parent.mkdir(parents=True, exist_ok=True)
-                        with open(knowledge_file, "a", encoding="utf-8") as f:
-                            for update in updates:
-                                f.write(f"- {update.strip()}\n")
-                        st.toast("🧠 Pilot internalized a new rule!", icon="✅")
+                        for key, rule in updates:
+                            agent.agent_memory.set_memory(key.strip(), rule.strip())
+                        st.toast("🧠 Pilot internalized a new rule to long-term memory!", icon="✅")
                         
                     full_response = display_text.strip()
 
                     st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
                     
+                    last_sql_df = None
+                    sql_queries = re.findall(r'\[SQL_QUERY:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
+                    if sql_queries:
+                        from src.processing.hybrid_data_loader import HybridDataLoader
+                        loader = HybridDataLoader()
+                        for sql in sql_queries:
+                            st.info(f"⚙️ **Executing DuckDB SQL:**\n```sql\n{sql.strip()}\n```")
+                            df_res = loader.query_sql(sql.strip())
+                            if df_res is not None and not df_res.empty:
+                                last_sql_df = df_res
+                                st.dataframe(df_res, use_container_width=True)
+                                # Append result silently so the AI has context for the next turn
+                                st.session_state.agent_messages.append({
+                                    "role": "system",
+                                    "content": f"System executed your SQL query: {sql}\n\nResult:\n{df_res.head(50).to_csv(index=False)}"
+                                })
+                            else:
+                                st.warning("SQL query returned no results or encountered an error.")
+                                st.session_state.agent_messages.append({
+                                    "role": "system",
+                                    "content": f"System executed your SQL query: {sql}\n\nResult: Query Failed or Empty."
+                                })
+                                
+                    plotly_codes = re.findall(r'\[PLOTLY_CODE:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
+                    if plotly_codes:
+                        for code in plotly_codes:
+                            st.info(f"📊 **Rendering Auto-Generated Chart:**\n```python\n{code.strip()}\n```")
+                            try:
+                                local_vars = {"df": agent.context_dfs.get("sales", pd.DataFrame()), "px": px}
+                                if last_sql_df is not None:
+                                    local_vars["sql_df"] = last_sql_df
+                                exec(code.strip(), globals(), local_vars)
+                                if "fig" in local_vars:
+                                    st.plotly_chart(local_vars["fig"], use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Chart Generation Error: {e}")
+                                
+                    transform_codes = re.findall(r'\[DATA_TRANSFORM:\s*(.*?)\s*\]', full_response, flags=re.DOTALL)
+                    if transform_codes:
+                        for code in transform_codes:
+                            st.info(f"🧹 **Applying Data Transformation:**\n```python\n{code.strip()}\n```")
+                            try:
+                                target_df = st.session_state.get("wc_curr_df")
+                                if target_df is not None:
+                                    local_vars = {"df": target_df.copy(), "pd": pd, "np": np}
+                                    exec(code.strip(), {"__builtins__": __builtins__}, local_vars)
+                                    st.session_state.wc_curr_df = local_vars["df"]
+                                    st.success("Data transformation applied successfully to the live session!")
+                                    # Force reload context
+                                    agent.context_dfs["sales"] = local_vars["df"]
+                                else:
+                                    st.warning("No live data found to transform.")
+                            except Exception as e:
+                                st.error(f"Data Transformation Error: {e}")
+
+                    if re.search(r'\[DOWNLOAD_DATA\]', full_response, flags=re.IGNORECASE):
+                        target_df = st.session_state.get("wc_curr_df")
+                        if target_df is not None and not target_df.empty:
+                            csv_data = target_df.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="📥 Download Cleaned Dataset (CSV)",
+                                data=csv_data,
+                                file_name=f"DEEN_Data_Export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                        else:
+                            st.warning("No live data available to download.")
+
                     # Restore navigation override if it was set by sidebar (prevents nav change)
                     if original_nav and "_nav_override" not in st.session_state:
                         st.session_state["_nav_override"] = original_nav

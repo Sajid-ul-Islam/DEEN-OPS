@@ -90,9 +90,189 @@
           "revenue": 1490.0
         }
       ]
+    },
+    {
+      "ts": "2026-06-07T12:31:51.376435+06:00",
+      "label": "Today",
+      "revenue": 38353.0,
+      "orders": 28,
+      "qty": 51,
+      "aov": 1369.75,
+      "top_products": [
+        {
+          "name": "Board Brown Embroidered Panjabi - 44",
+          "revenue": 1794.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 1590.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 1590.0
+        },
+        {
+          "name": "White Executive Formal Shirt - M",
+          "revenue": 1490.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - M",
+          "revenue": 1490.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-07T12:45:07.410119+06:00",
+      "label": "Today",
+      "revenue": 57475.0,
+      "orders": 38,
+      "qty": 70,
+      "aov": 1512.5,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 3XL",
+          "revenue": 2184.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 44",
+          "revenue": 1794.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 1590.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-07T12:45:55.489695+06:00",
+      "label": "Today",
+      "revenue": 45757.0,
+      "orders": 31,
+      "qty": 57,
+      "aov": 1476.03,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 44",
+          "revenue": 1794.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 1590.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 1590.0
+        },
+        {
+          "name": "Retro Car Print Drop Shoulder T-Shirt - 3XL",
+          "revenue": 1580.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-07T13:11:48.079444+06:00",
+      "label": "Today",
+      "revenue": 55963.0,
+      "orders": 35,
+      "qty": 65,
+      "aov": 1598.94,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 44",
+          "revenue": 1794.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 1590.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 1590.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-07T13:39:13.360890+06:00",
+      "label": "Today",
+      "revenue": 59080.0,
+      "orders": 39,
+      "qty": 72,
+      "aov": 1514.87,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 3XL",
+          "revenue": 2184.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 44",
+          "revenue": 1794.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 1590.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-07T13:39:21.473727+06:00",
+      "label": "Today",
+      "revenue": 59080.0,
+      "orders": 39,
+      "qty": 72,
+      "aov": 1514.87,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 3XL",
+          "revenue": 2184.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 44",
+          "revenue": 1794.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 1590.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 137454.5,
-  "daily_orders": 97,
-  "daily_qty": 182
+  "daily_revenue": 453162.5,
+  "daily_orders": 307,
+  "daily_qty": 569
 }

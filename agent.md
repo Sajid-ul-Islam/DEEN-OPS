@@ -198,6 +198,10 @@ The Data Pilot (`data_pilot.py`) is a conversational AI workspace.
     - **ML Forecasts**: Responds to questions about future sales.
     - **ML Anomalies**: Detects unusual spikes or dips in sales data.
     - **Pathao Live Tracking**: Automatically detects Pathao Consignment IDs (e.g., `DD12345`) in the chat, fetches the live status from the Pathao API, and includes it in the answer.
+    - **SQL Generation**: Automatically generates and executes DuckDB SQL queries against local `.parquet` snapshots to perform complex aggregations on-the-fly.
+    - **Chart Generation**: Automatically writes and executes Python Plotly code when users ask for data visualizations, capable of chaining DuckDB SQL results directly into Plotly charts.
+    - **Data Transformation**: The Pilot can write and execute Pandas operations on the live in-memory session data to clean or format columns on the fly.
+    - **Data Export**: The Pilot can generate UI download buttons for users to export the active, transformed dataset as a CSV.
     - **Report Generation**: Detects when the user asks for a summary or report and flags it to save in the session state.
 
 
