@@ -60,9 +60,189 @@
           "revenue": 1914.0
         }
       ]
+    },
+    {
+      "ts": "2026-06-08T12:31:44.389253+06:00",
+      "label": "Today",
+      "revenue": 77780.0,
+      "orders": 51,
+      "qty": 94,
+      "aov": 1587.35,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 2456.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 2XL",
+          "revenue": 2016.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - M",
+          "revenue": 2016.0
+        },
+        {
+          "name": "Brown Embroidered Panjabi - 46",
+          "revenue": 1914.0
+        },
+        {
+          "name": "White Beige Embroidered Panjabi - 40",
+          "revenue": 1914.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-08T12:31:46.593316+06:00",
+      "label": "Today",
+      "revenue": 77780.0,
+      "orders": 51,
+      "qty": 94,
+      "aov": 1587.35,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 2456.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - M",
+          "revenue": 2016.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 2XL",
+          "revenue": 2016.0
+        },
+        {
+          "name": "Brown Embroidered Panjabi - 46",
+          "revenue": 1914.0
+        },
+        {
+          "name": "White Beige Embroidered Panjabi - 40",
+          "revenue": 1914.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-08T12:31:54.245310+06:00",
+      "label": "Today",
+      "revenue": 77780.0,
+      "orders": 51,
+      "qty": 94,
+      "aov": 1587.35,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 2456.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - M",
+          "revenue": 2016.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 2XL",
+          "revenue": 2016.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Brown Embroidered Panjabi - 46",
+          "revenue": 1914.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-08T17:16:21.256170+06:00",
+      "label": "Today",
+      "revenue": 83322.0,
+      "orders": 50,
+      "qty": 98,
+      "aov": 1666.44,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 2456.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 2XL",
+          "revenue": 2016.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 36",
+          "revenue": 1992.0
+        },
+        {
+          "name": "White Beige Embroidered Panjabi - 40",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-08T17:16:24.449982+06:00",
+      "label": "Today",
+      "revenue": 83322.0,
+      "orders": 50,
+      "qty": 98,
+      "aov": 1666.44,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 2456.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 2XL",
+          "revenue": 2016.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 36",
+          "revenue": 1992.0
+        },
+        {
+          "name": "Brown Embroidered Panjabi - 46",
+          "revenue": 1914.0
+        },
+        {
+          "name": "White Beige Embroidered Panjabi - 40",
+          "revenue": 1914.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-08T17:18:07.402452+06:00",
+      "label": "Today",
+      "revenue": 70688.0,
+      "orders": 48,
+      "qty": 88,
+      "aov": 1472.67,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 2456.0
+        },
+        {
+          "name": "City Code Print Drop Shoulder T-Shirt - 2XL",
+          "revenue": 2016.0
+        },
+        {
+          "name": "White Beige Embroidered Panjabi - 40",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 44",
+          "revenue": 1794.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 138610.0,
-  "daily_orders": 93,
-  "daily_qty": 177
+  "daily_revenue": 609282.0,
+  "daily_orders": 394,
+  "daily_qty": 743
 }
