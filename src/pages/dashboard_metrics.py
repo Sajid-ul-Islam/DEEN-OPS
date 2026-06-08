@@ -13,7 +13,7 @@ from src.utils.metric_history import save_shift_snapshot, load_snapshot_history
 
 def _generate_sparkline_svg(values: list[float], color: str = "#3b82f6") -> str:
     """Generates a lightweight normalized SVG path for metric trends."""
-    if not values or len(values) < 3:  # Need at least 3 points for a meaningful trend
+    if not values or len(values) < 2:  # A line needs at least 2 points to show a trend.
         return ""
     
     # Normalize values to fit 100x30 SVG coordinate system
