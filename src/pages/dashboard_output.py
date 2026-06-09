@@ -328,6 +328,79 @@ def render_dashboard_output(
         render_category_charts(chart_summ, display_col, color_map)
     st.divider()
 
+    # ── Products Spotlight & SKU-Wise Report ──
+    if top is not None and not top.empty:
+        # v15.0: Calculate comparison top items for velocity indicators
+        prev_top = None
+        if st.session_state.get("wc_sync_mode") == "Operational Cycle":
+            nav_mode = st.session_state.get("wc_nav_mode", "Today")
+            comp_df = None
+            if nav_mode == "Today":
+                comp_df = st.session_state.get("wc_prev_df")
+            elif nav_mode == "Prev":
+                comp_df = st.session_state.get("wc_curr_df")
+            
+            if comp_df is not None and not comp_df.empty:
+                from src.processing.data_processing import prepare_granular_data, aggregate_data
+                comp_df_std, _ = prepare_granular_data(comp_df, wc_raw_mapping)
+                if not comp_df_std.empty:
+                    _, _, prev_top, _ = aggregate_data(comp_df_std, wc_raw_mapping)
+
+        from src.pages.dashboard_charts import render_spotlight
+        render_spotlight(top, color_map, prev_top=prev_top)
+        st.divider()
+
+        # Master SKU-Wise Product Sales Report Table
+        st.subheader("📦 Product Sales Report (Master SKU Wise)")
+        st.caption("Aggregated item count and revenue grouped by Master SKU / Clean Product Name.")
+        
+        top_df = top.copy()
+        group_keys = ["SKU"]
+        if "Clean_Product" in top_df.columns:
+            group_keys.append("Clean_Product")
+        else:
+            group_keys.append("Product Name")
+
+        report_df = (
+            top_df.groupby(group_keys, as_index=False)
+            .agg({
+                "Total Qty": "sum",
+                "Total Amount": "sum",
+                "Category": "first"
+            })
+        )
+        
+        if "Clean_Product" in report_df.columns:
+            report_df.rename(columns={"Clean_Product": "Product Name"}, inplace=True)
+            
+        report_df = report_df.sort_values("Total Qty", ascending=False).reset_index(drop=True)
+        report_df.index = report_df.index + 1
+        
+        display_df = report_df.copy()
+        
+        search_q = st.text_input("🔍 Search Product Name or SKU in Report", key="sku_report_search").strip()
+        if search_q:
+            display_df = display_df[
+                display_df["Product Name"].astype(str).str.contains(search_q, case=False, na=False) |
+                display_df["SKU"].astype(str).str.contains(search_q, case=False, na=False)
+            ]
+            
+        st.dataframe(
+            display_df.style.format({
+                "Total Qty": "{:,.0f}",
+                "Total Amount": "৳{:,.0f}"
+            }),
+            use_container_width=True,
+            column_config={
+                "SKU": st.column_config.TextColumn("SKU", help="Master SKU identification key"),
+                "Product Name": st.column_config.TextColumn("Product Name", help="Clean/Base product name"),
+                "Category": st.column_config.TextColumn("Category", help="Product main category"),
+                "Total Qty": st.column_config.NumberColumn("Quantity Sold", help="Total product item count sold"),
+                "Total Amount": st.column_config.NumberColumn("Total Revenue", help="Total revenue generated from product style")
+            }
+        )
+        st.divider()
+
     # ── Executive Briefing & Power BI Export ──
     is_operational = st.session_state.get("wc_sync_mode") == "Operational Cycle"
     

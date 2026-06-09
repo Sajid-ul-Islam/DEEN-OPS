@@ -1,0 +1,38 @@
+{
+  "date": "2026-06-09",
+  "shifts": [
+    {
+      "ts": "2026-06-09T10:17:32.467337+06:00",
+      "label": "Today",
+      "revenue": 39071.0,
+      "orders": 22,
+      "qty": 49,
+      "aov": 1775.95,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 36",
+          "revenue": 1992.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 38",
+          "revenue": 1992.0
+        },
+        {
+          "name": "Stone Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Brown Embroidered Panjabi - 46",
+          "revenue": 1914.0
+        },
+        {
+          "name": "High-End Light Blue Jeans - Regular Fit - 36",
+          "revenue": 1912.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 39071.0,
+  "daily_orders": 22,
+  "daily_qty": 49
+}

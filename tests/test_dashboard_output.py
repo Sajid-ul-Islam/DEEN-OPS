@@ -23,6 +23,16 @@ fake_streamlit.cache_resource = _identity_decorator
 fake_streamlit.session_state = {}
 fake_streamlit.secrets = {}
 
+class _DummyColumn:
+    def __init__(self, *args, **kwargs):
+        pass
+
+class _DummyColumnConfig:
+    TextColumn = _DummyColumn
+    NumberColumn = _DummyColumn
+
+fake_streamlit.column_config = _DummyColumnConfig
+
 fake_components = types.ModuleType("streamlit.components")
 fake_v1 = types.ModuleType("streamlit.components.v1")
 fake_components.v1 = fake_v1
@@ -83,12 +93,38 @@ class _DummyStreamlit:
     def error(self, *args, **kwargs):
         return None
 
+    def caption(self, *args, **kwargs):
+        return None
+
+    def text_input(self, label, value="", *args, **kwargs):
+        return value
+
+    def dataframe(self, *args, **kwargs):
+        return None
+
+    def tabs(self, tabs_list, *args, **kwargs):
+        return [_DummyContext() for _ in tabs_list]
+
+    def link_button(self, *args, **kwargs):
+        return None
+
+    column_config = _DummyColumnConfig
+
     def empty(self, *args, **kwargs):
         return _DummyStreamlit(self.session_state)
 
     def columns(self, spec):
         count = spec if isinstance(spec, int) else len(spec)
         return tuple(_DummyContext() for _ in range(count))
+
+    def __getattr__(self, name):
+        def _fallback(*args, **kwargs):
+            if name == "number_input":
+                return 0
+            if name in ("checkbox", "toggle"):
+                return False
+            return None
+        return _fallback
 
 
 @pytest.mark.parametrize(
