@@ -49,7 +49,10 @@ def _write_headers_and_autofit(worksheet, df: pd.DataFrame, header_format):
     """Writes headers and auto-fits column widths to the data contents."""
     for idx, col in enumerate(df.columns):
         worksheet.write(0, idx, str(col), header_format)
-        max_len = max(df[col].astype(str).map(len).max(), len(str(col))) + 2
+        # Drop NA values and convert to string to avoid 'float has no len' errors on NaN/None
+        col_data = df[col].dropna().astype(str)
+        max_val_len = col_data.map(len).max() if not col_data.empty else 0
+        max_len = max(max_val_len, len(str(col))) + 2
         worksheet.set_column(idx, idx, min(max_len, 60))
 
 def _add_dispatch_validation(worksheet, df: pd.DataFrame):
