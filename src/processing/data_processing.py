@@ -54,6 +54,41 @@ def process_data(df, selected_cols):
     drill, summ, top, basket = aggregate_data(df_standard, selected_cols)
     return drill, summ, top, timeframe, basket
 
+def safe_coerce_datetime_naive(series: pd.Series) -> pd.Series:
+    """Safely converts a pandas Series to timezone-naive datetime64[ns],
+    handling naive, aware, and mixed timezone string formats robustly.
+    """
+    if series is None or series.empty:
+        return pd.to_datetime(series, errors="coerce")
+
+    # Try standard parsing first
+    parsed = pd.to_datetime(series, errors="coerce")
+    
+    # If the parsed series is timezone-aware, convert it to Asia/Dhaka local time and strip tz
+    if getattr(parsed.dt, "tz", None) is not None:
+        try:
+            return parsed.dt.tz_convert("Asia/Dhaka").dt.tz_localize(None)
+        except Exception:
+            try:
+                return parsed.dt.tz_convert(None)
+            except Exception:
+                return parsed.dt.tz_localize(None)
+        
+    # If the parsed series is object dtype (mixed timezones), parse with utc=True,
+    # convert to Asia/Dhaka, and strip tz
+    if parsed.dtype == "object":
+        try:
+            parsed_utc = pd.to_datetime(series, errors="coerce", utc=True)
+            try:
+                return parsed_utc.dt.tz_convert("Asia/Dhaka").dt.tz_localize(None)
+            except Exception:
+                return parsed_utc.dt.tz_convert(None)
+        except Exception:
+            pass
+
+    return parsed
+
+
 def prepare_granular_data(df, selected_cols):
     """Sanitizes and prepares granular columns with unified internal names."""
     try:
@@ -80,13 +115,9 @@ def prepare_granular_data(df, selected_cols):
         timeframe_suffix = ""
         if "date" in selected_cols and selected_cols["date"] in df.columns:
             try:
-                df["Date"] = pd.to_datetime(df[selected_cols["date"]], errors="coerce")
+                df["Date"] = safe_coerce_datetime_naive(df[selected_cols["date"]])
                 dates_valid = df["Date"].dropna()
                 if not dates_valid.empty:
-                    # v10.2 Strip timezone for easier Streamlit widget comparison
-                    if dates_valid.dt.tz is not None:
-                        df["Date"] = df["Date"].dt.tz_localize(None)
-
                     if dates_valid.dt.to_period("M").nunique() == 1:
                         timeframe_suffix = dates_valid.iloc[0].strftime("%B_%Y")
                     else:

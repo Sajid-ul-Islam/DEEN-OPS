@@ -854,6 +854,12 @@ div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]):not([ari
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+.metric-sparkline {
+    margin-top: 10px;
+    width: 100%;
+    height: 30px;
+}
+
 @media (max-width: 1200px) {
     .metric-container {
         grid-template-columns: repeat(2, 1fr);

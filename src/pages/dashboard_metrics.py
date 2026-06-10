@@ -7,12 +7,15 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from src.processing.data_processing import aggregate_data, prepare_granular_data
+from src.processing.data_processing import aggregate_data, prepare_granular_data, safe_coerce_datetime_naive
 from src.utils.metric_history import save_shift_snapshot, load_snapshot_history
+from src.utils.logging import log_system_event
 
 
 def _generate_sparkline_svg(values: list[float], color: str = "#3b82f6") -> str:
-    """Generates a lightweight normalized SVG path for metric trends."""
+    """Generates a lightweight normalized SVG path for metric trends.
+    Uses base64 encoding inside an img tag to prevent Streamlit Cloud sanitizing raw SVG.
+    """
     if not values or len(values) < 2:  # A line needs at least 2 points to show a trend.
         return ""
     
@@ -35,12 +38,18 @@ def _generate_sparkline_svg(values: list[float], color: str = "#3b82f6") -> str:
     # Create a closed path for the area fill
     area_data = path_data + f" L {width:.1f},{height:.1f} L 0.0,{height:.1f} Z"
     
+    # Render SVG with explicit namespaces
+    svg_raw = f"""<svg xmlns="http://www.w3.org/2000/svg" width="100" height="30" viewBox="0 0 100 30" preserveAspectRatio="none">
+        <path d="{area_data}" fill="{color}" fill-opacity="0.15" />
+        <path d="{path_data}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>"""
+    
+    import base64
+    b64_svg = base64.b64encode(svg_raw.encode("utf-8")).decode("utf-8")
+    
     return f"""
     <div class="metric-sparkline">
-        <svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none">
-            <path d="{area_data}" fill="{color}" fill-opacity="0.15" />
-            <path d="{path_data}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+        <img src="data:image/svg+xml;base64,{b64_svg}" style="width: 100%; height: 30px; display: block;" />
     </div>
     """
 
@@ -160,9 +169,10 @@ def render_operational_metrics(
     s_qty, s_rev, s_ord, s_bv = "", "", "", ""
     if not m_df.empty and nav_mode != "Backlog":
         try:
-            date_col = wc_raw_mapping.get("date", "Order Date")
+            # Prefer standardized 'Date' column over raw Order Date
+            date_col = "Date" if "Date" in m_df.columns else wc_raw_mapping.get("date", "Order Date")
             t_df = m_df.copy()
-            t_df["_dt"] = pd.to_datetime(t_df[date_col], errors="coerce").dt.tz_localize(None)
+            t_df["_dt"] = safe_coerce_datetime_naive(t_df[date_col])
             t_df = t_df.dropna(subset=["_dt"])
             
             if not t_df.empty:
@@ -180,8 +190,8 @@ def render_operational_metrics(
                 # For Basket Size trend (Average Basket Value per hour)
                 t_bv_vals = [ (r / o if o > 0 else 0) for r, o in zip(t_rev_vals, t_ord_vals)]
                 s_bv = _generate_sparkline_svg(t_bv_vals, "#f59e0b")
-        except Exception:
-            pass
+        except Exception as e:
+            log_system_event("SPARKLINE_ERROR", f"Failed to generate sparklines: {e}")
 
     l1 = "Backlog Items" if nav_mode == "Backlog" else "Gross Items"
     l2 = "Backlog Rev" if nav_mode == "Backlog" else "Revenue"
