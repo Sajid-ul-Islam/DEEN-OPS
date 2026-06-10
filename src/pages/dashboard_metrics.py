@@ -39,7 +39,7 @@ def _generate_sparkline_svg(values: list[float], color: str = "#3b82f6") -> str:
     area_data = path_data + f" L {width:.1f},{height:.1f} L 0.0,{height:.1f} Z"
     
     # Render SVG with explicit namespaces
-    svg_raw = f"""<svg xmlns="http://www.w3.org/2000/svg" width="100" height="30" viewBox="0 0 100 30" preserveAspectRatio="none">
+    svg_raw = f"""<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none">
         <path d="{area_data}" fill="{color}" fill-opacity="0.15" />
         <path d="{path_data}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
     </svg>"""
@@ -176,12 +176,41 @@ def render_operational_metrics(
             t_df = t_df.dropna(subset=["_dt"])
             
             if not t_df.empty:
-                t_df["_hr"] = t_df["_dt"].dt.floor("H")
-                hr_grp = t_df.groupby("_hr")
+                t_df["_hr"] = t_df["_dt"].dt.floor("h")
                 
-                t_qty_vals = hr_grp["Quantity"].sum().tolist()
-                t_rev_vals = hr_grp.apply(lambda x: (x["Quantity"] * x["Item Cost"]).sum()).tolist()
-                t_ord_vals = hr_grp[wc_raw_mapping.get("order_id", "Order ID")].nunique().tolist()
+                # Fetch slot boundaries from session state to build continuous hour index
+                slot_key = "wc_curr_slot" if nav_mode == "Today" else "wc_prev_slot" if nav_mode == "Prev" else None
+                slot = st.session_state.get(slot_key) if slot_key else None
+                
+                if slot:
+                    start_time, end_time = slot
+                    start_hour = pd.to_datetime(start_time).floor("h")
+                    end_hour = pd.to_datetime(end_time).floor("h")
+                    all_hours = pd.date_range(start=start_hour, end=end_hour, freq="h")
+                else:
+                    # Fallback to actual data range if slot is missing
+                    start_hour = t_df["_dt"].min().floor("h")
+                    end_hour = t_df["_dt"].max().floor("h")
+                    if start_hour == end_hour:
+                        # Ensure we have at least 2 points
+                        all_hours = pd.date_range(start=start_hour - pd.Timedelta(hours=1), end=end_hour + pd.Timedelta(hours=1), freq="h")
+                    else:
+                        all_hours = pd.date_range(start=start_hour, end=end_hour, freq="h")
+                
+                # Group by hour and reindex to include all hours in the shift
+                # 1. Quantity Sum
+                qty_series = t_df.groupby("_hr")["Quantity"].sum().reindex(all_hours, fill_value=0)
+                t_qty_vals = qty_series.tolist()
+                
+                # 2. Revenue Sum
+                t_df["_rev"] = t_df["Quantity"] * t_df["Item Cost"]
+                rev_series = t_df.groupby("_hr")["_rev"].sum().reindex(all_hours, fill_value=0)
+                t_rev_vals = rev_series.tolist()
+                
+                # 3. Orders Count (unique order IDs)
+                order_id_col = wc_raw_mapping.get("order_id", "Order ID")
+                ord_series = t_df.groupby("_hr")[order_id_col].nunique().reindex(all_hours, fill_value=0)
+                t_ord_vals = ord_series.tolist()
                 
                 s_qty = _generate_sparkline_svg(t_qty_vals, "#3b82f6")
                 s_rev = _generate_sparkline_svg(t_rev_vals, "#10b981")
