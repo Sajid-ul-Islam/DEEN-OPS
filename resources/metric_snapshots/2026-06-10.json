@@ -1,0 +1,38 @@
+{
+  "date": "2026-06-10",
+  "shifts": [
+    {
+      "ts": "2026-06-10T10:11:28.419952+06:00",
+      "label": "Today",
+      "revenue": 40104.0,
+      "orders": 27,
+      "qty": 50,
+      "aov": 1485.33,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2072.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 38",
+          "revenue": 1942.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 42",
+          "revenue": 1794.0
+        },
+        {
+          "name": "White Sketch Casual Half Shirt - XL",
+          "revenue": 1590.0
+        },
+        {
+          "name": "Lavender Semi Formal Panjabi - 40",
+          "revenue": 1554.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 40104.0,
+  "daily_orders": 27,
+  "daily_qty": 50
+}
