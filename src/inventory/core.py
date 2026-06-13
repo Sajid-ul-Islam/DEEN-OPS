@@ -269,6 +269,17 @@ def load_inventory_from_uploads(uploaded_files: Dict[str, object]):
     return inventory, warnings, enriched_dfs, sku_to_title_size
 
 
+def sku_has_size_variations(sku_key: str, inventory: dict) -> bool:
+    """Check if the inventory maps contain any size-specific keys for this SKU."""
+    prefix = f"sku:{sku_key.casefold()}_sz:"
+    for key in inventory:
+        if str(key).casefold().startswith(prefix):
+            sz = str(key)[len(prefix):]
+            if sz.upper() != "NO_SIZE":
+                return True
+    return False
+
+
 def add_stock_columns_from_inventory(
     product_df: pd.DataFrame,
     item_name_col: str,
@@ -383,7 +394,7 @@ def add_stock_columns_from_inventory(
                         status = "Name Match (SKU not in Inv)"
 
             # Priority 3: Strict Normalized SKU Match (Ignoring Size)
-            elif pl_sku and pl_sku != "0" and pl_sku in sku_to_inv_key:
+            elif pl_sku and pl_sku != "0" and pl_sku in sku_to_inv_key and not (size != "NO_SIZE" and sku_has_size_variations(pl_sku, inventory)):
                 inv_key = pl_sku
                 status = f"SKU Match (Size/Name mismatch -> {sku_to_inv_key[pl_sku]})"
 
@@ -391,8 +402,14 @@ def add_stock_columns_from_inventory(
             elif pl_key:
                 # We only fuzzy match against pure Title-Size keys
                 name_keys = [k for k in inventory.keys() if not k.startswith("SKU:") and k not in sku_to_inv_key]
-                if name_keys:
-                    match_result = process.extractOne(pl_key, name_keys)
+                # Filter name_keys to only include candidates with the same size
+                same_size_keys = []
+                for k in name_keys:
+                    _, k_size = item_name_to_title_size(k)
+                    if normalize_size(k_size) == normalize_size(size):
+                        same_size_keys.append(k)
+                if same_size_keys:
+                    match_result = process.extractOne(pl_key, same_size_keys)
                     if match_result:
                         best_match, score = match_result
                         if score >= 85:  # Require high confidence for auto-match

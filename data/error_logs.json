@@ -1,19 +1,5 @@
 [
     {
-        "timestamp": "2026-04-09 13:58:37",
-        "context": "App Bootstrap",
-        "error": "cannot access local variable 'df' where it is not associated with a value",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 153, in run_app\n    render_manual_tab()\n    ~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1071, in render_manual_tab\n    if df is not None:\n       ^^\nUnboundLocalError: cannot access local variable 'df' where it is not associated with a value\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-09 13:59:17",
-        "context": "App Bootstrap",
-        "error": "cannot access local variable 'df' where it is not associated with a value",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 153, in run_app\n    render_manual_tab()\n    ~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1071, in render_manual_tab\n    if df is not None:\n       ^^\nUnboundLocalError: cannot access local variable 'df' where it is not associated with a value\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-09 13:59:21",
         "context": "App Bootstrap",
         "error": "cannot access local variable 'df' where it is not associated with a value",
@@ -734,6 +720,24 @@
     },
     {
         "timestamp": "2026-06-10 12:48:40",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-13 10:40:48",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-13 10:43:55",
         "context": "safe_render",
         "error": "division by zero",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",

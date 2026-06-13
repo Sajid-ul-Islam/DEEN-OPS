@@ -52,7 +52,7 @@ def test_add_stock_columns():
         "product b": {"Store1": 0, "Store2": 10},
     }
 
-    sku_map = {"SKUA": {"Store1": 5, "Store2": 2}, "SKUB": {"Store1": 0, "Store2": 10}}
+    sku_map = {"SKUA": "product a", "SKUB": "product b"}
 
     res, _ = inv_core.add_stock_columns_from_inventory(
         product_df=master_df,
@@ -72,3 +72,38 @@ def test_add_stock_columns():
     assert res.loc[1, "Store2"] == 10
 
     assert len(res) == 3
+
+
+def test_add_stock_columns_size_mismatch_oos():
+    # Product A is ordered in XL size but inventory only has Product A in M and L sizes
+    master_df = pd.DataFrame(
+        {
+            "item name": ["Product A - XL"],
+            "sku": ["SKUA"],
+        }
+    )
+
+    inv_map = {
+        "product a - m": {"Store1": 5},
+        "product a - l": {"Store1": 2},
+        "skua": {"Store1": 7},
+        "sku:skua_sz:m": {"Store1": 5},
+        "sku:skua_sz:l": {"Store1": 2},
+    }
+
+    sku_map = {"SKUA": "product a - l"}
+
+    res, matched_count = inv_core.add_stock_columns_from_inventory(
+        product_df=master_df,
+        item_name_col="item name",
+        inventory=inv_map,
+        locations=["Store1"],
+        sku_col="sku",
+        sku_to_title_size=sku_map,
+    )
+
+    # Since XL is requested, and Product A has size variations (M, L) in inventory,
+    # the matching should NOT fall back to SKUA (which has 7 pcs). The XL stock should be 0.
+    assert res.loc[0, "Store1"] == 0
+    assert "OOS" in res.loc[0, "Dispatch Suggestion"] or "Unfulfillable" in res.loc[0, "Dispatch Suggestion"]
+    assert matched_count == 0
