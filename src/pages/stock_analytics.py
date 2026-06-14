@@ -422,11 +422,16 @@ def compile_outlet_stock(loc_files):
         all_ordered = ["Ecom", "Mirpur", "Wari", "Cumilla", "Sylhet"]
         active_locs = [loc for loc in all_ordered if loc in loc_files]
         
+        # Keywords that indicate promotional offers, not actual stock
+        _offer_keywords = ['combo', 'bundle', 'buy any']
+        
         cat_aggregates = {}
         mapping_rows = []
         for k, locs in inv_map.items():
             if str(k).upper().startswith("SKU:"): continue
             if k in sku_to_title_size: continue
+            # Skip promotional offers (combo/bundle/buy any)
+            if any(kw in str(k).lower() for kw in _offer_keywords): continue
             
             display_cat = None
             resolved_via_wc = False
@@ -435,6 +440,8 @@ def compile_outlet_stock(loc_files):
                 norm_sku = inv_core.normalize_sku(raw_sku)
                 wc_name = wc_sku_to_name.get(norm_sku)
                 if wc_name:
+                    # Also skip if WooCommerce name is an offer
+                    if any(kw in wc_name.lower() for kw in _offer_keywords): continue
                     display_cat = map_to_csv_category(wc_name)
                     resolved_via_wc = True
             
@@ -477,6 +484,7 @@ def compile_outlet_stock(loc_files):
         for k, locs in inv_map.items():
             if str(k).upper().startswith("SKU:"): continue
             if k in sku_to_title_size: continue
+            if any(kw in str(k).lower() for kw in _offer_keywords): continue
             
             raw_sku = title_size_to_sku.get(k)
             if raw_sku:
