@@ -71,6 +71,29 @@ def render_excel_merger_tab():
                 order_col = st.selectbox("Select Order Column (Optional)", ["None"] + columns, index=order_idx)
                 
             st.divider()
+            st.markdown("### 📋 Stock Count From Outlet")
+            st.write("Generate a clean product list format for outlets to report their stock counts (Independent Option).")
+            titles_all = []
+            from src.inventory.core import item_name_to_title_size
+            for item in df[item_col].dropna().unique():
+                title, _ = item_name_to_title_size(str(item))
+                if title:
+                    titles_all.append(title.strip())
+            unique_titles_all = sorted(list(set(titles_all)))
+            all_csv_data = pd.DataFrame({"Products Name": unique_titles_all}).to_csv(index=False)
+            
+            c_prod1, _ = st.columns([1, 2])
+            with c_prod1:
+                st.download_button(
+                    "📥 Download Stock Count Format (CSV)",
+                    data=all_csv_data,
+                    file_name=f"{datetime.now().strftime('%Y-%m-%d')}_stock_count_outlet.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    type="secondary"
+                )
+                
+            st.divider()
             st.markdown("### Inventory Check Options")
             c_inv1, c_inv2 = st.columns(2)
             with c_inv1:

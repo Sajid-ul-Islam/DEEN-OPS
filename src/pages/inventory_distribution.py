@@ -512,15 +512,62 @@ def render_distribution_tab(search_q):
 
         excel_report_bytes = export_to_styled_excel(export_data)
 
-        st.download_button(
-            "Download distribution report",
-            excel_report_bytes,
-            "Stock_Distribution.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-            type="primary",
-        )
-
+        c_dl1, c_dl2, c_dl3 = st.columns(3)
+        with c_dl1:
+            st.download_button(
+                "Download distribution report",
+                excel_report_bytes,
+                "Stock_Distribution.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="primary",
+            )
+            
+        with c_dl2:
+            oos_df_for_csv = df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"]
+            if not oos_df_for_csv.empty:
+                titles = []
+                from src.inventory.core import item_name_to_title_size
+                for item in oos_df_for_csv[title_key].dropna().unique():
+                    title, _ = item_name_to_title_size(str(item))
+                    if title:
+                        titles.append(title.strip())
+                unique_titles = sorted(list(set(titles)))
+                oos_csv_data = pd.DataFrame({"Products Name": unique_titles}).to_csv(index=False)
+                
+                import datetime
+                current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+                st.download_button(
+                    "Download OOS Products (CSV)",
+                    data=oos_csv_data,
+                    file_name=f"{current_date}_oos.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    type="secondary",
+                )
+                
+        with c_dl3:
+            in_stock_df_for_csv = df[~df["Dispatch Suggestion"].isin(["OOS / Unfulfillable", "Error / Unfulfillable"])]
+            if not in_stock_df_for_csv.empty:
+                titles_in_stock = []
+                from src.inventory.core import item_name_to_title_size
+                for item in in_stock_df_for_csv[title_key].dropna().unique():
+                    title, _ = item_name_to_title_size(str(item))
+                    if title:
+                        titles_in_stock.append(title.strip())
+                unique_titles_in_stock = sorted(list(set(titles_in_stock)))
+                in_stock_csv_data = pd.DataFrame({"Products Name": unique_titles_in_stock}).to_csv(index=False)
+                
+                import datetime
+                current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+                st.download_button(
+                    "Download In-Stock Products (CSV)",
+                    data=in_stock_csv_data,
+                    file_name=f"{current_date}_in_stock.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    type="secondary",
+                )
         # --- PATHAO INTEGRATION ---
         st.divider()
         st.subheader("📦 Generate Pathao Bulk Sheet")
