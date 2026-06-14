@@ -245,11 +245,16 @@ def render_distribution_tab(search_q):
                             if ts_val and sku_val and sku_val not in ["nan", "0", "N/A", "N/A"]:
                                 title_size_to_sku[ts_val] = sku_val
 
+                # Keywords that indicate promotional offers, not actual stock
+                _offer_keywords = ['combo', 'bundle', 'buy any']
+                
                 cat_aggregates = {}
                 mapping_rows = []
                 for k, locs in inv_map.items():
                     if str(k).upper().startswith("SKU:"): continue
                     if k in sku_to_title_size: continue
+                    # Skip promotional offers (combo/bundle/buy any)
+                    if any(kw in str(k).lower() for kw in _offer_keywords): continue
                     
                     display_cat = None
                     raw_sku = title_size_to_sku.get(k)
@@ -257,6 +262,7 @@ def render_distribution_tab(search_q):
                         norm_sku = inv_core.normalize_sku(raw_sku)
                         wc_name = wc_sku_to_name.get(norm_sku)
                         if wc_name:
+                            if any(kw in wc_name.lower() for kw in _offer_keywords): continue
                             display_cat = map_to_csv_category(wc_name)
                     
                     if not display_cat:
