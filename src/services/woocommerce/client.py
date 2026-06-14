@@ -41,7 +41,7 @@ def load_from_woocommerce():
 
         def fetch_batch(p):
             # Optimize payload size by requesting only necessary fields
-            fields = "id,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total"
+            fields = "id,number,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total"
             p["_fields"] = fields
             
             b_rows = []
@@ -63,7 +63,7 @@ def load_from_woocommerce():
                 def process_batch(data):
                     processed = []
                     for order in data:
-                        oid, d_val, status, m_val = order.get("id"), order.get("date_created"), order.get("status"), order.get("date_modified")
+                        oid, onum, d_val, status, m_val = order.get("id"), order.get("number"), order.get("date_created"), order.get("status"), order.get("date_modified")
                         bill = order.get("billing", {})
                         ship = order.get("shipping", {})
                         c_name = f"{bill.get('first_name','')} {bill.get('last_name','')}".strip()
@@ -71,6 +71,7 @@ def load_from_woocommerce():
                         for item in order.get("line_items", []):
                             processed.append({
                                 "Order ID": oid,
+                                "Order Number": onum,
                                 "Order Date": d_val,
                                 "Order Date Modified": m_val,
                                 "Order Status": status,
@@ -281,6 +282,76 @@ def load_from_woocommerce():
     except Exception as e:
         log_system_event("WC_API_ERROR", str(e))
         raise RuntimeError(f"Failed to fetch data from WooCommerce: {e}")
+
+
+def fetch_specific_woocommerce_orders(order_ids: list):
+    """Fetches exact orders by their WooCommerce ID."""
+    if not order_ids:
+        return []
+        
+    wc_info = get_woocommerce_config(required=False)
+    wc_url = wc_info.get("store_url")
+    wc_key = wc_info.get("consumer_key")
+    wc_secret = wc_info.get("consumer_secret")
+    
+    if not wc_url or not wc_key or not wc_secret:
+        raise ValueError("WooCommerce integration missing.")
+
+    endpoint = f"{wc_url.rstrip('/')}/wp-json/wc/v3/orders"
+    auth = HTTPBasicAuth(wc_key, wc_secret)
+    fields = "id,number,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total"
+    
+    # Split order_ids into batches of 100 because WC REST API limits 'include'
+    batches = [order_ids[i:i + 100] for i in range(0, len(order_ids), 100)]
+    all_processed = []
+
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def fetch_batch(batch_ids):
+            include_str = ",".join(map(str, batch_ids))
+            params = {"include": include_str, "_fields": fields, "per_page": 100}
+            res = request_with_backoff("GET", endpoint, params=params, auth=auth, timeout=15)
+            if res.status_code != 200:
+                return []
+                
+            processed = []
+            for order in res.json():
+                oid, onum, d_val, status, m_val = order.get("id"), order.get("number"), order.get("date_created"), order.get("status"), order.get("date_modified")
+                bill = order.get("billing", {})
+                ship = order.get("shipping", {})
+                c_name = f"{bill.get('first_name','')} {bill.get('last_name','')}".strip()
+                pmt = order.get("payment_method_title", "")
+                for item in order.get("line_items", []):
+                    processed.append({
+                        "Order ID": oid,
+                        "Order Number": onum,
+                        "Order Date": d_val,
+                        "Order Date Modified": m_val,
+                        "Order Status": status,
+                        "Full Name (Billing)": c_name,
+                        "Phone (Billing)": bill.get("phone",""),
+                        "Shipping Address 1": ship.get("address_1", ""),
+                        "Shipping City": ship.get("city", ""),
+                        "State Name (Billing)": bill.get("state", ""),
+                        "Item Name": item.get("name"),
+                        "SKU": item.get("sku", ""),
+                        "Item Cost": item.get("price"),
+                        "Quantity": item.get("quantity"),
+                        "Order Total Amount": order.get("total"),
+                        "Payment Method Title": pmt
+                    })
+            return processed
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(fetch_batch, b) for b in batches]
+            for future in futures:
+                all_processed.extend(future.result())
+                
+    except Exception as e:
+        log_system_event("WC_SPECIFIC_FETCH_ERROR", str(e))
+
+    return all_processed
 
 
 def load_live_source():

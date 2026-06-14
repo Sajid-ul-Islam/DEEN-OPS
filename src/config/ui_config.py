@@ -4,6 +4,7 @@ APP_VERSION = "v10.0"
 PRIMARY_NAV = [
     "📈 Live Dashboard",
     "📥 Sales Data Ingestion",
+    "📉 Return Analytics",
     "📦 Current Stock Analytics",
     "📦 Pathao Processor",
     "📊 Inventory Distribution",

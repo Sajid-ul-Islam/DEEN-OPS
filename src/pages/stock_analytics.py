@@ -396,12 +396,21 @@ def compile_outlet_stock(loc_files):
             if not display_cat:
                 display_cat = map_to_csv_category(k)
             
-            mapping_rows.append({
+            row_dict = {
                 "Product Name": str(k).title(), 
                 "SKU": raw_sku if raw_sku else "N/A",
                 "Assigned Category": display_cat,
                 "Resolved via WooCommerce": "Yes" if resolved_via_wc else "No"
-            })
+            }
+            total_stock = 0
+            for loc in active_locs:
+                qty = locs.get(loc, 0)
+                row_dict[loc] = qty
+                if loc != "Ecom":
+                    total_stock += qty
+            row_dict["Total Outlet Stock"] = total_stock
+            
+            mapping_rows.append(row_dict)
             
             if display_cat not in cat_aggregates:
                 cat_aggregates[display_cat] = {loc: 0 for loc in active_locs}
@@ -418,13 +427,16 @@ def compile_outlet_stock(loc_files):
             row = {"Products Name": cat_name}
             if "Ecom" in counts:
                 row["Ecom"] = counts["Ecom"]
-                outlet_sum = sum(counts.get(loc, 0) for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"] if loc in counts)
-                row["Ecom - Outlet"] = counts["Ecom"] - outlet_sum
             for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"]:
                 if loc in counts:
                     row[loc] = counts[loc]
             if "Total Outlet Stock" in counts:
                 row["Total Outlet Stock"] = counts["Total Outlet Stock"]
+                
+            if "Ecom" in counts:
+                outlet_sum = counts.get("Total Outlet Stock", 0)
+                row["Outlet > Ecom?"] = "Yes" if outlet_sum > counts["Ecom"] else "No"
+                row["Stock Difference (Outlet - Ecom)"] = outlet_sum - counts["Ecom"]
             rows.append(row)
         
         # Build SKU verification report
@@ -612,7 +624,7 @@ def render_outlet_stock_analysis_tab():
         
         st.divider()
         
-        v1, v2 = st.columns([3, 4])
+        v1, v2 = st.columns([1, 1], gap="large")
         with v1:
             st.markdown("#### 📋 Stock by Category Summary")
             st.dataframe(out_df, use_container_width=True, hide_index=True)
@@ -624,10 +636,12 @@ def render_outlet_stock_analysis_tab():
             available_outlets = [col for col in ["Mirpur", "Wari", "Cumilla", "Sylhet", "Ecom"] if col in out_df.columns]
             
             if available_outlets:
-                selected_outlets = st.multiselect(
+                selected_outlets = st.pills(
                     "Filter by Outlet",
                     options=available_outlets,
                     default=available_outlets,
+                    selection_mode="multi",
+                    label_visibility="collapsed",
                     key="chart_outlet_filter"
                 )
             else:

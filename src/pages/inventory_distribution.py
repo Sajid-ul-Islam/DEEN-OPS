@@ -214,11 +214,19 @@ def render_distribution_tab(search_q):
                     if not display_cat:
                         display_cat = map_to_csv_category(k)
                         
-                    mapping_rows.append({
+                    row_dict = {
                         "Product Name": str(k).title(), 
                         "SKU": raw_sku if raw_sku else "N/A",
                         "Assigned Category": display_cat
-                    })
+                    }
+                    total_stock = 0
+                    for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"]:
+                        qty = locs.get(loc, 0)
+                        row_dict[loc] = qty
+                        total_stock += qty
+                    row_dict["Total Outlet Stock"] = total_stock
+                    
+                    mapping_rows.append(row_dict)
                     
                     if display_cat not in cat_aggregates:
                         cat_aggregates[display_cat] = {"Mirpur": 0, "Wari": 0, "Cumilla": 0, "Sylhet": 0, "Total Outlet Stock": 0}

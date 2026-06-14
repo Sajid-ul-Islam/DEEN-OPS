@@ -138,6 +138,7 @@ def run_app():
                 "📦 Current Stock Analytics": ":material/analytics: Stock Analytics",
                 "🧩 Delivery Data Parser": ":material/data_object: Delivery Parser",
                 "📥 Sales Data Ingestion": ":material/cloud_download: Sales Ingestion",
+                "📉 Return Analytics": ":material/keyboard_return: Return Analytics",
                 "🚀 Data Pilot": ":material/smart_toy: Data Pilot",
                 "🛒 WooCommerce Orders": ":material/shopping_cart: WooCommerce Orders"
             }
@@ -267,6 +268,9 @@ def run_app():
         safe_render(render_fuzzy_parser_tab, fallback_msg="Delivery Data Parser unavailable.")
     elif selected_nav == "📥 Sales Data Ingestion":
         safe_render(render_manual_tab, fallback_msg="Sales Data Ingestion unavailable.")
+    elif selected_nav == "📉 Return Analytics":
+        from src.pages.return_analytics import render_return_analytics_tab
+        safe_render(render_return_analytics_tab, fallback_msg="Return Analytics unavailable.")
     elif selected_nav == "🚀 Data Pilot":
         from src.pages.data_pilot import render_ai_pilot_page
         safe_render(render_ai_pilot_page, fallback_msg="Data Pilot unavailable.")
