@@ -68,6 +68,8 @@ def render_return_analytics_tab():
                 st.markdown("#### 🔄 Real-Time Return Tracking")
                 
                 if "Order ID" in df.columns:
+                    enable_pathao = st.toggle("Enable Pathao Fetching", value=True, help="Turn off to skip Pathao tracking status and only fetch WooCommerce data. Useful if Pathao API is slow or rate-limiting.")
+                    
                     col1, col2 = st.columns([2, 1])
                     with col1:
                         st.info("Click the button to fetch live order details from WooCommerce and tracking statuses from Pathao.")
@@ -82,7 +84,7 @@ def render_return_analytics_tab():
                             df_to_match = df_to_match.dropna(subset=["Order ID"])
                             order_ids_to_fetch = df_to_match["Order ID"].astype(int).unique().tolist()
                             
-                            with st.spinner("Fetching data from WooCommerce and Pathao (this runs in the background)..."):
+                            with st.spinner("Fetching external data (this runs in the background)..."):
                                 from src.services.woocommerce.client import fetch_specific_woocommerce_orders
                                 from src.services.pathao.status import get_pathao_order_status
                                 from concurrent.futures import ThreadPoolExecutor
@@ -94,7 +96,7 @@ def render_return_analytics_tab():
                                     
                                     # 2. Fetch Pathao Statuses
                                     pathao_statuses = {}
-                                    if "Courier ID" in df_to_match.columns:
+                                    if enable_pathao and "Courier ID" in df_to_match.columns:
                                         courier_ids = df_to_match["Courier ID"].dropna().unique().tolist()
                                         
                                         def fetch_p_status(cid):
@@ -103,7 +105,7 @@ def render_return_analytics_tab():
                                                 return cid, res["data"]["order_status"]
                                             return cid, "Status Not Found"
                                         
-                                        with ThreadPoolExecutor(max_workers=8) as executor:
+                                        with ThreadPoolExecutor(max_workers=3) as executor:
                                             futures = [executor.submit(fetch_p_status, cid) for cid in courier_ids]
                                             for future in futures:
                                                 cid, status = future.result()
@@ -113,7 +115,7 @@ def render_return_analytics_tab():
                                     if pathao_statuses:
                                         df_to_match["Live Pathao Status"] = df_to_match["Courier ID"].map(pathao_statuses)
                                     else:
-                                        df_to_match["Live Pathao Status"] = "N/A"
+                                        df_to_match["Live Pathao Status"] = "N/A (Skipped)" if not enable_pathao else "N/A"
                                     
                                     if not wc_df.empty and "Order Number" in wc_df.columns:
                                         wc_df["Order Number_Num"] = pd.to_numeric(wc_df["Order Number"], errors="coerce")
