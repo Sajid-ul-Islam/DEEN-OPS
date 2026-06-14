@@ -5,7 +5,7 @@ import json
 import re
 from src.processing.categorization import get_category_for_sales
 from src.utils.text import normalize_city_name, peek_zone_from_address
-from fuzzywuzzy import process
+from rapidfuzz import process
 
 
 def clean_dataframe(df):

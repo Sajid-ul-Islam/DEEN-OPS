@@ -90,9 +90,39 @@
           "revenue": 1590.0
         }
       ]
+    },
+    {
+      "ts": "2026-06-14T14:20:06.908345+06:00",
+      "label": "Today",
+      "revenue": 52473.0,
+      "orders": 35,
+      "qty": 72,
+      "aov": 1499.23,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 34",
+          "revenue": 2072.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2072.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 36",
+          "revenue": 2022.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 36",
+          "revenue": 1942.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 131031.0,
-  "daily_orders": 87,
-  "daily_qty": 165
+  "daily_revenue": 183504.0,
+  "daily_orders": 122,
+  "daily_qty": 237
 }

@@ -9,5 +9,4 @@ xlsxwriter==3.2.0
 toml==0.10.2
 duckdb==1.0.0
 tenacity==8.3.0
-fuzzywuzzy==0.18.0
-python-Levenshtein==0.25.1
+rapidfuzz>=3.0.0

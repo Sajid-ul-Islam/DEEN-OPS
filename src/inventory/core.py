@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Dict, Tuple, Optional
 
 import pandas as pd
-from fuzzywuzzy import process
+from rapidfuzz import process
 
 
 @lru_cache(maxsize=4096)
@@ -436,7 +436,7 @@ def add_stock_columns_from_inventory(
                 if same_size_keys:
                     match_result = process.extractOne(pl_key, same_size_keys)
                     if match_result:
-                        best_match, score = match_result
+                        best_match, score, _ = match_result  # rapidfuzz returns (match, score, index)
                         if score >= 85:  # Require high confidence for auto-match
                             inv_key = best_match
                             status = f"Fuzzy Match ({score}%) -> {best_match}"

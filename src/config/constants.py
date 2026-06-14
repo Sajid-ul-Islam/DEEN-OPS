@@ -14,6 +14,9 @@ METRIC_SNAPSHOT_DIR = os.path.join(RESOURCES_DIR, "metric_snapshots")
 # Unified Shipped Statuses
 SHIPPED_STATUSES = ["shipped", "completed", "confirmed"]
 
+# Promotional offer keywords — items containing these are NOT actual stock
+OFFER_KEYWORDS = ["combo", "bundle", "buy any"]
+
 # Error log path
 ERROR_LOG_FILE = os.path.join(DATA_DIR, "error_logs.json")
 

@@ -9,9 +9,11 @@ from src.components.widgets import (
     render_reset_confirm,
 )
 from src.config.ui_config import INVENTORY_LOCATIONS
+from src.config.constants import OFFER_KEYWORDS
 from src.inventory import core as inv_core
 from src.utils.file_io import read_uploaded
 from src.pages.excel_exporter import export_to_styled_excel
+from src.processing.stock_categorization import map_to_csv_category
 
 
 def _reset_inventory_state():
@@ -170,59 +172,6 @@ def render_distribution_tab(search_q):
                     for w in warnings:
                         st.sidebar.warning(w)
                 
-                def map_to_csv_category(product_name):
-                    name_lower = str(product_name).lower()
-                    mapping_rules = {
-                        'active wear': 'Active Wear T-Shirt',
-                        'drop shoulder': 'Drop Shoulder',
-                        'oversized': 'Drop Shoulder',
-                        'tank top': 'Tank Top',
-                        'turtle': 'Turtelneck',
-                        'polo': 'Polo Shirt',
-                        'cuban': 'Cuban Shirt',
-                        'denim': 'Denim Shirt',
-                        'flannel': 'Flannel Shirt',
-                        'oxford': 'Formal Shirt',
-                        'kaftan': 'Kaftan Shirt',
-                        'contrast': 'Contrast Shirt',
-                        'jeans': 'Jeans Pant',
-                        'chino': 'Twill Pant',
-                        'twill': 'Twill Pant',
-                        'trouser': 'Trouser',
-                        'jogger': 'Trouser',
-                        'panjabi': 'Panjabi',
-                        'punjabi': 'Panjabi',
-                        'sweatshirt': 'Sweatshirt',
-                        'hoodie': 'Sweatshirt',
-                        'boxer': 'Boxers',
-                        'belt': 'Belt',
-                        'wallet': 'Wallet',
-                        'card holder': 'Card Holder',
-                        'passport': 'Passport Holder',
-                        'bag': 'Leather Bag',
-                        'backpack': 'Leather Bag',
-                        'mask': 'Mask',
-                        'bottle': 'Water Bottle',
-                        'formal': 'Formal Shirt',
-                        'executive': 'Formal Shirt'
-                    }
-                    for kw, cat in mapping_rules.items():
-                        if kw in name_lower: return cat
-                    is_tshirt = any(x in name_lower for x in ['t-shirt', 't shirt', 'tee'])
-                    if is_tshirt:
-                        if any(x in name_lower for x in ['full', 'fs', 'l/s', 'long', 'ls']):
-                            return 'T-Shirt - Full Sleeve'
-                        else:
-                            return 'T-shirt - Half Sleeve'
-                    if 'shirt' in name_lower:
-                        if any(x in name_lower for x in ['half', 'hs', 'short sleeve', 'short-sleeve', 'shortsleeve']):
-                            return 'Casual Shirt - Half Sleeve'
-                        elif any(x in name_lower for x in ['full', 'fs', 'l/s', 'long', 'ls']):
-                            return 'Casual Shirt - Full Sleeve'
-                        else:
-                            return 'Casual Shirt - Full Sleeve'
-                    return 'Others'
-                
                 from src.utils.snapshots import load_stock_snapshot
                 from src.utils.product import get_base_product_name
                 wc_stock = load_stock_snapshot()
@@ -245,16 +194,13 @@ def render_distribution_tab(search_q):
                             if ts_val and sku_val and sku_val not in ["nan", "0", "N/A", "N/A"]:
                                 title_size_to_sku[ts_val] = sku_val
 
-                # Keywords that indicate promotional offers, not actual stock
-                _offer_keywords = ['combo', 'bundle', 'buy any']
-                
                 cat_aggregates = {}
                 mapping_rows = []
                 for k, locs in inv_map.items():
                     if str(k).upper().startswith("SKU:"): continue
                     if k in sku_to_title_size: continue
                     # Skip promotional offers (combo/bundle/buy any)
-                    if any(kw in str(k).lower() for kw in _offer_keywords): continue
+                    if any(kw in str(k).lower() for kw in OFFER_KEYWORDS): continue
                     
                     display_cat = None
                     raw_sku = title_size_to_sku.get(k)
@@ -262,7 +208,7 @@ def render_distribution_tab(search_q):
                         norm_sku = inv_core.normalize_sku(raw_sku)
                         wc_name = wc_sku_to_name.get(norm_sku)
                         if wc_name:
-                            if any(kw in wc_name.lower() for kw in _offer_keywords): continue
+                            if any(kw in wc_name.lower() for kw in OFFER_KEYWORDS): continue
                             display_cat = map_to_csv_category(wc_name)
                     
                     if not display_cat:
@@ -290,7 +236,7 @@ def render_distribution_tab(search_q):
                 for k, locs in inv_map.items():
                     if str(k).upper().startswith("SKU:"): continue
                     if k in sku_to_title_size: continue
-                    if any(kw in str(k).lower() for kw in _offer_keywords): continue
+                    if any(kw in str(k).lower() for kw in OFFER_KEYWORDS): continue
                     
                     raw_sku = title_size_to_sku.get(k)
                     if raw_sku:

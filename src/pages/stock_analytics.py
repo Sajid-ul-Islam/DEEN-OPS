@@ -9,13 +9,14 @@ import io
 
 from src.inventory import core as inv_core
 from src.processing.categorization import get_category_for_sales, get_sub_category_for_sales
+from src.processing.stock_categorization import map_to_csv_category
 from src.pages.excel_exporter import export_to_styled_excel
 from src.services.woocommerce.stock import fetch_woocommerce_stock
 from src.utils.product import get_base_product_name, get_size_from_name
 from src.utils.snapshots import load_stock_snapshot
 from src.utils.display import truncate_label
 from src.utils.safe_ops import safe_filter, safe_render
-from src.config.constants import COMMON_CATS
+from src.config.constants import COMMON_CATS, OFFER_KEYWORDS
 
 
 def render_bundle_inventory_intelligence(sales_df, stock_df):
@@ -75,12 +76,15 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
     fulfillment_rate = (full_count / total_bundles * 100) if total_bundles > 0 else 0
     orphan_pct = (len(set(orphan_skus)) / len(stock_df[inv_name_col].unique()) * 100) if not stock_df.empty else 0
 
+    # Compute product dependency score: ratio of paired items that co-occur in >1 order
+    dependency_score = (len([p for p, c in top_pairs if c > 1]) / total_bundles) if total_bundles > 0 else 0.0
+
     # Compact HTML
     bundle_html = (
         '<div class="metric-container">'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Bundle Fulfillment</div><div class="metric-value">{fulfillment_rate:.0f}%</div></div><div class="metric-icon">🚀</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Orphan Stock Rate</div><div class="metric-value">{orphan_pct:.1f}%</div></div><div class="metric-icon">⚠️</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Dependency</div><div class="metric-value">0.74</div></div><div class="metric-icon">🔗</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Co-buy Rate</div><div class="metric-value">{dependency_score:.0%}</div></div><div class="metric-icon">🔗</div></div>'
         '</div>'
     )
     st.markdown(bundle_html, unsafe_allow_html=True)
@@ -341,59 +345,6 @@ def compile_outlet_stock(loc_files):
             for warning in warnings:
                 st.warning(warning)
                 
-        def map_to_csv_category(product_name):
-            name_lower = str(product_name).lower()
-            mapping_rules = {
-                'active wear': 'Active Wear T-Shirt',
-                'drop shoulder': 'Drop Shoulder',
-                'oversized': 'Drop Shoulder',
-                'tank top': 'Tank Top',
-                'turtle': 'Turtelneck',
-                'polo': 'Polo Shirt',
-                'cuban': 'Cuban Shirt',
-                'denim': 'Denim Shirt',
-                'flannel': 'Flannel Shirt',
-                'oxford': 'Formal Shirt',
-                'kaftan': 'Kaftan Shirt',
-                'contrast': 'Contrast Shirt',
-                'jeans': 'Jeans Pant',
-                'chino': 'Twill Pant',
-                'twill': 'Twill Pant',
-                'trouser': 'Trouser',
-                'jogger': 'Trouser',
-                'panjabi': 'Panjabi',
-                'punjabi': 'Panjabi',
-                'sweatshirt': 'Sweatshirt',
-                'hoodie': 'Sweatshirt',
-                'boxer': 'Boxers',
-                'belt': 'Belt',
-                'wallet': 'Wallet',
-                'card holder': 'Card Holder',
-                'passport': 'Passport Holder',
-                'bag': 'Leather Bag',
-                'backpack': 'Leather Bag',
-                'mask': 'Mask',
-                'bottle': 'Water Bottle',
-                'formal': 'Formal Shirt',
-                'executive': 'Formal Shirt'
-            }
-            for kw, cat in mapping_rules.items():
-                if kw in name_lower: return cat
-            is_tshirt = any(x in name_lower for x in ['t-shirt', 't shirt', 'tee'])
-            if is_tshirt:
-                if any(x in name_lower for x in ['full', 'fs', 'l/s', 'long', 'ls']):
-                    return 'T-Shirt - Full Sleeve'
-                else:
-                    return 'T-shirt - Half Sleeve'
-            if 'shirt' in name_lower:
-                if any(x in name_lower for x in ['half', 'hs', 'short sleeve', 'short-sleeve', 'shortsleeve']):
-                    return 'Casual Shirt - Half Sleeve'
-                elif any(x in name_lower for x in ['full', 'fs', 'l/s', 'long', 'ls']):
-                    return 'Casual Shirt - Full Sleeve'
-                else:
-                    return 'Casual Shirt - Full Sleeve'
-            return 'Others'
-        
         # Build Title-Size to SKU lookup from enriched dataframes
         title_size_to_sku = {}
         for loc, df in enriched_dfs.items():
@@ -422,16 +373,13 @@ def compile_outlet_stock(loc_files):
         all_ordered = ["Ecom", "Mirpur", "Wari", "Cumilla", "Sylhet"]
         active_locs = [loc for loc in all_ordered if loc in loc_files]
         
-        # Keywords that indicate promotional offers, not actual stock
-        _offer_keywords = ['combo', 'bundle', 'buy any']
-        
         cat_aggregates = {}
         mapping_rows = []
         for k, locs in inv_map.items():
             if str(k).upper().startswith("SKU:"): continue
             if k in sku_to_title_size: continue
             # Skip promotional offers (combo/bundle/buy any)
-            if any(kw in str(k).lower() for kw in _offer_keywords): continue
+            if any(kw in str(k).lower() for kw in OFFER_KEYWORDS): continue
             
             display_cat = None
             resolved_via_wc = False
@@ -441,7 +389,7 @@ def compile_outlet_stock(loc_files):
                 wc_name = wc_sku_to_name.get(norm_sku)
                 if wc_name:
                     # Also skip if WooCommerce name is an offer
-                    if any(kw in wc_name.lower() for kw in _offer_keywords): continue
+                    if any(kw in wc_name.lower() for kw in OFFER_KEYWORDS): continue
                     display_cat = map_to_csv_category(wc_name)
                     resolved_via_wc = True
             
@@ -484,7 +432,7 @@ def compile_outlet_stock(loc_files):
         for k, locs in inv_map.items():
             if str(k).upper().startswith("SKU:"): continue
             if k in sku_to_title_size: continue
-            if any(kw in str(k).lower() for kw in _offer_keywords): continue
+            if any(kw in str(k).lower() for kw in OFFER_KEYWORDS): continue
             
             raw_sku = title_size_to_sku.get(k)
             if raw_sku:
@@ -515,7 +463,6 @@ def compile_outlet_stock(loc_files):
             out_df = pd.DataFrame(rows).sort_values("Products Name")
             mapping_df = pd.DataFrame(mapping_rows).sort_values(["Assigned Category", "Product Name"])
             
-            import io
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 out_df.to_excel(writer, sheet_name='Stock by Category', index=False)

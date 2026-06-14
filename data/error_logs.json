@@ -1,19 +1,5 @@
 [
     {
-        "timestamp": "2026-04-09 14:31:57",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1619, in render_stock_analytics_tab\n    size_options = sorted(df_base[\"Size\"].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-09 14:39:44",
-        "context": "App Bootstrap",
-        "error": "'<' not supported between instances of 'str' and 'float'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 175, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 149, in run_app\n    render_stock_analytics_tab()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1619, in render_stock_analytics_tab\n    size_options = sorted(df_base[\"Size\"].unique().tolist())\nTypeError: '<' not supported between instances of 'str' and 'float'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-09 14:40:33",
         "context": "App Bootstrap",
         "error": "'<' not supported between instances of 'str' and 'float'",
@@ -782,6 +768,24 @@
     },
     {
         "timestamp": "2026-06-14 12:55:59",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-14 13:41:55",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-14 13:43:06",
         "context": "safe_render",
         "error": "division by zero",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",

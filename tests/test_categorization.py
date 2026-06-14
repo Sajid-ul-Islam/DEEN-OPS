@@ -59,9 +59,12 @@ class TestGetSubCategoryForSales:
         assert get_sub_category_for_sales("Slim Fit Jeans", "Jeans") == "Slim Fit Jeans"
 
     def test_tshirt_subcategories(self):
-        assert get_sub_category_for_sales("Drop Shoulder Tee - M", "T-Shirt") == "Drop Shoulder"
-        assert get_sub_category_for_sales("Tank Top White", "T-Shirt") == "Tank Top"
+        # Drop Shoulder and Tank Top are routed as top-level categories before reaching T-Shirt
+        # so sub-category only needs to handle actual T-Shirt variants
         assert get_sub_category_for_sales("Basic T-Shirt", "T-Shirt") == "HS T-Shirt"
+        assert get_sub_category_for_sales("FS T-Shirt Black", "T-Shirt") == "FS-T-Shirt"
+        assert get_sub_category_for_sales("Active Wear T-Shirt", "T-Shirt") == "Active Wear"
+        assert get_sub_category_for_sales("Jersey Tee", "T-Shirt") == "Jersy"
 
     def test_fs_shirt_subcategories(self):
         assert get_sub_category_for_sales("Flannel Shirt Red", "FS Shirt") == "Flannel Shirt"

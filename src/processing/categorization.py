@@ -83,8 +83,6 @@ def get_sub_category_for_sales(name, category) -> str:
         if "straight" in name_str: return "Straight Fit Jeans"
 
     elif category == "T-Shirt":
-        if "drop shoulder" in name_str: return "Drop Shoulder"
-        if _has_any(["tank top"], name_str): return "Tank Top"
         if _has_any(["active wear", "activewear"], name_str): return "Active Wear"
         if _has_any(["jersy", "jersey"], name_str): return "Jersy"
         if _has_any(["full sleeve", "long sleeve", "fs"], name_str): return "FS-T-Shirt"
