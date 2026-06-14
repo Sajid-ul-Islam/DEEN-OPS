@@ -214,10 +214,12 @@ def render_distribution_tab(search_q):
                     return 'Others'
                 
                 cat_aggregates = {}
+                mapping_rows = []
                 for k, locs in inv_map.items():
                     if str(k).upper().startswith("SKU:"): continue
                     
                     display_cat = map_to_csv_category(k)
+                    mapping_rows.append({"Product Name": str(k).title(), "Assigned Category": display_cat})
                     
                     if display_cat not in cat_aggregates:
                         cat_aggregates[display_cat] = {"Mirpur": 0, "Wari": 0, "Cumilla": 0, "Sylhet": 0, "Total Stock": 0}
@@ -234,24 +236,38 @@ def render_distribution_tab(search_q):
                     rows.append(row)
                 
                 if rows:
-                    out_df = pd.DataFrame(rows)
-                    # Sort alphabetically
-                    out_df = out_df.sort_values("Products Name")
-                    st.session_state.outlet_stock_report_csv = out_df.to_csv(index=False)
+                    out_df = pd.DataFrame(rows).sort_values("Products Name")
+                    mapping_df = pd.DataFrame(mapping_rows).sort_values(["Assigned Category", "Product Name"])
+                    
+                    import io
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        out_df.to_excel(writer, sheet_name='Stock by Category', index=False)
+                        mapping_df.to_excel(writer, sheet_name='Product Mapping', index=False)
+                    excel_data = output.getvalue()
+                    
+                    st.session_state.outlet_stock_report_excel = excel_data
+                    st.session_state.outlet_stock_mapping_df = mapping_df
                 else:
-                    st.session_state.outlet_stock_report_csv = None
+                    st.session_state.outlet_stock_report_excel = None
+                    st.session_state.outlet_stock_mapping_df = None
                     st.warning("No stock data found.")
                     
-        if st.session_state.get("outlet_stock_report_csv"):
+        if st.session_state.get("outlet_stock_report_excel") is not None:
             import datetime
             st.download_button(
-                "📥 Download Stock CSV",
-                data=st.session_state.outlet_stock_report_csv,
-                file_name=f"{datetime.datetime.now().strftime('%Y-%m-%d')}_outlet_stock.csv",
-                mime="text/csv",
+                "📥 Download Stock Excel",
+                data=st.session_state.outlet_stock_report_excel,
+                file_name=f"{datetime.datetime.now().strftime('%Y-%m-%d')}_outlet_stock.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
                 type="primary"
             )
+            
+            with st.expander("🔍 Show Product-to-Category Mapping"):
+                st.caption("Products that didn't match any keyword are categorized as 'Others'.")
+                if st.session_state.get("outlet_stock_mapping_df") is not None:
+                    st.dataframe(st.session_state.outlet_stock_mapping_df, use_container_width=True)
 
     st.markdown("---")
     sync_live_web_stock = st.toggle("Sync Live Web Stock (Ecom)", value=True, help="Turn on to automatically fetch real-time web stock for Ecom location if a file is not manually uploaded.")
