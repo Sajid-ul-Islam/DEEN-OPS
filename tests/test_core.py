@@ -107,3 +107,28 @@ def test_add_stock_columns_size_mismatch_oos():
     assert res.loc[0, "Store1"] == 0
     assert "OOS" in res.loc[0, "Dispatch Suggestion"] or "Unfulfillable" in res.loc[0, "Dispatch Suggestion"]
     assert matched_count == 0
+
+
+def test_load_inventory_duplicates_removed():
+    df_data = {
+        "Item Name": ["Product A", "Product B", "Product C"],
+        "SKU": ["SKU123", "SKU123", "SKU456"],
+        "Size": ["M", "M", "L"],
+        "Qty": [10, 5, 2]
+    }
+    df = pd.DataFrame(df_data)
+    
+    uploaded_files = {"Store1": df}
+    
+    inv_map, warnings, enriched_dfs, sku_to_title_size = inv_core.load_inventory_from_uploads(uploaded_files)
+    
+    assert any("Duplicate row found" in w for w in warnings)
+    
+    store_df = enriched_dfs["Store1"]
+    assert len(store_df) == 2
+    assert "Product A" in store_df["Item Name"].values
+    assert "Product B" not in store_df["Item Name"].values
+    assert "Product C" in store_df["Item Name"].values
+    
+    assert inv_map["product a - m"]["Store1"] == 10
+    assert inv_map["product c - l"]["Store1"] == 2

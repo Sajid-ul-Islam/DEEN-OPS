@@ -21,7 +21,13 @@ class TestGetCategoryForSales:
     def test_tshirt_redirects(self):
         assert get_category_for_sales("Active Wear Tee") == "T-Shirt"
         assert get_category_for_sales("Jersey Sport") == "T-Shirt"
-        assert get_category_for_sales("Tank Top White") == "T-Shirt"
+
+    def test_drop_shoulder(self):
+        assert get_category_for_sales("Drop Shoulder Tee - M") == "Drop Shoulder"
+        assert get_category_for_sales("Urban Stripe Drop Shoulder T-Shirt - 3XL") == "Drop Shoulder"
+
+    def test_tank_top(self):
+        assert get_category_for_sales("Tank Top White") == "Tank Top"
 
     def test_tshirt(self):
         assert get_category_for_sales("Premium T-Shirt - L") == "T-Shirt"

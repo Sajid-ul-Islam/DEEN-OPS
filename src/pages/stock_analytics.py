@@ -4,7 +4,10 @@ import plotly.express as px
 from datetime import datetime
 from itertools import combinations
 from collections import Counter
+import os
+import io
 
+from src.inventory import core as inv_core
 from src.processing.categorization import get_category_for_sales, get_sub_category_for_sales
 from src.pages.excel_exporter import export_to_styled_excel
 from src.services.woocommerce.stock import fetch_woocommerce_stock
@@ -91,11 +94,7 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
             st.caption(f"🤝 **High Correlation**: {pair[0]} ↔ {pair[1]} (Sales Frequency: {count})")
 
 
-def render_stock_analytics_tab():
-    """Renders the category-wise stock monitoring interface."""
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.subheader("📦 Current Stock Analytics")
-
+def render_woocommerce_stock_tab():
     df_raw = st.session_state.get("wc_stock_df")
 
     if df_raw is None:
@@ -154,6 +153,7 @@ def render_stock_analytics_tab():
         with f1:
             unified_options = COMMON_CATS
             sel_unified = st.multiselect("Select Category / Fit", unified_options, placeholder="All Categories", key="stock_filter_unified")
+            show_instock_only = st.toggle("Show In-Stock Only", value=False, key="stock_filter_instock_only")
 
         if sel_unified:
             def _cat_filter(d):
@@ -168,6 +168,9 @@ def render_stock_analytics_tab():
             df_cat = safe_filter(df_raw, _cat_filter, "Category/Fit")
         else:
             df_cat = df_raw
+
+        if show_instock_only:
+            df_cat = df_cat[df_cat["Stock"] > 0]
 
         with f2:
             base_options = sorted([str(x) for x in df_cat["Filter_Identity"].unique().tolist() if x is not None])
@@ -321,9 +324,423 @@ def render_stock_analytics_tab():
             data=excel_bytes,
             file_name=f"DEEN_Stock_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
             type="primary",
-            use_container_width=True
+            use_container_width=True,
+            key="wc_stock_report_download"
         )
 
     safe_render(_render_stock_body, fallback_msg="Stock analytics rendering failed.")
     st.caption(f"Database last refreshed: {st.session_state.get('stock_sync_time', datetime.now()).strftime('%I:%M %p')}")
+
+
+def compile_outlet_stock(loc_files):
+    try:
+        inv_map, warnings, enriched_dfs, sku_to_title_size = inv_core.load_inventory_from_uploads(loc_files)
+        
+        # Show any warnings from inv_core
+        if warnings:
+            for warning in warnings:
+                st.warning(warning)
+                
+        def map_to_csv_category(product_name):
+            name_lower = str(product_name).lower()
+            mapping_rules = {
+                'active wear': 'Active Wear T-Shirt',
+                'drop shoulder': 'Drop Shoulder',
+                'oversized': 'Drop Shoulder',
+                'tank top': 'Tank Top',
+                'turtle': 'Turtelneck',
+                'polo': 'Polo Shirt',
+                'cuban': 'Cuban Shirt',
+                'denim': 'Denim Shirt',
+                'flannel': 'Flannel Shirt',
+                'oxford': 'Formal Shirt',
+                'kaftan': 'Kaftan Shirt',
+                'contrast': 'Contrast Shirt',
+                'jeans': 'Jeans Pant',
+                'chino': 'Twill Pant',
+                'twill': 'Twill Pant',
+                'trouser': 'Trouser',
+                'jogger': 'Trouser',
+                'panjabi': 'Panjabi',
+                'punjabi': 'Panjabi',
+                'sweatshirt': 'Sweatshirt',
+                'hoodie': 'Sweatshirt',
+                'boxer': 'Boxers',
+                'belt': 'Belt',
+                'wallet': 'Wallet',
+                'card holder': 'Card Holder',
+                'passport': 'Passport Holder',
+                'bag': 'Leather Bag',
+                'backpack': 'Leather Bag',
+                'mask': 'Mask',
+                'bottle': 'Water Bottle',
+                'formal': 'Formal Shirt',
+                'executive': 'Formal Shirt'
+            }
+            for kw, cat in mapping_rules.items():
+                if kw in name_lower: return cat
+            is_tshirt = any(x in name_lower for x in ['t-shirt', 't shirt', 'tee'])
+            if is_tshirt:
+                if any(x in name_lower for x in ['full', 'fs', 'l/s', 'long', 'ls']):
+                    return 'T-Shirt - Full Sleeve'
+                else:
+                    return 'T-shirt - Half Sleeve'
+            if 'shirt' in name_lower:
+                if any(x in name_lower for x in ['half', 'hs', 'short sleeve', 'short-sleeve', 'shortsleeve']):
+                    return 'Casual Shirt - Half Sleeve'
+                elif any(x in name_lower for x in ['full', 'fs', 'l/s', 'long', 'ls']):
+                    return 'Casual Shirt - Full Sleeve'
+                else:
+                    return 'Casual Shirt - Full Sleeve'
+            return 'Others'
+        
+        # Build Title-Size to SKU lookup from enriched dataframes
+        title_size_to_sku = {}
+        for loc, df in enriched_dfs.items():
+            _, _, _, sku_col = inv_core.identify_columns(df)
+            if sku_col and sku_col in df.columns:
+                for _, row in df.iterrows():
+                    ts_val = str(row.get("Title - Size", "")).strip().casefold()
+                    sku_val = str(row.get(sku_col, "")).strip()
+                    if ts_val and sku_val and sku_val not in ["nan", "0", "N/A", "N/A"]:
+                        title_size_to_sku[ts_val] = sku_val
+
+        # Build WooCommerce SKU -> Product Name map
+        wc_sku_to_name = {}
+        wc_stock = st.session_state.get("wc_stock_df")
+        if wc_stock is None:
+            wc_stock = load_stock_snapshot()
+        if wc_stock is not None and "SKU" in wc_stock.columns and ("Product" in wc_stock.columns or "Product Name" in wc_stock.columns):
+            name_col = "Product" if "Product" in wc_stock.columns else "Product Name"
+            for _, row in wc_stock.iterrows():
+                sku_val = inv_core.normalize_sku(row.get("SKU", ""))
+                prod_name = str(row.get(name_col, "")).strip()
+                if sku_val and sku_val != "0" and prod_name:
+                    wc_sku_to_name[sku_val] = prod_name
+
+        # Determine active locations dynamically based on uploaded/passed files
+        all_ordered = ["Ecom", "Mirpur", "Wari", "Cumilla", "Sylhet"]
+        active_locs = [loc for loc in all_ordered if loc in loc_files]
+        
+        cat_aggregates = {}
+        mapping_rows = []
+        for k, locs in inv_map.items():
+            if str(k).upper().startswith("SKU:"): continue
+            if k in sku_to_title_size: continue
+            
+            display_cat = None
+            resolved_via_wc = False
+            raw_sku = title_size_to_sku.get(k)
+            if raw_sku:
+                norm_sku = inv_core.normalize_sku(raw_sku)
+                wc_name = wc_sku_to_name.get(norm_sku)
+                if wc_name:
+                    display_cat = map_to_csv_category(wc_name)
+                    resolved_via_wc = True
+            
+            if not display_cat:
+                display_cat = map_to_csv_category(k)
+            
+            mapping_rows.append({
+                "Product Name": str(k).title(), 
+                "Assigned Category": display_cat,
+                "Resolved via WooCommerce": "Yes" if resolved_via_wc else "No"
+            })
+            
+            if display_cat not in cat_aggregates:
+                cat_aggregates[display_cat] = {loc: 0 for loc in active_locs}
+                cat_aggregates[display_cat]["Total Outlet Stock"] = 0
+                
+            for loc in active_locs:
+                qty = locs.get(loc, 0)
+                cat_aggregates[display_cat][loc] += qty
+                if loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"]:
+                    cat_aggregates[display_cat]["Total Outlet Stock"] += qty
+         
+        rows = []
+        for cat_name, counts in cat_aggregates.items():
+            row = {"Products Name": cat_name}
+            if "Ecom" in counts:
+                row["Ecom"] = counts["Ecom"]
+                outlet_sum = sum(counts.get(loc, 0) for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"] if loc in counts)
+                row["Ecom - Outlet"] = counts["Ecom"] - outlet_sum
+            for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"]:
+                if loc in counts:
+                    row[loc] = counts[loc]
+            if "Total Outlet Stock" in counts:
+                row["Total Outlet Stock"] = counts["Total Outlet Stock"]
+            rows.append(row)
+        
+        # Build SKU verification report
+        verification_rows = []
+        verified_skus = set()
+        for k, locs in inv_map.items():
+            if str(k).upper().startswith("SKU:"): continue
+            if k in sku_to_title_size: continue
+            
+            raw_sku = title_size_to_sku.get(k)
+            if raw_sku:
+                norm_sku = inv_core.normalize_sku(raw_sku)
+                if norm_sku and norm_sku != "0" and norm_sku not in verified_skus:
+                    wc_name = wc_sku_to_name.get(norm_sku)
+                    if wc_name:
+                        base_outlet = get_base_product_name(k).strip().lower()
+                        base_wc = get_base_product_name(wc_name).strip().lower()
+                        
+                        base_outlet_clean = base_outlet.replace("-", "").replace("–", "").replace(" ", "")
+                        base_wc_clean = base_wc.replace("-", "").replace("–", "").replace(" ", "")
+                        
+                        is_match = base_outlet_clean == base_wc_clean
+                        match_status = "Match" if is_match else "Mismatch"
+                        
+                        verification_rows.append({
+                            "SKU": raw_sku,
+                            "Outlet Product Name": k.title(),
+                            "Ecom Product Name": wc_name.title(),
+                            "Status": match_status
+                        })
+                        verified_skus.add(norm_sku)
+                        
+        verification_df = pd.DataFrame(verification_rows).sort_values(["Status", "SKU"]) if verification_rows else pd.DataFrame(columns=["SKU", "Outlet Product Name", "Ecom Product Name", "Status"])
+
+        if rows:
+            out_df = pd.DataFrame(rows).sort_values("Products Name")
+            mapping_df = pd.DataFrame(mapping_rows).sort_values(["Assigned Category", "Product Name"])
+            
+            import io
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                out_df.to_excel(writer, sheet_name='Stock by Category', index=False)
+                mapping_df.to_excel(writer, sheet_name='Product Mapping', index=False)
+                verification_df.to_excel(writer, sheet_name='SKU Verification', index=False)
+            excel_data = output.getvalue()
+            
+            st.session_state.outlet_stock_report_excel = excel_data
+            st.session_state.outlet_stock_mapping_df = mapping_df
+            st.session_state.outlet_stock_summary_df = out_df
+            st.session_state.outlet_sku_verification_df = verification_df
+            return True
+        else:
+            st.session_state.outlet_stock_report_excel = None
+            st.session_state.outlet_stock_mapping_df = None
+            st.session_state.outlet_stock_summary_df = None
+            st.session_state.outlet_sku_verification_df = None
+            return False
+    except Exception as e:
+        st.error(f"Failed to generate report: {e}")
+        return False
+
+
+def render_outlet_stock_analysis_tab():
+    st.markdown("### 🏪 Outlet Stock Compiler")
+    st.write("Consolidate stock levels across all physical outlet locations (Mirpur, Wari, Cumilla, Sylhet) and optionally include Ecom stock from WooCommerce.")
+
+    default_files = {
+        "Mirpur": "Mir.xlsx",
+        "Wari": "War.xlsx",
+        "Cumilla": "Cum.xlsx",
+        "Sylhet": "Syl.xlsx"
+    }
+
+    st.markdown("---")
+    include_ecom = st.toggle("Include Live Ecom Web Stock (WooCommerce)", value=True, help="Turn on to automatically fetch/pull WooCommerce web stock and include it in Ecom location.")
+    
+    # Track toggle changes in session state
+    if "prev_include_ecom" not in st.session_state:
+        st.session_state.prev_include_ecom = True # default
+        
+    if include_ecom != st.session_state.prev_include_ecom:
+        st.session_state.prev_include_ecom = include_ecom
+        st.session_state.outlet_stock_summary_df = None  # Force recompilation
+        st.session_state.outlet_stock_cleared = False
+        st.rerun()
+
+    # Auto-compile on load using defaults if summary doesn't exist and wasn't explicitly cleared
+    if st.session_state.get("outlet_stock_summary_df") is None and not st.session_state.get("outlet_stock_cleared", False):
+        init_loc_files = {}
+        for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"]:
+            default_path = os.path.join("src", "inventory", default_files[loc])
+            if os.path.exists(default_path):
+                with open(default_path, "rb") as f:
+                    file_bytes = f.read()
+                default_obj = io.BytesIO(file_bytes)
+                default_obj.name = default_files[loc]
+                init_loc_files[loc] = default_obj
+                
+        if include_ecom:
+            ecom_df = st.session_state.get("wc_stock_df")
+            if ecom_df is None:
+                ecom_df = load_stock_snapshot()
+            if ecom_df is not None:
+                init_loc_files["Ecom"] = ecom_df
+                
+        if init_loc_files:
+            compile_outlet_stock(init_loc_files)
+
+    # Show 4 file uploaders
+    st.markdown("#### 📤 Upload Outlet Stock Lists")
+    cols = st.columns(4)
+    loc_files = {}
+
+    for i, loc in enumerate(["Mirpur", "Wari", "Cumilla", "Sylhet"]):
+        with cols[i]:
+            uploaded = st.file_uploader(f"{loc} (.xlsx)", type=["xlsx", "csv"], key=f"outlet_file_{loc}")
+            if uploaded:
+                loc_files[loc] = uploaded
+            elif loc in default_files:
+                default_path = os.path.join("src", "inventory", default_files[loc])
+                if os.path.exists(default_path):
+                    with open(default_path, "rb") as f:
+                        file_bytes = f.read()
+                    default_obj = io.BytesIO(file_bytes)
+                    default_obj.name = default_files[loc]
+                    loc_files[loc] = default_obj
+                    st.caption(f"✅ Default: {default_files[loc]}")
+                else:
+                    st.caption("ℹ️ No default file found")
+
+    st.markdown('<div style="margin-top: 20px;"></div>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        generate_clicked = st.button("📊 Generate Outlet Stock Report", type="primary", use_container_width=True)
+    with c2:
+        if st.button("🧹 Clear Compilation Results", use_container_width=True):
+            st.session_state.outlet_stock_report_excel = None
+            st.session_state.outlet_stock_mapping_df = None
+            st.session_state.outlet_stock_summary_df = None
+            st.session_state.outlet_stock_cleared = True
+            st.toast("Cleared compilation results.")
+            st.rerun()
+
+    if generate_clicked:
+        st.session_state.outlet_stock_cleared = False
+        
+        if include_ecom:
+            with st.spinner("Fetching Live Ecom Stock..."):
+                ecom_df = st.session_state.get("wc_stock_df")
+                if ecom_df is None:
+                    ecom_df = load_stock_snapshot()
+                    if ecom_df is None:
+                        ecom_df = fetch_woocommerce_stock()
+                        if ecom_df is not None:
+                            st.session_state.wc_stock_df = ecom_df
+                if ecom_df is not None:
+                    loc_files["Ecom"] = ecom_df
+                else:
+                    st.warning("⚠️ Could not fetch WooCommerce stock. Proceeding without Ecom.")
+                    
+        with st.spinner("Compiling stock data..."):
+            if compile_outlet_stock(loc_files):
+                st.toast("✅ Report generated successfully!", icon="🎉")
+
+    # Display compiled results if they exist
+    out_df = st.session_state.get("outlet_stock_summary_df")
+    excel_data = st.session_state.get("outlet_stock_report_excel")
+    mapping_df = st.session_state.get("outlet_stock_mapping_df")
+
+    if out_df is not None and not out_df.empty:
+        st.divider()
+        
+        # Display high level metrics
+        total_units = out_df["Total Outlet Stock"].sum()
+        total_categories = len(out_df)
+        
+        # Premium Metric layout
+        st.markdown(
+            '<div class="metric-container">'
+            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Outlet Units</div><div class="metric-value">{total_units:,.0f}</div></div><div class="metric-icon">🏪</div></div>'
+            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Product Categories</div><div class="metric-value">{total_categories}</div></div><div class="metric-icon">🏷️</div></div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+        
+        st.divider()
+        
+        v1, v2 = st.columns([3, 4])
+        with v1:
+            st.markdown("#### 📋 Stock by Category Summary")
+            st.dataframe(out_df, use_container_width=True, hide_index=True)
+            
+        with v2:
+            st.markdown("#### 📊 Stock Distribution by Category")
+            fig = px.bar(
+                out_df,
+                x="Total Outlet Stock",
+                y="Products Name",
+                orientation="h",
+                color="Total Outlet Stock",
+                color_continuous_scale="Viridis",
+                labels={"Products Name": "Category", "Total Outlet Stock": "Units"}
+            )
+            fig.update_layout(
+                margin=dict(l=0, r=0, t=10, b=0),
+                showlegend=False,
+                coloraxis_showscale=False,
+                yaxis_title="",
+                xaxis_title="Units"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+        st.divider()
+        
+        # Download Button
+        st.download_button(
+            "📥 Download Consolidated Outlet Stock Excel",
+            data=excel_data,
+            file_name=f"{datetime.now().strftime('%Y-%m-%d')}_outlet_stock.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary"
+        )
+        
+        # Mapping Details & SKU Verification Report
+        c_map, c_ver = st.columns(2)
+        with c_map:
+            with st.expander("🔍 Show Product-to-Category Mapping Detail"):
+                st.caption("Products that didn't match any keyword are categorized as 'Others'.")
+                if mapping_df is not None:
+                    st.dataframe(mapping_df, use_container_width=True)
+                    
+        with c_ver:
+            verification_df = st.session_state.get("outlet_sku_verification_df")
+            with st.expander("🛡️ Show SKU Name Verification Report"):
+                if verification_df is not None and not verification_df.empty:
+                    mismatches = verification_df[verification_df["Status"] == "Mismatch"]
+                    if not mismatches.empty:
+                        st.warning(f"⚠️ Found {len(mismatches)} product name mismatches between Outlets and Ecom (WooCommerce)!")
+                    else:
+                        st.success("✅ All checked SKU product names match perfectly between Outlets and Ecom!")
+                    st.dataframe(verification_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No SKU data verified. Make sure live WooCommerce web stock is included.")
+
+
+def render_stock_analytics_tab():
+    """Renders the category-wise stock monitoring interface."""
+    # Ensure navigation lock is in place
+    if "_nav_override" not in st.session_state:
+        st.session_state["_nav_override"] = "📦 Current Stock Analytics"
+
+    # Initialize session state for outlet stock report
+    if "outlet_stock_report_excel" not in st.session_state:
+        st.session_state.outlet_stock_report_excel = None
+    if "outlet_stock_mapping_df" not in st.session_state:
+        st.session_state.outlet_stock_mapping_df = None
+    if "outlet_stock_summary_df" not in st.session_state:
+        st.session_state.outlet_stock_summary_df = None
+    if "outlet_sku_verification_df" not in st.session_state:
+        st.session_state.outlet_sku_verification_df = None
+
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.subheader("📦 Current Stock Analytics")
+
+    # Define tabs
+    tab_web, tab_outlet = st.tabs([":material/database: WooCommerce Stock", ":material/storefront: Outlet Stock Analysis"])
+
+    with tab_web:
+        render_woocommerce_stock_tab()
+
+    with tab_outlet:
+        render_outlet_stock_analysis_tab()
+        
     st.markdown('</div>', unsafe_allow_html=True)

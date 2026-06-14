@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 
 
@@ -27,12 +28,19 @@ def get_category_for_sales(name) -> str:
 
     # 2. MAIN CLUSTERS
     if _has_any(["jeans"], name_str): return "Jeans"
+    if _has_any(["drop shoulder", "oversized"], name_str): return "Drop Shoulder"
+    if "tank top" in name_str: return "Tank Top"
     
-    if _has_any(["t-shirt", "t shirt", "tee", "tank top", "active wear", "activewear", "jersy", "jersey"], name_str):
+    # Use word boundary check for 'tee' to prevent matching substrings of words like 'steel'
+    has_tshirt = (
+        _has_any(["t-shirt", "t shirt", "active wear", "activewear", "jersy", "jersey"], name_str)
+        or re.search(r"\btee\b", name_str) is not None
+    )
+    if has_tshirt:
         return "T-Shirt"
 
     fs_keywords = ["full sleeve", "long sleeve", "fs", "l/s", "fullsleeve", "full-sleeve"]
-    is_shirt = _has_any(["shirt", "executive", "formal"], name_str) and not _has_any(["pant", "trouser"], name_str)
+    is_shirt = _has_any(["shirt"], name_str) and not _has_any(["pant", "trouser"], name_str)
     
     if is_shirt:
         if _has_any(fs_keywords, name_str) or _has_any(["denim", "flannel", "oxford", "kaftan", "executive", "formal"], name_str):

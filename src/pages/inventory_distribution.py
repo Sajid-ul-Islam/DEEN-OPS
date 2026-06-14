@@ -165,13 +165,17 @@ def render_distribution_tab(search_q):
         
         if st.button("Generate Outlet Stock Report", use_container_width=True):
             with st.spinner("Compiling stock data..."):
-                inv_map, warnings, _, _ = inv_core.load_inventory_from_uploads(loc_files)
+                inv_map, warnings, _, sku_to_title_size = inv_core.load_inventory_from_uploads(loc_files)
+                if warnings:
+                    for w in warnings:
+                        st.sidebar.warning(w)
                 
                 def map_to_csv_category(product_name):
                     name_lower = str(product_name).lower()
                     mapping_rules = {
                         'active wear': 'Active Wear T-Shirt',
                         'drop shoulder': 'Drop Shoulder',
+                        'oversized': 'Drop Shoulder',
                         'tank top': 'Tank Top',
                         'turtle': 'Turtelneck',
                         'polo': 'Polo Shirt',
@@ -181,8 +185,6 @@ def render_distribution_tab(search_q):
                         'oxford': 'Formal Shirt',
                         'kaftan': 'Kaftan Shirt',
                         'contrast': 'Contrast Shirt',
-                        'formal': 'Formal Shirt',
-                        'executive': 'Formal Shirt',
                         'jeans': 'Jeans Pant',
                         'chino': 'Twill Pant',
                         'twill': 'Twill Pant',
@@ -200,34 +202,75 @@ def render_distribution_tab(search_q):
                         'bag': 'Leather Bag',
                         'backpack': 'Leather Bag',
                         'mask': 'Mask',
-                        'bottle': 'Water Bottle'
+                        'bottle': 'Water Bottle',
+                        'formal': 'Formal Shirt',
+                        'executive': 'Formal Shirt'
                     }
                     for kw, cat in mapping_rules.items():
                         if kw in name_lower: return cat
-                    if 'shirt' in name_lower:
-                        if any(x in name_lower for x in ['full sleeve', 'fs', 'l/s', 'long sleeve']):
-                            return 'Casual Shirt - Full Sleeve' if 'casual' in name_lower else 'T-Shirt - Full Sleeve'
-                        elif any(x in name_lower for x in ['half sleeve', 'hs', 'short sleeve']):
-                            return 'Casual Shirt - Half Sleeve' if 'casual' in name_lower else 'T-shirt - Half Sleeve'
+                    is_tshirt = any(x in name_lower for x in ['t-shirt', 't shirt', 'tee'])
+                    if is_tshirt:
+                        if any(x in name_lower for x in ['full', 'fs', 'l/s', 'long', 'ls']):
+                            return 'T-Shirt - Full Sleeve'
                         else:
-                            return 'Casual Shirt - Full Sleeve' if 'casual' in name_lower else 'T-Shirt - Full Sleeve'
+                            return 'T-shirt - Half Sleeve'
+                    if 'shirt' in name_lower:
+                        if any(x in name_lower for x in ['half', 'hs', 'short sleeve', 'short-sleeve', 'shortsleeve']):
+                            return 'Casual Shirt - Half Sleeve'
+                        elif any(x in name_lower for x in ['full', 'fs', 'l/s', 'long', 'ls']):
+                            return 'Casual Shirt - Full Sleeve'
+                        else:
+                            return 'Casual Shirt - Full Sleeve'
                     return 'Others'
                 
+                from src.utils.snapshots import load_stock_snapshot
+                from src.utils.product import get_base_product_name
+                wc_stock = load_stock_snapshot()
+                wc_sku_to_name = {}
+                if wc_stock is not None and "SKU" in wc_stock.columns and ("Product" in wc_stock.columns or "Product Name" in wc_stock.columns):
+                    name_col = "Product" if "Product" in wc_stock.columns else "Product Name"
+                    for _, row in wc_stock.iterrows():
+                        sku_val = inv_core.normalize_sku(row.get("SKU", ""))
+                        prod_name = str(row.get(name_col, "")).strip()
+                        if sku_val and sku_val != "0" and prod_name:
+                            wc_sku_to_name[sku_val] = prod_name
+
+                title_size_to_sku = {}
+                for loc, df in enriched_dfs.items():
+                    _, _, _, sku_col = inv_core.identify_columns(df)
+                    if sku_col and sku_col in df.columns:
+                        for _, row in df.iterrows():
+                            ts_val = str(row.get("Title - Size", "")).strip().casefold()
+                            sku_val = str(row.get(sku_col, "")).strip()
+                            if ts_val and sku_val and sku_val not in ["nan", "0", "N/A", "N/A"]:
+                                title_size_to_sku[ts_val] = sku_val
+
                 cat_aggregates = {}
                 mapping_rows = []
                 for k, locs in inv_map.items():
                     if str(k).upper().startswith("SKU:"): continue
+                    if k in sku_to_title_size: continue
                     
-                    display_cat = map_to_csv_category(k)
+                    display_cat = None
+                    raw_sku = title_size_to_sku.get(k)
+                    if raw_sku:
+                        norm_sku = inv_core.normalize_sku(raw_sku)
+                        wc_name = wc_sku_to_name.get(norm_sku)
+                        if wc_name:
+                            display_cat = map_to_csv_category(wc_name)
+                    
+                    if not display_cat:
+                        display_cat = map_to_csv_category(k)
+                        
                     mapping_rows.append({"Product Name": str(k).title(), "Assigned Category": display_cat})
                     
                     if display_cat not in cat_aggregates:
-                        cat_aggregates[display_cat] = {"Mirpur": 0, "Wari": 0, "Cumilla": 0, "Sylhet": 0, "Total Stock": 0}
+                        cat_aggregates[display_cat] = {"Mirpur": 0, "Wari": 0, "Cumilla": 0, "Sylhet": 0, "Total Outlet Stock": 0}
                         
                     for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"]:
                         qty = locs.get(loc, 0)
                         cat_aggregates[display_cat][loc] += qty
-                        cat_aggregates[display_cat]["Total Stock"] += qty
+                        cat_aggregates[display_cat]["Total Outlet Stock"] += qty
                 
                 rows = []
                 for cat_name, counts in cat_aggregates.items():
@@ -235,6 +278,38 @@ def render_distribution_tab(search_q):
                     row.update(counts)
                     rows.append(row)
                 
+                # Build SKU verification report
+                verification_rows = []
+                verified_skus = set()
+                for k, locs in inv_map.items():
+                    if str(k).upper().startswith("SKU:"): continue
+                    if k in sku_to_title_size: continue
+                    
+                    raw_sku = title_size_to_sku.get(k)
+                    if raw_sku:
+                        norm_sku = inv_core.normalize_sku(raw_sku)
+                        if norm_sku and norm_sku != "0" and norm_sku not in verified_skus:
+                            wc_name = wc_sku_to_name.get(norm_sku)
+                            if wc_name:
+                                base_outlet = get_base_product_name(k).strip().lower()
+                                base_wc = get_base_product_name(wc_name).strip().lower()
+                                
+                                base_outlet_clean = base_outlet.replace("-", "").replace("–", "").replace(" ", "")
+                                base_wc_clean = base_wc.replace("-", "").replace("–", "").replace(" ", "")
+                                
+                                is_match = base_outlet_clean == base_wc_clean
+                                match_status = "Match" if is_match else "Mismatch"
+                                
+                                verification_rows.append({
+                                    "SKU": raw_sku,
+                                    "Outlet Product Name": k.title(),
+                                    "Ecom Product Name": wc_name.title(),
+                                    "Status": match_status
+                                })
+                                verified_skus.add(norm_sku)
+                                
+                verification_df = pd.DataFrame(verification_rows).sort_values(["Status", "SKU"]) if verification_rows else pd.DataFrame(columns=["SKU", "Outlet Product Name", "Ecom Product Name", "Status"])
+
                 if rows:
                     out_df = pd.DataFrame(rows).sort_values("Products Name")
                     mapping_df = pd.DataFrame(mapping_rows).sort_values(["Assigned Category", "Product Name"])
@@ -244,6 +319,7 @@ def render_distribution_tab(search_q):
                     with pd.ExcelWriter(output, engine='openpyxl') as writer:
                         out_df.to_excel(writer, sheet_name='Stock by Category', index=False)
                         mapping_df.to_excel(writer, sheet_name='Product Mapping', index=False)
+                        verification_df.to_excel(writer, sheet_name='SKU Verification', index=False)
                     excel_data = output.getvalue()
                     
                     st.session_state.outlet_stock_report_excel = excel_data

@@ -213,6 +213,31 @@ def load_inventory_from_uploads(uploaded_files: Dict[str, object]):
                     f"⚠️ {loc_name}: Missing 'Quantity' column. Assuming 0 stock."
                 )
 
+            # Remove duplicate rows based on SKU and Size matching
+            if sku_col and sku_col in df.columns:
+                seen_combinations = set()
+                rows_to_keep = []
+                for idx, row in df.iterrows():
+                    sku_val = str(row[sku_col]).strip()
+                    norm_sku = normalize_sku(sku_val)
+                    
+                    size_val = "NO_SIZE"
+                    if size_col and size_col in df.columns:
+                        size_val = normalize_size(row[size_col])
+                    
+                    if norm_sku and norm_sku != "0":
+                        combo = (norm_sku, size_val)
+                        if combo in seen_combinations:
+                            # It's a duplicate! Flag it and skip keeping it.
+                            warnings.append(
+                                f"⚠️ {loc_name}: Duplicate row found and removed for SKU '{sku_val}' and Size '{size_val}'."
+                            )
+                            continue
+                        seen_combinations.add(combo)
+                    rows_to_keep.append(idx)
+                
+                df = df.loc[rows_to_keep]
+
             df = add_title_size_column(df, title_col=title_col, size_col=size_col)
             enriched_dfs[loc_name] = df
 

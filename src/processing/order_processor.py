@@ -293,7 +293,7 @@ def parse_manual_item_lines(raw_text):
         item_str = item_str.replace(" | ", " - ")
         
         parts = item_str.split(" - ")
-        category = get_category_for_sales(parts[0])
+        category = get_category_for_sales(item_str)
             
         if category not in cat_map:
             cat_map[category] = {}
