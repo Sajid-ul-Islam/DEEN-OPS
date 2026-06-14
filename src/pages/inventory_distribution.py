@@ -290,6 +290,7 @@ def render_distribution_tab(search_q):
                 for k, locs in inv_map.items():
                     if str(k).upper().startswith("SKU:"): continue
                     if k in sku_to_title_size: continue
+                    if any(kw in str(k).lower() for kw in _offer_keywords): continue
                     
                     raw_sku = title_size_to_sku.get(k)
                     if raw_sku:
