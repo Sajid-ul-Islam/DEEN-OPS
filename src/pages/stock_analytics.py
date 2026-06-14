@@ -398,6 +398,7 @@ def compile_outlet_stock(loc_files):
             
             mapping_rows.append({
                 "Product Name": str(k).title(), 
+                "SKU": raw_sku if raw_sku else "N/A",
                 "Assigned Category": display_cat,
                 "Resolved via WooCommerce": "Yes" if resolved_via_wc else "No"
             })
@@ -618,23 +619,44 @@ def render_outlet_stock_analysis_tab():
             
         with v2:
             st.markdown("#### 📊 Stock Distribution by Category")
-            fig = px.bar(
-                out_df,
-                x="Total Outlet Stock",
-                y="Products Name",
-                orientation="h",
-                color="Total Outlet Stock",
-                color_continuous_scale="Viridis",
-                labels={"Products Name": "Category", "Total Outlet Stock": "Units"}
-            )
-            fig.update_layout(
-                margin=dict(l=0, r=0, t=10, b=0),
-                showlegend=False,
-                coloraxis_showscale=False,
-                yaxis_title="",
-                xaxis_title="Units"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            
+            # Find available outlet columns
+            available_outlets = [col for col in ["Mirpur", "Wari", "Cumilla", "Sylhet", "Ecom"] if col in out_df.columns]
+            
+            if available_outlets:
+                selected_outlets = st.multiselect(
+                    "Filter by Outlet",
+                    options=available_outlets,
+                    default=available_outlets,
+                    key="chart_outlet_filter"
+                )
+            else:
+                selected_outlets = []
+                
+            if not selected_outlets:
+                st.info("Please select at least one outlet to view the chart.")
+            else:
+                chart_df = out_df.copy()
+                chart_df["Selected Stock"] = chart_df[selected_outlets].fillna(0).sum(axis=1)
+                chart_df = chart_df[chart_df["Selected Stock"] > 0]
+                
+                fig = px.bar(
+                    chart_df,
+                    x="Selected Stock",
+                    y="Products Name",
+                    orientation="h",
+                    color="Selected Stock",
+                    color_continuous_scale="Viridis",
+                    labels={"Products Name": "Category", "Selected Stock": "Units"}
+                )
+                fig.update_layout(
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    showlegend=False,
+                    coloraxis_showscale=False,
+                    yaxis_title="",
+                    xaxis_title="Units"
+                )
+                st.plotly_chart(fig, use_container_width=True)
             
         st.divider()
         

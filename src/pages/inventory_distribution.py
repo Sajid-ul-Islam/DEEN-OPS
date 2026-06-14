@@ -214,7 +214,11 @@ def render_distribution_tab(search_q):
                     if not display_cat:
                         display_cat = map_to_csv_category(k)
                         
-                    mapping_rows.append({"Product Name": str(k).title(), "Assigned Category": display_cat})
+                    mapping_rows.append({
+                        "Product Name": str(k).title(), 
+                        "SKU": raw_sku if raw_sku else "N/A",
+                        "Assigned Category": display_cat
+                    })
                     
                     if display_cat not in cat_aggregates:
                         cat_aggregates[display_cat] = {"Mirpur": 0, "Wari": 0, "Cumilla": 0, "Sylhet": 0, "Total Outlet Stock": 0}
