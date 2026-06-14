@@ -166,31 +166,58 @@ def render_distribution_tab(search_q):
         if st.button("Generate Outlet Stock Report", use_container_width=True):
             with st.spinner("Compiling stock data..."):
                 inv_map, warnings, _, _ = inv_core.load_inventory_from_uploads(loc_files)
-                from src.processing.categorization import get_category_for_sales, get_sub_category_for_sales
+                
+                def map_to_csv_category(product_name):
+                    name_lower = str(product_name).lower()
+                    mapping_rules = {
+                        'active wear': 'Active Wear T-Shirt',
+                        'drop shoulder': 'Drop Shoulder',
+                        'tank top': 'Tank Top',
+                        'turtle': 'Turtelneck',
+                        'polo': 'Polo Shirt',
+                        'cuban': 'Cuban Shirt',
+                        'denim': 'Denim Shirt',
+                        'flannel': 'Flannel Shirt',
+                        'oxford': 'Formal Shirt',
+                        'kaftan': 'Kaftan Shirt',
+                        'contrast': 'Contrast Shirt',
+                        'formal': 'Formal Shirt',
+                        'executive': 'Formal Shirt',
+                        'jeans': 'Jeans Pant',
+                        'chino': 'Twill Pant',
+                        'twill': 'Twill Pant',
+                        'trouser': 'Trouser',
+                        'jogger': 'Trouser',
+                        'panjabi': 'Panjabi',
+                        'punjabi': 'Panjabi',
+                        'sweatshirt': 'Sweatshirt',
+                        'hoodie': 'Sweatshirt',
+                        'boxer': 'Boxers',
+                        'belt': 'Belt',
+                        'wallet': 'Wallet',
+                        'card holder': 'Card Holder',
+                        'passport': 'Passport Holder',
+                        'bag': 'Leather Bag',
+                        'backpack': 'Leather Bag',
+                        'mask': 'Mask',
+                        'bottle': 'Water Bottle'
+                    }
+                    for kw, cat in mapping_rules.items():
+                        if kw in name_lower: return cat
+                    if 'shirt' in name_lower:
+                        if any(x in name_lower for x in ['full sleeve', 'fs', 'l/s', 'long sleeve']):
+                            return 'Casual Shirt - Full Sleeve' if 'casual' in name_lower else 'T-Shirt - Full Sleeve'
+                        elif any(x in name_lower for x in ['half sleeve', 'hs', 'short sleeve']):
+                            return 'Casual Shirt - Half Sleeve' if 'casual' in name_lower else 'T-shirt - Half Sleeve'
+                        else:
+                            return 'Casual Shirt - Full Sleeve' if 'casual' in name_lower else 'T-Shirt - Full Sleeve'
+                    return 'Others'
                 
                 cat_aggregates = {}
-                
                 for k, locs in inv_map.items():
-                    if str(k).upper().startswith("SKU:"):
-                        continue
-                        
-                    name_str = str(k).title()
-                    cat = get_category_for_sales(name_str)
-                    subcat = get_sub_category_for_sales(name_str, cat)
+                    if str(k).upper().startswith("SKU:"): continue
                     
-                    # Map to the requested format names
-                    format_mapping = {
-                        "FS-T-Shirt": "T-Shirt - Full Sleeve",
-                        "HS T-Shirt": "T-shirt - Half Sleeve",
-                        "FS Casual Shirt": "Casual Shirt - Full Sleeve",
-                        "HS Casual Shirt": "Casual Shirt - Half Sleeve",
-                        "Jeans": "Jeans Pant",
-                        "Twill Chino": "Twill Pant",
-                        "Turtle-Neck": "Turtelneck",
-                        "Boxer": "Boxers",
-                        "Active Wear": "Active Wear T-Shirt"
-                    }
-                    display_cat = format_mapping.get(subcat, subcat)
+                    display_cat = map_to_csv_category(k)
                     
                     if display_cat not in cat_aggregates:
                         cat_aggregates[display_cat] = {"Mirpur": 0, "Wari": 0, "Cumilla": 0, "Sylhet": 0, "Total Stock": 0}
