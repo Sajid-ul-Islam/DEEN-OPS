@@ -158,6 +158,74 @@ def render_distribution_tab(search_q):
         master_df = st.session_state.inv_master_df_live
         _, _, title_col, sku_col = inv_core.identify_columns(master_df)
 
+    with st.sidebar:
+        st.divider()
+        st.markdown("### 📋 Outlet Stock Counts")
+        st.write("Generate a consolidated report of current stock levels across all outlets.")
+        
+        if st.button("Generate Outlet Stock Report", use_container_width=True):
+            with st.spinner("Compiling stock data..."):
+                inv_map, warnings, _, _ = inv_core.load_inventory_from_uploads(loc_files)
+                from src.processing.categorization import get_category_for_sales, get_sub_category_for_sales
+                
+                cat_aggregates = {}
+                
+                for k, locs in inv_map.items():
+                    if str(k).upper().startswith("SKU:"):
+                        continue
+                        
+                    name_str = str(k).title()
+                    cat = get_category_for_sales(name_str)
+                    subcat = get_sub_category_for_sales(name_str, cat)
+                    
+                    # Map to the requested format names
+                    format_mapping = {
+                        "FS-T-Shirt": "T-Shirt - Full Sleeve",
+                        "HS T-Shirt": "T-shirt - Half Sleeve",
+                        "FS Casual Shirt": "Casual Shirt - Full Sleeve",
+                        "HS Casual Shirt": "Casual Shirt - Half Sleeve",
+                        "Jeans": "Jeans Pant",
+                        "Twill Chino": "Twill Pant",
+                        "Turtle-Neck": "Turtelneck",
+                        "Boxer": "Boxers",
+                        "Active Wear": "Active Wear T-Shirt"
+                    }
+                    display_cat = format_mapping.get(subcat, subcat)
+                    
+                    if display_cat not in cat_aggregates:
+                        cat_aggregates[display_cat] = {"Mirpur": 0, "Wari": 0, "Cumilla": 0, "Sylhet": 0, "Total Stock": 0}
+                        
+                    for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"]:
+                        qty = locs.get(loc, 0)
+                        cat_aggregates[display_cat][loc] += qty
+                        cat_aggregates[display_cat]["Total Stock"] += qty
+                
+                rows = []
+                for cat_name, counts in cat_aggregates.items():
+                    row = {"Products Name": cat_name}
+                    row.update(counts)
+                    rows.append(row)
+                
+                if rows:
+                    out_df = pd.DataFrame(rows)
+                    # Sort alphabetically
+                    out_df = out_df.sort_values("Products Name")
+                    st.session_state.outlet_stock_report_csv = out_df.to_csv(index=False)
+                else:
+                    st.session_state.outlet_stock_report_csv = None
+                    st.warning("No stock data found.")
+                    
+        if st.session_state.get("outlet_stock_report_csv"):
+            import datetime
+            st.download_button(
+                "📥 Download Stock CSV",
+                data=st.session_state.outlet_stock_report_csv,
+                file_name=f"{datetime.datetime.now().strftime('%Y-%m-%d')}_outlet_stock.csv",
+                mime="text/csv",
+                use_container_width=True,
+                type="primary"
+            )
+
     st.markdown("---")
     sync_live_web_stock = st.toggle("Sync Live Web Stock (Ecom)", value=True, help="Turn on to automatically fetch real-time web stock for Ecom location if a file is not manually uploaded.")
 
