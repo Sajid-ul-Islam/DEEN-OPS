@@ -51,3 +51,10 @@ The Pilot can dynamically generate a download button in the chat UI, allowing us
 - The chat execution loop intercepts this tag and removes it from the markdown.
 - It then retrieves the active dataframe (`st.session_state.wc_curr_df`), converts it to a CSV payload, and renders a Streamlit `st.download_button()`.
 - This is extremely powerful when chained after a `[DATA_TRANSFORM: ...]` operation, allowing users to safely clean and then export data without touching the backend files.
+
+## 5. External Data Enrichment (Return Analytics)
+
+The Pilot has access to the newly built Return Analytics engine, which cross-references unstructured Google Sheets data with live operational data.
+- **WooCommerce Matching:** Uses `fetch_specific_woocommerce_orders(order_ids)` to bypass time-based cycle limits and fetch historical orders instantly.
+- **Live Pathao Tracking:** Uses asynchronous ThreadPool execution to query the Pathao API for real-time tracking updates across hundreds of consignments simultaneously.
+- When the user runs these enrichments, the resulting `merged_df` is cached in `st.session_state["full_enriched_returns"]`, making it available for further Data Pilot analysis if needed.

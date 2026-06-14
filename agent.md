@@ -26,6 +26,7 @@ The project follows a layered structure. Avoid circular imports. Pages should or
   - `sales_ingestion.py`
   - `stock_analytics.py`
   - `inventory_distribution.py`
+  - `return_analytics.py`
   - `pathao_orders.py`
   - `data_pilot.py`
   - `dashboard_output.py`
@@ -236,6 +237,9 @@ The Data Pilot (`data_pilot.py`) is a conversational AI workspace.
 - **Robust Export Engine:** Created a unified Excel export system with auto-fitting column widths, multi-sheet consolidation, and safe NA dropping.
 - **Graceful Error Handling:** Comprehensive adoption of `safe_render`, `safe_filter`, and `safe_column_access` via `src/utils/safe_ops.py` to prevent UI crashes.
 - **Predictive Intelligence Upgrade:** Replaced mock mathematical forecasting with real Machine Learning models (XGBoost, Random Forest, ARIMA, Holt-Winters) utilizing Scikit-Learn and Statsmodels.
+- **Return Analytics Hub:** Implemented a new asynchronous UI for matching Google Sheets return data against WooCommerce and Pathao.
+- **Targeted API Fetching:** Bypassed the WooCommerce 5-day cycle limit for historical return analysis by utilizing `fetch_specific_woocommerce_orders(order_ids)` to pull exact order IDs instantly.
+- **Live Threaded Tracking:** Added `ThreadPoolExecutor` to the Return Analytics page to rapidly check real-time Pathao statuses for hundreds of Courier IDs without freezing the main Streamlit thread.
 ## 12. Development Guidance
 - New workspace page:
   follow `DEVELOPMENT.md` for page creation, nav updates, routing, and reset registration.
