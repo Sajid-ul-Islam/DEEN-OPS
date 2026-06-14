@@ -150,9 +150,39 @@
           "revenue": 1914.0
         }
       ]
+    },
+    {
+      "ts": "2026-06-14T17:32:26.077638+06:00",
+      "label": "Today",
+      "revenue": 46511.0,
+      "orders": 35,
+      "qty": 65,
+      "aov": 1328.89,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 36",
+          "revenue": 2022.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 36",
+          "revenue": 1942.0
+        },
+        {
+          "name": "Arrowtown Embroidered Panjabi - 44",
+          "revenue": 1914.0
+        },
+        {
+          "name": "Teal Swirl Casual Half Shirt - XL",
+          "revenue": 1590.0
+        },
+        {
+          "name": "Teal Swirl Casual Half Shirt - L",
+          "revenue": 1590.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 238652.0,
-  "daily_orders": 158,
-  "daily_qty": 311
+  "daily_revenue": 285163.0,
+  "daily_orders": 193,
+  "daily_qty": 376
 }
