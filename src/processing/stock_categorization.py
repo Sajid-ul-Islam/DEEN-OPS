@@ -13,7 +13,7 @@ _MAPPING_RULES = {
     'drop shoulder': 'Drop Shoulder',
     'oversized': 'Drop Shoulder',
     'tank top': 'Tank Top',
-    'turtle': 'Turtelneck',
+    'turtle': 'Turtleneck',
     'polo': 'Polo Shirt',
     'cuban': 'Cuban Shirt',
     'denim': 'Denim Shirt',
