@@ -123,6 +123,7 @@ def render_woocommerce_stock_tab():
                 return
 
     if st.button("🔄 Sync Fresh Data", use_container_width=True, type="secondary"):
+        st.cache_data.clear()
         with st.status("Updating from WooCommerce...", expanded=True) as sync_status:
             st.write("📡 Fetching latest stock levels...")
             df_fresh = fetch_woocommerce_stock()

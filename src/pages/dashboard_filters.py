@@ -147,6 +147,7 @@ def render_ingestion_filters(
         with c5:
             st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
             if st.button("🔄", use_container_width=True, type="primary", help="Sync Fresh Data"):
+                st.cache_data.clear()
                 if isinstance(sel_range, tuple) and len(sel_range) == 2:
                     s_d, e_d = sel_range
                     st.session_state["wc_sync_mode"] = "Custom Range"

@@ -35,13 +35,14 @@ class TestGetCategoryForSales:
     def test_shirts(self):
         assert get_category_for_sales("Full Sleeve Shirt Blue") == "FS Shirt"
         assert get_category_for_sales("Casual Shirt - M") == "HS Shirt"
+        assert get_category_for_sales("Mosaic Cuban Collar Shirt") == "HS Shirt"
 
     def test_jeans(self):
         assert get_category_for_sales("Slim Fit Jeans Black") == "Jeans"
 
     def test_specific_categories(self):
         assert get_category_for_sales("Classic Boxer - L") == "Boxer"
-        assert get_category_for_sales("Twill Chino Pant") == "Twill Chino"
+        assert get_category_for_sales("Twill Chino Pant") == "Twill"
         assert get_category_for_sales("Leather Belt Brown") == "Belt"
         assert get_category_for_sales("Bifold Wallet") == "Wallet"
 
@@ -63,12 +64,17 @@ class TestGetSubCategoryForSales:
         # so sub-category only needs to handle actual T-Shirt variants
         assert get_sub_category_for_sales("Basic T-Shirt", "T-Shirt") == "HS T-Shirt"
         assert get_sub_category_for_sales("FS T-Shirt Black", "T-Shirt") == "FS-T-Shirt"
-        assert get_sub_category_for_sales("Active Wear T-Shirt", "T-Shirt") == "Active Wear"
+        assert get_sub_category_for_sales("Active Wear T-Shirt", "T-Shirt") == "Active Wear T-Shirt"
         assert get_sub_category_for_sales("Jersey Tee", "T-Shirt") == "Jersy"
 
     def test_fs_shirt_subcategories(self):
         assert get_sub_category_for_sales("Flannel Shirt Red", "FS Shirt") == "Flannel Shirt"
         assert get_sub_category_for_sales("Oxford Shirt Blue", "FS Shirt") == "Oxford Shirt"
+        assert get_sub_category_for_sales("Casual Shirt", "FS Shirt") == "Casual Shirt - Full Sleeve"
+
+    def test_hs_shirt_subcategories(self):
+        assert get_sub_category_for_sales("Mosaic Cuban Collar Shirt", "HS Shirt") == "Cuban Shirt"
+        assert get_sub_category_for_sales("Casual Shirt Half Sleeve", "HS Shirt") == "Casual Shirt - Half Sleeve"
 
     def test_wallet_subcategories(self):
         assert get_sub_category_for_sales("Passport Holder Leather", "Wallet") == "Passport Holder"

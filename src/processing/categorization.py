@@ -24,7 +24,7 @@ def get_category_for_sales(name) -> str:
     if "polo" in name_str: return "Polo Shirt"
     if _has_any(["turtleneck", "turtle-neck", "mock neck"], name_str): return "Turtle-Neck"
     if "bundle" in name_str: return "Bundles"
-    if "cuban" in name_str: return "Cuban Shirt"
+    if "cuban" in name_str: return "HS Shirt"
 
     # 2. MAIN CLUSTERS
     if _has_any(["jeans"], name_str): return "Jeans"
@@ -48,7 +48,7 @@ def get_category_for_sales(name) -> str:
         return "HS Shirt"
 
     if "chino" in name_str:
-        return "Twill Chino"
+        return "Twill"
 
     specific_cats = {
         "Boxer": ["boxer"],
@@ -83,7 +83,7 @@ def get_sub_category_for_sales(name, category) -> str:
         if "straight" in name_str: return "Straight Fit Jeans"
 
     elif category == "T-Shirt":
-        if _has_any(["active wear", "activewear"], name_str): return "Active Wear"
+        if _has_any(["active wear", "activewear"], name_str): return "Active Wear T-Shirt"
         if _has_any(["jersy", "jersey"], name_str): return "Jersy"
         if _has_any(["full sleeve", "long sleeve", "fs"], name_str): return "FS-T-Shirt"
         return "HS T-Shirt"
@@ -93,14 +93,14 @@ def get_sub_category_for_sales(name, category) -> str:
         if "denim" in name_str: return "Denim Shirt"
         if "oxford" in name_str: return "Oxford Shirt"
         if "kaftan" in name_str: return "Kaftan Shirt"
-        if "casual" in name_str: return "FS Casual Shirt"
+        if "casual" in name_str: return "Casual Shirt - Full Sleeve"
         if _has_any(["executive", "formal"], name_str): return "Formal Shirt"
         return "FS Shirt"
 
     elif category == "HS Shirt":
         if "contrast" in name_str: return "Contrast Shirt"
-        if "casual" in name_str: return "HS Casual Shirt"
-        if "cuban" in name_str: return "Cuban"
+        if "casual" in name_str: return "Casual Shirt - Half Sleeve"
+        if "cuban" in name_str: return "Cuban Shirt"
         return "HS Shirt"
 
     elif category == "Wallet":
@@ -123,7 +123,7 @@ def get_sub_category_for_sales(name, category) -> str:
     elif category == "Twill":
         if "joggers" in name_str: return "Twill Joggers"
         if _has_any(["five pocket", "5 pocket", "5-pocket"], name_str): return "Twill Five Pockets"
-        return "Twill Chino"
+        return "Twill Pant"
 
     elif category == "Trousers":
         if "joggers" in name_str: return "Joggers"
