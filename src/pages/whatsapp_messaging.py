@@ -45,8 +45,6 @@ def _validate_wp_columns(df: pd.DataFrame):
 
 def render_wp_tab():
     render_reset_confirm("WhatsApp Messenger", "wp", _reset_wp_state)
-    # section_card("WhatsApp Verification", "")
-
     with st.expander("Message template customization", expanded=False):
         custom_msg = st.text_area(
             "Custom message template",

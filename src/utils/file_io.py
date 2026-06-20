@@ -21,9 +21,24 @@ def read_uploaded(uploaded_file):
     return pd.read_excel(uploaded_file)
 
 
-def to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Sheet1") -> bytes:
+def to_excel_bytes(
+    df: pd.DataFrame,
+    sheet_name: str = "Sheet1",
+    style_fn: callable | None = None,
+) -> bytes:
+    """Convert a DataFrame to an in-memory Excel file.
+
+    Args:
+        df: The DataFrame to export.
+        sheet_name: Name of the worksheet (default ``"Sheet1"``).
+        style_fn: Optional callback ``fn(worksheet, workbook)`` invoked
+            after the data is written.  Use it to apply column widths,
+            freeze panes, number formats, etc.
+    """
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name=sheet_name)
+        if style_fn is not None:
+            style_fn(writer.book[sheet_name], writer.book)
     output.seek(0)
     return output.read()

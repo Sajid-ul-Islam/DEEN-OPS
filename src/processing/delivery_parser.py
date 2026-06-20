@@ -1,5 +1,4 @@
 import re
-from io import BytesIO
 import pandas as pd
 
 HEADER_TOKENS = {
@@ -241,37 +240,3 @@ def parse_data_fuzzy(raw_text):
             records.append(record)
     return pd.DataFrame(records)
 
-
-def df_to_excel_bytes(df: pd.DataFrame) -> bytes:
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Deliveries")
-        ws = writer.book["Deliveries"]
-        ws.freeze_panes = "A2"
-
-        widths = {
-            "A": 18,
-            "B": 10,
-            "C": 12,
-            "D": 18,
-            "E": 20,
-            "F": 60,
-            "G": 14,
-            "H": 30,
-            "I": 16,
-            "J": 12,
-            "K": 10,
-            "L": 10,
-            "M": 14,
-            "N": 14,
-        }
-        for col, width in widths.items():
-            ws.column_dimensions[col].width = width
-
-        for row in range(2, ws.max_row + 1):
-            ws[f"J{row}"].number_format = "#,##0.00"
-            ws[f"K{row}"].number_format = "#,##0.00"
-            ws[f"L{row}"].number_format = "#,##0.00"
-
-    output.seek(0)
-    return output.read()

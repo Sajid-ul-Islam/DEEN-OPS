@@ -52,7 +52,7 @@ def log_error(error_msg, context="General", details=None):
                 pass
 
     except Exception as e:
-        print(f"Error logging failed: {e}")
+        logging.getLogger(__name__).error(f"Error logging failed: {e}")
 
 
 def get_logs():
@@ -83,4 +83,4 @@ def log_system_event(event_type, details):
         with open(log_file, "w", encoding="utf-8") as f:
             json.dump(logs, f, indent=4)
     except Exception as e:
-        print(f"Logging failed: {e}")
+        logging.getLogger(__name__).error(f"Logging failed: {e}")

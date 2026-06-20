@@ -194,7 +194,7 @@ def test_render_dashboard_output_operational_filters_do_not_raise(
     monkeypatch.setattr(dashboard_output, "render_category_charts", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard_output, "get_dispatch_metrics", lambda *args, **kwargs: {"pending": 0, "dispatched": 1, "dispatch_rate": 100})
     monkeypatch.setattr(dashboard_output, "generate_executive_briefing", lambda *args, **kwargs: "Operational briefing")
-    monkeypatch.setattr("src.pages.dashboard_charts.render_spotlight", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard_output, "render_spotlight", lambda *args, **kwargs: None)
     monkeypatch.setattr("src.components.clipboard.render_copy_button", lambda *args, **kwargs: None)
 
     dashboard_output.render_dashboard_output(

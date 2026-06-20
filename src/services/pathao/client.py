@@ -4,6 +4,7 @@ import json
 import os
 
 from src.utils.http import request_with_backoff
+from src.utils.logging import log_system_event
 
 class PathaoClient:
     def __init__(self, base_url, client_id, client_secret, username, password):
@@ -66,10 +67,10 @@ class PathaoClient:
                 self._save_token(data)
                 return True
             else:
-                print(f"Pathao Auth Failed: {res.status_code} - {res.text}")
+                log_system_event("PATHAO_AUTH_FAILED", f"{res.status_code} - {res.text}")
                 return False
         except Exception as e:
-            print(f"Pathao Auth Error: {e}")
+            log_system_event("PATHAO_AUTH_ERROR", str(e))
             return False
 
     def refresh_access_token(self):
@@ -86,7 +87,7 @@ class PathaoClient:
                 self._save_token(res.json())
                 return True
             else:
-                print(f"Pathao Refresh Failed: {res.status_code} - {res.text}")
+                log_system_event("PATHAO_REFRESH_FAILED", f"{res.status_code} - {res.text}")
                 return self.issue_access_token()
         except Exception:
             return self.issue_access_token()

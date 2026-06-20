@@ -109,21 +109,3 @@ def scrub_raw_dataframe(df):
         df = df[~df[col].astype(str).str.lower().str.contains(pattern, na=False)]
 
     return df
-
-
-def classify_columns(df: pd.DataFrame) -> dict[str, str]:
-    """Classify all DataFrame columns by data type for smart filtering.
-
-    This is a thin wrapper that delegates to
-    ``src.components.smart_filters.detect_filterable_columns`` so the
-    detection logic lives in one place while remaining accessible from the
-    processing layer.
-
-    Args:
-        df: DataFrame to classify.
-
-    Returns:
-        Dict mapping column names to 'date', 'categorical', or 'numeric'.
-    """
-    from src.components.smart_filters import detect_filterable_columns
-    return detect_filterable_columns(df)

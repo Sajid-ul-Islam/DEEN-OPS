@@ -1,10 +1,7 @@
 import math
-import io
 import re
 import copy
-import streamlit as st
 from functools import lru_cache
-from dataclasses import dataclass
 from typing import Dict, Tuple, Optional
 
 import pandas as pd
@@ -305,6 +302,285 @@ def sku_has_size_variations(sku_key: str, inventory: dict) -> bool:
     return False
 
 
+# ── Location priority helpers ────────────────
+
+
+def _build_location_config(locations, priority_locations):
+    """Build location keyword mapping and ordered dispatch labels.
+    
+    Returns (location_keywords: dict, ordered_labels: list).
+    """
+    loc_kw = {
+        "Ecom-Mirpur": ["ecom", "mirpur"],
+        "Wari": ["wari"],
+        "Cumilla": ["cumilla"],
+        "Sylhet": ["sylhet"],
+    }
+    for loc in locations:
+        if loc not in loc_kw:
+            loc_kw[loc] = [loc.lower()]
+
+    if priority_locations:
+        ordered = list(priority_locations)
+        for loc in locations:
+            label = loc if loc not in ["Ecom", "Mirpur"] else "Ecom-Mirpur"
+            if label not in ordered:
+                ordered.append(label)
+    else:
+        ordered = ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"]
+        for loc in locations:
+            if loc not in ["Ecom", "Mirpur"] and loc not in ordered:
+                ordered.append(loc)
+    return loc_kw, ordered
+
+
+def _parse_row_sku(row, sku_col):
+    """Safely extract and normalize SKU from a row."""
+    if not sku_col or sku_col not in row.index:
+        return ""
+    val = row.get(sku_col, "")
+    if isinstance(val, (list, dict, set)):
+        val = str(val)
+    return normalize_sku(val)
+
+
+def _parse_qty_needed(df):
+    """Extract quantity needed per row from the quantity column."""
+    _, qty_col, _, _ = identify_columns(df)
+    if not qty_col or qty_col not in df.columns:
+        return [1] * len(df)
+
+    def _parse(x):
+        if pd.isna(x):
+            return 1
+        if isinstance(x, str):
+            x = x.replace(",", "").strip()
+            if x == "":
+                return 1
+        try:
+            return int(float(x))
+        except Exception:
+            return 1
+    return [_parse(x) for x in df[qty_col]]
+
+
+def _match_row_to_inventory(
+    sku, raw_item_name, size_col_val, inventory, sku_to_inv_key
+):
+    """Determine the best inventory key and match status for a product row.
+
+    Uses a priority system: SKU+Size → Exact Name → SKU-only → Fuzzy Name.
+    Returns (inv_key, status).
+    """
+    raw_item_name = str(raw_item_name) if isinstance(raw_item_name, (list, dict, set)) else raw_item_name
+    title, size = item_name_to_title_size(raw_item_name)
+
+    if size_col_val is not None and pd.notna(size_col_val) and str(size_col_val).strip():
+        size = normalize_size(size_col_val)
+
+    pl_key = build_title_size_key(title, size)
+    sku_size_key = f"SKU:{sku}_SZ:{size}" if (sku and sku != "0") else ""
+    is_embroidered = bool(pl_key and "embroidered cotton panjabi" in pl_key)
+
+    if is_embroidered:
+        if sku_size_key and sku_size_key in inventory:
+            return sku_size_key, "Perfect Match (SKU + Size - Strict mode)"
+        if sku and sku != "0" and sku in sku_to_inv_key:
+            return sku, "SKU Match (Strict mode - Size mismatch)"
+        return None, "No Match (Strict SKU required for Embroidered Cotton Panjabi)"
+
+    # Priority 1: Master SKU + Size
+    if sku_size_key and sku_size_key in inventory:
+        return sku_size_key, "Master SKU + Size Match"
+
+    # Priority 2: Exact Name Match
+    if pl_key and pl_key in inventory:
+        if sku and sku != "0" and sku in sku_to_inv_key:
+            status = (
+                "Perfect Match (Name + SKU)"
+                if sku_to_inv_key[sku] == pl_key
+                else "Name Match (SKU mismatch)"
+            )
+        else:
+            status = "Name Match (SKU not in Inv)"
+        return pl_key, status
+
+    # Priority 3: SKU-only match (no size variations for this SKU)
+    if sku and sku != "0" and sku in sku_to_inv_key and not (size != "NO_SIZE" and sku_has_size_variations(sku, inventory)):
+        return sku, f"SKU Match (Size/Name mismatch -> {sku_to_inv_key[sku]})"
+
+    # Priority 4: Fuzzy name match
+    if pl_key:
+        name_keys = [k for k in inventory if not k.startswith("SKU:") and k not in sku_to_inv_key]
+        same_size_keys = [
+            k for k in name_keys
+            if normalize_size(item_name_to_title_size(k)[1]) == normalize_size(size)
+        ]
+        if same_size_keys:
+            match_result = process.extractOne(pl_key, same_size_keys)
+            if match_result:
+                best_match, score, _ = match_result
+                if score >= 85:
+                    return best_match, f"Fuzzy Match ({score}%) -> {best_match}"
+                return None, f"No Match (Closest: {best_match} @ {score}%)"
+    return None, "No Match"
+
+
+def _assign_location_columns(df, locations, stock_sources, inventory):
+    """Add one column per location with raw stock counts."""
+    df = df.copy()
+    for loc in locations:
+        vals = [
+            inventory[source_key].get(loc, 0)
+            if source_key and source_key in inventory
+            else 0
+            for source_key in stock_sources
+        ]
+        df[loc] = vals
+    return df
+
+
+# ── Allocation helpers ────────────────────────
+
+
+def _get_order_address(df, group_indices):
+    """Extract the delivery address from the first row of a group."""
+    parts = []
+    for addr_col in ["Shipping City", "Shipping Address 1", "Shipping Address", "Address", "City"]:
+        if addr_col in df.columns:
+            first_idx = group_indices[0]
+            val = df.loc[first_idx, addr_col]
+            if pd.notna(val):
+                parts.append(str(val).lower())
+    return " ".join(parts)
+
+
+def _reorder_labels_by_address(ordered_labels, order_address, loc_kw):
+    """Promote the location matching the delivery address to front of the priority list."""
+    if not order_address.strip():
+        return ordered_labels
+    labels = list(ordered_labels)
+    for label in labels:
+        if label == "Ecom-Mirpur":
+            continue
+        kws = loc_kw.get(label, [label.lower()])
+        if any(kw in order_address for kw in kws):
+            labels.remove(label)
+            labels.insert(0, label)
+            break
+    return labels
+
+
+def _try_allocate_for_group(
+    running_inv, stock_sources, qty_needed, group_indices, locations, loc_keywords, commit=False
+):
+    """Attempt to allocate stock for all items in an order group from locations matching keywords.
+    
+    If commit=True, the running_inv is permanently updated.
+    Returns True if all items could be fully allocated.
+    """
+    temp_inv = copy.deepcopy(running_inv)
+    success = True
+    for idx in group_indices:
+        source_key = stock_sources[idx]
+        needed = qty_needed[idx]
+        if not source_key or source_key not in temp_inv:
+            success = False
+            break
+
+        amount_to_find = needed
+        for loc in locations:
+            if any(kw in loc.lower() for kw in loc_keywords):
+                avail = temp_inv[source_key].get(loc, 0)
+                take = min(amount_to_find, avail)
+                temp_inv[source_key][loc] = avail - take
+                amount_to_find -= take
+                if amount_to_find == 0:
+                    break
+
+        if amount_to_find > 0:
+            success = False
+            break
+
+    if success and commit:
+        running_inv.clear()
+        running_inv.update(temp_inv)
+    return success
+
+
+def _find_suggested_alternatives(title_str, source_key, running_inv):
+    """Search for alternative stock items with similar names."""
+    alt_list = []
+    if not title_str:
+        return "No alternative found"
+    title_norm = normalize_key(title_str).casefold()
+    for k, locs in running_inv.items():
+        if str(k).startswith("sku:"):
+            continue
+        if title_norm in str(k) and k != source_key:
+            if sum(locs.values()) > 0:
+                alt_list.append(str(k).title())
+                if len(alt_list) >= 2:
+                    break
+    return " | ".join(alt_list) if alt_list else "No alternative found"
+
+
+def _compute_oos_locations(source_key, needed, locations, running_inv):
+    """Determine which locations are out of stock for a given level of need."""
+    oos_locs = []
+    for loc in locations:
+        avail = running_inv.get(source_key, {}).get(loc, 0)
+        if avail < needed:
+            oos_locs.append(loc)
+    if len(oos_locs) == len(locations):
+        return "All Locations"
+    if not oos_locs:
+        return "None"
+    return ", ".join(oos_locs)
+
+
+def _compute_fulfillment_for_oos(idx, suggestion, source_key, needed, running_inv, df, item_name_col, locations):
+    """Compute fulfillment status, OOS locations, and alternatives for an OOS item."""
+    alt = _find_suggested_alternatives(
+        str(item_name_to_title_size(str(df.loc[idx, item_name_col]) if item_name_col in df.columns else "")[0]),
+        source_key, running_inv
+    )
+
+    if not source_key:
+        return "❌ No Match", "All Locations", alt
+
+    total_left = sum(running_inv.get(source_key, {}).values())
+    if total_left == 0:
+        f_status = "❌ OOS (Stock Exhausted by Prior Orders)"
+    elif total_left < needed:
+        f_status = f"⚠️ Partial ({total_left}/{needed} left)"
+    else:
+        f_status = "❌ Blocked (Another item in order is OOS)"
+
+    return f_status, _compute_oos_locations(source_key, needed, locations, running_inv), alt
+
+
+def _apply_dispatch_suffixes(df, group_col):
+    """Append dispatch location suffixes to order ID columns."""
+    suffix_map = {"Cumilla": " c", "Wari": " w", "Sylhet": " s"}
+
+    def _apply(row):
+        orig_val = row[group_col]
+        if pd.isna(orig_val):
+            return orig_val
+        val_str = str(orig_val)
+        if isinstance(orig_val, float) and val_str.endswith(".0"):
+            val_str = val_str[:-2]
+        suffix = suffix_map.get(row.get("Dispatch Suggestion", ""), "")
+        return val_str + suffix
+
+    df[group_col] = df.apply(_apply, axis=1)
+    return df
+
+
+# ── Main function ────────────────────────────
+
+
 def add_stock_columns_from_inventory(
     product_df: pd.DataFrame,
     item_name_col: str,
@@ -314,271 +590,95 @@ def add_stock_columns_from_inventory(
     sku_to_title_size: Optional[Dict[str, str]] = None,
     priority_locations: Optional[list[str]] = None,
 ) -> Tuple[pd.DataFrame, int]:
-    """
-    Add one column per location to product_df by matching Item Name -> Title - Size,
-    or by SKU when available. When matching by SKU, item name must equal that SKU's Title-Size.
+    """Add one column per location to product_df by matching Item Name → Title - Size,
+    or by SKU when available.
 
     priority_locations: ordered list of outlet names to try first when suggesting dispatch.
     Defaults to ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"] if not provided.
     Returns (output_df, matched_row_count).
     """
-    # Build the ordered list of (suggestion_label, keyword_list) pairs
-    # Each entry maps a human-readable label to the location keywords used in try_allocate.
-    _LOCATION_KEYWORDS = {
-        "Ecom-Mirpur": ["ecom", "mirpur"],
-        "Wari":        ["wari"],
-        "Cumilla":     ["cumilla"],
-        "Sylhet":      ["sylhet"],
-    }
-    # Add any extra locations not in the default map (use lowercase name as keyword)
-    for loc in locations:
-        label = loc  # use the raw location name as label
-        if label not in _LOCATION_KEYWORDS:
-            _LOCATION_KEYWORDS[label] = [loc.lower()]
-
-    if priority_locations:
-        # Build ordered list from user priority, then append remaining locations
-        ordered_labels = list(priority_locations)
-        for loc in locations:
-            label = loc if loc not in ["Ecom", "Mirpur"] else "Ecom-Mirpur"
-            if label not in ordered_labels:
-                ordered_labels.append(label)
-    else:
-        ordered_labels = ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"]
-        for loc in locations:
-            if loc not in ["Ecom", "Mirpur"] and loc not in ordered_labels:
-                ordered_labels.append(loc)
-    df = product_df.copy().reset_index(drop=True)
-    matched = set()
+    loc_kw, ordered_labels = _build_location_config(locations, priority_locations)
     sku_to_inv_key = sku_to_title_size or {}
-
-    # Pre-calculate match status and stock keys for each row
-    match_statuses = []
-    stock_sources = []  # list of inventory keys to pull stock from
-
-    # Helper to safe-get SKU from row
-    def get_sku(r):
-        if sku_col and sku_col in df.columns:
-            val = r.get(sku_col, "")
-            if isinstance(val, (list, dict, set)):
-                val = str(val)
-            return normalize_sku(val)
-        return ""
-
+    df = product_df.copy().reset_index(drop=True)
     size_col, _, _, _ = identify_columns(df)
 
+    # ── Step 1: Match each row to an inventory key ──
+    match_statuses = []
+    stock_sources = []
+    matched = set()
+
     for i, row in df.iterrows():
-        # 1. Get Product List SKU and Item Name Key
-        pl_sku = get_sku(row)
-        raw_item_name = row.get(item_name_col, "")
-        if isinstance(raw_item_name, (list, dict, set)):
-            raw_item_name = str(raw_item_name)
-        title, size = item_name_to_title_size(raw_item_name)
-        
-        if size_col and size_col in df.columns:
-            val = row.get(size_col, "")
-            if pd.notna(val) and str(val).strip():
-                size = normalize_size(val)
-
-        pl_key = build_title_size_key(title, size)
-
-        inv_key = None
-        status = "No Match"
-
-        # 2. MATCHING LOGIC
-        sku_size_key = f"SKU:{pl_sku}_SZ:{size}" if (pl_sku and pl_sku != "0") else ""
-        is_embroidered_panjabi = pl_key and "embroidered cotton panjabi" in pl_key
-
-        if is_embroidered_panjabi:
-            if sku_size_key and sku_size_key in inventory:
-                inv_key = sku_size_key
-                status = "Perfect Match (SKU + Size - Strict mode)"
-            elif pl_sku and pl_sku != "0" and pl_sku in sku_to_inv_key:
-                inv_key = pl_sku
-                status = "SKU Match (Strict mode - Size mismatch)"
-            else:
-                status = "No Match (Strict SKU required for Embroidered Cotton Panjabi)"
-        else:
-            # Priority 1: Master SKU + Size Match
-            if sku_size_key and sku_size_key in inventory:
-                inv_key = sku_size_key
-                status = "Master SKU + Size Match"
-
-            # Priority 2: Exact Name Match
-            elif pl_key and pl_key in inventory:
-                inv_key = pl_key
-                status = "Exact Name Match"
-                if pl_sku and pl_sku != "0":
-                    if pl_sku in sku_to_inv_key:
-                        status = (
-                            "Perfect Match (Name + SKU)"
-                            if sku_to_inv_key[pl_sku] == pl_key
-                            else f"Name Match (SKU mismatch)"
-                        )
-                    else:
-                        status = "Name Match (SKU not in Inv)"
-
-            # Priority 3: Strict Normalized SKU Match (Ignoring Size)
-            elif pl_sku and pl_sku != "0" and pl_sku in sku_to_inv_key and not (size != "NO_SIZE" and sku_has_size_variations(pl_sku, inventory)):
-                inv_key = pl_sku
-                status = f"SKU Match (Size/Name mismatch -> {sku_to_inv_key[pl_sku]})"
-
-            # Priority 4: Fuzzy Name Match (Correction for typos)
-            elif pl_key:
-                # We only fuzzy match against pure Title-Size keys
-                name_keys = [k for k in inventory.keys() if not k.startswith("SKU:") and k not in sku_to_inv_key]
-                # Filter name_keys to only include candidates with the same size
-                same_size_keys = []
-                for k in name_keys:
-                    _, k_size = item_name_to_title_size(k)
-                    if normalize_size(k_size) == normalize_size(size):
-                        same_size_keys.append(k)
-                if same_size_keys:
-                    match_result = process.extractOne(pl_key, same_size_keys)
-                    if match_result:
-                        best_match, score, _ = match_result  # rapidfuzz returns (match, score, index)
-                        if score >= 85:  # Require high confidence for auto-match
-                            inv_key = best_match
-                            status = f"Fuzzy Match ({score}%) -> {best_match}"
-                        else:
-                            status = f"No Match (Closest: {best_match} @ {score}%)"
-                    else:
-                        status = "No Match"
-                else:
-                    status = "No Match"
-            else:
-                status = "No Match"
-
+        pl_sku = _parse_row_sku(row, sku_col)
+        size_col_val = row.get(size_col) if size_col and size_col in df.columns else None
+        inv_key, status = _match_row_to_inventory(
+            pl_sku, row.get(item_name_col, ""), size_col_val, inventory, sku_to_inv_key
+        )
         match_statuses.append(status)
         stock_sources.append(inv_key)
         if inv_key:
             matched.add(i)
 
-    # Assign Status Column
     df["Match Status"] = match_statuses
+    qty_needed = _parse_qty_needed(df)
 
-    _, qty_to_buy_col, _, _ = identify_columns(df)
-    qty_needed = [1] * len(df)
-    if qty_to_buy_col and qty_to_buy_col in df.columns:
-        def _parse_qty(x):
-            if pd.isna(x):
-                return 1
-            if isinstance(x, str):
-                x = x.replace(",", "").strip()
-                if x == "":
-                    return 1
-            try:
-                return int(float(x))
-            except Exception:
-                return 1
-        qty_needed = [_parse_qty(x) for x in df[qty_to_buy_col]]
+    # ── Step 2: Assign raw location columns ──
+    df = _assign_location_columns(df, locations, stock_sources, inventory)
 
-    # 3. Assign individual location columns (Raw original warehouse values)
-    for loc in locations:
-        vals = []
-        for i, source_key in enumerate(stock_sources):
-            qty = 0
-            if source_key and source_key in inventory:
-                qty = inventory[source_key].get(loc, 0)
-            vals.append(qty)
-        df[loc] = vals
-
-    # 4. Intelligent Dispatch Suggestion & Stock Allocation
+    # ── Step 3: Intelligent dispatch suggestion & allocation ──
     running_inv = copy.deepcopy(inventory)
-    
-    dispatch_suggestions = [""] * len(df)
-    oos_locations_list = [""] * len(df)
-    full_order_locs_list = [""] * len(df)
-    items_in_order_list = [1] * len(df)
-    fulfillment_status = [""] * len(df)
-    suggested_alternatives = [""] * len(df)
-    split_courier_warning = [""] * len(df)
+    n = len(df)
+
+    dispatch_suggestions = [""] * n
+    oos_locations_list = [""] * n
+    full_order_locs_list = [""] * n
+    items_in_order_list = [1] * n
+    fulfillment_status = [""] * n
+    suggested_alternatives = [""] * n
+    split_courier_warning = [""] * n
 
     group_col = get_group_by_column(df)
     temp_group_added = False
     if not group_col:
-        df["_temp_group"] = range(len(df))
+        df["_temp_group"] = range(n)
         group_col = "_temp_group"
         temp_group_added = True
 
     try:
-        for group_val, group_indices in df.groupby(group_col, sort=False).groups.items():
+        for _group_val, group_indices in df.groupby(group_col, sort=False).groups.items():
             try:
                 num_items = len(group_indices)
                 for idx in group_indices:
                     items_in_order_list[idx] = num_items
 
-                def try_allocate(loc_keywords, commit=False):
-                    temp_inv = copy.deepcopy(running_inv)
-                    success = True
-                    for idx in group_indices:
-                        source_key = stock_sources[idx]
-                        needed = qty_needed[idx]
-                        if not source_key or source_key not in temp_inv:
-                            success = False
-                            break
-                        
-                        amount_to_find = needed
-                        for loc in locations:
-                            if any(kw in loc.lower() for kw in loc_keywords):
-                                avail = temp_inv[source_key].get(loc, 0)
-                                take = min(amount_to_find, avail)
-                                temp_inv[source_key][loc] = avail - take
-                                amount_to_find -= take
-                                if amount_to_find == 0:
-                                    break
-                                    
-                        if amount_to_find > 0:
-                            success = False
-                            break
-                            
-                    if success and commit:
-                        running_inv.clear()
-                        running_inv.update(temp_inv)
-                    return success
+                order_address = _get_order_address(df, group_indices)
+                current_labels = _reorder_labels_by_address(ordered_labels, order_address, loc_kw)
 
-                # Dynamic priority based on delivery address
-                current_order_labels = list(ordered_labels)
-                order_address = ""
-                for addr_col in ["Shipping City", "Shipping Address 1", "Shipping Address", "Address", "City"]:
-                    if addr_col in df.columns:
-                        first_idx = group_indices[0]
-                        val = df.loc[first_idx, addr_col]
-                        if pd.notna(val):
-                            order_address += " " + str(val).lower()
-                
-                if order_address.strip():
-                    for label in current_order_labels:
-                        if label == "Ecom-Mirpur": continue
-                        kws = _LOCATION_KEYWORDS.get(label, [label.lower()])
-                        if any(kw in order_address for kw in kws):
-                            current_order_labels.remove(label)
-                            current_order_labels.insert(0, label)
-                            break
-
+                # Find all locations that can fulfill this order
                 full_locs = []
-                for label in current_order_labels:
-                    kws = _LOCATION_KEYWORDS.get(label, [label.lower()])
-                    if try_allocate(kws, commit=False):
+                for label in current_labels:
+                    kws = loc_kw.get(label, [label.lower()])
+                    if _try_allocate_for_group(running_inv, stock_sources, qty_needed, group_indices, locations, kws, commit=False):
                         full_locs.append(label)
 
                 full_locs_str = ", ".join(full_locs) if full_locs else "None"
                 for idx in group_indices:
                     full_order_locs_list[idx] = full_locs_str
 
+                # Best single-location suggestion
                 suggestion = None
-                for label in current_order_labels:
-                    kws = _LOCATION_KEYWORDS.get(label, [label.lower()])
-                    if try_allocate(kws, commit=True):
+                for label in current_labels:
+                    kws = loc_kw.get(label, [label.lower()])
+                    if _try_allocate_for_group(running_inv, stock_sources, qty_needed, group_indices, locations, kws, commit=True):
                         suggestion = label
                         break
 
                 if suggestion is None:
-                    if try_allocate([loc.lower() for loc in locations], commit=True):
+                    if _try_allocate_for_group(running_inv, stock_sources, qty_needed, group_indices, locations, [loc.lower() for loc in locations], commit=True):
                         suggestion = "Multiple / Split"
                     else:
                         suggestion = "OOS / Unfulfillable"
 
+                # Populate per-row status columns
                 for idx in group_indices:
                     dispatch_suggestions[idx] = suggestion
                     source_key = stock_sources[idx]
@@ -588,42 +688,12 @@ def add_stock_columns_from_inventory(
                         split_courier_warning[idx] = "⚠️ Est. ৳60+ Extra Cost"
 
                     if suggestion == "OOS / Unfulfillable":
-                        alt_list = []
-                        raw_item = df.loc[idx, item_name_col] if item_name_col in df.columns else ""
-                        title_str, _ = item_name_to_title_size(str(raw_item))
-                        if title_str:
-                            title_norm = normalize_key(title_str).casefold()
-                            for k, locs in running_inv.items():
-                                if str(k).startswith("sku:"): continue
-                                if title_norm in str(k) and k != source_key:
-                                    if sum(locs.values()) > 0:
-                                        alt_list.append(str(k).title())
-                                        if len(alt_list) >= 2: break
-                        suggested_alternatives[idx] = " | ".join(alt_list) if alt_list else "No alternative found"
-
-                        if not source_key:
-                            fulfillment_status[idx] = "❌ No Match"
-                            oos_locations_list[idx] = "All Locations"
-                        else:
-                            total_left = sum(running_inv.get(source_key, {}).values())
-                            if total_left == 0:
-                                fulfillment_status[idx] = "❌ OOS (Stock Exhausted by Prior Orders)"
-                            elif total_left < needed:
-                                fulfillment_status[idx] = f"⚠️ Partial ({total_left}/{needed} left)"
-                            else:
-                                fulfillment_status[idx] = "❌ Blocked (Another item in order is OOS)"
-
-                            oos_locs = []
-                            for loc in locations:
-                                avail = running_inv.get(source_key, {}).get(loc, 0)
-                                if avail < needed:
-                                    oos_locs.append(loc)
-                            if len(oos_locs) == len(locations):
-                                oos_locations_list[idx] = "All Locations"
-                            elif not oos_locs:
-                                oos_locations_list[idx] = "None"
-                            else:
-                                oos_locations_list[idx] = ", ".join(oos_locs)
+                        f_status, oos_locs, alt = _compute_fulfillment_for_oos(
+                            idx, suggestion, source_key, needed, running_inv, df, item_name_col, locations
+                        )
+                        fulfillment_status[idx] = f_status
+                        oos_locations_list[idx] = oos_locs
+                        suggested_alternatives[idx] = alt
                     else:
                         fulfillment_status[idx] = "✅ Available (Allocated)"
                         oos_locations_list[idx] = "None"
@@ -634,10 +704,10 @@ def add_stock_columns_from_inventory(
                     full_order_locs_list[idx] = "Error"
                     oos_locations_list[idx] = "Error"
     except Exception:
-        dispatch_suggestions = ["Error / Unfulfillable"] * len(df)
-        fulfillment_status = ["❌ Grouping Error"] * len(df)
-        full_order_locs_list = ["Error"] * len(df)
-        oos_locations_list = ["Error"] * len(df)
+        dispatch_suggestions = ["Error / Unfulfillable"] * n
+        fulfillment_status = ["❌ Grouping Error"] * n
+        full_order_locs_list = ["Error"] * n
+        oos_locations_list = ["Error"] * n
 
     if temp_group_added:
         df = df.drop(columns=["_temp_group"])
@@ -651,33 +721,13 @@ def add_stock_columns_from_inventory(
     df["Split Courier Warning"] = split_courier_warning
 
     if group_col:
-        suffix_map = {
-            "Cumilla": " c",
-            "Wari": " w",
-            "Sylhet": " s"
-        }
-        def apply_suffix(row):
-            orig_val = row[group_col]
-            if pd.isna(orig_val):
-                return orig_val
-            val_str = str(orig_val)
-            if isinstance(orig_val, float) and val_str.endswith(".0"):
-                val_str = val_str[:-2]
-            sugg = row.get("Dispatch Suggestion", "")
-            suffix = suffix_map.get(sugg, "")
-            return val_str + suffix
-            
-        df[group_col] = df.apply(apply_suffix, axis=1)
-
-    # Mark unique orders for easy filtering
-    if group_col:
+        df = _apply_dispatch_suffixes(df, group_col)
         df["Unique Order"] = (~df.duplicated(subset=[group_col])).map({True: "Yes", False: ""})
         df["Items in Order"] = items_in_order_list
     else:
         df["Unique Order"] = "Yes"
         df["Items in Order"] = 1
 
-    # Reorder Match Status to the end
     cols = [c for c in df.columns if c not in ["Match Status", "Unique Order", "Items in Order"]] + ["Items in Order", "Unique Order", "Match Status"]
     df = df[cols]
 

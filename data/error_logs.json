@@ -1,89 +1,5 @@
 [
     {
-        "timestamp": "2026-04-11 12:15:17",
-        "context": "App Bootstrap",
-        "error": "The truth value of a DataFrame is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all().",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 197, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 188, in run_app\n    render_header(render_header_right)\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py\", line 241, in render_header\n    right_slot_callback()\n    ~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 179, in render_header_right\n    active_df = st.session_state.get(\"wc_curr_df\") or st.session_state.get(\"manual_df\")\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\core\\generic.py\", line 1580, in __nonzero__\n    raise ValueError(\n    ...<2 lines>...\n    )\nValueError: The truth value of a DataFrame is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all().\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:19:53",
-        "context": "App Bootstrap",
-        "error": "The truth value of a DataFrame is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all().",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 195, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 186, in run_app\n    render_header(render_header_right)\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py\", line 256, in render_header\n    right_slot_callback()\n    ~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 177, in render_header_right\n    active_df = st.session_state.get(\"wc_curr_df\") or st.session_state.get(\"manual_df\")\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\core\\generic.py\", line 1580, in __nonzero__\n    raise ValueError(\n    ...<2 lines>...\n    )\nValueError: The truth value of a DataFrame is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all().\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:19:54",
-        "context": "App Bootstrap",
-        "error": "The truth value of a DataFrame is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all().",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 195, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 186, in run_app\n    render_header(render_header_right)\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py\", line 256, in render_header\n    right_slot_callback()\n    ~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 177, in render_header_right\n    active_df = st.session_state.get(\"wc_curr_df\") or st.session_state.get(\"manual_df\")\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\pandas\\core\\generic.py\", line 1580, in __nonzero__\n    raise ValueError(\n    ...<2 lines>...\n    )\nValueError: The truth value of a DataFrame is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all().\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:28:36",
-        "context": "App Bootstrap",
-        "error": "unmatched ')' (ui_components.py, line 250)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 197, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 34, in run_app\n    from app_modules.distribution_tab import render_distribution_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\distribution_tab.py\", line 9, in <module>\n    from app_modules.ui_components import (\n    ...<3 lines>...\n    )\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py\", line 250\n    )\n    ^\nSyntaxError: unmatched ')'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:29:03",
-        "context": "App Bootstrap",
-        "error": "unmatched ')' (ui_components.py, line 250)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 197, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 34, in run_app\n    from app_modules.distribution_tab import render_distribution_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\distribution_tab.py\", line 9, in <module>\n    from app_modules.ui_components import (\n    ...<3 lines>...\n    )\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py\", line 250\n    )\n    ^\nSyntaxError: unmatched ')'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:29:34",
-        "context": "App Bootstrap",
-        "error": "cannot import name 'render_insight_panel' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 197, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 39, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab, render_stock_analytics_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 19, in <module>\n    from app_modules.ui_components import (\n    ...<4 lines>...\n    )\nImportError: cannot import name 'render_insight_panel' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:29:47",
-        "context": "App Bootstrap",
-        "error": "cannot import name 'render_insight_panel' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 197, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 39, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab, render_stock_analytics_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 19, in <module>\n    from app_modules.ui_components import (\n    ...<4 lines>...\n    )\nImportError: cannot import name 'render_insight_panel' from 'app_modules.ui_components' (H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py)\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:53:17",
-        "context": "App Bootstrap",
-        "error": "'app_modules'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 183, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 32, in run_app\n    from app_modules.clock import render_dynamic_clock\n  File \"<frozen importlib._bootstrap>\", line 1371, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1342, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 949, in _load_unlocked\nKeyError: 'app_modules'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:53:19",
-        "context": "App Bootstrap",
-        "error": "cannot import name 'render_ai_pilot_page' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 183, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 146, in run_app\n    from app_modules.ai_pilot import render_ai_pilot_page\nImportError: cannot import name 'render_ai_pilot_page' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:53:45",
-        "context": "App Bootstrap",
-        "error": "cannot import name 'render_ai_pilot' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 183, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 47, in run_app\n    from app_modules.ai_pilot import render_ai_pilot\nImportError: cannot import name 'render_ai_pilot' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:54:52",
-        "context": "App Bootstrap",
-        "error": "'app_modules'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 183, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 33, in run_app\n    from app_modules.bike_animation import render_bike_animation\n  File \"<frozen importlib._bootstrap>\", line 1371, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1348, in _find_and_load_unlocked\nKeyError: 'app_modules'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 12:55:30",
-        "context": "App Bootstrap",
-        "error": "cannot import name 'render_ai_pilot' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 183, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 47, in run_app\n    from app_modules.ai_pilot import render_ai_pilot\nImportError: cannot import name 'render_ai_pilot' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-11 12:56:37",
         "context": "App Bootstrap",
         "error": "cannot import name 'render_ai_pilot' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)",
@@ -796,6 +712,114 @@
     },
     {
         "timestamp": "2026-06-20 15:00:18",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 16:28:58",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 16:39:14",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 16:40:05",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 16:42:14",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 16:43:06",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 16:45:11",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 17:01:22",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 17:01:53",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 17:03:10",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 17:07:26",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 17:28:50",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-20 17:29:38",
         "context": "safe_render",
         "error": "division by zero",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",

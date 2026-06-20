@@ -5,7 +5,24 @@ from datetime import datetime
 
 from src.state.persistence import clear_state_keys
 from src.components.widgets import render_action_bar, render_reset_confirm
-from src.processing.delivery_parser import parse_records, parse_data_fuzzy, df_to_excel_bytes
+from src.processing.delivery_parser import parse_records, parse_data_fuzzy
+from src.utils.file_io import to_excel_bytes
+
+
+def _style_deliveries_sheet(ws, _wb):
+    """Apply delivery-specific formatting to the exported Excel sheet."""
+    ws.freeze_panes = "A2"
+    widths = {
+        "A": 18, "B": 10, "C": 12, "D": 18, "E": 20,
+        "F": 60, "G": 14, "H": 30, "I": 16, "J": 12,
+        "K": 10, "L": 10, "M": 14, "N": 14,
+    }
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+    for row in range(2, ws.max_row + 1):
+        ws[f"J{row}"].number_format = "#,##0.00"
+        ws[f"K{row}"].number_format = "#,##0.00"
+        ws[f"L{row}"].number_format = "#,##0.00"
 
 
 def _reset_parser_state():
@@ -119,8 +136,6 @@ def render_visual_report(df: pd.DataFrame):
 
 def render_fuzzy_parser_tab():
     render_reset_confirm("Delivery Data Parser", "parser", _reset_parser_state)
-    # section_card("Delivery Text Parser", "")
-
     sample = """Cons. ID
 DD040326KR9NUU
 Type:
@@ -169,7 +184,7 @@ POD"""
             render_visual_report(df_to_show)
             st.download_button(
                 "Download standard parser output",
-                df_to_excel_bytes(st.session_state.standard_parsed_df),
+                to_excel_bytes(st.session_state.standard_parsed_df, sheet_name="Deliveries", style_fn=_style_deliveries_sheet),
                 f"deliveries_{datetime.now().strftime('%d-%m-%Y')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
@@ -217,7 +232,7 @@ POD"""
             render_visual_report(df_to_show_fuzzy)
             st.download_button(
                 "Download fuzzy parser output",
-                df_to_excel_bytes(st.session_state.fuzzy_parsed_df),
+                to_excel_bytes(st.session_state.fuzzy_parsed_df, sheet_name="Deliveries", style_fn=_style_deliveries_sheet),
                 f"fuzzy_deliveries_{datetime.now().strftime('%d-%m-%Y')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,

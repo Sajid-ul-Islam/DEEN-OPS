@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from src.utils.safe_ops import safe_render
 
 def render_return_analytics_tab():
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
