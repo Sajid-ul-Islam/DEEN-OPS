@@ -55,7 +55,28 @@ def render_excel_merger_tab():
             
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                item_name_idx = next((i for i, col in enumerate(columns) if "name" in str(col).lower() or "item" in str(col).lower() or "product" in str(col).lower()), 0)
+                item_name_idx = 0
+                best_score = -1
+                for idx, col in enumerate(columns):
+                    col_lower = str(col).lower().strip().replace('_', ' ')
+                    score = 0
+                    if col_lower in ["item name", "product name", "products name", "product", "item", "title", "name"]:
+                        score = 100 if col_lower in ["item name", "product name", "products name"] else 80
+                    elif any(kw in col_lower for kw in ["item name", "product name", "products name"]):
+                        score = 50
+                    elif "item" in col_lower or "product" in col_lower:
+                        score = 30
+                    elif "title" in col_lower:
+                        score = 20
+                    elif "name" in col_lower:
+                        if not any(term in col_lower for term in ["billing", "customer", "shipping", "user", "client", "receiver", "first", "last"]):
+                            score = 15
+                        else:
+                            score = 1
+                    
+                    if score > best_score:
+                        best_score = score
+                        item_name_idx = idx
                 item_col = st.selectbox("Select Item Name Column", columns, index=item_name_idx)
                 
             with col2:
@@ -98,8 +119,11 @@ def render_excel_merger_tab():
                     else:
                         merged_df = df.groupby(item_col, as_index=False)[qty_col].sum()
                     
-                    # Sort by item name ascending for easier product listing verification
-                    merged_df = merged_df.sort_values(by=item_col, ascending=True).reset_index(drop=True)
+                    # Sort SKU-wise if SKU column is selected, otherwise item name wise
+                    if sku_col != "None":
+                        merged_df = merged_df.sort_values(by=sku_col, ascending=True).reset_index(drop=True)
+                    else:
+                        merged_df = merged_df.sort_values(by=item_col, ascending=True).reset_index(drop=True)
                     
                     # --- Inventory Checking ---
                     if check_web_stock:
