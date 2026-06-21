@@ -1,0 +1,38 @@
+{
+  "date": "2026-06-21",
+  "shifts": [
+    {
+      "ts": "2026-06-21T09:28:56.976354+06:00",
+      "label": "Today",
+      "revenue": 8135.0,
+      "orders": 5,
+      "qty": 7,
+      "aov": 1627.0,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 36",
+          "revenue": 2490.0
+        },
+        {
+          "name": "High-End Light Blue Jeans - Regular Fit - 30",
+          "revenue": 2390.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - L",
+          "revenue": 1390.0
+        },
+        {
+          "name": "Grey Motif Casual Half Shirt - L",
+          "revenue": 1325.0
+        },
+        {
+          "name": "Burgundy Relaxed Graphic Tank Top - L",
+          "revenue": 540.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 8135.0,
+  "daily_orders": 5,
+  "daily_qty": 7
+}

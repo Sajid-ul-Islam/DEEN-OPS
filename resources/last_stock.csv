@@ -1,18 +1,18 @@
 Category,Product,SKU,Stock,Price,Status,Size
-Cuban Shirt,"Buy Any 3 Cuban Shirts, Get 395 TK Off",TB-02-5,0.0,0.0,Instock,
-Cuban Shirt,"Buy Any 2 Cuban Shirts, Get 130 TK Off",TB-02-4,0.0,0.0,Instock,
+HS Shirt,"Buy Any 3 Cuban Shirts, Get 395 TK Off",TB-02-5,0.0,0.0,Instock,
+HS Shirt,"Buy Any 2 Cuban Shirts, Get 130 TK Off",TB-02-4,0.0,0.0,Instock,
 HS Shirt,"Buy Any 3 Shirts, Get 395 TK Off",TB-02-3,0.0,0.0,Instock,
 HS Shirt,"Buy Any 2 Shirts, Get 130 TK Off",TB-02-2,0.0,0.0,Instock,
-T-Shirt,"Buy Any 3 Tank Top, Get 88 TK Off",TB-05-003,0.0,0.0,Instock,
-T-Shirt,"Buy Any 5 Tank Top, Get 295 TK Off",TB-05-002,0.0,0.0,Instock,
+Tank Top,"Buy Any 3 Tank Top, Get 88 TK Off",TB-05-003,0.0,0.0,Instock,
+Tank Top,"Buy Any 5 Tank Top, Get 295 TK Off",TB-05-002,0.0,0.0,Instock,
 Wallet,Chocolate Bifold Wallet,109-0102-074,3.0,699.0,Instock,
-Wallet,Green Bifold Wallet,109-0102-073,2.0,699.0,Instock,
+Wallet,Green Bifold Wallet,109-0102-073,1.0,699.0,Instock,
 Wallet,Black Bifold Wallet,109-0102-072,3.0,699.0,Instock,
 Wallet,Green Leather Long Wallet,109-0101-048,2.0,1299.0,Instock,
 Belt,Black Premium Leather Belt,109-0402-058,0.0,950.0,Outofstock,
-Belt,Chocolate Premium Leather Belt,109-0402-057,4.0,950.0,Instock,
+Belt,Chocolate Premium Leather Belt,109-0402-057,2.0,950.0,Instock,
 Belt,Chocolate Premium Leather Belt,109-0402-054,5.0,950.0,Instock,
-Belt,Chocolate Premium Leather Belt,109-0402-051,4.0,990.0,Instock,
+Belt,Chocolate Premium Leather Belt,109-0402-051,3.0,990.0,Instock,
 Belt,Chocolate Premium Leather Belt,109-0402-050,1.0,990.0,Instock,
 Belt,Chocolate Premium Leather Belt,109-0402-046,0.0,950.0,Outofstock,
 Wallet,Compact Genuine Leather Card Holder,109-0104-002,6.0,590.0,Instock,
@@ -20,15 +20,15 @@ Wallet,Compact Genuine Leather Card Holder,109-0104-003,2.0,590.0,Instock,
 Wallet,Compact Genuine Leather Card Holder,109-0104-004,3.0,590.0,Instock,
 Wallet,Compact Genuine Leather Card Holder,109-0104-006,3.0,690.0,Instock,
 Wallet,Compact Genuine Leather Card Holder,109-0104-005,1.0,690.0,Instock,
-Wallet,Black Leather Long Zipper Wallet,109-0101-052,2.0,1349.0,Instock,
+Wallet,Black Leather Long Zipper Wallet,109-0101-052,1.0,1349.0,Instock,
 Wallet,Chocolate Leather Long Zipper Wallet,109-0101-051,4.0,1349.0,Instock,
-Wallet,Chocolate Leather Long Wallet,109-0101-050,3.0,1299.0,Instock,
+Wallet,Chocolate Leather Long Wallet,109-0101-050,2.0,1299.0,Instock,
 Wallet,Black Leather Long Wallet,109-0101-049,3.0,1299.0,Instock,
 Wallet,Black Bifold Wallet,109-0102-071,3.0,750.0,Instock,
 Wallet,Chocolate Bifold Wallet,109-0102-070,-1.0,750.0,Outofstock,
 Wallet,Chocolate Bifold Leather Wallet,109-0102-069,1.0,850.0,Instock,
 Wallet,Brown Bifold Leather Wallet,109-0102-064,4.0,950.0,Instock,
-Wallet,Black Bifold Leather Wallet,109-0102-063,2.0,950.0,Instock,
+Wallet,Black Bifold Leather Wallet,109-0102-063,1.0,950.0,Instock,
 Belt,Black Premium Leather Belt,109-0402-061,1.0,990.0,Instock,
 Belt,Chocolate Premium Leather Belt,109-0402-060,1.0,990.0,Instock,
 Belt,Mocha Premium Leather Belt,109-0402-056,4.0,950.0,Instock,
@@ -36,7 +36,7 @@ Belt,Mocha Premium Leather Belt,109-0402-055,1.0,950.0,Instock,
 Belt,Chocolate Premium Leather Belt,109-0402-052,3.0,990.0,Instock,
 Belt,Black Premium Leather Belt,109-0402-049,2.0,990.0,Instock,
 Belt,Black Premium Leather Belt,109-0402-00048,0.0,990.0,Outofstock,
-FS Shirt,Executive Brown Leather Card Holder,109-0104-001,6.0,590.0,Instock,
+Wallet,Executive Brown Leather Card Holder,109-0104-001,6.0,590.0,Instock,
 Belt,Brown Premium Leather Belt,109-0402-047,0.0,950.0,Outofstock,
 Belt,Brown Premium Leather Belt,109-0402-045,0.0,950.0,Outofstock,
 Belt,Brown Premium Leather Belt,109-0402-044,4.0,990.0,Instock,
@@ -54,13 +54,13 @@ Others,Double Denim Combo,TJB-03-4,0.0,0.0,Instock,
 Others,Denim & Drop Combo,TJB-03-3,0.0,0.0,Instock,
 Others,Casual Essentials Combo,TJB-03-02,0.0,0.0,Instock,
 T-Shirt,Denim & Tee Power Pack,TJB-03-01,0.0,0.0,Instock,
-Wallet,Choco Coinpocket Bifold Leather Wallet,109-0102-067,2.0,950.0,Instock,
+Wallet,Choco Coinpocket Bifold Leather Wallet,109-0102-067,1.0,950.0,Instock,
 Wallet,Sage Bifold Leather Wallet,109-0102-066,0.0,850.0,Outofstock,
 Wallet,Plain Choco Bifold Leather Wallet,109-0102-065,0.0,850.0,Outofstock,
-Wallet,Burgendy Leather Long Wallet,109-0101-045,2.0,1299.0,Instock,
+Wallet,Burgendy Leather Long Wallet,109-0101-045,1.0,1299.0,Instock,
 Wallet,Black Leather Long Wallet,109-0101-046,4.0,1299.0,Instock,
 Wallet,Plain Choco Leather Long Wallet,109-0101-047,4.0,1299.0,Instock,
-Wallet,Gritty Black Multi-Chamber Bifold Wallet,109-0102-062,2.0,750.0,Instock,
+Wallet,Gritty Black Multi-Chamber Bifold Wallet,109-0102-062,1.0,750.0,Instock,
 Wallet,Gritty Brown Multi-Chamber Bifold Wallet,109-0102-061,1.0,750.0,Instock,
 Wallet,Sage Multi-Chamber Bifold Wallet,109-0102-060,1.0,950.0,Instock,
 Wallet,Rust Multi-Chamber Bifold Wallet,109-0102-059,2.0,950.0,Instock,
@@ -70,7 +70,7 @@ Wallet,Textured Black Bifold Leather Wallet,109-0102-056,3.0,700.0,Instock,
 Wallet,Black Coinpocket Bifold Leather Wallet,109-0102-055,1.0,950.0,Instock,
 Wallet,Polished Choco Bifold Leather Wallet,109-0102-053,3.0,900.0,Instock,
 Wallet,Polished Black Bifold Leather Wallet,109-0102-052,1.0,900.0,Instock,
-Wallet,Plain Choco Bifold Leather Wallet  (109-0102-065),109-0102-050,3.0,850.0,Instock,
+Wallet,Plain Choco Bifold Leather Wallet,109-0102-050,2.0,850.0,Instock,
 Wallet,Plain Brown Bifold Leather Wallet,109-0102-049,1.0,850.0,Instock,
 Wallet,Burgendy Bifold Leather Wallet,109-0102-048,1.0,850.0,Instock,
 Wallet,Plain Black Bifold Leather Wallet,109-0102-047,0.0,850.0,Outofstock,
@@ -102,14 +102,14 @@ Wallet,DEEN Genuine Leather Long Wallet,109-0101-008,1.0,1199.0,Instock,
 Wallet,Pebble Grain Leather Bi-fold Wallet,109-0102-039,0.0,799.0,Outofstock,
 Wallet,Chocolate Croco Leather Long Wallet,109-0101-042,1.0,1299.0,Instock,
 Belt,Reversible Leather Belt with Moving Buckle,109-0403-007,0.0,999.0,Outofstock,
-Wallet,Dual Drift Concealed Leather Long Wallet,109-0101-040,1.0,1299.0,Instock,
+Wallet,Dual Drift Concealed Leather Long Wallet,109-0101-040,0.0,1299.0,Outofstock,
 Belt,Reversible Leather Belt with Moving Buckle,109-0403-005,0.0,999.0,Outofstock,
 Wallet,Choco Leather Passport Holder,109-0303-005,1.0,880.0,Instock,
 Belt,Black Premium Leather Belt,109-0401-185,0.0,949.0,Outofstock,
 Belt,Black Leather Gear Belt,109-0401-179,0.0,1099.0,Outofstock,
 Wallet,DEEN Bifold Leather Wallet,109-0102-031,0.0,799.0,Outofstock,
 Wallet,DEEN Genuine Leather Long Wallet,109-0101-002,0.0,1149.0,Outofstock,
-FS Shirt,Croco Dual Black  Executive Leather Bag,109-0301-018,0.0,4599.0,Outofstock,
+Leather Bag,Croco Dual Black  Executive Leather Bag,109-0301-018,0.0,4599.0,Outofstock,
 Belt,Black Premium Leather Belt,109-0402-009,0.0,990.0,Outofstock,
 Belt,Chocolate Premium Leather Belt,109-0402-015,0.0,990.0,Outofstock,
 Belt,Chocolate Premium Leather Belt,109-0402-017,2.0,990.0,Instock,
@@ -142,17 +142,17 @@ Wallet,Fence Patterned Leather Long Wallet,109-0101-038,0.0,1249.0,Outofstock,
 Belt,Black Leather Gear Belt,109-0401-152,0.0,1090.0,Outofstock,
 Belt,Chocolate Leather Gear Belt,109-0401-127,0.0,1090.0,Outofstock,
 Belt,Chocolate Leather Gear Belt,109-0401-124,0.0,1090.0,Outofstock,
-FS Shirt,Sleek Maroon Executive Leather Bag,109-0301-019,0.0,4599.0,Outofstock,
-FS Shirt,Dual Textured Executive Leather Bag,109-0301-016,0.0,4599.0,Outofstock,
-FS Shirt,Croco Black Executive Leather Bag,109-0301-010,0.0,4199.0,Outofstock,
-FS Shirt,Matte Maroon Executive Leather Bag,109-0301-011,0.0,4199.0,Outofstock,
+Leather Bag,Sleek Maroon Executive Leather Bag,109-0301-019,0.0,4599.0,Outofstock,
+Leather Bag,Dual Textured Executive Leather Bag,109-0301-016,0.0,4599.0,Outofstock,
+Leather Bag,Croco Black Executive Leather Bag,109-0301-010,0.0,4199.0,Outofstock,
+Leather Bag,Matte Maroon Executive Leather Bag,109-0301-011,0.0,4199.0,Outofstock,
 Wallet,Navy Blue Leather Passport Holder,109-0303-004,1.0,880.0,Instock,
 Wallet,Choco Defined Leather Passport Holder,109-0303-002,1.0,880.0,Instock,
-FS Shirt,Classic Maroon Executive Leather Bag,109-0301-015,0.0,4199.0,Outofstock,
-FS Shirt,Black Finish Executive Leather Bag,109-0301-014,0.0,4199.0,Outofstock,
+Leather Bag,Classic Maroon Executive Leather Bag,109-0301-015,0.0,4199.0,Outofstock,
+Leather Bag,Black Finish Executive Leather Bag,109-0301-014,0.0,4199.0,Outofstock,
 Wallet,Plain Black Trifold Genuine Leather Wallet,109-0103-016,0.0,880.0,Outofstock,
 Wallet,Muted Chocolate Leather Long Wallet,109-0101-034,0.0,1149.0,Outofstock,
-FS Shirt,Matte Black Executive Leather Bag,109-0301-012,0.0,4199.0,Outofstock,
+Leather Bag,Matte Black Executive Leather Bag,109-0301-012,0.0,4199.0,Outofstock,
 Wallet,Crocodile Rustic Leather Coin Pocket Long Wallet,109-0101-027,1.0,1249.0,Instock,
 Wallet,Crocodile Black Leather Coin Pocket Long Wallet,109-0101-025,2.0,1249.0,Instock,
 Wallet,Rustic Classic Leather Coin Pocket Long Wallet,109-0101-043,0.0,1299.0,Outofstock,
@@ -172,14 +172,14 @@ Wallet,Indigo Ridge Leather Long Wallet,109-0101-014,0.0,1149.0,Outofstock,
 Wallet,Dual Drift Leather Long Wallet,109-0101-013,0.0,1299.0,Outofstock,
 Wallet,Muted Maroon Leather Long Wallet,109-0101-012,0.0,1149.0,Outofstock,
 Wallet,Rustic Classic Leather Long Wallet,109-0101-011,1.0,1149.0,Instock,
-T-Shirt,Steel River Leather Long Wallet,109-0101-010,0.0,1149.0,Outofstock,
-Wallet,Crocodile Embossed Leather Long Wallet,109-0101-024,1.0,1149.0,Instock,
+Wallet,Steel River Leather Long Wallet,109-0101-010,0.0,1149.0,Outofstock,
+Wallet,Crocodile Embossed Leather Long Wallet,109-0101-024,0.0,1149.0,Outofstock,
 Wallet,Crocodile Texture Leather Long Wallet,109-0101-026,0.0,1249.0,Outofstock,
-Wallet,DEEN Trifold Genuine Leather Wallet,109-0103-001,4.0,849.0,Instock,
+Wallet,DEEN Trifold Genuine Leather Wallet,109-0103-001,3.0,849.0,Instock,
 Wallet,DEEN Bifold Leather Wallet,109-0102-027,0.0,799.0,Outofstock,
 Wallet,DEEN Trifold Genuine Leather Wallet,109-0103-003,3.0,849.0,Instock,
 Wallet,DEEN Trifold Genuine Leather Wallet,109-0103-002,0.0,849.0,Outofstock,
-Wallet,DEEN Trifold Genuine Leather Wallet,109-0103-004,3.0,849.0,Instock,
+Wallet,DEEN Trifold Genuine Leather Wallet,109-0103-004,2.0,849.0,Instock,
 Wallet,DEEN Genuine Leather Wallet,109-0102-017,0.0,799.0,Outofstock,
 Belt,Black Leather Moving Belt,109-0401-176,0.0,999.0,Outofstock,
 Wallet,DEEN Trifold Genuine Leather Wallet,109-0103-006,6.0,849.0,Instock,
@@ -187,170 +187,39 @@ Mask,Breathable Face Mask,109-0502-001,278.0,280.0,Instock,
 Wallet,DEEN Genuine Leather Long Wallet,109-0101-006,0.0,1299.0,Outofstock,
 Wallet,DEEN Genuine Leather Long Wallet,109-0101-005,0.0,1299.0,Outofstock,
 Wallet,DEEN Genuine Leather Long Wallet,109-0101-009,0.0,1299.0,Outofstock,
-Water Bottle,Durable Aluminum Water Bottle 600 ml.,109-0501-001,0.0,399.0,Outofstock,
-HS Shirt,Grey Blush Casual Half Shirt - 3XL,102-0301-009,2.0,1590.0,Instock,3XL
-HS Shirt,Grey Blush Casual Half Shirt - 2XL,102-0301-009,4.0,1590.0,Instock,2XL
-HS Shirt,Grey Blush Casual Half Shirt - XL,102-0301-009,10.0,1590.0,Instock,XL
-HS Shirt,Grey Blush Casual Half Shirt - L,102-0301-009,14.0,1590.0,Instock,L
-HS Shirt,Grey Blush Casual Half Shirt - M,102-0301-009,7.0,1590.0,Instock,M
-HS Shirt,Light Grey Check Casual Half Shirt - 3XL,102-0301-015,2.0,1450.0,Instock,3XL
-HS Shirt,Light Grey Check Casual Half Shirt - 2XL,102-0301-015,4.0,1450.0,Instock,2XL
-HS Shirt,Light Grey Check Casual Half Shirt - XL,102-0301-015,10.0,1450.0,Instock,XL
-HS Shirt,Light Grey Check Casual Half Shirt - L,102-0301-015,10.0,1450.0,Instock,L
-HS Shirt,Light Grey Check Casual Half Shirt - M,102-0301-015,6.0,1450.0,Instock,M
-T-Shirt,Forest Claw Graphic Drop Shoulder T-Shirt - 3XL,105-0301-007,3.0,632.0,Instock,3XL
-T-Shirt,Forest Claw Graphic Drop Shoulder T-Shirt - 2XL,105-0301-007,20.0,632.0,Instock,2XL
-T-Shirt,Forest Claw Graphic Drop Shoulder T-Shirt - XL,105-0301-007,23.0,632.0,Instock,XL
-T-Shirt,Forest Claw Graphic Drop Shoulder T-Shirt - L,105-0301-007,36.0,632.0,Instock,L
-T-Shirt,Forest Claw Graphic Drop Shoulder T-Shirt - M,105-0301-007,15.0,632.0,Instock,M
-FS Shirt,White Executive Formal Shirt - 3XL,102-0501-011,10.0,1590.0,Instock,3XL
-FS Shirt,White Executive Formal Shirt - 2XL,102-0501-011,17.0,1590.0,Instock,2XL
-FS Shirt,White Executive Formal Shirt - XL,102-0501-011,29.0,1590.0,Instock,XL
-FS Shirt,White Executive Formal Shirt - L,102-0501-011,32.0,1590.0,Instock,L
-FS Shirt,White Executive Formal Shirt - M,102-0501-011,17.0,1590.0,Instock,M
-T-Shirt,Urban Ride Print Drop Shoulder T-Shirt - 3XL,105-0301-005,4.0,632.0,Instock,3XL
-T-Shirt,Urban Ride Print Drop Shoulder T-Shirt - 2XL,105-0301-005,16.0,632.0,Instock,2XL
-T-Shirt,Urban Ride Print Drop Shoulder T-Shirt - XL,105-0301-005,19.0,632.0,Instock,XL
-T-Shirt,Urban Ride Print Drop Shoulder T-Shirt - L,105-0301-005,19.0,632.0,Instock,L
-T-Shirt,Urban Ride Print Drop Shoulder T-Shirt - M,105-0301-005,15.0,632.0,Instock,M
-HS Shirt,Teal Swirl Casual Half Shirt - 3XL,102-0301-010,5.0,1590.0,Instock,3XL
-HS Shirt,Teal Swirl Casual Half Shirt - 2XL,102-0301-010,6.0,1590.0,Instock,2XL
-HS Shirt,Teal Swirl Casual Half Shirt - XL,102-0301-010,5.0,1590.0,Instock,XL
-HS Shirt,Teal Swirl Casual Half Shirt - L,102-0301-010,7.0,1590.0,Instock,L
-HS Shirt,Teal Swirl Casual Half Shirt - M,102-0301-010,4.0,1590.0,Instock,M
-FS Shirt,White Executive Formal Shirt - 3XL,102-0501-007,4.0,1490.0,Instock,3XL
-FS Shirt,White Executive Formal Shirt - 2XL,102-0501-007,6.0,1490.0,Instock,2XL
-FS Shirt,White Executive Formal Shirt - XL,102-0501-007,4.0,1490.0,Instock,XL
-FS Shirt,White Executive Formal Shirt - L,102-0501-007,17.0,1490.0,Instock,L
-FS Shirt,White Executive Formal Shirt - M,102-0501-007,4.0,1490.0,Instock,M
-HS Shirt,Grey wiggly Casual Half Shirt - 3XL,102-0301-008,5.0,1590.0,Instock,3XL
-HS Shirt,Grey wiggly Casual Half Shirt - 2XL,102-0301-008,8.0,1590.0,Instock,2XL
-HS Shirt,Grey wiggly Casual Half Shirt - XL,102-0301-008,14.0,1590.0,Instock,XL
-HS Shirt,Grey wiggly Casual Half Shirt - L,102-0301-008,15.0,1590.0,Instock,L
-HS Shirt,Grey wiggly Casual Half Shirt - M,102-0301-008,8.0,1590.0,Instock,M
-FS Shirt,Classic Stripe Executive Formal Shirt - 3XL,102-0501-003,8.0,1490.0,Instock,3XL
+Water Bottle,Durable Aluminum Water Bottle 600 ml.,109-0501-001,21.0,399.0,Instock,
+Tank Top,Burgundy Relaxed Graphic Tank Top - 3XL,105-0401-006,3.0,540.0,Instock,3XL
+Tank Top,Burgundy Relaxed Graphic Tank Top - 2XL,105-0401-006,10.0,540.0,Instock,2XL
+Tank Top,Burgundy Relaxed Graphic Tank Top - XL,105-0401-006,11.0,540.0,Instock,XL
+Tank Top,Burgundy Relaxed Graphic Tank Top - L,105-0401-006,31.0,540.0,Instock,L
+Tank Top,Burgundy Relaxed Graphic Tank Top - M,105-0401-006,11.0,540.0,Instock,M
+FS Shirt,Sky Blue Executive Formal Shirt - 3XL,102-0501-008,1.0,1490.0,Instock,3XL
+FS Shirt,Sky Blue Executive Formal Shirt - 2XL,102-0501-008,6.0,1490.0,Instock,2XL
+FS Shirt,Sky Blue Executive Formal Shirt - XL,102-0501-008,12.0,1490.0,Instock,XL
+FS Shirt,Sky Blue Executive Formal Shirt - L,102-0501-008,7.0,1490.0,Instock,L
+FS Shirt,Sky Blue Executive Formal Shirt - M,102-0501-008,7.0,1490.0,Instock,M
+Tank Top,Glacier Relaxed Graphic Tank Top - 3XL,105-0401-002,0.0,540.0,Outofstock,3XL
+Tank Top,Glacier Relaxed Graphic Tank Top - 2XL,105-0401-002,0.0,540.0,Outofstock,2XL
+Tank Top,Glacier Relaxed Graphic Tank Top - XL,105-0401-002,0.0,540.0,Outofstock,XL
+Tank Top,Glacier Relaxed Graphic Tank Top - L,105-0401-002,3.0,540.0,Instock,L
+Tank Top,Glacier Relaxed Graphic Tank Top - M,105-0401-002,0.0,540.0,Outofstock,M
+HS Shirt,Grey Motif Casual Half Shirt - 3XL,102-0301-007,3.0,1325.0,Instock,3XL
+HS Shirt,Grey Motif Casual Half Shirt - 2XL,102-0301-007,10.0,1325.0,Instock,2XL
+HS Shirt,Grey Motif Casual Half Shirt - XL,102-0301-007,13.0,1325.0,Instock,XL
+HS Shirt,Grey Motif Casual Half Shirt - L,102-0301-007,15.0,1325.0,Instock,L
+HS Shirt,Grey Motif Casual Half Shirt - M,102-0301-007,9.0,1325.0,Instock,M
+Jeans,High-End Light Blue Jeans - Regular Fit - 38,101-0200-150,26.0,1912.0,Instock,38
+Jeans,High-End Light Blue Jeans - Regular Fit - 36,101-0200-150,81.0,1912.0,Instock,36
+Jeans,High-End Light Blue Jeans - Regular Fit - 34,101-0200-150,164.0,1912.0,Instock,34
+Jeans,High-End Light Blue Jeans - Regular Fit - 32,101-0200-150,127.0,1912.0,Instock,32
+Jeans,High-End Light Blue Jeans - Regular Fit - 30,101-0200-150,0.0,1912.0,Outofstock,30
+FS Shirt,Classic Stripe Executive Formal Shirt - 3XL,102-0501-003,6.0,1490.0,Instock,3XL
 FS Shirt,Classic Stripe Executive Formal Shirt - 2XL,102-0501-003,25.0,1490.0,Instock,2XL
-FS Shirt,Classic Stripe Executive Formal Shirt - XL,102-0501-003,20.0,1490.0,Instock,XL
-FS Shirt,Classic Stripe Executive Formal Shirt - L,102-0501-003,35.0,1490.0,Instock,L
+FS Shirt,Classic Stripe Executive Formal Shirt - XL,102-0501-003,16.0,1490.0,Instock,XL
+FS Shirt,Classic Stripe Executive Formal Shirt - L,102-0501-003,31.0,1490.0,Instock,L
 FS Shirt,Classic Stripe Executive Formal Shirt - M,102-0501-003,18.0,1490.0,Instock,M
-HS Shirt,Grey Blush Casual Half Shirt - 3XL,102-0301-012,1.0,1450.0,Instock,3XL
-HS Shirt,Grey Blush Casual Half Shirt - 2XL,102-0301-012,6.0,1450.0,Instock,2XL
-HS Shirt,Grey Blush Casual Half Shirt - XL,102-0301-012,4.0,1450.0,Instock,XL
-HS Shirt,Grey Blush Casual Half Shirt - L,102-0301-012,8.0,1450.0,Instock,L
-HS Shirt,Grey Blush Casual Half Shirt - M,102-0301-012,7.0,1450.0,Instock,M
-T-Shirt,Burgundy Relaxed Graphic Tank Top - 3XL,105-0401-006,4.0,540.0,Instock,3XL
-T-Shirt,Burgundy Relaxed Graphic Tank Top - 2XL,105-0401-006,11.0,540.0,Instock,2XL
-T-Shirt,Burgundy Relaxed Graphic Tank Top - XL,105-0401-006,11.0,540.0,Instock,XL
-T-Shirt,Burgundy Relaxed Graphic Tank Top - L,105-0401-006,33.0,540.0,Instock,L
-T-Shirt,Burgundy Relaxed Graphic Tank Top - M,105-0401-006,11.0,540.0,Instock,M
-T-Shirt,Cabbage Relaxed Graphic Tank Top - 3XL,105-0401-007,5.0,590.0,Instock,3XL
-T-Shirt,Cabbage Relaxed Graphic Tank Top - 2XL,105-0401-007,13.0,590.0,Instock,2XL
-T-Shirt,Cabbage Relaxed Graphic Tank Top - XL,105-0401-007,31.0,590.0,Instock,XL
-T-Shirt,Cabbage Relaxed Graphic Tank Top - L,105-0401-007,40.0,590.0,Instock,L
-T-Shirt,Cabbage Relaxed Graphic Tank Top - M,105-0401-007,5.0,590.0,Instock,M
-T-Shirt,White Relaxed Graphic Tank Top - 3XL,105-0401-008,10.0,540.0,Instock,3XL
-T-Shirt,White Relaxed Graphic Tank Top - 2XL,105-0401-008,25.0,540.0,Instock,2XL
-T-Shirt,White Relaxed Graphic Tank Top - XL,105-0401-008,33.0,540.0,Instock,XL
-T-Shirt,White Relaxed Graphic Tank Top - L,105-0401-008,44.0,540.0,Instock,L
-T-Shirt,White Relaxed Graphic Tank Top - M,105-0401-008,13.0,540.0,Instock,M
-T-Shirt,Crew Graphic Drop Shoulder T-Shirt - 3XL,105-0301-008,11.0,632.0,Instock,3XL
-T-Shirt,Crew Graphic Drop Shoulder T-Shirt - 2XL,105-0301-008,14.0,632.0,Instock,2XL
-T-Shirt,Crew Graphic Drop Shoulder T-Shirt - XL,105-0301-008,20.0,632.0,Instock,XL
-T-Shirt,Crew Graphic Drop Shoulder T-Shirt - L,105-0301-008,22.0,632.0,Instock,L
-T-Shirt,Crew Graphic Drop Shoulder T-Shirt - M,105-0301-008,13.0,632.0,Instock,M
-T-Shirt,Aqua Wave Print Drop Shoulder T-Shirt - 3XL,105-0301-002,0.0,632.0,Outofstock,3XL
-T-Shirt,Aqua Wave Print Drop Shoulder T-Shirt - 2XL,105-0301-002,0.0,632.0,Outofstock,2XL
-T-Shirt,Aqua Wave Print Drop Shoulder T-Shirt - XL,105-0301-002,0.0,632.0,Outofstock,XL
-T-Shirt,Aqua Wave Print Drop Shoulder T-Shirt - L,105-0301-002,0.0,632.0,Outofstock,L
-T-Shirt,Aqua Wave Print Drop Shoulder T-Shirt - M,105-0301-002,0.0,632.0,Outofstock,M
-T-Shirt,Urban Stripe Drop Shoulder T-Shirt - 3XL,105-0301-001,2.0,672.0,Instock,3XL
-T-Shirt,Urban Stripe Drop Shoulder T-Shirt - 2XL,105-0301-001,13.0,672.0,Instock,2XL
-T-Shirt,Urban Stripe Drop Shoulder T-Shirt - XL,105-0301-001,14.0,672.0,Instock,XL
-T-Shirt,Urban Stripe Drop Shoulder T-Shirt - L,105-0301-001,48.0,672.0,Instock,L
-T-Shirt,Urban Stripe Drop Shoulder T-Shirt - M,105-0301-001,12.0,672.0,Instock,M
-T-Shirt,Glacier Relaxed Graphic Tank Top - 3XL,105-0401-002,2.0,540.0,Instock,3XL
-T-Shirt,Glacier Relaxed Graphic Tank Top - 2XL,105-0401-002,0.0,540.0,Outofstock,2XL
-T-Shirt,Glacier Relaxed Graphic Tank Top - XL,105-0401-002,0.0,540.0,Outofstock,XL
-T-Shirt,Glacier Relaxed Graphic Tank Top - L,105-0401-002,4.0,540.0,Instock,L
-T-Shirt,Glacier Relaxed Graphic Tank Top - M,105-0401-002,0.0,540.0,Outofstock,M
-T-Shirt,Sable Relaxed Graphic Tank Top - 3XL,105-0401-005,2.0,540.0,Instock,3XL
-T-Shirt,Sable Relaxed Graphic Tank Top - 2XL,105-0401-005,18.0,540.0,Instock,2XL
-T-Shirt,Sable Relaxed Graphic Tank Top - XL,105-0401-005,19.0,540.0,Instock,XL
-T-Shirt,Sable Relaxed Graphic Tank Top - L,105-0401-005,42.0,540.0,Instock,L
-T-Shirt,Sable Relaxed Graphic Tank Top - M,105-0401-005,9.0,540.0,Instock,M
-T-Shirt,Orlando Relaxed Graphic Tank Top - 3XL,105-0401-004,1.0,640.0,Instock,3XL
-T-Shirt,Orlando Relaxed Graphic Tank Top - 2XL,105-0401-004,18.0,640.0,Instock,2XL
-T-Shirt,Orlando Relaxed Graphic Tank Top - XL,105-0401-004,13.0,640.0,Instock,XL
-T-Shirt,Orlando Relaxed Graphic Tank Top - L,105-0401-004,28.0,640.0,Instock,L
-T-Shirt,Orlando Relaxed Graphic Tank Top - M,105-0401-004,11.0,640.0,Instock,M
-T-Shirt,Deep Violet Drop Shoulder T-Shirt - 3XL,105-0301-009,10.0,632.0,Instock,3XL
-T-Shirt,Deep Violet Drop Shoulder T-Shirt - 2XL,105-0301-009,16.0,632.0,Instock,2XL
-T-Shirt,Deep Violet Drop Shoulder T-Shirt - XL,105-0301-009,20.0,632.0,Instock,XL
-T-Shirt,Deep Violet Drop Shoulder T-Shirt - L,105-0301-009,39.0,632.0,Instock,L
-T-Shirt,Deep Violet Drop Shoulder T-Shirt - M,105-0301-009,13.0,632.0,Instock,M
-T-Shirt,Retro Car Print Drop Shoulder T-Shirt - 3XL,105-0301-003,2.0,632.0,Instock,3XL
-T-Shirt,Retro Car Print Drop Shoulder T-Shirt - 2XL,105-0301-003,9.0,632.0,Instock,2XL
-T-Shirt,Retro Car Print Drop Shoulder T-Shirt - XL,105-0301-003,16.0,632.0,Instock,XL
-T-Shirt,Retro Car Print Drop Shoulder T-Shirt - L,105-0301-003,26.0,632.0,Instock,L
-T-Shirt,Retro Car Print Drop Shoulder T-Shirt - M,105-0301-003,1.0,632.0,Instock,M
-T-Shirt,Full Sleeve Side-Stripe T-shirt - 3XL,105-0201-037,19.0,364.0,Instock,3XL
-T-Shirt,Full Sleeve Side-Stripe T-shirt - 2XL,105-0201-037,4.0,364.0,Instock,2XL
-T-Shirt,Full Sleeve Side-Stripe T-shirt - XL,105-0201-037,16.0,364.0,Instock,XL
-T-Shirt,Full Sleeve Side-Stripe T-shirt - L,105-0201-037,5.0,364.0,Instock,L
-T-Shirt,Full Sleeve Side-Stripe T-shirt - M,105-0201-037,0.0,364.0,Outofstock,M
-Panjabi,Arrowtown Embroidered Panjabi - 46,106-0101-134,2.0,1914.0,Instock,46
-Panjabi,Arrowtown Embroidered Panjabi - 44,106-0101-134,4.0,1914.0,Instock,44
-Panjabi,Arrowtown Embroidered Panjabi - 42,106-0101-134,7.0,1914.0,Instock,42
-Panjabi,Arrowtown Embroidered Panjabi - 40,106-0101-134,0.0,1914.0,Outofstock,40
-Panjabi,Lavender Semi Formal Panjabi - 46,106-0101-105,0.0,1554.0,Outofstock,46
-Panjabi,Lavender Semi Formal Panjabi - 44,106-0101-105,0.0,1554.0,Outofstock,44
-Panjabi,Lavender Semi Formal Panjabi - 42,106-0101-105,0.0,1554.0,Outofstock,42
-Panjabi,Lavender Semi Formal Panjabi - 40,106-0101-105,0.0,1554.0,Outofstock,40
-Panjabi,Lavender Semi Formal Panjabi - 38,106-0101-105,2.0,1554.0,Instock,38
-Jeans,High-End Vintage Wash Jeans - Regular Fit - 38,101-0200-149,27.0,2072.0,Instock,38
-Jeans,High-End Vintage Wash Jeans - Regular Fit - 36,101-0200-149,62.0,2072.0,Instock,36
-Jeans,High-End Vintage Wash Jeans - Regular Fit - 34,101-0200-149,153.0,2072.0,Instock,34
-Jeans,High-End Vintage Wash Jeans - Regular Fit - 32,101-0200-149,117.0,2072.0,Instock,32
-Jeans,High-End Vintage Wash Jeans - Regular Fit - 30,101-0200-149,0.0,2072.0,Outofstock,30
-T-Shirt,Full Sleeve Trio-Tone T-shirt - 3XL,105-0201-031,17.0,364.0,Instock,3XL
-T-Shirt,Full Sleeve Trio-Tone T-shirt - 2XL,105-0201-031,29.0,364.0,Instock,2XL
-T-Shirt,Full Sleeve Trio-Tone T-shirt - XL,105-0201-031,32.0,364.0,Instock,XL
-T-Shirt,Full Sleeve Trio-Tone T-shirt - L,105-0201-031,31.0,364.0,Instock,L
-T-Shirt,Full Sleeve Trio-Tone T-shirt - M,105-0201-031,14.0,364.0,Instock,M
-Panjabi,Artistic Semi Formal Panjabi - 46,106-0101-122,5.0,1494.0,Instock,46
-Panjabi,Artistic Semi Formal Panjabi - 44,106-0101-122,5.0,1494.0,Instock,44
-Panjabi,Artistic Semi Formal Panjabi - 42,106-0101-122,3.0,1494.0,Instock,42
-Panjabi,Artistic Semi Formal Panjabi - 40,106-0101-122,8.0,1494.0,Instock,40
-Panjabi,Artistic Semi Formal Panjabi - 38,106-0101-122,1.0,1494.0,Instock,38
-T-Shirt,Full Sleeve Maroon Panel T-shirt - 3XL,105-0201-035,14.0,364.0,Instock,3XL
-T-Shirt,Full Sleeve Maroon Panel T-shirt - 2XL,105-0201-035,9.0,364.0,Instock,2XL
-T-Shirt,Full Sleeve Maroon Panel T-shirt - XL,105-0201-035,4.0,364.0,Instock,XL
-T-Shirt,Full Sleeve Maroon Panel T-shirt - L,105-0201-035,2.0,364.0,Instock,L
-T-Shirt,Full Sleeve Maroon Panel T-shirt - M,105-0201-035,3.0,364.0,Instock,M
-Jeans,High-End Whisker Faded Jeans - Regular Fit - 38,101-0200-151,34.0,1992.0,Instock,38
-Jeans,High-End Whisker Faded Jeans - Regular Fit - 36,101-0200-151,68.0,1992.0,Instock,36
-Jeans,High-End Whisker Faded Jeans - Regular Fit - 34,101-0200-151,165.0,1992.0,Instock,34
-Jeans,High-End Whisker Faded Jeans - Regular Fit - 32,101-0200-151,176.0,1992.0,Instock,32
-Jeans,High-End Whisker Faded Jeans - Regular Fit - 30,101-0200-151,1.0,1992.0,Instock,30
-T-Shirt,Full Sleeve Black T-shirt - 3XL,105-0201-029,15.0,364.0,Instock,3XL
-T-Shirt,Full Sleeve Black T-shirt - 2XL,105-0201-029,15.0,364.0,Instock,2XL
-T-Shirt,Full Sleeve Black T-shirt - XL,105-0201-029,17.0,364.0,Instock,XL
-T-Shirt,Full Sleeve Black T-shirt - L,105-0201-029,4.0,364.0,Instock,L
-T-Shirt,Full Sleeve Black T-shirt - M,105-0201-029,0.0,364.0,Outofstock,M
-Trousers,Maroon Trousers - 2XL,110-0101-013,21.0,599.0,Instock,2XL
-Trousers,Maroon Trousers - XL,110-0101-013,63.0,599.0,Instock,XL
-Trousers,Maroon Trousers - L,110-0101-013,89.0,599.0,Instock,L
-Trousers,Maroon Trousers - M,110-0101-013,2.0,599.0,Instock,M
-Trousers,Green Trousers - 2XL,110-0101-011,1.0,599.0,Instock,2XL
-Trousers,Green Trousers - XL,110-0101-011,0.0,599.0,Outofstock,XL
-Trousers,Green Trousers - L,110-0101-011,34.0,599.0,Instock,L
-Trousers,Green Trousers - M,110-0101-011,0.0,599.0,Outofstock,M
-Sweatshirt,Off-white Sweatshirt in French-Terry - 3XL,108-0101-010,7.0,494.0,Instock,3XL
-Sweatshirt,Off-white Sweatshirt in French-Terry - 2XL,108-0101-010,33.0,494.0,Instock,2XL
-Sweatshirt,Off-white Sweatshirt in French-Terry - XL,108-0101-010,33.0,494.0,Instock,XL
-Sweatshirt,Off-white Sweatshirt in French-Terry - L,108-0101-010,25.0,494.0,Instock,L
-Sweatshirt,Off-white Sweatshirt in French-Terry - M,108-0101-010,15.0,494.0,Instock,M
-Boxer,Navy Boxer Brief - 2XL,107-0100-052,0.0,279.0,Outofstock,2XL
-Boxer,Navy Boxer Brief - XL,107-0100-052,0.0,279.0,Outofstock,XL
-Boxer,Navy Boxer Brief - L,107-0100-052,0.0,279.0,Outofstock,L
-Boxer,Navy Boxer Brief - M,107-0100-052,2.0,279.0,Instock,M
+Jeans,High-End Whisker Faded Jeans - Regular Fit - 38,101-0200-151,18.0,1992.0,Instock,38
+Jeans,High-End Whisker Faded Jeans - Regular Fit - 36,101-0200-151,59.0,1992.0,Instock,36
+Jeans,High-End Whisker Faded Jeans - Regular Fit - 34,101-0200-151,157.0,1992.0,Instock,34
+Jeans,High-End Whisker Faded Jeans - Regular Fit - 32,101-0200-151,148.0,1992.0,Instock,32
+Jeans,High-End Whisker Faded Jeans - Regular Fit - 30,101-0200-151,0.0,1992.0,Outofstock,30
