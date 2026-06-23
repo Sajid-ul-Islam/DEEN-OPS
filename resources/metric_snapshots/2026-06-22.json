@@ -1,0 +1,38 @@
+{
+  "date": "2026-06-22",
+  "shifts": [
+    {
+      "ts": "2026-06-22T10:07:33.829648+06:00",
+      "label": "Today",
+      "revenue": 163134.0,
+      "orders": 119,
+      "qty": 323,
+      "aov": 1418.56,
+      "top_products": [
+        {
+          "name": "Light Blue Executive Formal Shirt - XL",
+          "revenue": 9306.0
+        },
+        {
+          "name": "Sky Blue Executive Formal Shirt - L",
+          "revenue": 7450.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - M",
+          "revenue": 6260.0
+        },
+        {
+          "name": "Urban Stripe Drop Shoulder T-Shirt - M",
+          "revenue": 5040.0
+        },
+        {
+          "name": "Urban Stripe Drop Shoulder T-Shirt - 2XL",
+          "revenue": 4965.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 163134.0,
+  "daily_orders": 119,
+  "daily_qty": 323
+}
