@@ -1,0 +1,128 @@
+{
+  "date": "2026-06-24",
+  "shifts": [
+    {
+      "ts": "2026-06-24T10:18:58.110687+06:00",
+      "label": "Today",
+      "revenue": 144141.0,
+      "orders": 114,
+      "qty": 287,
+      "aov": 1310.37,
+      "top_products": [
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 6678.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 5306.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - 2XL",
+          "revenue": 5264.0
+        },
+        {
+          "name": "Urban Stripe Drop Shoulder T-Shirt - XL",
+          "revenue": 5040.0
+        },
+        {
+          "name": "Plain Choco Leather Long Wallet",
+          "revenue": 3797.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-24T15:22:07.832753+06:00",
+      "label": "Today",
+      "revenue": 145171.0,
+      "orders": 125,
+      "qty": 299,
+      "aov": 1209.76,
+      "top_products": [
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 6678.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 5306.0
+        },
+        {
+          "name": "Urban Stripe Drop Shoulder T-Shirt - XL",
+          "revenue": 5040.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - 2XL",
+          "revenue": 3774.0
+        },
+        {
+          "name": "Blue Horizon Executive Formal Shirt - L",
+          "revenue": 3410.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-24T15:22:13.151680+06:00",
+      "label": "Today",
+      "revenue": 74867.0,
+      "orders": 69,
+      "qty": 142,
+      "aov": 1134.35,
+      "top_products": [
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 6678.0
+        },
+        {
+          "name": "Blue Horizon Executive Formal Shirt - L",
+          "revenue": 3410.0
+        },
+        {
+          "name": "Stone Embroidered Panjabi - 42",
+          "revenue": 3190.0
+        },
+        {
+          "name": "White Print Executive Formal Shirt - L",
+          "revenue": 3140.0
+        },
+        {
+          "name": "Plain Choco Leather Long Wallet",
+          "revenue": 2498.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-24T17:47:03.377723+06:00",
+      "label": "Today",
+      "revenue": 81151.0,
+      "orders": 74,
+      "qty": 157,
+      "aov": 1142.97,
+      "top_products": [
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 6678.0
+        },
+        {
+          "name": "Blue Horizon Executive Formal Shirt - L",
+          "revenue": 3410.0
+        },
+        {
+          "name": "Stone Embroidered Panjabi - 42",
+          "revenue": 3190.0
+        },
+        {
+          "name": "White Print Executive Formal Shirt - L",
+          "revenue": 3140.0
+        },
+        {
+          "name": "Black Leather Long Wallet",
+          "revenue": 2598.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 445330.0,
+  "daily_orders": 382,
+  "daily_qty": 885
+}
