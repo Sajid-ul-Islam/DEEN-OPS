@@ -1,0 +1,68 @@
+{
+  "date": "2026-06-23",
+  "shifts": [
+    {
+      "ts": "2026-06-23T09:36:43.218258+06:00",
+      "label": "Today",
+      "revenue": 146112.0,
+      "orders": 105,
+      "qty": 271,
+      "aov": 1418.56,
+      "top_products": [
+        {
+          "name": "Classic Stripe Executive Formal Shirt - 2XL",
+          "revenue": 5960.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - M",
+          "revenue": 5860.0
+        },
+        {
+          "name": "Sky Blue Executive Formal Shirt - XL",
+          "revenue": 5860.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 4770.0
+        },
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 4670.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-06-23T17:45:01.855333+06:00",
+      "label": "Today",
+      "revenue": 95777.0,
+      "orders": 74,
+      "qty": 181,
+      "aov": 1312.01,
+      "top_products": [
+        {
+          "name": "Classic Stripe Executive Formal Shirt - M",
+          "revenue": 5860.0
+        },
+        {
+          "name": "Sky Blue Executive Formal Shirt - XL",
+          "revenue": 5860.0
+        },
+        {
+          "name": "White Executive Formal Shirt - L",
+          "revenue": 4670.0
+        },
+        {
+          "name": "Teal Blue Embroidered Panjabi - 42",
+          "revenue": 3190.0
+        },
+        {
+          "name": "White Executive Formal Shirt - XL",
+          "revenue": 3180.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 241889.0,
+  "daily_orders": 179,
+  "daily_qty": 452
+}
