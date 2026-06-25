@@ -550,12 +550,12 @@ def _distribute_amount_to_collect(total_to_collect, total_base, parcel_records, 
             rec["SpecialInstruction"] = f"{rec['SpecialInstruction']} | {tag}" if rec["SpecialInstruction"] else tag
 
     if len(parcel_records) == 1:
-        parcel_records[0]["AmountToCollect(*)"] = total_to_collect
+        parcel_records[0]["AmountToCollect(*)"] = int(total_to_collect)
     else:
         max_idx = parcel_base_values.index(max(parcel_base_values))
         sum_others = sum(v for i, v in enumerate(parcel_base_values) if i != max_idx)
         for i, rec in enumerate(parcel_records):
-            rec["AmountToCollect(*)"] = (
+            rec["AmountToCollect(*)"] = int(
                 max(0, total_to_collect - sum_others) if i == max_idx else parcel_base_values[i]
             )
 

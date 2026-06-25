@@ -30,7 +30,7 @@ class ExcelFormatter:
             props['bold'] = True
         
         if is_currency:
-            props['num_format'] = '#,##0'
+            props['num_format'] = '0'
         elif is_percent:
             props['num_format'] = '0.0%'
             
