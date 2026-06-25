@@ -1,12 +1,5 @@
 [
     {
-        "timestamp": "2026-04-11 12:56:37",
-        "context": "App Bootstrap",
-        "error": "cannot import name 'render_ai_pilot' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 182, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 47, in run_app\n    from app_modules.ai_pilot import render_ai_pilot\nImportError: cannot import name 'render_ai_pilot' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-11 12:56:58",
         "context": "App Bootstrap",
         "error": "cannot import name 'render_ai_pilot' from 'app_modules.ai_pilot' (H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py)",
@@ -820,6 +813,15 @@
     },
     {
         "timestamp": "2026-06-20 17:29:38",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-25 17:08:29",
         "context": "safe_render",
         "error": "division by zero",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",

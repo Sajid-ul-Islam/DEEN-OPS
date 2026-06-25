@@ -30,9 +30,39 @@
           "revenue": 1992.0
         }
       ]
+    },
+    {
+      "ts": "2026-06-25T17:11:47.873934+06:00",
+      "label": "Today",
+      "revenue": 68538.0,
+      "orders": 64,
+      "qty": 153,
+      "aov": 1087.9,
+      "top_products": [
+        {
+          "name": "Black Relaxed Graphic Tank Top - L",
+          "revenue": 3840.0
+        },
+        {
+          "name": "Teal Blue Embroidered Panjabi - 42",
+          "revenue": 3190.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 42",
+          "revenue": 2990.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 1992.0
+        },
+        {
+          "name": "Choco Leather Belt",
+          "revenue": 1980.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 65708.0,
-  "daily_orders": 66,
-  "daily_qty": 149
+  "daily_revenue": 134246.0,
+  "daily_orders": 130,
+  "daily_qty": 302
 }

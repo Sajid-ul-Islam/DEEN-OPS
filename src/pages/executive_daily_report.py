@@ -16,8 +16,10 @@ import sys
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 
+from src.config.constants import PROJECT_ROOT
+
 # Ensure DEEN-OPS root is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, PROJECT_ROOT)
 
 # Mock Streamlit session state for headless execution before importing app modules
 import streamlit as st

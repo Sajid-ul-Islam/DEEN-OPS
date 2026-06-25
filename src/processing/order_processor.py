@@ -3,13 +3,14 @@ import streamlit as st
 import os
 import json
 import re
+from typing import Any, Dict, List, Tuple, Optional, Set
 from src.config.constants import RESOURCES_DIR
 from src.processing.categorization import get_category_for_sales
 from src.utils.text import normalize_city_name, peek_zone_from_address
 from rapidfuzz import process
 
 
-def clean_dataframe(df):
+def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     cleans and standardizes the input dataframe columns.
     """
@@ -44,11 +45,11 @@ def clean_dataframe(df):
     return df
 
 
-def identify_columns(df):
+def identify_columns(df: pd.DataFrame) -> Dict[str, Any]:
     """
     Identifies dynamic column names like Address and Transaction ID.
     """
-    cols = {}
+    cols: Dict[str, Any] = {}
 
     # Address Column
     cols["addr_col"] = "Address_Fallback"
@@ -132,6 +133,7 @@ def identify_columns(df):
 def get_short_sub_category(item_name: str) -> str:
     """Extracts a shortened sub-category name for Pathao ItemDesc formatting."""
     name_lower = str(item_name).lower()
+    name_lower = str(item_name).lower()
     
     if "tank top" in name_lower or "tanktop" in name_lower or "tank-top" in name_lower:
         return "TankTop"
@@ -205,7 +207,7 @@ def get_short_sub_category(item_name: str) -> str:
     return parts[0].strip()
 
 
-def build_item_description(cat_map, total_qty, trx_info=""):
+def build_item_description(cat_map: Dict[str, Dict[str, int]], total_qty: int, trx_info: str = "") -> str:
     """
     Builds the ItemDesc string for Pathao from a category map.
     """
@@ -259,7 +261,7 @@ def build_item_description(cat_map, total_qty, trx_info=""):
     return full_desc
 
 
-def parse_manual_item_lines(raw_text):
+def parse_manual_item_lines(raw_text: str) -> Tuple[Dict[str, Dict[str, int]], int]:
     """
     Parses a raw text block of manual items into a category map and total quantity.
     """
@@ -307,7 +309,7 @@ def parse_manual_item_lines(raw_text):
     return cat_map, total_qty
 
 
-def normalize_manual_item_input(raw_text):
+def normalize_manual_item_input(raw_text: str) -> Tuple[List[Dict[str, Any]], str]:
     """
     Returns normalized items (list of dicts) and the formatted description string.
     """
@@ -329,7 +331,7 @@ def normalize_manual_item_input(raw_text):
     return normalized_items, full_desc
 
 
-def _get_dispatch_group(row, order_col):
+def _get_dispatch_group(row: pd.Series, order_col: str) -> str:
     """Determine the dispatch location for a given row."""
     sugg = str(row.get("Dispatch Suggestion", "")).strip()
     if sugg and sugg.lower() != "nan" and sugg != "Multiple / Split":
@@ -344,7 +346,7 @@ def _get_dispatch_group(row, order_col):
     return "Ecom-Mirpur"
 
 
-def _extract_payment_info(group, order_col, trx_col):
+def _extract_payment_info(group: pd.DataFrame, order_col: str, trx_col: str) -> Tuple[float, str]:
     """Extract total_to_collect, trx_types, and trx_info from an order group."""
     total_to_collect = 0
     trx_types = set()
@@ -382,7 +384,7 @@ def _extract_payment_info(group, order_col, trx_col):
     return total_to_collect, trx_info
 
 
-def _build_parcel_category_map(df_sub):
+def _build_parcel_category_map(df_sub: pd.DataFrame) -> Tuple[Dict[str, Dict[str, int]], float]:
     """Build category map and calculate base value for a parcel subgroup."""
     cat_map = {}
     base_val = 0
@@ -408,7 +410,7 @@ def _build_parcel_category_map(df_sub):
     return cat_map, base_val
 
 
-def _resolve_address(first_row, data_cols):
+def _resolve_address(first_row: pd.Series, data_cols: Dict[str, Any]) -> Tuple[str, str, str]:
     """Resolve recipient address components from row data."""
     addr_col = data_cols["addr_col"]
     raw_address = str(first_row.get(addr_col, "")).strip()
@@ -443,7 +445,7 @@ def _resolve_address(first_row, data_cols):
     return address_val, recipient_city, extracted_zone
 
 
-def _lookup_pathao_geocoding(recipient_city, extracted_zone, address_val):
+def _lookup_pathao_geocoding(recipient_city: str, extracted_zone: str, address_val: str) -> Tuple[str, str, str]:
     """Use Pathao map data to correct city, zone, and area."""
     recipient_area = ""
     pathao_map_path = os.path.join(RESOURCES_DIR, "pathao_map.json")
@@ -480,7 +482,7 @@ def _lookup_pathao_geocoding(recipient_city, extracted_zone, address_val):
     return recipient_city, extracted_zone, recipient_area
 
 
-def _build_combined_merchant_id(df_sub, order_col):
+def _build_combined_merchant_id(df_sub: pd.DataFrame, order_col: str) -> str:
     """Combine merchant order IDs with dispatch suffixes."""
     if order_col not in df_sub.columns:
         return "N/A"
@@ -511,7 +513,7 @@ def _build_combined_merchant_id(df_sub, order_col):
     return ", ".join(order_ids)
 
 
-def _validate_city_zone(recipient_city, extracted_zone, address_val):
+def _validate_city_zone(recipient_city: str, extracted_zone: str, address_val: str) -> Tuple[str, str]:
     """Final brute-force validation for city and zone."""
     if not recipient_city or recipient_city.lower() in ["unknown", "nan", ""]:
         for city_name in ["Dhaka", "Chittagong", "Chattogram", "Sylhet", "Khulna", "Rajshahi", "Barisal", "Rangpur"]:
@@ -528,7 +530,7 @@ def _validate_city_zone(recipient_city, extracted_zone, address_val):
     return recipient_city, extracted_zone
 
 
-def _distribute_amount_to_collect(total_to_collect, total_base, parcel_records, parcel_base_values, recipient_city):
+def _distribute_amount_to_collect(total_to_collect: float, total_base: float, parcel_records: List[Dict[str, Any]], parcel_base_values: List[float], recipient_city: str) -> None:
     """Distribute the total amount to collect across parcels with partial order detection."""
     if total_to_collect == 0 and total_base > 0:
         city_lower = str(recipient_city).lower()
@@ -560,7 +562,7 @@ def _distribute_amount_to_collect(total_to_collect, total_base, parcel_records, 
             )
 
 
-def process_single_order_group(phone, group, data_cols):
+def process_single_order_group(phone: str, group: pd.DataFrame, data_cols: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Processes a group of rows belonging to a single order (phone number).
     Splits into multiple parcels if items have different dispatch locations,
@@ -628,7 +630,7 @@ def process_single_order_group(phone, group, data_cols):
 
 
 @st.cache_data(show_spinner="Processing orders via Pathao Intelligence Engine...")
-def process_orders_dataframe(df):
+def process_orders_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Main Logic: Takes raw DF, returns processed DF
     """

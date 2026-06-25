@@ -33,6 +33,26 @@ SOURCE_WOOCOM = "WooCommerce Processing"
 SOURCE_UPLOAD = "Upload / URL"
 
 
+def _highlight_status(col):
+    return [
+        'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
+        if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
+        else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
+        else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
+        else ''
+        for v in col
+    ]
+
+
+def _highlight_split_orders(row):
+    spec_inst = str(row.get("SpecialInstruction", ""))
+    if "PARTIAL ORDER" in spec_inst:
+        return ['background-color: rgba(245, 158, 11, 0.15); color: #b45309; font-weight: bold;'] * len(row)
+    if "SPLIT " in spec_inst:
+        return ['background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: bold;'] * len(row)
+    return [''] * len(row)
+
+
 def _get_pathao_client():
     try:
         return PathaoClient(**get_pathao_config(required=True))
@@ -327,15 +347,7 @@ def _render_processing_tab():
     result_df = st.session_state.get("pathao_res_df")
     if result_df is not None:
         with st.expander("Preview output", expanded=True):
-            def highlight_split_orders(row):
-                spec_inst = str(row.get("SpecialInstruction", ""))
-                if "PARTIAL ORDER" in spec_inst:
-                    return ['background-color: rgba(245, 158, 11, 0.15); color: #b45309; font-weight: bold;'] * len(row)
-                if "SPLIT " in spec_inst:
-                    return ['background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: bold;'] * len(row)
-                return [''] * len(row)
-                
-            styled_df = result_df.style.apply(highlight_split_orders, axis=1)
+            styled_df = result_df.style.apply(_highlight_split_orders, axis=1)
             st.dataframe(styled_df, use_container_width=True)
 
         c1, c2 = st.columns(2)
@@ -682,16 +694,7 @@ def _render_status_tracking_tab():
                             })
                         
                         df_history = pd.DataFrame(history_data)
-                        def highlight_status(col):
-                            return [
-                                'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
-                                if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
-                                else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
-                                else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
-                                else ''
-                                for v in col
-                            ]
-                        st.dataframe(df_history.style.apply(highlight_status, subset=['Status']), use_container_width=True)
+                        st.dataframe(df_history.style.apply(_highlight_status, subset=['Status']), use_container_width=True)
             except Exception as e:
                 st.error(f"Error searching Pathao: {e}")
 
@@ -725,16 +728,7 @@ def _render_status_tracking_tab():
                             })
                         
                         df_history = pd.DataFrame(history_data)
-                        def highlight_status(col):
-                            return [
-                                'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
-                                if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
-                                else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
-                                else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
-                                else ''
-                                for v in col
-                            ]
-                        st.dataframe(df_history.style.apply(highlight_status, subset=['Status']), use_container_width=True)
+                        st.dataframe(df_history.style.apply(_highlight_status, subset=['Status']), use_container_width=True)
             except Exception as e:
                 st.error(f"Error fetching recent orders: {e}")
 
@@ -894,17 +888,7 @@ def _render_status_tracking_tab():
                     updated_df = updated_df[~updated_df["Live Status"].astype(str).str.lower().str.contains("delivered")]
                     st.info(f"Filtered out delivered orders. Showing {len(updated_df)} remaining orders.")
 
-                def highlight_live_status(col):
-                    return [
-                        'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
-                        if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
-                        else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
-                        else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
-                        else ''
-                        for v in col
-                    ]
-
-                styled_df = updated_df.style.apply(highlight_live_status, subset=['Live Status'])
+                styled_df = updated_df.style.apply(_highlight_status, subset=['Live Status'])
                 st.dataframe(styled_df, use_container_width=True)
                 
                 bulk_status_excel_bytes = export_to_styled_excel({"Live_Statuses": updated_df})

@@ -585,6 +585,81 @@ def _render_chat_tab(provider, api_key, model_name, auto_sync):
             st.rerun()
 
 
+def _sync_from_woocommerce():
+    st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
+    with st.status("Syncing live data...", expanded=True) as status:
+        try:
+            status.write("📡 Fetching live orders...")
+            load_live_source()
+            status.write("📦 Fetching stock levels...")
+            stock_df = fetch_woocommerce_stock()
+            if stock_df is not None:
+                st.session_state.wc_stock_df = stock_df
+            status.update(label="Sync Complete!", state="complete", expanded=False)
+            st.toast("✅ Live data synced from WooCommerce.")
+            st.rerun()
+        except Exception as e:
+            status.update(label="Sync Failed", state="error")
+            st.error(f"Failed to sync from WooCommerce: {e}")
+
+
+def _sync_pathao_statuses():
+    st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
+    with st.status("Syncing Pathao statuses...", expanded=True) as status:
+        try:
+            status.write("Finding order data...")
+            orders_df = st.session_state.get("wc_full_df")
+            if orders_df is None or orders_df.empty:
+                orders_df = st.session_state.get("wc_curr_df")
+
+            if orders_df is None or orders_df.empty:
+                st.error("No WooCommerce order data found. Please sync from WooCommerce first.")
+                status.update(label="Sync Failed", state="error")
+                st.stop()
+
+            status.write("Identifying columns...")
+            cols = list(orders_df.columns)
+            consignment_col = next((c for c in cols if any(kw in str(c).lower() for kw in ["tracking", "consignment", "pathao id"])), None)
+            if not consignment_col:
+                st.error("Could not auto-detect a 'Tracking' or 'Consignment' column in the order data.")
+                status.update(label="Sync Failed", state="error")
+                st.stop()
+
+            status_col = next((c for c in cols if "status" in str(c).lower()), None)
+            if not status_col:
+                st.error("Could not auto-detect an 'Order Status' column.")
+                status.update(label="Sync Failed", state="error")
+                st.stop()
+
+            status.write("Filtering for pending shipments...")
+            terminal_statuses = ['completed', 'cancelled', 'refunded', 'failed', 'trash']
+            pending_df = orders_df[~orders_df[status_col].astype(str).str.lower().isin(terminal_statuses)].copy()
+            pending_df.dropna(subset=[consignment_col], inplace=True)
+            pending_df = pending_df[pending_df[consignment_col].astype(str).str.strip().replace('nan', '') != ""]
+            unique_consignments = pending_df[consignment_col].astype(str).str.strip().unique()
+
+            if len(unique_consignments) == 0:
+                st.info("No pending orders with consignment IDs found to track.")
+                status.update(label="Sync Complete (No Orders)", state="complete", expanded=False)
+                st.stop()
+
+            status.write(f"Fetching {len(unique_consignments)} statuses from Pathao...")
+            results = []
+            progress_bar = st.progress(0)
+            for i, cid in enumerate(unique_consignments):
+                res = get_pathao_order_status(cid)
+                results.append(res)
+                progress_bar.progress((i + 1) / len(unique_consignments))
+
+            st.session_state.pilot_pathao_tracking_df = pd.DataFrame(results)
+            status.update(label="Pathao Sync Complete!", state="complete", expanded=False)
+            st.toast(f"✅ Synced {len(results)} Pathao statuses.")
+            st.rerun()
+        except Exception as e:
+            status.update(label="Sync Failed", state="error")
+            st.error(f"Failed to sync Pathao statuses: {e}")
+
+
 def render_sidebar_controls():
     with st.sidebar:
         st.markdown(
@@ -596,7 +671,6 @@ def render_sidebar_controls():
             """,
             unsafe_allow_html=True
         )
-        # Cloud/Local Detection
         is_cloud = init_llm_controller().is_cloud
 
         engines = ["🛡️ Smart Failover (Free Tiers)", "OpenAI", "Google Gemini"]
@@ -655,84 +729,10 @@ def render_sidebar_controls():
         st.markdown("### 📁 Knowledge Base")
         
         if st.button("🔄 Sync from WooCommerce", use_container_width=True, type="primary"):
-            # Lock navigation to Data Pilot during sync
-            st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
-            with st.status("Syncing live data...", expanded=True) as status:
-                try:
-                    status.write("📡 Fetching live orders...")
-                    load_live_source()  # This function automatically updates session state
-                    status.write("📦 Fetching stock levels...")
-                    stock_df = fetch_woocommerce_stock()
-                    if stock_df is not None:
-                        st.session_state.wc_stock_df = stock_df
-                    status.update(label="Sync Complete!", state="complete", expanded=False)
-                    st.toast("✅ Live data synced from WooCommerce.")
-                    st.rerun()
-                except Exception as e:
-                    status.update(label="Sync Failed", state="error")
-                    st.error(f"Failed to sync from WooCommerce: {e}")
+            _sync_from_woocommerce()
 
         if st.button("🔄 Sync Pathao Statuses", use_container_width=True):
-            # Lock navigation to Data Pilot during sync
-            st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
-            with st.status("Syncing Pathao statuses...", expanded=True) as status:
-                try:
-                    # 1. Get source dataframe
-                    status.write("Finding order data...")
-                    orders_df = st.session_state.get("wc_full_df")
-                    if orders_df is None or orders_df.empty:
-                        orders_df = st.session_state.get("wc_curr_df")
-
-                    if orders_df is None or orders_df.empty:
-                        st.error("No WooCommerce order data found. Please sync from WooCommerce first.")
-                        status.update(label="Sync Failed", state="error")
-                        st.stop()
-
-                    # 2. Identify columns
-                    status.write("Identifying columns...")
-                    cols = list(orders_df.columns)
-                    consignment_col = next((c for c in cols if any(kw in str(c).lower() for kw in ["tracking", "consignment", "pathao id"])), None)
-                    if not consignment_col:
-                        st.error("Could not auto-detect a 'Tracking' or 'Consignment' column in the order data.")
-                        status.update(label="Sync Failed", state="error")
-                        st.stop()
-
-                    status_col = next((c for c in cols if "status" in str(c).lower()), None)
-                    if not status_col:
-                        st.error("Could not auto-detect an 'Order Status' column.")
-                        status.update(label="Sync Failed", state="error")
-                        st.stop()
-
-                    # 3. Filter for pending orders
-                    status.write("Filtering for pending shipments...")
-                    terminal_statuses = ['completed', 'cancelled', 'refunded', 'failed', 'trash']
-                    pending_df = orders_df[~orders_df[status_col].astype(str).str.lower().isin(terminal_statuses)].copy()
-                    pending_df.dropna(subset=[consignment_col], inplace=True)
-                    pending_df = pending_df[pending_df[consignment_col].astype(str).str.strip().replace('nan', '') != ""]
-                    unique_consignments = pending_df[consignment_col].astype(str).str.strip().unique()
-
-                    if len(unique_consignments) == 0:
-                        st.info("No pending orders with consignment IDs found to track.")
-                        status.update(label="Sync Complete (No Orders)", state="complete", expanded=False)
-                        st.stop()
-
-                    # 4. Fetch statuses
-                    status.write(f"Fetching {len(unique_consignments)} statuses from Pathao...")
-                    results = []
-                    progress_bar = st.progress(0)
-                    for i, cid in enumerate(unique_consignments):
-                        res = get_pathao_order_status(cid)
-                        results.append(res)
-                        progress_bar.progress((i + 1) / len(unique_consignments))
-
-                    # 5. Create and store DataFrame
-                    st.session_state.pilot_pathao_tracking_df = pd.DataFrame(results)
-                    status.update(label="Pathao Sync Complete!", state="complete", expanded=False)
-                    st.toast(f"✅ Synced {len(results)} Pathao statuses.")
-                    st.rerun()
-                except Exception as e:
-                    status.update(label="Sync Failed", state="error")
-                    st.error(f"Failed to sync Pathao statuses: {e}")
+            _sync_pathao_statuses()
 
         if "pilot_uploader_key" not in st.session_state:
             st.session_state.pilot_uploader_key = 0
@@ -750,7 +750,6 @@ def render_sidebar_controls():
         pathao_track_df = st.session_state.get("pilot_pathao_tracking_df")
         if (uploaded_df is not None and not uploaded_df.empty) or (pathao_track_df is not None and not pathao_track_df.empty):
             if st.button("Clear Knowledge Base", use_container_width=True):
-                # Lock navigation to Data Pilot during clear
                 st.session_state["_nav_override"] = ":material/rocket_launch: Data Pilot"
                 st.session_state.pilot_uploaded_df = None
                 st.session_state.pilot_pathao_tracking_df = None

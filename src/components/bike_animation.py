@@ -2,6 +2,8 @@ import os
 import base64
 import streamlit as st
 
+from src.config.constants import PROJECT_ROOT
+
 
 def render_bike_animation():
     """
@@ -11,9 +13,7 @@ def render_bike_animation():
     # Load local bike image
     bike_uri = "https://cdn-icons-png.flaticon.com/512/2830/2830305.png"  # fallback
 
-    # Climb up from src/components to root directory
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    bike_path = os.path.join(base_dir, "assets", "bike.png")
+    bike_path = os.path.join(PROJECT_ROOT, "assets", "bike.png")
 
     if os.path.exists(bike_path):
         with open(bike_path, "rb") as f:

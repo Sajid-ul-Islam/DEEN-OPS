@@ -1,10 +1,11 @@
 import os
 import streamlit as st
 
+from src.config.constants import PROJECT_ROOT
+
 
 def inject_base_styles():
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    css_path = os.path.join(base_dir, "assets", "styles.css")
+    css_path = os.path.join(PROJECT_ROOT, "assets", "styles.css")
     
     if os.path.exists(css_path):
         # Get the file's last modified timestamp to act as a cache-buster

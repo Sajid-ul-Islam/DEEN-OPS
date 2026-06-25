@@ -1,10 +1,13 @@
 import os
 
+# Project root — resolved once from src/config/ -> src/ -> project root
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
 # Data directories
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 FEEDBACK_DIR = os.path.join(DATA_DIR, "feedback")
 INCOMING_DIR = os.path.join(DATA_DIR, "incoming")
-RESOURCES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "resources")
+RESOURCES_DIR = os.path.join(PROJECT_ROOT, "resources")
 
 # Snapshot file paths
 STOCK_SNAPSHOT_PATH = os.path.join(RESOURCES_DIR, "last_stock.csv")
