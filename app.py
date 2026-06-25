@@ -180,6 +180,25 @@ def run_app():
                 st.success("Configuration validation passed.")
 
             st.divider()
+            current_theme = st.session_state.get("manual_theme", "system")
+            theme_opts = ["system", "light", "dark"]
+            theme_icons = {"system": "🖥️", "light": "☀️", "dark": "🌙"}
+            sel_theme = st.segmented_control(
+                "Theme",
+                theme_opts,
+                default=current_theme,
+                format_func=lambda x: f"{theme_icons[x]} {x.title()}",
+                key="manual_theme_control",
+                label_visibility="collapsed",
+            )
+            if sel_theme and sel_theme != current_theme:
+                st.session_state.manual_theme = sel_theme
+                if sel_theme == "light":
+                    st.config.set_option("theme.base", "light")
+                elif sel_theme == "dark":
+                    st.config.set_option("theme.base", "dark")
+                st.rerun()
+
             st.session_state.show_animation = st.toggle(
                 "Show motion effects",
                 value=st.session_state.get("show_animation", True),
