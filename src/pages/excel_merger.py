@@ -28,7 +28,7 @@ def render_excel_merger_tab():
                 if wc_full is not None and not wc_full.empty:
                     st.session_state.merger_df = wc_full[wc_full["Order Status"].astype(str).str.lower().isin(selected_statuses)].copy()
                     st.session_state.pop("merger_wc_stock_df", None)
-                    st.success(f"Pulled {len(st.session_state.merger_df)} items from Live Dashboard cache.")
+                    st.toast(f"📥 Pulled {len(st.session_state.merger_df)} items from Live Dashboard cache.")
                 else:
                     st.error("Live Dashboard data not found. Please wait for sync or visit the Live Dashboard first.")
     else:
@@ -42,7 +42,7 @@ def render_excel_merger_tab():
                     st.session_state.merger_df = pd.read_excel(uploaded_file)
                 st.session_state.merger_file_id = file_id
                 st.session_state.pop("merger_wc_stock_df", None)
-            st.success("File uploaded successfully!")
+            st.toast("📄 File uploaded successfully!")
             
     df = st.session_state.get("merger_df")
             

@@ -4,8 +4,32 @@ import streamlit as st
 from src.config.constants import PROJECT_ROOT
 
 
+def _inject_theme_override():
+    """Inject CSS override based on manual theme selection."""
+    theme = st.session_state.get("manual_theme", "system")
+    if theme == "system":
+        return
+    if theme == "dark":
+        st.markdown(
+            "<style>html{--text-color:#f1f5f9;--background-color:#0f172a;--secondary-background-color:#1e293b;}"
+            "[data-testid='stSidebar']{background:linear-gradient(180deg,rgba(10,16,35,0.98) 0%,rgba(10,14,28,0.96) 60%,rgba(8,12,22,0.98) 100%)!important;}</style>",
+            unsafe_allow_html=True,
+        )
+    elif theme == "light":
+        st.markdown(
+            "<style>html{--text-color:#0f172a;--background-color:#f8fafc;--secondary-background-color:#ffffff;}"
+            "[data-testid='stSidebar']{background:linear-gradient(180deg,rgba(248,250,252,0.98) 0%,rgba(241,245,249,0.96) 100%)!important;}"
+            "[data-testid='stSidebar'] *{color:#0f172a!important;}"
+            "[data-testid='stSidebar'] button{color:#0f172a!important;background:rgba(0,0,0,0.04)!important;border-color:rgba(0,0,0,0.1)!important;}"
+            "[data-testid='stSidebar'] button[kind='primary']{color:#fff!important;}"
+            ".sidebar-logo-text{-webkit-text-fill-color:#1d4ed8!important;color:#1d4ed8!important;}</style>",
+            unsafe_allow_html=True,
+        )
+
+
 def inject_base_styles():
     css_path = os.path.join(PROJECT_ROOT, "assets", "styles.css")
+    _inject_theme_override()
     
     if os.path.exists(css_path):
         # Get the file's last modified timestamp to act as a cache-buster

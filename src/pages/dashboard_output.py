@@ -361,7 +361,7 @@ def _render_bottom_tabs(active_df, top, today_rev, today_qty, today_orders, toda
             if st.button("✅ Apply Goals", use_container_width=True, type="primary", key="apply_goals_btn"):
                 st.session_state["shift_goals"] = {"revenue": rev_g, "orders": ord_g}
                 st.session_state["_last_snap_key"] = ""
-                st.success(f"Goals set — Revenue: ৳{rev_g:,} | Orders: {ord_g}")
+                st.toast(f"🎯 Goals set — Revenue: ৳{rev_g:,} | Orders: {ord_g}")
                 st.rerun()
 
     with bottom_tabs[1]:
@@ -468,7 +468,7 @@ def _render_whatsapp_quicksend():
         st.warning("⚠️ No processing orders in the current live data to message.")
         return
 
-    st.success(f"⚡ Found {wp_df[status_col_wp].value_counts().get('processing', len(wp_df))} processing orders ready to message.")
+    st.toast(f"⚡ Found {wp_df[status_col_wp].value_counts().get('processing', len(wp_df))} processing orders ready to message.")
 
     phone_col = next(
         (c for c in wp_df.columns if any(kw in str(c).lower() for kw in ["phone", "mobile", "contact"])),
@@ -509,7 +509,7 @@ def _render_whatsapp_quicksend():
         if links:
             links_df_wp = pd.DataFrame(links)
             st.session_state["wp_quicksend_links"] = links_df_wp
-            st.success(f"✅ Generated {len(links_df_wp)} WhatsApp links.")
+            st.toast(f"✅ Generated {len(links_df_wp)} WhatsApp links.")
 
     ql_df = st.session_state.get("wp_quicksend_links")
     if ql_df is not None and not ql_df.empty:

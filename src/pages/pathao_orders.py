@@ -8,11 +8,13 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
+from src.components.dataframe_search import render_dataframe_search
 from src.components.status import render_status_toggle
 from src.components.widgets import (
     render_action_bar,
     render_file_summary,
     render_reset_confirm,
+    render_sticky_action_bar,
     section_card,
 )
 from src.config.settings import get_pathao_config, get_woocommerce_config
@@ -139,7 +141,7 @@ def _sync_pathao_map():
             with open("resources/pathao_map.json", "w", encoding="utf-8") as f:
                 json.dump(full_map, f, indent=4)
 
-            st.success(f"Successfully synced {len(cities)} cities and their areas.")
+                st.toast(f"🌆 Successfully synced {len(cities)} cities and their areas.")
             status.update(label="Sync complete", state="complete")
         except Exception as exc:
             st.error(f"Sync failed: {exc}")
@@ -285,7 +287,7 @@ def _render_processing_tab():
             if preview_df.empty and used_status_filter:
                 st.warning("No WooCommerce rows are currently in `processing` status.")
             else:
-                st.success(f"Successfully pulled {len(preview_df)} processing rows.")
+                st.toast(f"📥 Successfully pulled {len(preview_df)} processing rows.")
         except Exception as exc:
             log_error(exc, context="Pathao WooCommerce Pull")
             st.error(f"Failed to fetch data: {exc}")
@@ -310,9 +312,10 @@ def _render_processing_tab():
 
     if preview_df is not None:
         with st.expander("Preview source data", expanded=False):
-            st.dataframe(preview_df.head(50), use_container_width=True)
+            preview_search = render_dataframe_search(preview_df, "pathao_preview", height=400)
+            st.dataframe(preview_search.head(50), use_container_width=True)
 
-    run_clicked, clear_clicked = render_action_bar(
+    run_clicked, clear_clicked = render_sticky_action_bar(
         primary_label="Process orders",
         primary_key="pathao_process_btn",
         secondary_label="Clear source data",
@@ -340,7 +343,7 @@ def _render_processing_tab():
                     status.update(
                         label="Processing complete", state="complete", expanded=False
                     )
-                st.success(f"Processed {len(result_df)} grouped orders.")
+                st.toast(f"✅ Processed {len(result_df)} grouped orders.")
             except Exception as exc:
                 log_error(exc, context="Pathao Processor")
                 st.error("Pathao processing failed. Check System Logs for details.")
@@ -349,7 +352,8 @@ def _render_processing_tab():
     if result_df is not None:
         with st.expander("Preview output", expanded=True):
             styled_df = result_df.style.apply(_highlight_split_orders, axis=1)
-            st.dataframe(styled_df, use_container_width=True)
+            result_search = render_dataframe_search(result_df, "pathao_result", height=400)
+            st.dataframe(result_search.style.apply(_highlight_split_orders, axis=1), use_container_width=True)
 
         c1, c2 = st.columns(2)
         with c1:
@@ -385,7 +389,7 @@ def _render_processing_tab():
                     links.append(f"{domain}/verify?id={order_id}&token={token}")
                 df_v["Verification Link"] = links
                 st.session_state.pathao_vlink_df = df_v
-                st.success("Verification links generated.")
+                st.toast("✅ Verification links generated.")
 
             vlink_df = st.session_state.get("pathao_vlink_df")
             if vlink_df is not None:
@@ -562,7 +566,7 @@ def _render_status_tracking_tab():
                         if not orders:
                             st.error(f"No Pathao orders found matching Order ID '{search_term}'.")
                         else:
-                            st.success(f"Found order status successfully!")
+                            st.toast(f"✅ Found order status successfully!")
                             o = orders[0] # Show the first match
                             status_val = str(o.get("order_status", "N/A")).capitalize()
                             payment_val = str(o.get("payment_status", "N/A")).capitalize()
@@ -607,7 +611,7 @@ def _render_status_tracking_tab():
                     else:
                         st.error(status_data["error"])
                 else:
-                    st.success("Status retrieved successfully!")
+                    st.toast("✅ Status retrieved successfully!")
                     data_obj = status_data.get("data", {})
                     
                     status_val = str(data_obj.get("order_status", "N/A")).capitalize()
@@ -682,7 +686,7 @@ def _render_status_tracking_tab():
                     if not orders:
                         st.info("No orders found in Pathao for this search query.")
                     else:
-                        st.success(f"Found {len(orders)} order(s) matching '{search_input}'.")
+                        st.toast(f"✅ Found {len(orders)} order(s) matching '{search_input}'.")
                         history_data = []
                         for o in orders:
                             amount_str = f"৳{float(o.get('collected_amount', 0)):,.0f}" if str(o.get('collected_amount', 0)).replace('.','',1).isdigit() else f"৳{o.get('collected_amount', 0)}"
@@ -716,7 +720,7 @@ def _render_status_tracking_tab():
                     if not orders:
                         st.info("No recent orders found.")
                     else:
-                        st.success(f"Successfully retrieved the last {len(orders)} orders.")
+                        st.toast(f"✅ Successfully retrieved the last {len(orders)} orders.")
                         history_data = []
                         for o in orders:
                             amount_str = f"৳{float(o.get('collected_amount', 0)):,.0f}" if str(o.get('collected_amount', 0)).replace('.','',1).isdigit() else f"৳{o.get('collected_amount', 0)}"
@@ -890,7 +894,8 @@ def _render_status_tracking_tab():
                     st.info(f"Filtered out delivered orders. Showing {len(updated_df)} remaining orders.")
 
                 styled_df = updated_df.style.apply(_highlight_status, subset=['Live Status'])
-                st.dataframe(styled_df, use_container_width=True)
+                track_search = render_dataframe_search(updated_df, "pathao_track", height=400)
+                st.dataframe(track_search.style.apply(_highlight_status, subset=['Live Status']), use_container_width=True)
                 
                 bulk_status_excel_bytes = export_to_styled_excel({"Live_Statuses": updated_df})
 
@@ -921,10 +926,9 @@ def _render_auto_dispatch_tab():
         st.info("⚡ No processed orders found. Go to **Order Processing** tab first, pull orders and run 'Process orders'.")
         return
 
-    st.success(f"✅ {len(result_df)} processed orders ready for dispatch.")
-
     with st.expander("📄 Preview Orders for Dispatch", expanded=False):
-        st.dataframe(result_df.head(20), use_container_width=True)
+        dispatch_search = render_dataframe_search(result_df, "pathao_dispatch", height=400)
+        st.dataframe(dispatch_search.head(20), use_container_width=True)
 
     with st.expander("⚙️ Dispatch Settings", expanded=True):
         dc1, dc2, dc3 = st.columns(3)
@@ -1117,19 +1121,25 @@ def _render_wc_notes_tab():
 
     col_send, col_quick = st.columns(2)
     with col_send:
-        if st.button("💬 Post Note to WooCommerce", type="primary", use_container_width=True, key="wc_note_send_btn"):
-            if not order_id_note.strip():
-                st.warning("Enter a WooCommerce Order ID.")
-            else:
-                target_status = None if new_status.startswith("—") else new_status
-                with st.spinner("Posting to WooCommerce..."):
-                    ok, msg = _update_woocommerce_status(
-                        order_id_note.strip(),
-                        target_status or "processing",
-                        note=note_text.strip() or None,
-                    )
+        can_post = bool(order_id_note.strip())
+        if not can_post:
+            st.caption("Enter an Order ID above to enable posting.")
+        if st.button(
+            "💬 Post Note to WooCommerce",
+            type="primary",
+            use_container_width=True,
+            key="wc_note_send_btn",
+            disabled=not can_post,
+        ):
+            target_status = None if new_status.startswith("—") else new_status
+            with st.spinner("Posting to WooCommerce..."):
+                ok, msg = _update_woocommerce_status(
+                    order_id_note.strip(),
+                    target_status or "processing",
+                    note=note_text.strip() or None,
+                )
                 if ok:
-                    st.success(f"✅ Note posted to Order #{order_id_note} successfully.")
+                    st.toast(f"✅ Note posted to Order #{order_id_note} successfully.")
                 else:
                     st.error(f"❌ Failed: {msg}")
 
@@ -1156,7 +1166,7 @@ def _render_wc_notes_tab():
                     else:
                         fail_count += 1
                     progress_n.progress((i + 1) / total_n)
-                st.success(f"✅ {ok_count} notes posted. {fail_count} failed.")
+                st.toast(f"✅ {ok_count} notes posted. {fail_count} failed.")
         else:
             st.caption("💡 Process orders in the Order Processing tab to enable bulk dispatch notes.")
 

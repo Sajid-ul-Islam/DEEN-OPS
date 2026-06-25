@@ -133,7 +133,7 @@ def render_distribution_tab(search_q):
                     "Could not detect an item title/name column."
                 )
             else:
-                st.success(f"Successfully pulled {df_live.shape[0] if hasattr(df_live, 'shape') else len(df_live)} records.")
+                st.toast(f"📥 Successfully pulled {df_live.shape[0] if hasattr(df_live, 'shape') else len(df_live)} records.")
         except Exception as exc:
             log_error(exc, context="Inventory WooCommerce Pull")
             st.error(f"Failed to fetch data: {exc}")
@@ -152,7 +152,7 @@ def render_distribution_tab(search_q):
                     "Could not detect an item title/name column in the master list."
                 )
             else:
-                st.success("Validation passed. Ready to run analysis.")
+                st.toast("✅ Validation passed. Ready to run analysis.")
         except Exception as exc:
             log_error(exc, context="Inventory Upload")
             st.error("Failed to read master stock list.")
@@ -457,7 +457,7 @@ def render_distribution_tab(search_q):
                 st.session_state.inv_sku_map = sku_map
                 st.session_state.inv_sku_col = sku_col
                 save_state()
-                st.success("Distribution analysis complete.")
+                st.toast("✅ Distribution analysis complete.")
             except Exception as exc:
                 log_error(exc, context="Inventory Analyze")
                 st.error("Distribution analysis failed.")

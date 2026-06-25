@@ -1,47 +1,5 @@
 [
     {
-        "timestamp": "2026-04-11 13:45:11",
-        "context": "App Bootstrap",
-        "error": "No module named 'aiohttp'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 186, in run_app\n    from app_modules.ai_pilot import render_ai_pilot_page\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 7, in <module>\n    from app_modules.llm_manager import init_llm_controller\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 7, in <module>\n    import aiohttp\nModuleNotFoundError: No module named 'aiohttp'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 13:45:35",
-        "context": "App Bootstrap",
-        "error": "No module named 'aiohttp'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 186, in run_app\n    from app_modules.ai_pilot import render_ai_pilot_page\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 7, in <module>\n    from app_modules.llm_manager import init_llm_controller\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 7, in <module>\n    import aiohttp\nModuleNotFoundError: No module named 'aiohttp'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 13:46:35",
-        "context": "App Bootstrap",
-        "error": "Failed to serialize proto",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 171, in run_app\n    render_app_banner()\n    ~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ui_components.py\", line 275, in render_app_banner\n    st.markdown(\n    ~~~~~~~~~~~^\n        f\"\"\"\n        ^^^^\n    ...<10 lines>...\n        unsafe_allow_html=True\n        ^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\runtime\\metrics_util.py\", line 532, in wrapped_func\n    result = non_optional_func(*args, **kwargs)\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\elements\\markdown.py\", line 184, in markdown\n    return self.dg._enqueue(\"markdown\", markdown_proto, layout_config=layout_config)\n           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\delta_generator.py\", line 524, in _enqueue\n    _enqueue_message(msg)\n    ~~~~~~~~~~~~~~~~^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\runtime\\scriptrunner_utils\\script_run_context.py\", line 277, in enqueue_message\n    ctx.enqueue(msg)\n    ~~~~~~~~~~~^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\runtime\\scriptrunner_utils\\script_run_context.py\", line 190, in enqueue\n    populate_hash_if_needed(msg)\n    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^\n  File \"C:\\Users\\deenb\\AppData\\Roaming\\Python\\Python314\\site-packages\\streamlit\\runtime\\forward_msg_cache.py\", line 44, in populate_hash_if_needed\n    serialized_msg = msg.SerializeToString(deterministic=True)\ngoogle.protobuf.message.EncodeError: Failed to serialize proto\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 14:24:30",
-        "context": "App Bootstrap",
-        "error": "'APIKeyManager' object has no attribute 'get_local_models'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 195, in render_ai_pilot_page\n    local_models = controller.key_manager.get_local_models()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'APIKeyManager' object has no attribute 'get_local_models'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 15:03:55",
-        "context": "App Bootstrap",
-        "error": "DynamicLLMController.get_response_sync() missing 1 required positional argument: 'context'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 160, in render_ai_pilot_page\n    asyncio.run(run_streaming())\n    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\runners.py\", line 204, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\runners.py\", line 127, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\base_events.py\", line 719, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 155, in run_streaming\n    async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):\n        full_response += chunk\n        response_placeholder.markdown(full_response + \"\u258c\")\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 80, in get_response_stream\n    yield self.controller.get_response_sync(messages)\n          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^\nTypeError: DynamicLLMController.get_response_sync() missing 1 required positional argument: 'context'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-11 15:04:53",
-        "context": "App Bootstrap",
-        "error": "DynamicLLMController.get_response_sync() missing 1 required positional argument: 'context'",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 160, in render_ai_pilot_page\n    asyncio.run(run_streaming())\n    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\runners.py\", line 204, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\runners.py\", line 127, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"C:\\Program Files\\Python314\\Lib\\asyncio\\base_events.py\", line 719, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 155, in run_streaming\n    async for chunk in agent.get_response_stream(prompt, st.session_state.agent_messages[:-1]):\n        full_response += chunk\n        response_placeholder.markdown(full_response + \"\u258c\")\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 80, in get_response_stream\n    yield self.controller.get_response_sync(messages)\n          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^\nTypeError: DynamicLLMController.get_response_sync() missing 1 required positional argument: 'context'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-11 15:06:27",
         "context": "App Bootstrap",
         "error": "argument of type 'bool' is not a container or iterable",
@@ -824,6 +782,54 @@
     },
     {
         "timestamp": "2026-06-25 17:14:48",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-25 17:40:36",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-25 17:40:49",
+        "context": "App Bootstrap",
+        "error": "unexpected indent (pathao_orders.py, line 929)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 323, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 44, in run_app\n    from src.pages.pathao_orders import render_pathao_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\pathao_orders.py\", line 929\n    st.toast(f\"\u2705 {len(result_df)} processed orders ready for dispatch.\")\nIndentationError: unexpected indent\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-06-25 17:41:10",
+        "context": "App Bootstrap",
+        "error": "unexpected indent (pathao_orders.py, line 929)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 323, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 44, in run_app\n    from src.pages.pathao_orders import render_pathao_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\pathao_orders.py\", line 929\n    st.toast(f\"\u2705 {len(result_df)} processed orders ready for dispatch.\")\nIndentationError: unexpected indent\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-06-25 17:41:47",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-06-25 17:41:57",
+        "context": "App Bootstrap",
+        "error": "unindent does not match any outer indentation level (pathao_orders.py, line 1143)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 323, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 44, in run_app\n    from src.pages.pathao_orders import render_pathao_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\pathao_orders.py\", line 1143\n    else:\n         ^\nIndentationError: unindent does not match any outer indentation level\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-06-25 17:42:25",
         "context": "safe_render",
         "error": "division by zero",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",

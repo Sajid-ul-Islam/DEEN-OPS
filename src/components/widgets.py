@@ -61,6 +61,19 @@ def render_action_bar(
     return primary_clicked, secondary_clicked
 
 
+def render_sticky_action_bar(
+    primary_label: str,
+    primary_key: str,
+    secondary_label: str | None = None,
+    secondary_key: str | None = None,
+):
+    """Like render_action_bar but wrapped in a sticky-bottom container."""
+    st.markdown('<div class="sticky-action-bar">', unsafe_allow_html=True)
+    result = render_action_bar(primary_label, primary_key, secondary_label, secondary_key)
+    st.markdown('</div>', unsafe_allow_html=True)
+    return result
+
+
 def render_reset_confirm(label: str, state_key: str, reset_fn):
     """
     Registers a tool's reset function for the unified sidebar.

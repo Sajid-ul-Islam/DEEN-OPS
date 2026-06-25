@@ -140,7 +140,7 @@ def _render_live_orders_view():
                             progress_bar.progress((i + 1) / total)
                             
                         st.session_state["wc_pathao_statuses"] = live_statuses
-                        st.success(f"Pathao statuses refreshed for {len(unique_ids)} consignments.")
+                        st.toast(f"🔍 Pathao statuses refreshed for {len(unique_ids)} consignments.")
 
         if tracking_col != "None" and "wc_pathao_statuses" in st.session_state:
             display_df["Pathao Status"] = display_df[tracking_col].astype(str).str.strip().map(st.session_state["wc_pathao_statuses"]).fillna("Not Fetched")
@@ -278,7 +278,7 @@ def _render_live_orders_view():
                             st.error(res["error"])
                         else:
                             data = res.get("data", {})
-                            st.success(f"Live Status: **{data.get('order_status', 'Unknown')}** | Payment: **{data.get('payment_status', 'Unknown')}**")
+                            st.toast(f"Live Status: **{data.get('order_status', 'Unknown')}** | Payment: **{data.get('payment_status', 'Unknown')}**")
 
     st.markdown("### 📋 Raw Order Data")
     
@@ -467,4 +467,4 @@ def render_woocommerce_orders_tab():
                                 if _update_wc_status(order_id, new_status):
                                     success_count += 1
 
-                        st.success(f"Successfully applied {success_count} updates!")
+                        st.toast(f"✅ Successfully applied {success_count} updates!")

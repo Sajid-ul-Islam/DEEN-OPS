@@ -8,6 +8,7 @@ from datetime import datetime
 import plotly.express as px
 from typing import Dict, List
 
+from src.components.empty_state import render_empty_state
 from src.config.constants import DATA_DIR
 from src.config.settings import load_secrets_schema
 # Add direct WooCommerce sync imports
@@ -428,7 +429,7 @@ def _execute_action_tags(full_response: str, agent):
                     local_vars = {"df": target_df.copy(), "pd": pd, "np": np}
                     exec(code.strip(), {"__builtins__": __builtins__}, local_vars)
                     st.session_state.wc_curr_df = local_vars["df"]
-                    st.success("Data transformation applied successfully to the live session!")
+                    st.toast("✅ Data transformation applied successfully to the live session!")
                     agent.context_dfs["sales"] = local_vars["df"]
                 else:
                     st.warning("No live data found to transform.")
@@ -512,6 +513,15 @@ def _render_chat_tab(provider, api_key, model_name, auto_sync):
             st.caption(f"**Last Intent Detected:** `{last_intent}`")
 
     with col_chat:
+        st.markdown("""<script>
+document.addEventListener('keydown', function(e) {
+    if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+        e.preventDefault();
+        const inp = document.querySelector('[data-testid="stChatInput"] textarea');
+        if (inp) inp.focus();
+    }
+});
+</script>""", unsafe_allow_html=True)
         prompt = _handle_audio_input()
         if not prompt:
             prompt = st.chat_input("Ask Data Pilot about sales, stock, or request a report...")
@@ -742,7 +752,7 @@ def render_sidebar_controls():
             try:
                 df = pd.read_csv(up_file) if up_file.name.endswith('.csv') else pd.read_excel(up_file)
                 st.session_state.pilot_uploaded_df = df
-                st.success(f"Ingested {len(df)} records.")
+                st.toast(f"📥 Ingested {len(df)} records.")
             except Exception as e:
                 st.error(f"Failed to parse file: {e}")
 
@@ -771,21 +781,21 @@ def _render_knowledge_base_tab():
             st.caption(f"📈 **Live Sales** — {len(sales_df)} rows")
             st.dataframe(sales_df.head(3), use_container_width=True, hide_index=True)
         else:
-            st.caption("📈 **Live Sales** — No data")
+            render_empty_state("📈", "Live Sales", "Sync data from WooCommerce to see live sales here.", "Sync Now", "kb_es_sales", lambda: setattr(st.session_state, "_sync_clicked", True))
 
         inv_df = st.session_state.get("inv_res_data")
         if inv_df is not None and not inv_df.empty:
             st.caption(f"📦 **Inventory Distribution** — {len(inv_df)} rows")
             st.dataframe(inv_df.head(3), use_container_width=True, hide_index=True)
         else:
-            st.caption("📦 **Inventory Distribution** — No data")
+            render_empty_state("📦", "Inventory Distribution", "Inventory data will appear after distribution analysis.", "", "kb_es_inv")
 
         pathao_df = st.session_state.get("pathao_res_df")
         if pathao_df is not None and not pathao_df.empty:
             st.caption(f"🚚 **Pathao Dispatch** — {len(pathao_df)} rows")
             st.dataframe(pathao_df.head(3), use_container_width=True, hide_index=True)
         else:
-            st.caption("🚚 **Pathao Dispatch** — No data")
+            render_empty_state("🚚", "Pathao Dispatch", "Process Pathao orders to see dispatch data here.", "", "kb_es_pathao")
 
     with col2:
         stock_df = st.session_state.get("wc_stock_df")
@@ -793,7 +803,7 @@ def _render_knowledge_base_tab():
             st.caption(f"🏢 **Stock Levels** — {len(stock_df)} rows")
             st.dataframe(stock_df.head(3), use_container_width=True, hide_index=True)
         else:
-            st.caption("🏢 **Stock Levels** — No data")
+            render_empty_state("🏢", "Stock Levels", "Stock data will appear after inventory sync.", "", "kb_es_stock")
 
         pathao_track_df = st.session_state.get("pilot_pathao_tracking_df")
         if pathao_track_df is not None and not pathao_track_df.empty:
@@ -810,14 +820,14 @@ def _render_knowledge_base_tab():
                 use_container_width=True,
             )
         else:
-            st.caption("📍 **Pathao Tracking** — No data")
+            render_empty_state("📍", "Pathao Tracking", "Track Pathao consignments to see data here.", "", "kb_es_tracking")
 
         up_df = st.session_state.get("pilot_uploaded_df")
         if up_df is not None and not up_df.empty:
             st.caption(f"📁 **Uploaded Files** — {len(up_df)} rows")
             st.dataframe(up_df.head(3), use_container_width=True, hide_index=True)
         else:
-            st.caption("📁 **Uploaded Files** — No data")
+            render_empty_state("📁", "Uploaded Files", "Upload files to see them here.", "", "kb_es_files")
 
     rag_analysis = st.session_state.get("pilot_latest_rag_analysis")
     if rag_analysis:
@@ -880,7 +890,7 @@ def _render_memory_tab():
                 with col1:
                     if st.button("💾 Save Changes", key=f"mem_save_{key}"):
                         memory_obj.set_memory(key, new_val)
-                        st.success("Rule updated!")
+                        st.toast("✅ Rule updated!")
                         st.rerun()
                 with col2:
                     if st.button("🗑️ Delete Rule", key=f"mem_del_{key}", type="secondary"):
@@ -896,7 +906,7 @@ def _render_memory_tab():
         if st.form_submit_button("Add Rule"):
             if new_key and new_rule:
                 memory_obj.set_memory(new_key.strip(), new_rule.strip())
-                st.success("New rule added to Pilot's memory!")
+                st.toast("✅ New rule added to Pilot's memory!")
                 st.rerun()
             else:
                 st.error("Both key and details are required.")

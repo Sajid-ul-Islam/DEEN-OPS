@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 
 from src.config.constants import SHIPPED_STATUSES
+from src.components.dataframe_search import render_dataframe_search
 from src.components.widgets import render_action_bar, render_reset_confirm, section_card
 from src.processing.column_detection import find_columns
 from src.processing.data_processing import prepare_granular_data, aggregate_data
@@ -99,7 +100,7 @@ def render_manual_tab():
                     df = df_url
                     source_name = "URL_Import"
                     status.update(label="Fetch Complete", state="complete", expanded=False)
-                    st.success(f"Loaded {len(df_url)} rows from URL!")
+                    st.toast(f"📥 Loaded {len(df_url)} rows from URL!")
             except Exception as e:
                 st.error(f"URL fetch failed: {e}")
 

@@ -4,6 +4,7 @@ import streamlit as st
 from datetime import datetime
 
 from src.state.persistence import clear_state_keys
+from src.components.dataframe_search import render_dataframe_search
 from src.components.widgets import render_action_bar, render_reset_confirm
 from src.processing.delivery_parser import parse_records, parse_data_fuzzy
 from src.utils.file_io import to_excel_bytes
@@ -175,12 +176,13 @@ POD"""
                 st.error("No records were found from standard parser input.")
             else:
                 st.session_state.standard_parsed_df = parsed_df
-                st.success(f"Parsed {len(parsed_df)} records.")
+                st.toast(f"✅ Parsed {len(parsed_df)} records.")
 
         if st.session_state.get("standard_parsed_df") is not None:
             df_to_show = st.session_state.standard_parsed_df
             calc_height = min(800, max(400, len(df_to_show) * 35 + 43))
-            st.dataframe(df_to_show, use_container_width=True, height=calc_height)
+            search_df = render_dataframe_search(df_to_show, "delivery_std")
+            st.dataframe(search_df, use_container_width=True, height=calc_height)
             render_visual_report(df_to_show)
             st.download_button(
                 "Download standard parser output",
@@ -223,12 +225,13 @@ POD"""
                     st.error("No valid records found from fuzzy parser input.")
                 else:
                     st.session_state.fuzzy_parsed_df = parsed_df
-                    st.success(f"Parsed {len(parsed_df)} records using fuzzy fallback.")
+                    st.toast(f"✅ Parsed {len(parsed_df)} records using fuzzy fallback.")
 
         if st.session_state.get("fuzzy_parsed_df") is not None:
             df_to_show_fuzzy = st.session_state.fuzzy_parsed_df
             calc_height_fuzzy = min(800, max(400, len(df_to_show_fuzzy) * 35 + 43))
-            st.dataframe(df_to_show_fuzzy, use_container_width=True, height=calc_height_fuzzy)
+            search_fuzzy = render_dataframe_search(df_to_show_fuzzy, "delivery_fuzzy")
+            st.dataframe(search_fuzzy, use_container_width=True, height=calc_height_fuzzy)
             render_visual_report(df_to_show_fuzzy)
             st.download_button(
                 "Download fuzzy parser output",

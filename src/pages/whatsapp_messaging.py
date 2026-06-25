@@ -3,6 +3,7 @@ import streamlit as st
 
 from src.utils.logging import log_error
 from src.state.persistence import clear_state_keys
+from src.components.dataframe_search import render_dataframe_search
 from src.components.widgets import (
     render_action_bar,
     render_file_summary,
@@ -98,7 +99,7 @@ def render_wp_tab():
 
             valid_file, missing_fields = _validate_wp_columns(preview_df)
             if valid_file:
-                st.success(f"Successfully pulled {len(df_live)} records.")
+                st.toast(f"📥 Successfully pulled {len(df_live)} records.")
             else:
                 st.error(
                     f"Required fields missing in dataset: {', '.join(missing_fields)}"
@@ -114,7 +115,7 @@ def render_wp_tab():
             render_file_summary(wp_file, preview_df, [])
             valid_file, missing_fields = _validate_wp_columns(preview_df)
             if valid_file:
-                st.success("Fuzzy required-column check passed.")
+                st.toast("✅ Fuzzy required-column check passed.")
             else:
                 st.error(
                     f"Missing required fields (fuzzy check): {', '.join(missing_fields)}"
@@ -157,7 +158,7 @@ def render_wp_tab():
                     custom_template=custom_msg if custom_msg.strip() else None,
                 )
                 st.session_state.wp_links_df = links_df
-                st.success(f"Generated {len(links_df)} WhatsApp links.")
+                st.toast(f"✅ Generated {len(links_df)} WhatsApp links.")
             except Exception as exc:
                 log_error(exc, context="WP Bulk")
                 st.error("Failed to generate WhatsApp links.")
