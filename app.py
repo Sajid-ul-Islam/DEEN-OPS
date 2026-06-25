@@ -193,10 +193,6 @@ def run_app():
             )
             if sel_theme and sel_theme != current_theme:
                 st.session_state.manual_theme = sel_theme
-                if sel_theme == "light":
-                    st.config.set_option("theme.base", "light")
-                elif sel_theme == "dark":
-                    st.config.set_option("theme.base", "dark")
                 st.rerun()
 
             st.session_state.show_animation = st.toggle(
