@@ -53,6 +53,7 @@ def _highlight_split_orders(row):
     return [''] * len(row)
 
 
+@st.cache_resource(ttl=3600)
 def _get_pathao_client():
     try:
         return PathaoClient(**get_pathao_config(required=True))

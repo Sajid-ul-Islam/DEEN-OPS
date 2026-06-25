@@ -16,3 +16,6 @@ data/raw/
 .coverage
 htmlcov/
 .mypy_cache/
+scratch/
+test.xlsx
+test2.xlsx
