@@ -1,0 +1,38 @@
+{
+  "date": "2026-06-25",
+  "shifts": [
+    {
+      "ts": "2026-06-25T09:30:36.995390+06:00",
+      "label": "Today",
+      "revenue": 65708.0,
+      "orders": 66,
+      "qty": 149,
+      "aov": 1010.89,
+      "top_products": [
+        {
+          "name": "Green Leather Long Wallet",
+          "revenue": 2598.0
+        },
+        {
+          "name": "Black Relaxed Graphic Tank Top - L",
+          "revenue": 2560.0
+        },
+        {
+          "name": "Urban Stripe Drop Shoulder T-Shirt - L",
+          "revenue": 2520.0
+        },
+        {
+          "name": "Durable Aluminum Water Bottle 600 ml.",
+          "revenue": 2196.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 1992.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 65708.0,
+  "daily_orders": 66,
+  "daily_qty": 149
+}
