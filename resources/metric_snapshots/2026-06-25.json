@@ -60,9 +60,39 @@
           "revenue": 1980.0
         }
       ]
+    },
+    {
+      "ts": "2026-06-25T17:43:28.129148+06:00",
+      "label": "Today",
+      "revenue": 72875.0,
+      "orders": 67,
+      "qty": 165,
+      "aov": 1104.17,
+      "top_products": [
+        {
+          "name": "Black Relaxed Graphic Tank Top - L",
+          "revenue": 3840.0
+        },
+        {
+          "name": "Teal Blue Embroidered Panjabi - 42",
+          "revenue": 3190.0
+        },
+        {
+          "name": "Board Brown Embroidered Panjabi - 42",
+          "revenue": 2990.0
+        },
+        {
+          "name": "Durable Aluminum Water Bottle 600 ml.",
+          "revenue": 2262.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 1992.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 134246.0,
-  "daily_orders": 130,
-  "daily_qty": 302
+  "daily_revenue": 207121.0,
+  "daily_orders": 197,
+  "daily_qty": 467
 }
