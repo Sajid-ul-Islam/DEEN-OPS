@@ -1,0 +1,38 @@
+{
+  "date": "2026-06-27",
+  "shifts": [
+    {
+      "ts": "2026-06-27T10:24:54.781291+06:00",
+      "label": "Today",
+      "revenue": 69778.0,
+      "orders": 61,
+      "qty": 152,
+      "aov": 1203.07,
+      "top_products": [
+        {
+          "name": "Mocha Embroidered Panjabi - 40",
+          "revenue": 2790.0
+        },
+        {
+          "name": "Pearl Semi Formal Panjabi - 40",
+          "revenue": 2490.0
+        },
+        {
+          "name": "Grey Floral Semi Formal Panjabi - 38",
+          "revenue": 2490.0
+        },
+        {
+          "name": "Light Blue Jeans - Straight Fit - 28",
+          "revenue": 2366.0
+        },
+        {
+          "name": "Off-white Sweatshirt in French-Terry - L",
+          "revenue": 1976.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 69778.0,
+  "daily_orders": 61,
+  "daily_qty": 152
+}
