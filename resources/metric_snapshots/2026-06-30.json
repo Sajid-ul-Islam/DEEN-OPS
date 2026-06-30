@@ -1,0 +1,38 @@
+{
+  "date": "2026-06-30",
+  "shifts": [
+    {
+      "ts": "2026-06-30T17:12:48.426841+06:00",
+      "label": "Today",
+      "revenue": 26602.0,
+      "orders": 16,
+      "qty": 35,
+      "aov": 1662.62,
+      "top_products": [
+        {
+          "name": "Edward Embroidered Panjabi - 40",
+          "revenue": 2790.0
+        },
+        {
+          "name": "Paisley Printed Semi Formal Panjabi - 38",
+          "revenue": 2490.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 34",
+          "revenue": 2072.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 34",
+          "revenue": 1992.0
+        },
+        {
+          "name": "Cream Check Casual Half Shirt - 3XL",
+          "revenue": 1450.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 26602.0,
+  "daily_orders": 16,
+  "daily_qty": 35
+}

@@ -58,8 +58,10 @@ def _fetch_wc_page(url: str, params: dict, auth: HTTPBasicAuth, page: int):
     """
     res = request_with_backoff("GET", url, params={**params, "page": page}, auth=auth, timeout=15)
     res.raise_for_status()
+    import json
+    data = json.loads(res.content.decode("utf-8-sig"))
     rows = []
-    for order in res.json():
+    for order in data:
         rows.extend(_flatten_order(order))
     total_pages = int(res.headers.get("X-WP-TotalPages", 1))
     return rows, total_pages
@@ -344,8 +346,10 @@ def fetch_specific_woocommerce_orders(order_ids: list):
             res = request_with_backoff("GET", endpoint, params=params, auth=auth, timeout=15)
             if res.status_code != 200:
                 return []
+            import json
+            data = json.loads(res.content.decode("utf-8-sig"))
             rows = []
-            for order in res.json():
+            for order in data:
                 rows.extend(_flatten_order(order))
             return rows
 
