@@ -1,12 +1,5 @@
 [
     {
-        "timestamp": "2026-04-11 15:06:27",
-        "context": "App Bootstrap",
-        "error": "argument of type 'bool' is not a container or iterable",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 142, in render_ai_pilot_page\n    provider, api_key, model_name = render_sidebar_controls()\n                                    ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 88, in render_sidebar_controls\n    is_cloud = init_llm_controller().is_cloud\n               ~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 247, in init_llm_controller\n    st.session_state.llm_controller = DynamicLLMController()\n                                      ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 165, in __init__\n    self.is_cloud = \"STREAMLIT_SERVER_PORT\" in st.context.headers or \".streamlit.app\" in st.get_option(\"browser.gatherUsageStats\") if hasattr(st, \"get_option\") else False\n                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: argument of type 'bool' is not a container or iterable\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-11 15:06:42",
         "context": "App Bootstrap",
         "error": "argument of type 'bool' is not a container or iterable",
@@ -835,6 +828,15 @@
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
         "details": {
             "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-07-01 17:13:34",
+        "context": "safe_render",
+        "error": "Unknown format code 'f' for object of type 'str'",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\woocommerce_orders.py\", line 429, in render_woocommerce_orders_tab\n    _render_live_orders_view()\n    ~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\woocommerce_orders.py\", line 191, in _render_live_orders_view\n    c2.metric(\"Filtered Revenue\", f\"\u09f3{total_revenue:,.0f}\")\n                                     ^^^^^^^^^^^^^^^^^^^^\nValueError: Unknown format code 'f' for object of type 'str'\n",
+        "details": {
+            "fallback_msg": "WooCommerce Orders unavailable."
         }
     }
 ]

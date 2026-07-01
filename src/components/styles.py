@@ -4,39 +4,20 @@ import streamlit as st
 from src.config.constants import PROJECT_ROOT
 
 
-def _inject_theme_override():
-    """Inject CSS override based on manual theme selection."""
-    theme = st.session_state.get("manual_theme", "system")
-    if theme == "system":
-        return
-    if theme == "dark":
-        st.markdown(
-            "<style>html{--text-color:#f8fafc;--background-color:#0f172a;--secondary-background-color:#1e293b;}"
-            "[data-testid='stSidebar']{background:linear-gradient(180deg,#090f1f 0%,#050811 100%)!important; border-right: 1px solid rgba(255,255,255,0.08)!important;}</style>",
-            unsafe_allow_html=True,
-        )
-    elif theme == "light":
-        st.markdown(
-            "<style>html{--text-color:#0f172a;--background-color:#f8fafc;--secondary-background-color:#ffffff;}"
-            "[data-testid='stSidebar']{background:linear-gradient(180deg,#ffffff 0%,#f1f5f9 100%)!important; border-right: 1px solid rgba(0,0,0,0.08)!important;}"
-            "[data-testid='stSidebar'] *{color:#0f172a!important;}"
-            "[data-testid='stSidebar'] button{color:#1e293b!important;background:rgba(0,0,0,0.03)!important;border-color:rgba(0,0,0,0.1)!important;}"
-            "[data-testid='stSidebar'] button:hover{background:rgba(0,0,0,0.06)!important;border-color:rgba(0,0,0,0.2)!important;color:#000!important;}"
-            "[data-testid='stSidebar'] button[kind='primary']{color:#fff!important;}"
-            ".sidebar-logo-text{-webkit-text-fill-color:#0f172a!important;color:#0f172a!important;}</style>",
-            unsafe_allow_html=True,
-        )
+@st.cache_data(show_spinner=False)
+def _load_css_file(path: str, mtime: float) -> str:
+    """Cache the CSS file content to prevent disk I/O on every Streamlit rerun."""
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 def inject_base_styles():
     css_path = os.path.join(PROJECT_ROOT, "assets", "styles.css")
-    _inject_theme_override()
     
     if os.path.exists(css_path):
         # Get the file's last modified timestamp to act as a cache-buster
-        file_version = int(os.path.getmtime(css_path))
-        with open(css_path, "r", encoding="utf-8") as f:
-            css_content = f.read()
+        file_version = os.path.getmtime(css_path)
+        css_content = _load_css_file(css_path, file_version)
         
         # Injecting additional UI-UX refinements for the Terminal experience
         extra_styles = """

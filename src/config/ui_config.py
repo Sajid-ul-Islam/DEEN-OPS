@@ -3,6 +3,7 @@ APP_VERSION = "v10.0"
 
 PRIMARY_NAV = [
     "📈 Live Dashboard",
+    "🛒 Order tracking",
     "📥 Sales Data Ingestion",
     "📉 Return Analytics",
     "📦 Current Stock Analytics",
@@ -11,7 +12,6 @@ PRIMARY_NAV = [
     "💬 WhatsApp Messaging",
     "🧩 Delivery Data Parser",
     "🚀 Data Pilot",
-    "🛒 WooCommerce Orders",
     # "📑 Excel Merger" is now a sub-tab inside Inventory Distribution — not a top-level nav item.
 ]
 

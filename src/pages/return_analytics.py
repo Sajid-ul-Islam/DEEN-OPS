@@ -32,14 +32,37 @@ def render_return_analytics_tab():
                             del st.session_state["full_enriched_returns"]
                     
                     st.markdown("### 📅 Filter Returns by Date")
-                    selected_dates = st.date_input(
-                        "Select Time Range", 
-                        value=(min_date, max_date),
-                        min_value=min_date,
-                        max_value=max_date,
-                        help="Filter the Google Sheet returns by date before matching.",
-                        on_change=clear_enrichment
-                    )
+                    col1, col2 = st.columns([1.5, 1])
+                    
+                    with col1:
+                        time_opts = ["All Time", "Last Day", "Last 7 Days", "Last 15 Days", "Last Month"]
+                        has_pills = hasattr(st, "pills")
+                        
+                        if has_pills:
+                            selected_time = st.pills("Quick Range", time_opts, default="All Time", label_visibility="collapsed")
+                        else:
+                            selected_time = st.radio("Quick Range", time_opts, index=0, horizontal=True, label_visibility="collapsed")
+                            
+                    with col2:
+                        # Determine date range based on quick filter so the Date picker visually matches
+                        default_range = (min_date, max_date)
+                        if selected_time == "Last Day":
+                            default_range = (max_date - pd.Timedelta(days=1), max_date)
+                        elif selected_time == "Last 7 Days":
+                            default_range = (max_date - pd.Timedelta(days=7), max_date)
+                        elif selected_time == "Last 15 Days":
+                            default_range = (max_date - pd.Timedelta(days=15), max_date)
+                        elif selected_time == "Last Month":
+                            default_range = (max_date - pd.Timedelta(days=30), max_date)
+                            
+                        selected_dates = st.date_input(
+                            "Select Time Range", 
+                            value=default_range,
+                            min_value=min_date,
+                            max_value=max_date,
+                            help="Filter the Google Sheet returns by date before matching.",
+                            label_visibility="collapsed"
+                        )
                     
                     if isinstance(selected_dates, tuple) and len(selected_dates) == 2:
                         start_d, end_d = selected_dates
@@ -147,19 +170,182 @@ def render_return_analytics_tab():
                     
                     # Display cached enriched data if it exists
                     if "enriched_returns" in st.session_state:
-                        enriched_df = st.session_state["enriched_returns"]
-                        full_df = st.session_state["full_enriched_returns"]
+                        enriched_df = st.session_state["enriched_returns"].copy()
+                        full_df = st.session_state["full_enriched_returns"].copy()
+                        
+                        # Apply Quick Filter to the enriched data instantly
+                        if selected_time and selected_time != "All Time" and "Order Date" in enriched_df.columns:
+                            enriched_df["Parsed_Order_Date"] = pd.to_datetime(enriched_df["Order Date"], errors="coerce")
+                            max_dt = enriched_df["Parsed_Order_Date"].max()
+                            
+                            if pd.notna(max_dt):
+                                if selected_time == "Last Day":
+                                    cutoff = max_dt - pd.Timedelta(days=1)
+                                elif selected_time == "Last 7 Days":
+                                    cutoff = max_dt - pd.Timedelta(days=7)
+                                elif selected_time == "Last 15 Days":
+                                    cutoff = max_dt - pd.Timedelta(days=15)
+                                elif selected_time == "Last Month":
+                                    cutoff = max_dt - pd.Timedelta(days=30)
+                                    
+                                enriched_df = enriched_df[enriched_df["Parsed_Order_Date"] >= cutoff]
+                                if "Order Date" in full_df.columns:
+                                    full_df["Parsed_Order_Date"] = pd.to_datetime(full_df["Order Date"], errors="coerce")
+                                    full_df = full_df[full_df["Parsed_Order_Date"] >= cutoff]
+                                    
+                        st.divider()
+                        
+                        # Determine Outlet from Order Number
+                        if "Order Number" in enriched_df.columns:
+                            enriched_df["Order Number Str"] = enriched_df["Order Number"].astype(str).str.lower().str.strip()
+                            enriched_df["Outlet"] = "Main/Online"
+                            enriched_df.loc[enriched_df["Order Number Str"].str.contains(r"[- ]?c$", regex=True, na=False), "Outlet"] = "Central (C)"
+                            enriched_df.loc[enriched_df["Order Number Str"].str.contains(r"[- ]?w$", regex=True, na=False), "Outlet"] = "Warehouse (W)"
+                            enriched_df.loc[enriched_df["Order Number Str"].str.contains(r"[- ]?s$", regex=True, na=False), "Outlet"] = "Sylhet/Savar (S)"
+
+                        # Fetch Shipped Count from WooCommerce for Return Rate
+                        total_shipped = 0
+                        if isinstance(selected_dates, tuple) and len(selected_dates) == 2:
+                            try:
+                                from datetime import datetime
+                                start_iso = datetime.combine(selected_dates[0], datetime.min.time()).isoformat()
+                                end_iso = datetime.combine(selected_dates[1], datetime.max.time()).isoformat()
+                                from src.services.woocommerce.client import get_woocommerce_shipped_orders_count
+                                total_shipped = get_woocommerce_shipped_orders_count(start_iso, end_iso)
+                            except Exception as e:
+                                st.warning(f"Could not fetch total shipped orders for return rate: {e}")
+
+                        # Compute Advanced KPIs
+                        total_matches = len(enriched_df)
+                        return_rate = (total_matches / total_shipped * 100) if total_shipped > 0 else 0
+                        
+                        financial_impact = 0
+                        if "Item Cost" in enriched_df.columns:
+                            financial_impact = pd.to_numeric(enriched_df["Item Cost"], errors="coerce").sum()
+                                
+                        pending_returns = 0
+                        if "Live Pathao Status" in enriched_df.columns:
+                            pending_returns = len(enriched_df[~enriched_df["Live Pathao Status"].astype(str).str.contains("Return", case=False, na=True)])
+                            
+                        # Render Modern KPIs
+                        st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Shipped</div><div class="metric-value">{total_shipped}</div></div><div class="metric-icon">📦</div></div>'
+                            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Matched Returns</div><div class="metric-value">{total_matches}</div></div><div class="metric-icon">🔁</div></div>'
+                            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Return Rate</div><div class="metric-value">{return_rate:.1f}%</div></div><div class="metric-icon">📉</div></div>'
+                            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Financial Impact</div><div class="metric-value">৳ {financial_impact:,.0f}</div></div><div class="metric-icon">💰</div></div>'
+                            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Pending Res.</div><div class="metric-value">{pending_returns}</div></div><div class="metric-icon">⏳</div></div>',
+                            unsafe_allow_html=True
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
                         
                         st.divider()
                         
-                        # Show some quick stats on the enriched data
-                        st.markdown(
-                            '<div class="metric-container">'
-                            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Successful Matches</div><div class="metric-value">{len(enriched_df)}</div></div><div class="metric-icon">✅</div></div>'
-                            '</div>',
-                            unsafe_allow_html=True
-                        )
+                        # Render Charts
+                        import plotly.express as px
+                        import plotly.graph_objects as go
                         
+                        col_chart1, col_chart2 = st.columns(2)
+                        
+                        with col_chart1:
+                            st.markdown("##### 🍩 Return Reasons Breakdown")
+                            if "Delivery Issue" in enriched_df.columns and not enriched_df["Delivery Issue"].isna().all():
+                                fig_issues = px.pie(
+                                    enriched_df, 
+                                    names="Delivery Issue", 
+                                    hole=0.6,
+                                    color_discrete_sequence=px.colors.qualitative.Pastel
+                                )
+                                fig_issues.update_layout(
+                                    margin=dict(t=10, b=10, l=10, r=10),
+                                    showlegend=True,
+                                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                                    paper_bgcolor="rgba(0,0,0,0)",
+                                    plot_bgcolor="rgba(0,0,0,0)"
+                                )
+                                st.plotly_chart(fig_issues, use_container_width=True, config={'displayModeBar': False})
+                            else:
+                                st.info("No Return Reason data available.")
+                                
+                        with col_chart2:
+                            st.markdown("##### 📈 Return Volume over Time")
+                            if "Order Date" in enriched_df.columns:
+                                try:
+                                    df_dates = enriched_df.copy()
+                                    df_dates["Order Date"] = pd.to_datetime(df_dates["Order Date"], errors="coerce").dt.date
+                                    date_counts = df_dates["Order Date"].value_counts().reset_index()
+                                    date_counts.columns = ["Date", "Count"]
+                                    date_counts = date_counts.sort_values("Date")
+                                    
+                                    if not date_counts.empty:
+                                        fig_trend = px.bar(
+                                            date_counts,
+                                            x="Date",
+                                            y="Count",
+                                            color_discrete_sequence=["#3b82f6"]
+                                        )
+                                        fig_trend.update_layout(
+                                            margin=dict(t=10, b=10, l=10, r=10),
+                                            xaxis_title=None,
+                                            yaxis_title="Returned Orders",
+                                            paper_bgcolor="rgba(0,0,0,0)",
+                                            plot_bgcolor="rgba(0,0,0,0)"
+                                        )
+                                        st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
+                                    else:
+                                        st.info("No valid dates to chart.")
+                                except Exception as e:
+                                    st.warning(f"Could not chart trends: {e}")
+                            else:
+                                st.info("No Order Date data available.")
+                                
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        col_chart3, col_chart4 = st.columns(2)
+                        
+                        with col_chart3:
+                            st.markdown("##### ⚖️ Shipped vs Returned Volume")
+                            if total_shipped > 0:
+                                fig_comp = go.Figure(data=[
+                                    go.Bar(name='Total Shipped', x=['Volume'], y=[total_shipped], marker_color='#10b981', text=[total_shipped], textposition='auto'),
+                                    go.Bar(name='Returned', x=['Volume'], y=[total_matches], marker_color='#ef4444', text=[total_matches], textposition='auto')
+                                ])
+                                fig_comp.update_layout(
+                                    barmode='group',
+                                    margin=dict(t=10, b=10, l=10, r=10),
+                                    paper_bgcolor="rgba(0,0,0,0)",
+                                    plot_bgcolor="rgba(0,0,0,0)",
+                                    yaxis_title="Order Count"
+                                )
+                                st.plotly_chart(fig_comp, use_container_width=True, config={'displayModeBar': False})
+                            else:
+                                st.info("Shipped volume data not available for this range.")
+                                
+                        with col_chart4:
+                            st.markdown("##### 🏢 Outlet Wise Dispatch Returns")
+                            if "Outlet" in enriched_df.columns:
+                                outlet_counts = enriched_df["Outlet"].value_counts().reset_index()
+                                outlet_counts.columns = ["Outlet", "Count"]
+                                
+                                fig_outlet = px.pie(
+                                    outlet_counts, 
+                                    names="Outlet", 
+                                    values="Count",
+                                    hole=0.4,
+                                    color_discrete_sequence=px.colors.qualitative.Set3
+                                )
+                                fig_outlet.update_layout(
+                                    margin=dict(t=10, b=10, l=10, r=10),
+                                    showlegend=True,
+                                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                                    paper_bgcolor="rgba(0,0,0,0)",
+                                    plot_bgcolor="rgba(0,0,0,0)"
+                                )
+                                st.plotly_chart(fig_outlet, use_container_width=True, config={'displayModeBar': False})
+                            else:
+                                st.info("No Outlet data available.")
+                        
+                        st.divider()
+                        st.markdown("##### 📋 Matched Records")
                         st.dataframe(
                             enriched_df, 
                             use_container_width=True, 
@@ -168,6 +354,10 @@ def render_return_analytics_tab():
                                 "Live Pathao Status": st.column_config.TextColumn(
                                     "Pathao Status",
                                     help="Live tracking status from Pathao",
+                                ),
+                                "Item Cost": st.column_config.NumberColumn(
+                                    "Item Cost",
+                                    format="৳ %d"
                                 )
                             }
                         )

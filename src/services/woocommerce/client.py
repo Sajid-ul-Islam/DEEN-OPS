@@ -24,6 +24,12 @@ def _flatten_order(order: dict) -> list[dict]:
     ship = order.get("shipping", {})
     c_name = f"{bill.get('first_name', '')} {bill.get('last_name', '')}".strip()
     pmt = order.get("payment_method_title", "")
+    
+    ptc_consignment_id = ""
+    for meta in order.get("meta_data", []):
+        if meta.get("key") == "ptc_consignment_id":
+            ptc_consignment_id = meta.get("value", "")
+            break
 
     return [
         {
@@ -43,6 +49,7 @@ def _flatten_order(order: dict) -> list[dict]:
             "Quantity": item.get("quantity"),
             "Order Total Amount": order.get("total"),
             "Payment Method Title": pmt,
+            "Pathao Consignment ID": ptc_consignment_id,
         }
         for item in order.get("line_items", [])
     ]
@@ -69,7 +76,7 @@ def _fetch_wc_page(url: str, params: dict, auth: HTTPBasicAuth, page: int):
 
 def _fetch_wc_batch(url: str, params: dict, auth: HTTPBasicAuth) -> list:
     """Fetch all pages of WooCommerce orders concurrently and return flattened rows."""
-    fields = "id,number,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total"
+    fields = "id,number,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total,meta_data"
     params["_fields"] = fields
 
     try:
@@ -94,6 +101,33 @@ def _fetch_wc_batch(url: str, params: dict, auth: HTTPBasicAuth) -> list:
                 log_system_event("WC_FETCH_PAGE_ERROR", str(e))
 
     return rows
+
+
+def get_woocommerce_shipped_orders_count(after_iso: str, before_iso: str) -> int:
+    """Fetch the total count of shipped orders between two dates using X-WP-Total headers."""
+    cfg = get_woocommerce_config()
+    if not cfg:
+        return 0
+
+    url = f"{cfg.get('store_url', '').rstrip('/')}/wp-json/wc/v3/orders"
+    auth = HTTPBasicAuth(cfg.get("consumer_key", ""), cfg.get("consumer_secret", ""))
+    
+    params = {
+        "per_page": 1,
+        "after": after_iso,
+        "before": before_iso,
+        "status": "shipped,completed",
+        "_fields": "id"
+    }
+    
+    try:
+        res = request_with_backoff("GET", url, params=params, auth=auth, timeout=10)
+        if res.status_code == 200:
+            return int(res.headers.get("X-WP-Total", 0))
+    except Exception as e:
+        log_system_event("WC_COUNT_FETCH_ERROR", str(e))
+        
+    return 0
 
 
 # ── Sync parameter builders ─────────────────────────────────────────────────

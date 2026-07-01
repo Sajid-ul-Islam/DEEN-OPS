@@ -140,7 +140,7 @@ def run_app():
                 "📥 Sales Data Ingestion": ":material/cloud_download: Sales Ingestion",
                 "📉 Return Analytics": ":material/keyboard_return: Return Analytics",
                 "🚀 Data Pilot": ":material/smart_toy: Data Pilot",
-                "🛒 WooCommerce Orders": ":material/shopping_cart: WooCommerce Orders"
+                "🛒 Order tracking": ":material/shopping_cart: Order Tracking"
             }
             return nav_icons.get(item, item)
 
@@ -180,21 +180,6 @@ def run_app():
                 st.success("Configuration validation passed.")
 
             st.divider()
-            current_theme = st.session_state.get("manual_theme", "system")
-            theme_opts = ["system", "light", "dark"]
-            theme_icons = {"system": "🖥️", "light": "☀️", "dark": "🌙"}
-            sel_theme = st.segmented_control(
-                "Theme",
-                theme_opts,
-                default=current_theme,
-                format_func=lambda x: f"{theme_icons[x]} {x.title()}",
-                key="manual_theme_control",
-                label_visibility="collapsed",
-            )
-            if sel_theme and sel_theme != current_theme:
-                st.session_state.manual_theme = sel_theme
-                st.rerun()
-
             st.session_state.show_animation = st.toggle(
                 "Show motion effects",
                 value=st.session_state.get("show_animation", True),
@@ -289,7 +274,7 @@ def run_app():
     elif selected_nav == "🚀 Data Pilot":
         from src.pages.data_pilot import render_ai_pilot_page
         safe_render(render_ai_pilot_page, fallback_msg="Data Pilot unavailable.")
-    elif selected_nav == "🛒 WooCommerce Orders":
+    elif selected_nav == "🛒 Order tracking":
         from src.pages.woocommerce_orders import render_woocommerce_orders_tab
         safe_render(render_woocommerce_orders_tab, fallback_msg="WooCommerce Orders unavailable.")
     # After tool execution, re-render the header with any injected content

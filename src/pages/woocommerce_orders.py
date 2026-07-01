@@ -64,15 +64,29 @@ def _render_live_orders_view():
                 agg_funcs[col] = "first"
                 
         if "Item Name" in df_copy.columns and "Quantity" in df_copy.columns:
-            df_copy["_Formatted_Item"] = df_copy.apply(lambda row: f"{row['Item Name']} (x{row['Quantity']})", axis=1)
-            agg_funcs["_Formatted_Item"] = lambda x: " | ".join(x.dropna().astype(str))
+            from src.processing.categorization import get_category_for_sales
+            df_copy["_Category"] = df_copy["Item Name"].apply(get_category_for_sales)
+            df_copy["_CatQty"] = df_copy.apply(lambda r: (r["_Category"], r["Quantity"]), axis=1)
+            
+            def cat_agg(tuples_series):
+                counts = {}
+                for cat, qty in tuples_series:
+                    try:
+                        q = int(qty)
+                    except:
+                        q = 1
+                    counts[cat] = counts.get(cat, 0) + q
+                return ", ".join([f"{q} {c}" for c, q in counts.items()])
+                
+            agg_funcs["_CatQty"] = cat_agg
+            
         elif "Item Name" in df_copy.columns:
             agg_funcs["Item Name"] = lambda x: " | ".join(x.dropna().astype(str))
 
         display_df = df_copy.groupby("Order ID", as_index=False).agg(agg_funcs)
         
-        if "_Formatted_Item" in display_df.columns:
-            display_df.rename(columns={"_Formatted_Item": "Items"}, inplace=True)
+        if "_CatQty" in display_df.columns:
+            display_df.rename(columns={"_CatQty": "Items"}, inplace=True)
             if "Item Name" in display_df.columns:
                 display_df.drop(columns=["Item Name"], inplace=True)
     else:
@@ -80,81 +94,96 @@ def _render_live_orders_view():
 
     status_col = "Order Status" if "Order Status" in display_df.columns else "Status" if "Status" in display_df.columns else None
     amount_col = "Order Total Amount" if "Order Total Amount" in display_df.columns else "Total Amount" if "Total Amount" in display_df.columns else None
+    if amount_col:
+        display_df[amount_col] = pd.to_numeric(display_df[amount_col], errors="coerce").fillna(0).astype(int)
+        
     date_col = "Order Date" if "Order Date" in display_df.columns else "Date" if "Date" in display_df.columns else None
     mod_date_col = "Order Date Modified" if "Order Date Modified" in display_df.columns else None
 
-    # Advanced Multi-Column Filter Sidebar
-    with st.sidebar:
-        st.markdown("### 🎛️ Order Filters")
+    date_range = None
+    search_query = ""
+    status_filter = []
+    
+    if date_col:
+        from datetime import datetime
+        today = datetime.now().date()
         
-        # Search Filter
-        search_query = st.text_input("🔍 Global Search:", help="Search by Name, Phone, ID, etc.")
+        c_date, c_search, c_status, c_refresh = st.columns([1.2, 1, 1.5, 0.8])
         
-        # Status Filter
-        status_filter = []
-        if status_col:
-            statuses = display_df[status_col].dropna().unique().tolist()
-            status_filter = st.multiselect("Status:", statuses, default=statuses)
+        with c_date:
+            date_range = st.date_input("📅 Filter Date Range", value=(today, today), help="Select a date range to filter orders.")
+            
+        with c_search:
+            search_query = st.text_input("🔍 Global Search:", help="Search by Name, Phone, ID, etc.")
+            
+        with c_status:
+            if status_col:
+                statuses = display_df[status_col].dropna().unique().tolist()
+                default_statuses = [s for s in statuses if str(s).lower() in ["processing", "shipped", "completed"]]
+                if not default_statuses:
+                    default_statuses = statuses
+                status_filter = st.multiselect("Status:", statuses, default=default_statuses)
 
-        # Total Amount Range Filter
-        amount_filter = None
-        if amount_col:
-            display_df[amount_col] = pd.to_numeric(display_df[amount_col], errors='coerce').fillna(0)
-            min_amt = float(display_df[amount_col].min())
-            max_amt = float(display_df[amount_col].max())
-            if min_amt < max_amt:
-                amount_filter = st.slider("Total Amount Range:", min_value=min_amt, max_value=max_amt, value=(min_amt, max_amt))
-
-        st.divider()
-        st.markdown("### 📦 Pathao Tracking")
-        tracking_col_options = ["None"] + list(display_df.columns)
+        # Pathao Tracking logic
         guess_col = next((col for col in display_df.columns if any(kw in col.lower() for kw in ["tracking", "consignment", "pathao"])), "None")
-        
-        tracking_col = st.selectbox("Tracking ID Column", tracking_col_options, index=tracking_col_options.index(guess_col), help="Select the column containing Pathao Consignment IDs.")
+        tracking_col = guess_col
+        max_sync = 15
         
         if tracking_col != "None":
-            if st.button("Refresh Live Statuses", use_container_width=True, type="primary"):
-                with st.spinner("Fetching live Pathao statuses..."):
-                    live_statuses = dict(st.session_state.get("wc_pathao_statuses", {}))
-                    unique_ids = []
-                    seen_ids = set()
-                    for cid in display_df[tracking_col]:
-                        clean_cid = str(cid).strip()
-                        if pd.notna(cid) and clean_cid and clean_cid.lower() != "nan" and clean_cid not in seen_ids:
-                            unique_ids.append(clean_cid)
-                            seen_ids.add(clean_cid)
-
-                    if not unique_ids:
-                        st.warning("No valid consignment IDs found in the selected column.")
-                    else:
-                        progress_bar = st.progress(0)
-                        total = len(unique_ids)
-                        
-                        for i, clean_cid in enumerate(unique_ids):
-                            res = get_pathao_order_status(clean_cid)
-                            if "error" not in res:
-                                live_statuses[clean_cid] = res.get("data", {}).get("order_status", "Unknown")
-                            else:
-                                live_statuses[clean_cid] = "API Error"
-                                    
-                            progress_bar.progress((i + 1) / total)
+            needs_auto_sync = "wc_pathao_statuses" not in st.session_state or not st.session_state["wc_pathao_statuses"]
+            
+            with c_refresh:
+                st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
+                if st.button(f"🔄 Sync Pathao", use_container_width=True, type="primary") or needs_auto_sync:
+                    with st.spinner("Fetching live Pathao statuses..."):
+                        live_statuses = dict(st.session_state.get("wc_pathao_statuses", {}))
+                        unique_ids = []
+                        seen_ids = set()
+                        for cid in display_df[tracking_col]:
+                            if len(unique_ids) >= max_sync:
+                                break
+                            clean_cid = str(cid).strip()
+                            if pd.notna(cid) and clean_cid and clean_cid.lower() != "nan" and clean_cid not in seen_ids:
+                                unique_ids.append(clean_cid)
+                                seen_ids.add(clean_cid)
+    
+                        if not unique_ids:
+                            st.warning("No valid consignment IDs found in the current filtered view.")
+                        else:
+                            progress_bar = st.progress(0)
+                            total = len(unique_ids)
                             
-                        st.session_state["wc_pathao_statuses"] = live_statuses
-                        st.toast(f"🔍 Pathao statuses refreshed for {len(unique_ids)} consignments.")
+                            for i, clean_cid in enumerate(unique_ids):
+                                from src.services.pathao.status import get_pathao_order_status
+                                res = get_pathao_order_status(clean_cid)
+                                if "error" not in res:
+                                    live_statuses[clean_cid] = res.get("data", {}).get("order_status", "Unknown")
+                                else:
+                                    live_statuses[clean_cid] = "API Error"
+                                        
+                                progress_bar.progress((i + 1) / total)
+                                
+                            st.session_state["wc_pathao_statuses"] = live_statuses
+                            st.toast(f"🔍 Pathao statuses refreshed for {len(unique_ids)} consignments.")
 
-        if tracking_col != "None" and "wc_pathao_statuses" in st.session_state:
-            display_df["Pathao Status"] = display_df[tracking_col].astype(str).str.strip().map(st.session_state["wc_pathao_statuses"]).fillna("Not Fetched")
+    # --- APPLY FILTERS ---
+    if date_range and date_col:
+        temp_dt = pd.to_datetime(display_df[date_col], errors='coerce').dt.date
+        if len(date_range) == 2:
+            display_df = display_df[(temp_dt >= date_range[0]) & (temp_dt <= date_range[1])]
+        elif len(date_range) == 1:
+            display_df = display_df[temp_dt == date_range[0]]
 
-    # Apply Filters
     if search_query:
         mask = display_df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
         display_df = display_df[mask]
         
     if status_filter and status_col:
         display_df = display_df[display_df[status_col].isin(status_filter)]
-        
-    if amount_filter and amount_col:
-        display_df = display_df[(display_df[amount_col] >= amount_filter[0]) & (display_df[amount_col] <= amount_filter[1])]
+
+    if tracking_col != "None" and "wc_pathao_statuses" in st.session_state:
+
+            display_df["Pathao Status"] = display_df[tracking_col].astype(str).str.strip().map(st.session_state["wc_pathao_statuses"]).fillna("Not Fetched")
 
     # Top-level operational metrics
     total_orders = len(display_df)
@@ -280,34 +309,83 @@ def _render_live_orders_view():
                             data = res.get("data", {})
                             st.toast(f"Live Status: **{data.get('order_status', 'Unknown')}** | Payment: **{data.get('payment_status', 'Unknown')}**")
 
-    st.markdown("### 📋 Raw Order Data")
+    st.markdown("### 📋 Raw Order Data", help="You can click on column headers to sort, or hover over the top right of the table to download as CSV/Excel or view fullscreen.")
     
+    # Pre-process columns to add emojis for instant visual recognition
+    if status_col and status_col in display_df.columns:
+        def add_wc_emoji(status):
+            s = str(status).lower()
+            if any(x in s for x in ['completed', 'shipped', 'confirmed']): return f"🟢 {status}"
+            if 'processing' in s: return f"🔵 {status}"
+            if any(x in s for x in ['on-hold', 'pending', 'waiting']): return f"🟡 {status}"
+            if any(x in s for x in ['cancel', 'fail', 'refund', 'trash']): return f"🔴 {status}"
+            return status
+        display_df[status_col] = display_df[status_col].apply(add_wc_emoji)
+
+    if "Pathao Status" in display_df.columns:
+        def add_pathao_emoji(status):
+            s = str(status).lower()
+            if 'delivered' in s: return f"🟢 {status}"
+            if any(x in s for x in ['return', 'failed', 'cancel', 'error']): return f"🔴 {status}"
+            if any(x in s for x in ['transit', 'processing', 'assigned']): return f"🔵 {status}"
+            if 'not fetched' in s: return f"⚪ {status}"
+            return f"🟡 {status}"
+        display_df["Pathao Status"] = display_df["Pathao Status"].apply(add_pathao_emoji)
+
     # Configure specific column formats
     column_configuration = {}
     if date_col:
         display_df[date_col] = pd.to_datetime(display_df[date_col], errors='coerce')
         column_configuration[date_col] = st.column_config.DatetimeColumn(
-            "Order Date",
+            "📅 Order Date",
             format="D MMM YYYY, h:mm a",
         )
         
     if mod_date_col:
         display_df[mod_date_col] = pd.to_datetime(display_df[mod_date_col], errors='coerce')
         column_configuration[mod_date_col] = st.column_config.DatetimeColumn(
-            "Last Modified",
+            "🔄 Last Modified",
             format="D MMM YYYY, h:mm a",
         )
         
     if amount_col:
+        # Cast to integer safely before formatting to prevent Streamlit float rendering bugs
+        display_df[amount_col] = pd.to_numeric(display_df[amount_col], errors="coerce").fillna(0).astype(int)
         column_configuration[amount_col] = st.column_config.NumberColumn(
-            "Total Amount",
+            "💰 Total Amount",
             help="Total order amount in BDT",
-            format="৳ %.2f",
+            format="৳ %d",
         )
+        
+    column_configuration["Order Number"] = None
+    column_configuration["Pathao Consignment ID"] = st.column_config.TextColumn(
+        "📦 Consignment ID",
+    )
 
     # Sort orders by Date descending
     if date_col in display_df.columns:
         display_df = display_df.sort_values(by=date_col, ascending=False)
+
+    # Drop unnecessary address and internal columns
+    cols_to_drop = [
+        "Shipping Address 1", "Shipping City", "State Name (Billing)", 
+        "Payment Method Title", "dt_parsed", "mod_dt_parsed", "SKU", "Item Cost"
+    ]
+    display_df = display_df.drop(columns=[c for c in cols_to_drop if c in display_df.columns])
+
+    # Reorder to put Pathao Consignment ID right after Order ID
+    if "Order ID" in display_df.columns and "Pathao Consignment ID" in display_df.columns:
+        cols = list(display_df.columns)
+        cols.remove("Pathao Consignment ID")
+        if "Pathao Status" in cols:
+            cols.remove("Pathao Status")
+            
+        order_idx = cols.index("Order ID")
+        cols.insert(order_idx + 1, "Pathao Consignment ID")
+        if "Pathao Status" in display_df.columns:
+            cols.insert(order_idx + 2, "Pathao Status")
+            
+        display_df = display_df[cols]
 
     styled_df = display_df.style
 
@@ -315,10 +393,11 @@ def _render_live_orders_view():
         def highlight_pathao_status(col):
             return [
                 'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
-                if any(x in str(v).lower() for x in ['return', 'failed', 'cancel', 'error'])
-                else 'color: #10b981; font-weight: 600;' if 'delivered' in str(v).lower()
-                else 'color: #3b82f6; font-weight: 500;' if any(x in str(v).lower() for x in ['transit', 'processing', 'assigned'])
-                else ''
+                if '🔴' in str(v)
+                else 'background-color: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 600;' if '🟢' in str(v)
+                else 'color: #3b82f6; font-weight: 500;' if '🔵' in str(v)
+                else 'color: rgba(255,255,255,0.5); font-style: italic;' if '⚪' in str(v)
+                else 'color: #f59e0b; font-weight: 500;'
                 for v in col
             ]
         styled_df = styled_df.apply(highlight_pathao_status, subset=['Pathao Status'])
@@ -327,16 +406,22 @@ def _render_live_orders_view():
         def highlight_wc_status(col):
             return [
                 'background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;' 
-                if str(v).lower() in ['cancelled', 'failed', 'refunded', 'trash']
-                else 'color: #10b981; font-weight: 600;' if str(v).lower() in ['completed', 'shipped', 'confirmed']
-                else 'color: #3b82f6; font-weight: 500;' if str(v).lower() in ['processing']
-                else 'color: #f59e0b; font-weight: 500;' if str(v).lower() in ['on-hold', 'pending', 'pending payment', 'waiting']
+                if '🔴' in str(v)
+                else 'background-color: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 600;' if '🟢' in str(v)
+                else 'color: #3b82f6; font-weight: 500;' if '🔵' in str(v)
+                else 'color: #f59e0b; font-weight: 500;' if '🟡' in str(v)
                 else ''
                 for v in col
             ]
         styled_df = styled_df.apply(highlight_wc_status, subset=[status_col])
 
-    st.dataframe(styled_df, use_container_width=True, height=600, column_config=column_configuration)
+    st.dataframe(
+        styled_df, 
+        use_container_width=False, 
+        height=600, 
+        column_config=column_configuration,
+        hide_index=True
+    )
 
 def render_woocommerce_orders_tab():
     """Renders the WooCommerce Operations module."""
@@ -344,29 +429,27 @@ def render_woocommerce_orders_tab():
     st.markdown("<p style='opacity: 0.8;'>Live synchronization view and tracking for WooCommerce operations.</p>", unsafe_allow_html=True)
     st.divider()
 
-    tab_live, tab_track = st.tabs([":material/shopping_cart: Live Orders View", ":material/local_shipping: WC × Pathao Tracking"])
+    _render_live_orders_view()
 
-    with tab_live:
-        _render_live_orders_view()
+    st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
+    st.divider()
+    st.markdown("### :material/local_shipping: WooCommerce × Pathao Bulk Status Sync")
+    st.markdown("Match WooCommerce orders with a Pathao CSV/Excel export and update statuses directly.")
 
-    with tab_track:
-        st.markdown("### WooCommerce × Pathao Order Tracking Dashboard")
-        st.markdown("Match WooCommerce orders with Pathao deliveries and update statuses directly.")
+    wc_df = st.session_state.get("wc_full_df")
+    if wc_df is None or wc_df.empty:
+        wc_df = st.session_state.get("wc_curr_df")
 
-        wc_df = st.session_state.get("wc_full_df")
-        if wc_df is None or wc_df.empty:
-            wc_df = st.session_state.get("wc_curr_df")
+    if wc_df is None or wc_df.empty:
+        st.warning("⚠️ No active WooCommerce order data found. Please trigger a sync from the **Live Dashboard** first.")
+        return
 
-        if wc_df is None or wc_df.empty:
-            st.warning("⚠️ No active WooCommerce order data found. Please trigger a sync from the **Live Dashboard** first.")
-            return
+    c1, c2 = st.columns([1, 2])
+    with c1:
+        st.info(f"Loaded {wc_df['Order ID'].nunique()} WooCommerce Orders from session cache.")
 
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            st.info(f"Loaded {wc_df['Order ID'].nunique()} WooCommerce Orders from session cache.")
-
-        with c2:
-            pathao_file = st.file_uploader("Upload Pathao Export (CSV/Excel)", type=["csv", "xlsx"], key="wc_pathao_up")
+    with c2:
+        pathao_file = st.file_uploader("Upload Pathao Export (CSV/Excel)", type=["csv", "xlsx"], key="wc_pathao_up")
 
         # Create WC Base
         track_df = wc_df[["Order ID", "Order Status"]].copy().drop_duplicates(subset=["Order ID"])
