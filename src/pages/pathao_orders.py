@@ -6,6 +6,7 @@ from requests.auth import HTTPBasicAuth
 
 import pandas as pd
 import streamlit as st
+from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
 import plotly.express as px
 
 from src.components.dataframe_search import render_dataframe_search
@@ -1145,6 +1146,7 @@ def _render_wc_notes_tab():
 
     with col_quick:
         # Quick dispatch note from Pathao result
+
         result_df_n = st.session_state.get("pathao_res_df")
         if result_df_n is not None and not result_df_n.empty:
             if st.button("🚚 Bulk: Post Dispatch Notes", type="secondary", use_container_width=True, key="wc_bulk_notes_btn"):

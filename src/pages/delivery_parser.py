@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
 from datetime import datetime
 
 from src.state.persistence import clear_state_keys
@@ -223,6 +224,7 @@ POD"""
 
                 if parsed_df.empty:
                     st.error("No valid records found from fuzzy parser input.")
+
                 else:
                     st.session_state.fuzzy_parsed_df = parsed_df
                     st.toast(f"✅ Parsed {len(parsed_df)} records using fuzzy fallback.")

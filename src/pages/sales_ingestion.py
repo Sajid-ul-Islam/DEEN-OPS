@@ -1,4 +1,5 @@
 import streamlit as st
+from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
 import pandas as pd
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -101,6 +102,7 @@ def render_manual_tab():
                     source_name = "URL_Import"
                     status.update(label="Fetch Complete", state="complete", expanded=False)
                     st.toast(f"📥 Loaded {len(df_url)} rows from URL!")
+
             except Exception as e:
                 st.error(f"URL fetch failed: {e}")
 

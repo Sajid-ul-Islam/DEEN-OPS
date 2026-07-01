@@ -1,4 +1,5 @@
 import streamlit as st
+from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
 import pandas as pd
 import asyncio
 import re
@@ -935,6 +936,7 @@ def render_ai_pilot_page():
     if "snapshot_loaded" not in st.session_state:
         try:
             from src.processing.hybrid_data_loader import HybridDataLoader
+
             loader = HybridDataLoader()
             snapshot_df = loader.load_fast()
             if snapshot_df is not None and not snapshot_df.empty:

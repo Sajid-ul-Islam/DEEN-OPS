@@ -1,4 +1,5 @@
 import streamlit as st
+from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
@@ -504,6 +505,7 @@ def render_outlet_stock_analysis_tab():
     st.markdown("### 🏪 Outlet Stock Compiler")
     st.write("Consolidate stock levels across all physical outlet locations (Mirpur, Wari, Cumilla, Sylhet) and optionally include Ecom stock from WooCommerce.")
 
+
     default_files = {
         "Mirpur": "Mir.xlsx",
         "Wari": "War.xlsx",
@@ -723,8 +725,7 @@ def render_stock_analytics_tab():
     if "outlet_sku_verification_df" not in st.session_state:
         st.session_state.outlet_sku_verification_df = None
 
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.subheader("📦 Current Stock Analytics")
+    render_premium_header("Current Stock Analytics", "Monitor and analyze inventory across all locations and WooCommerce", "📦")
 
     # Define tabs
     tab_web, tab_outlet = st.tabs([":material/database: WooCommerce Stock", ":material/storefront: Outlet Stock Analysis"])

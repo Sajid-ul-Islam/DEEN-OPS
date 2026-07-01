@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
 
 from src.utils.logging import log_error
 from src.state.persistence import clear_state_keys
@@ -148,6 +149,7 @@ def render_wp_tab():
         ) or not valid_file:
             st.warning(
                 "Upload a valid verification file or pull from live dash before generating links."
+
             )
         else:
             try:

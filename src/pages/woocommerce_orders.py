@@ -41,12 +41,49 @@ def _update_wc_status(order_id, status):
         return False
 
 def _render_live_orders_view():
-    # Fetch the WooCommerce Dataframe from session state
-    df = st.session_state.get("wc_curr_df")
-
+    from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
+    render_premium_header("Order Tracking & Logistics Terminal", "Live sync with WooCommerce and Pathao Courier", "🛒")
+    
+    from datetime import datetime
+    today = datetime.now().date()
+    
+    c_date, c_fetch, c_search = st.columns([1.5, 1, 2.5])
+    
+    with c_date:
+        date_range = st.date_input("📅 WooCommerce Date Range", value=(today, today), help="Select dates to fetch orders")
+        
+    with c_fetch:
+        st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
+        if st.button("📥 Fetch Orders", use_container_width=True, type="primary"):
+            from src.services.woocommerce.client import load_from_woocommerce
+            st.session_state["wc_sync_mode"] = "Custom Range"
+            if isinstance(date_range, tuple) and len(date_range) == 2:
+                st.session_state["wc_sync_start_date"] = date_range[0]
+                st.session_state["wc_sync_end_date"] = date_range[1]
+            elif isinstance(date_range, tuple) and len(date_range) == 1:
+                st.session_state["wc_sync_start_date"] = date_range[0]
+                st.session_state["wc_sync_end_date"] = date_range[0]
+            else:
+                st.session_state["wc_sync_start_date"] = date_range
+                st.session_state["wc_sync_end_date"] = date_range
+                
+            from datetime import time
+            st.session_state["wc_sync_start_time"] = time(0, 0, 0)
+            st.session_state["wc_sync_end_time"] = time(23, 59, 59)
+            
+            with st.spinner("Fetching orders from WooCommerce API..."):
+                load_from_woocommerce.clear()
+                res = load_from_woocommerce()
+                st.session_state["wc_tracking_df"] = res.get("df_to_return")
+                st.session_state["wc_pathao_statuses"] = {} # clear pathao cache for new orders
+                
+    df = st.session_state.get("wc_tracking_df")
     if df is None or df.empty:
-        st.warning("⚠️ No active WooCommerce order data found. Please trigger a sync from the **Live Dashboard** first.")
-        return
+        # Fallback to wc_curr_df if available
+        df = st.session_state.get("wc_curr_df")
+        if df is None or df.empty:
+            st.info("👆 Please select a date range and click 'Fetch Orders' to load data.")
+            return
 
     df_copy = df.copy()
 
@@ -100,19 +137,12 @@ def _render_live_orders_view():
     date_col = "Order Date" if "Order Date" in display_df.columns else "Date" if "Date" in display_df.columns else None
     mod_date_col = "Order Date Modified" if "Order Date Modified" in display_df.columns else None
 
-    date_range = None
     search_query = ""
     status_filter = []
     
     if date_col:
-        from datetime import datetime
-        today = datetime.now().date()
+        c_search, c_status, c_refresh = st.columns([1, 1.5, 0.8])
         
-        c_date, c_search, c_status, c_refresh = st.columns([1.2, 1, 1.5, 0.8])
-        
-        with c_date:
-            date_range = st.date_input("📅 Filter Date Range", value=(today, today), help="Select a date range to filter orders.")
-            
         with c_search:
             search_query = st.text_input("🔍 Global Search:", help="Search by Name, Phone, ID, etc.")
             
@@ -167,13 +197,6 @@ def _render_live_orders_view():
                             st.toast(f"🔍 Pathao statuses refreshed for {len(unique_ids)} consignments.")
 
     # --- APPLY FILTERS ---
-    if date_range and date_col:
-        temp_dt = pd.to_datetime(display_df[date_col], errors='coerce').dt.date
-        if len(date_range) == 2:
-            display_df = display_df[(temp_dt >= date_range[0]) & (temp_dt <= date_range[1])]
-        elif len(date_range) == 1:
-            display_df = display_df[temp_dt == date_range[0]]
-
     if search_query:
         mask = display_df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
         display_df = display_df[mask]
@@ -188,16 +211,21 @@ def _render_live_orders_view():
     # Top-level operational metrics
     total_orders = len(display_df)
     total_revenue = display_df[amount_col].sum() if amount_col else 0
-    
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Filtered Orders", total_orders)
-    c2.metric("Filtered Revenue", f"৳{total_revenue:,.0f}")
-    
+    processing = 0
+    completed = 0
     if status_col:
-        processing = len(display_df[display_df[status_col].astype(str).str.lower() == "processing"])
-        c3.metric("Processing Orders", processing)
-        completed = len(display_df[display_df[status_col].astype(str).str.lower() == "completed"])
-        c4.metric("Completed Orders", completed)
+        processing = len(display_df[display_df[status_col].astype(str).str.lower().str.contains("processing")])
+        completed = len(display_df[display_df[status_col].astype(str).str.lower().str.contains("completed")])
+        
+    metrics_html = (
+        '<div class="metric-container">'
+        f'<div class="metric-card"><div><div class="metric-label">FILTERED ORDERS</div><div class="metric-value">{total_orders:,.0f}</div></div><div class="metric-icon">📦</div></div>'
+        f'<div class="metric-card"><div><div class="metric-label">FILTERED REVENUE</div><div class="metric-value">TK {total_revenue:,.0f}</div></div><div class="metric-icon">৳</div></div>'
+        f'<div class="metric-card"><div><div class="metric-label">PROCESSING</div><div class="metric-value">{processing:,.0f}</div></div><div class="metric-icon">⏳</div></div>'
+        f'<div class="metric-card"><div><div class="metric-label">COMPLETED</div><div class="metric-value">{completed:,.0f}</div></div><div class="metric-icon">✅</div></div>'
+        '</div>'
+    )
+    st.markdown(metrics_html, unsafe_allow_html=True)
 
     if "Pathao Status" in display_df.columns:
         valid_statuses = display_df[display_df["Pathao Status"] != "Not Fetched"]
@@ -234,13 +262,16 @@ def _render_live_orders_view():
                 
                 success_rate = (delivered / resolved * 100) if resolved > 0 else 0
                 
-                c_m1, c_m2 = st.columns(2)
-                c_m1.metric("Success Rate", f"{success_rate:.1f}%", help="Based on resolved orders (Delivered vs Returned/Failed/Cancelled).")
-                c_m2.metric("Total Resolved", int(resolved))
                 
-                c_m3, c_m4 = st.columns(2)
-                c_m3.metric("Delivered", int(delivered))
-                c_m4.metric("Failed/Returned", int(failed_returned))
+                perf_html = (
+                    '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem;">'
+                    f'<div style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.2);"><div style="font-size: 0.8rem; color: #9ca3af; font-weight: 600;">SUCCESS RATE</div><div style="font-size: 1.5rem; font-weight: 700; color: #10b981;">{success_rate:.1f}%</div></div>'
+                    f'<div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 0.5rem; border: 1px solid rgba(59, 130, 246, 0.2);"><div style="font-size: 0.8rem; color: #9ca3af; font-weight: 600;">DELIVERED</div><div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;">{int(delivered)}</div></div>'
+                    f'<div style="background: rgba(245, 158, 11, 0.1); padding: 1rem; border-radius: 0.5rem; border: 1px solid rgba(245, 158, 11, 0.2);"><div style="font-size: 0.8rem; color: #9ca3af; font-weight: 600;">RESOLVED</div><div style="font-size: 1.5rem; font-weight: 700; color: #f59e0b;">{int(resolved)}</div></div>'
+                    f'<div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 0.5rem; border: 1px solid rgba(239, 68, 68, 0.2);"><div style="font-size: 0.8rem; color: #9ca3af; font-weight: 600;">FAILED / RETURNED</div><div style="font-size: 1.5rem; font-weight: 700; color: #ef4444;">{int(failed_returned)}</div></div>'
+                    '</div>'
+                )
+                st.markdown(perf_html, unsafe_allow_html=True)
                 
             if date_col:
                 ts_df = valid_statuses.copy()
@@ -275,7 +306,8 @@ def _render_live_orders_view():
                     
                     if not delivered_df.empty:
                         avg_transit = delivered_df["Transit Days"].mean()
-                        st.metric("Average Transit Time", f"{avg_transit:.1f} Days", help="Average days from Order Creation to Delivery.")
+                        from src.components.ui_components import render_metric_grid
+                        render_metric_grid([{"label": "Average Transit Time", "value": f"{avg_transit:.1f} Days", "icon": "🚚"}])
 
                         transit_counts = delivered_df["Transit Days"].value_counts().reset_index()
                         transit_counts.columns = ["Transit Days", "Order Count"]

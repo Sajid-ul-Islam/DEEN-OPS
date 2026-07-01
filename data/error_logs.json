@@ -1,33 +1,5 @@
 [
     {
-        "timestamp": "2026-04-11 15:06:42",
-        "context": "App Bootstrap",
-        "error": "argument of type 'bool' is not a container or iterable",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 187, in run_app\n    render_ai_pilot_page()\n    ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 142, in render_ai_pilot_page\n    provider, api_key, model_name = render_sidebar_controls()\n                                    ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\ai_pilot.py\", line 88, in render_sidebar_controls\n    is_cloud = init_llm_controller().is_cloud\n               ~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 264, in init_llm_controller\n    st.session_state.llm_controller = DynamicLLMController()\n                                      ~~~~~~~~~~~~~~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\llm_manager.py\", line 165, in __init__\n    self.is_cloud = \"STREAMLIT_SERVER_PORT\" in st.context.headers or \".streamlit.app\" in st.get_option(\"browser.gatherUsageStats\") if hasattr(st, \"get_option\") else False\n                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: argument of type 'bool' is not a container or iterable\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-12 10:26:07",
-        "context": "App Bootstrap",
-        "error": "unexpected indent (sales_dashboard.py, line 1302)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 59, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab, render_stock_analytics_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1302\n    st.subheader(\"\ud83d\udd25 Top Products Spotlight\")\nIndentationError: unexpected indent\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-13 09:57:02",
-        "context": "App Bootstrap",
-        "error": "unterminated string literal (detected at line 1009) (sales_dashboard.py, line 1009)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 210, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-BI\\app.py\", line 59, in run_app\n    from app_modules.sales_dashboard import render_live_tab, render_manual_tab, render_stock_analytics_tab\n  File \"H:\\Repo\\DEEN-BI\\app_modules\\sales_dashboard.py\", line 1009\n    ModeBar\": False})\n           ^\nSyntaxError: unterminated string literal (detected at line 1009)\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-14 16:53:44",
-        "context": "App Bootstrap",
-        "error": "No module named 'aiohttp'",
-        "traceback": "Traceback (most recent call last):\n  File \"G:\\AI_BI_DEEN_ROOT\\dashboard_v1\\app.py\", line 206, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"G:\\AI_BI_DEEN_ROOT\\dashboard_v1\\app.py\", line 182, in run_app\n    from src.pages.data_pilot import render_ai_pilot_page\n  File \"G:\\AI_BI_DEEN_ROOT\\dashboard_v1\\src\\pages\\data_pilot.py\", line 8, in <module>\n    from src.services.llm.manager import init_llm_controller\n  File \"G:\\AI_BI_DEEN_ROOT\\dashboard_v1\\src\\services\\llm\\manager.py\", line 7, in <module>\n    import aiohttp\nModuleNotFoundError: No module named 'aiohttp'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-04-17 12:34:21",
         "context": "App Bootstrap",
         "error": "'src.components.styles'",
@@ -838,5 +810,33 @@
         "details": {
             "fallback_msg": "WooCommerce Orders unavailable."
         }
+    },
+    {
+        "timestamp": "2026-07-01 17:34:21",
+        "context": "App Bootstrap",
+        "error": "unexpected indent (inventory_distribution.py, line 757)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 308, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 40, in run_app\n    from src.pages.inventory_distribution import render_distribution_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 757\n    log_error(e, context=\"Inventory Pathao Processor\")\nIndentationError: unexpected indent\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-07-01 17:35:00",
+        "context": "App Bootstrap",
+        "error": "unexpected indent (inventory_distribution.py, line 757)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 308, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 40, in run_app\n    from src.pages.inventory_distribution import render_distribution_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 757\n    log_error(e, context=\"Inventory Pathao Processor\")\nIndentationError: unexpected indent\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-07-01 17:35:21",
+        "context": "App Bootstrap",
+        "error": "unexpected indent (inventory_distribution.py, line 757)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 308, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 40, in run_app\n    from src.pages.inventory_distribution import render_distribution_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 757\n    log_error(e, context=\"Inventory Pathao Processor\")\nIndentationError: unexpected indent\n",
+        "details": {}
+    },
+    {
+        "timestamp": "2026-07-01 17:35:26",
+        "context": "App Bootstrap",
+        "error": "unexpected indent (inventory_distribution.py, line 757)",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 308, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 40, in run_app\n    from src.pages.inventory_distribution import render_distribution_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 757\n    log_error(e, context=\"Inventory Pathao Processor\")\nIndentationError: unexpected indent\n",
+        "details": {}
     }
 ]

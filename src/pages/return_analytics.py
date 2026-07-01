@@ -1,9 +1,9 @@
 import streamlit as st
+from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
 import pandas as pd
 
 def render_return_analytics_tab():
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.subheader("📉 Return Analytics")
+    render_premium_header("Return Analytics", "Track, analyze, and resolve order returns", "📉")
     
     # We replace /pubhtml? with /pub?output=csv& for easy parsing by pandas
     sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4j3i94IWVlVYI5gErxzfmmaYNiirGqnrncRKrDCbHvmLYpzH9l4_etjYmfCoDj_Gv-_mps2gnufXE/pub?output=csv&gid=0&single=true"
@@ -382,5 +382,6 @@ def render_return_analytics_tab():
             
         except Exception as e:
             st.error(f"Failed to fetch or parse Return Analytics data from the provided URL. Error: {e}")
+
 
     st.markdown('</div>', unsafe_allow_html=True)
