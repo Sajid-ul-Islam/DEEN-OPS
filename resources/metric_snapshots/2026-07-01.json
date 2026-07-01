@@ -1,0 +1,128 @@
+{
+  "date": "2026-07-01",
+  "shifts": [
+    {
+      "ts": "2026-07-01T15:33:34.469183+06:00",
+      "label": "Today",
+      "revenue": 37443.0,
+      "orders": 22,
+      "qty": 44,
+      "aov": 1701.95,
+      "top_products": [
+        {
+          "name": "Argentina World Cup Edition Aluminum Water Bottle",
+          "revenue": 3984.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - 3XL",
+          "revenue": 2544.0
+        },
+        {
+          "name": "White Executive Formal Shirt - 2XL",
+          "revenue": 2544.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - L",
+          "revenue": 2384.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-07-01T15:34:17.637206+06:00",
+      "label": "Today",
+      "revenue": 37443.0,
+      "orders": 22,
+      "qty": 44,
+      "aov": 1701.95,
+      "top_products": [
+        {
+          "name": "Argentina World Cup Edition Aluminum Water Bottle",
+          "revenue": 3984.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - 3XL",
+          "revenue": 2544.0
+        },
+        {
+          "name": "White Executive Formal Shirt - 2XL",
+          "revenue": 2544.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - L",
+          "revenue": 2384.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-07-01T15:38:32.441759+06:00",
+      "label": "Today",
+      "revenue": 37443.0,
+      "orders": 22,
+      "qty": 44,
+      "aov": 1701.95,
+      "top_products": [
+        {
+          "name": "Argentina World Cup Edition Aluminum Water Bottle",
+          "revenue": 3984.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - 3XL",
+          "revenue": 2544.0
+        },
+        {
+          "name": "White Executive Formal Shirt - 2XL",
+          "revenue": 2544.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - L",
+          "revenue": 2384.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-07-01T15:44:10.261063+06:00",
+      "label": "Today",
+      "revenue": 37443.0,
+      "orders": 22,
+      "qty": 44,
+      "aov": 1701.95,
+      "top_products": [
+        {
+          "name": "Argentina World Cup Edition Aluminum Water Bottle",
+          "revenue": 3984.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Regular Fit - 32",
+          "revenue": 2590.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - 3XL",
+          "revenue": 2544.0
+        },
+        {
+          "name": "White Executive Formal Shirt - 2XL",
+          "revenue": 2544.0
+        },
+        {
+          "name": "Classic Stripe Executive Formal Shirt - L",
+          "revenue": 2384.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 149772.0,
+  "daily_orders": 88,
+  "daily_qty": 176
+}
