@@ -1,6 +1,7 @@
 import streamlit as st
 from src.components.ui_components import render_premium_header, render_metric_grid, apply_standard_dataframe
 import pandas as pd
+import requests
 from datetime import datetime, timedelta
 from io import BytesIO
 
@@ -103,6 +104,12 @@ def render_manual_tab():
                     status.update(label="Fetch Complete", state="complete", expanded=False)
                     st.toast(f"📥 Loaded {len(df_url)} rows from URL!")
 
+            except requests.exceptions.MissingSchema:
+                st.error("Invalid URL format. Please include http:// or https://")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Network error while fetching the URL: {e}")
+            except ValueError as e:
+                st.error(f"Data format error: {e}")
             except Exception as e:
                 st.error(f"URL fetch failed: {e}")
 
@@ -111,6 +118,9 @@ def render_manual_tab():
             source_name = st.session_state.get("manual_source_name", "WooCommerce_Custom_Pull")
 
     if df is not None:
+        st.divider()
+        st.subheader("🛠️ Data Transformation & Filtering")
+
         with st.expander("🔢 Filter Raw Ingestion Data (Order ID / Status)", expanded=False):
             col1, col2 = st.columns(2)
             with col1:
@@ -152,21 +162,25 @@ def render_manual_tab():
     try:
         # v10.7+ Direct Intelligence (Bypass mapping for WooCommerce and Snapshots)
         if "WooCommerce" in str(source_name) or "Snapshot" in str(source_name):
-            # v11.4 Fix: WooCommerce fetch produces 'Order Date', ensure mapping aligns
-            final_mapping = {
-                "name": "Item Name",
-                "cost": "Item Cost",
-                "qty": "Quantity",
-                "date": "Order Date" if "Date" not in df.columns else "Date",
-                "order_id": "Order Number",
-                "phone": "Phone (Billing)",
-                "sku": "SKU"
-            }
-            df_standard, timeframe = prepare_granular_data(df, final_mapping)
-            if not df_standard.empty:
-                drill, summ, top, basket = aggregate_data(df_standard, final_mapping)
-                # v10.9 Fix: Pass df_standard as granular_df to enable filters and rendering
-            render_dashboard_output(drill, summ, top, str(timeframe) if timeframe is not None else None, basket, str(source_name) if source_name is not None else None, granular_df=df_standard)
+            st.info("💡 Data source recognized. Column mapping will be handled automatically.")
+            generate_clicked, _ = render_action_bar("Generate Dashboard", "auto_generate")
+            if generate_clicked:
+                with st.spinner("Processing data..."):
+                    # v11.4 Fix: WooCommerce fetch produces 'Order Date', ensure mapping aligns
+                    final_mapping = {
+                        "name": "Item Name",
+                        "cost": "Item Cost",
+                        "qty": "Quantity",
+                        "date": "Order Date" if "Date" not in df.columns else "Date",
+                        "order_id": "Order Number",
+                        "phone": "Phone (Billing)",
+                        "sku": "SKU"
+                    }
+                    df_standard, timeframe = prepare_granular_data(df, final_mapping)
+                    if not df_standard.empty:
+                        drill, summ, top, basket = aggregate_data(df_standard, final_mapping)
+                        # v10.9 Fix: Pass df_standard as granular_df to enable filters and rendering
+                        render_dashboard_output(drill, summ, top, str(timeframe) if timeframe is not None else None, basket, str(source_name) if source_name is not None else None, granular_df=df_standard)
             return
 
         st.caption(f"Active Data Source: {source_name}")
@@ -183,39 +197,42 @@ def render_manual_tab():
                 return all_cols.index(auto_cols[key])
             return 0
 
-        mapped_name = st.selectbox(
-            "Product Name", all_cols, index=get_col_idx("name"), key="manual_name"
-        )
-        mapped_cost = st.selectbox(
-            "Price/Cost", all_cols, index=get_col_idx("cost"), key="manual_cost"
-        )
-        mapped_qty = st.selectbox(
-            "Quantity", all_cols, index=get_col_idx("qty"), key="manual_qty"
-        )
-        mapped_date = st.selectbox(
-            "Date (Optional)",
-            ["None"] + all_cols,
-            index=get_col_idx("date") + 1 if "date" in auto_cols else 0,
-            key="manual_date",
-        )
-        mapped_order = st.selectbox(
-            "Order ID (Optional)",
-            ["None"] + all_cols,
-            index=get_col_idx("order_id") + 1 if "order_id" in auto_cols else 0,
-            key="manual_order",
-        )
-        mapped_phone = st.selectbox(
-            "Phone (Optional)",
-            ["None"] + all_cols,
-            index=get_col_idx("phone") + 1 if "phone" in auto_cols else 0,
-            key="manual_phone",
-        )
-        mapped_sku = st.selectbox(
-             "SKU (Optional)",
-             ["None"] + all_cols,
-             index=get_col_idx("sku") + 1 if "sku" in auto_cols else 0,
-             key="manual_sku"
-        )
+        col1, col2 = st.columns(2)
+        with col1:
+            mapped_name = st.selectbox(
+                "Product Name", all_cols, index=get_col_idx("name"), key="manual_name"
+            )
+            mapped_cost = st.selectbox(
+                "Price/Cost", all_cols, index=get_col_idx("cost"), key="manual_cost"
+            )
+            mapped_qty = st.selectbox(
+                "Quantity", all_cols, index=get_col_idx("qty"), key="manual_qty"
+            )
+            mapped_date = st.selectbox(
+                "Date (Optional)",
+                ["None"] + all_cols,
+                index=get_col_idx("date") + 1 if "date" in auto_cols else 0,
+                key="manual_date",
+            )
+        with col2:
+            mapped_order = st.selectbox(
+                "Order ID (Optional)",
+                ["None"] + all_cols,
+                index=get_col_idx("order_id") + 1 if "order_id" in auto_cols else 0,
+                key="manual_order",
+            )
+            mapped_phone = st.selectbox(
+                "Phone (Optional)",
+                ["None"] + all_cols,
+                index=get_col_idx("phone") + 1 if "phone" in auto_cols else 0,
+                key="manual_phone",
+            )
+            mapped_sku = st.selectbox(
+                 "SKU (Optional)",
+                 ["None"] + all_cols,
+                 index=get_col_idx("sku") + 1 if "sku" in auto_cols else 0,
+                 key="manual_sku"
+            )
 
         final_mapping = {
             "name": mapped_name,
@@ -244,20 +261,21 @@ def render_manual_tab():
 
         generate_clicked, _ = render_action_bar("Generate dashboard", "manual_generate")
         if generate_clicked:
-            df_standard, timeframe = prepare_granular_data(df, final_mapping)
-            if not df_standard.empty:
-                drill, summ, top, basket = aggregate_data(df_standard, final_mapping)
-                manual_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                render_dashboard_output(
-                    drill,
-                    summ,
-                    top,
-                str(timeframe) if timeframe is not None else None,
-                    basket,
-                str(source_name) if source_name is not None else None,
-                    manual_updated,
-                    granular_df=df_standard
-                )
+            with st.spinner("Processing data..."):
+                df_standard, timeframe = prepare_granular_data(df, final_mapping)
+                if not df_standard.empty:
+                    drill, summ, top, basket = aggregate_data(df_standard, final_mapping)
+                    manual_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    render_dashboard_output(
+                        drill,
+                        summ,
+                        top,
+                    str(timeframe) if timeframe is not None else None,
+                        basket,
+                    str(source_name) if source_name is not None else None,
+                        manual_updated,
+                        granular_df=df_standard
+                    )
 
 
     except Exception as e:

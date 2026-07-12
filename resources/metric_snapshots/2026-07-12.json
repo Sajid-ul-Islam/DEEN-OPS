@@ -48,9 +48,35 @@
           "revenue": 0.0
         }
       ]
+    },
+    {
+      "ts": "2026-07-12T12:34:59.915502+06:00",
+      "label": "Today",
+      "revenue": 6423.0,
+      "orders": 3,
+      "qty": 5,
+      "aov": 2141.0,
+      "top_products": [
+        {
+          "name": "Olive Semi Formal Panjabi - 44",
+          "revenue": 2628.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 34",
+          "revenue": 2490.0
+        },
+        {
+          "name": "Burgundy Floral Casual Half Shirt - L",
+          "revenue": 1305.0
+        },
+        {
+          "name": "Brazil World Cup Edition Aluminum Water Bottle",
+          "revenue": 0.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 13231.0,
-  "daily_orders": 6,
-  "daily_qty": 9
+  "daily_revenue": 19654.0,
+  "daily_orders": 9,
+  "daily_qty": 14
 }
