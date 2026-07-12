@@ -540,11 +540,7 @@ def render_distribution_tab(search_q):
             df = st.session_state.inv_res_data.copy()
             
         total_orders = df.shape[0] if hasattr(df, 'shape') else len(df)
-        oos_count = df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"].shape[0] if "Dispatch Suggestion" in df.columns else 0
         split_count = df[df["Dispatch Suggestion"] == "Multiple / Split"].shape[0] if "Dispatch Suggestion" in df.columns else 0
-        
-        oos_rate = (oos_count / total_orders * 100) if total_orders > 0 else 0
-        
         
         sim_badge_html = '<span class="sim-badge">SIMULATED DATA</span>' if (sim_demand_adj != 0 or sim_supply_adj != 0) else '<span style="color: #64748b; font-size: 0.75rem;">LIVE SNAPSHOT</span>'
         
@@ -552,7 +548,6 @@ def render_distribution_tab(search_q):
             f'<div style="margin: 1.5rem 0 0.5rem 0;">{sim_badge_html}</div>'
             '<div class="metric-container">'
             f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Items</div><div class="metric-value">{total_orders:,.0f}</div></div><div class="metric-icon">📦</div></div>'
-            f'<div class="metric-card" style="border-left: 4px solid {"#ef4444" if oos_rate > 10 else "#10b981"}"><div class="metric-content"><div class="metric-label">Out of Stock Rate</div><div class="metric-value">{oos_rate:.1f}%</div></div><div class="metric-icon">⚠️</div></div>'
             f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Split Parcels</div><div class="metric-value">{split_count:,.0f}</div></div><div class="metric-icon">✂️</div></div>'
             '</div>', 
             unsafe_allow_html=True
@@ -617,7 +612,7 @@ def render_distribution_tab(search_q):
 
         # Render UI Tabs — dynamic based on priority order
         _priority = st.session_state.get("inv_priority_order", ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"])
-        _tab_labels = [":material/all_inbox: All Orders"] + [f":material/store: {loc}" for loc in _priority] + [":material/call_split: Multiple / Split", ":material/warning: Out of Stock"]
+        _tab_labels = [":material/all_inbox: All Orders"] + [f":material/store: {loc}" for loc in _priority] + [":material/call_split: Multiple / Split"]
         _tabs = st.tabs(_tab_labels)
 
         def get_df_height(data_len):
@@ -633,10 +628,6 @@ def render_distribution_tab(search_q):
 
         with _tabs[len(_priority) + 1]:  # Multiple / Split
             sub_df = df[df["Dispatch Suggestion"] == "Multiple / Split"]
-            st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
-
-        with _tabs[len(_priority) + 2]:  # Out of Stock
-            sub_df = df[df["Dispatch Suggestion"] == "OOS / Unfulfillable"]
             st.dataframe(sub_df.style.apply(highlight_inventory_rows, axis=1), use_container_width=True, height=get_df_height(len(sub_df)))
 
         # Prepare data for centralized exporter
@@ -655,7 +646,6 @@ def render_distribution_tab(search_q):
             sheets_to_process.append((_loc_label[:31], _loc_label))
         sheets_to_process += [
             ("Multiple Split", "Multiple / Split"),
-            ("Out of Stock",   "OOS / Unfulfillable"),
         ]
 
         for sheet_name, suggestion_val in sheets_to_process:
