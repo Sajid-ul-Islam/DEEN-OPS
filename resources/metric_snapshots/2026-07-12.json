@@ -1,0 +1,30 @@
+{
+  "date": "2026-07-12",
+  "shifts": [
+    {
+      "ts": "2026-07-12T09:41:47.815258+06:00",
+      "label": "Today",
+      "revenue": 6808.0,
+      "orders": 3,
+      "qty": 4,
+      "aov": 2269.33,
+      "top_products": [
+        {
+          "name": "Olive Semi Formal Panjabi - 44",
+          "revenue": 2628.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 34",
+          "revenue": 2490.0
+        },
+        {
+          "name": "Acid Wash Blue Jeans - Regular Fit - 28",
+          "revenue": 1690.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 6808.0,
+  "daily_orders": 3,
+  "daily_qty": 4
+}
