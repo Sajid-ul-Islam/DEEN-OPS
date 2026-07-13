@@ -123,23 +123,51 @@ def render_woocommerce_stock_tab():
                 st.warning("No inventory data found. Check WooCommerce connection.")
                 return
 
-    if st.button("🔄 Sync Fresh Data", use_container_width=True, type="secondary"):
-        st.cache_data.clear()
-        with st.status("Updating from WooCommerce...", expanded=True) as sync_status:
-            st.write("📡 Fetching latest stock levels...")
-            df_fresh = fetch_woocommerce_stock()
-            if df_fresh is not None:
-                st.session_state.wc_stock_df = df_fresh
-                st.session_state.stock_sync_time = datetime.now()
-                df_raw = df_fresh
-                sync_status.update(label="Database Updated", state="complete", expanded=False)
-                st.toast("✅ Stock database updated!", icon="🎉")
-                st.rerun()
-            else:
-                sync_status.update(label="Update Failed", state="error", expanded=False)
+    st.markdown("#### 🔄 Data Sync & Upload")
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("📡 Sync Fresh Data from WooCommerce", use_container_width=True, type="secondary"):
+            st.cache_data.clear()
+            with st.status("Updating from WooCommerce...", expanded=True) as sync_status:
+                st.write("📡 Fetching latest stock levels...")
+                df_fresh = fetch_woocommerce_stock()
+                if df_fresh is not None:
+                    st.session_state.wc_stock_df = df_fresh
+                    st.session_state.stock_sync_time = datetime.now()
+                    df_raw = df_fresh
+                    sync_status.update(label="Database Updated", state="complete", expanded=False)
+                    st.toast("✅ Stock database updated!", icon="🎉")
+                    st.rerun()
+                else:
+                    sync_status.update(label="Update Failed", state="error", expanded=False)
+
+    with col2:
+        manual_file = st.file_uploader("📤 Upload Manual Stock File (.csv, .xlsx)", type=["csv", "xlsx"], key="manual_wc_upload")
+        if manual_file and st.button("✅ Apply Uploaded File", use_container_width=True, type="primary"):
+            try:
+                if manual_file.name.endswith('.csv'):
+                    df_manual = pd.read_csv(manual_file)
+                else:
+                    df_manual = pd.read_excel(manual_file)
+                    
+                col_map = {
+                    "Item Name": "Product", "name": "Product", "Title": "Product", 
+                    "Quantity": "Stock", "item_stock": "Stock", "Inventory": "Stock", "Current Stock": "Stock"
+                }
+                df_manual = df_manual.rename(columns={k: v for k, v in col_map.items() if k in df_manual.columns})
+                
+                if "Product" in df_manual.columns and "Stock" in df_manual.columns:
+                    st.session_state.wc_stock_df = df_manual
+                    st.session_state.stock_sync_time = datetime.now()
+                    st.toast("✅ Manual stock file loaded!", icon="🎉")
+                    st.rerun()
+                else:
+                    st.error("Uploaded file must contain 'Product' and 'Stock' columns.")
+            except Exception as e:
+                st.error(f"Failed to read file: {e}")
 
     if df_raw is None or df_raw.empty:
-        st.info("📬 No inventory data found in snapshots. Try 'Sync Fresh Data' above.")
+        st.info("📬 No inventory data found in snapshots. Try syncing or uploading.")
         return
 
     df_raw["Stock"] = pd.to_numeric(df_raw["Stock"].astype(str).str.replace(r"[^\d.-]", "", regex=True), errors="coerce").fillna(0).astype(float)
