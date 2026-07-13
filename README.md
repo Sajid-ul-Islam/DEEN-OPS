@@ -8,6 +8,7 @@ AI-assisted operations workspace for WooCommerce, Pathao, inventory, and reporti
 - WooCommerce and Pathao integrations with local snapshot fallbacks
 - **Return Analytics Engine:** Match raw return data from Google Sheets against exact WooCommerce orders and live Pathao courier tracking statuses concurrently.
 - **Outlet-wise Stock Tracking:** Advanced pills-based filtering to monitor inventory discrepancies between E-com and physical retail outlets.
+- **Manual Stock Fallback:** Upload manual stock CSV/Excel files directly to the dashboard if WooCommerce API is unreachable or out of sync.
 - Multi-provider LLM routing for Data Pilot workflows
 - Runtime configuration validation backed by [src/config/secrets_schema.json](src/config/secrets_schema.json)
 - Shared HTTP backoff for WooCommerce, Pathao, and URL ingestion calls

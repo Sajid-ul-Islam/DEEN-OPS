@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Manual stock CSV/Excel upload option in the stock analytics dashboard
 - Schema-backed secrets contract in `src/config/secrets_schema.json`
 - Container healthcheck helper in `scripts/healthcheck.py`
 - Contributor workflow files: `CONTRIBUTING.md`, `.pre-commit-config.yaml`
@@ -21,6 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Startup configuration validation now reports partial integration setup in the app sidebar
 - Pathao and WooCommerce config lookup now resolves through `src/config/settings.py`
 - Docker and local installs now consume `requirements.lock` as a constraints file
+
+### Fixed
+
+- Fixed `JSONDecodeError` during WooCommerce stock fetching caused by unexpected UTF-8 BOM in the API response
 
 ### Security
 
