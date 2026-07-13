@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import json
 from requests.auth import HTTPBasicAuth
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -43,7 +44,8 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
             )
             if v_r.status_code == 200:
                 results = []
-                for v in v_r.json():
+                data = json.loads(v_r.text.lstrip('\ufeff'))
+                for v in data:
                     if v.get("status", "publish") != "publish":
                         continue
                     size_val = v.get('attributes',[{}])[0].get('option','N/A')
@@ -80,7 +82,7 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
                     timeout=25
                 )
                 r.raise_for_status()
-                products = r.json()
+                products = json.loads(r.text.lstrip('\ufeff'))
                 if not products: break
                 all_products.extend(products)
                 if len(products) < 100: break
