@@ -226,12 +226,9 @@ def _compute_cutoff_times(tz_bd):
     return cutoff_today, prev_cutoff, day_before_prev, shipped_limit
 
 
-def _partition_operational_data(df_full):
-    """Split a full DataFrame into Today, Prev, and Backlog partitions.
-    
-    Returns (df_live, df_prev, df_backlog, slot_label, slot_boundaries).
-    slot_boundaries: (curr_slot, prev_slot, backlog_slot).
-    """
+def _apply_shipped_history(df_full):
+    if df_full.empty:
+        return df_full
     df_full = df_full.copy()
     df_full["dt_parsed"] = pd.to_datetime(df_full["Order Date"], errors="coerce").dt.tz_localize(None)
     df_full["mod_dt_parsed"] = pd.to_datetime(df_full["Order Date Modified"], errors="coerce").dt.tz_localize(None)
@@ -267,6 +264,16 @@ def _partition_operational_data(df_full):
                 json.dump(shipped_history, f)
         except Exception:
             pass
+            
+    return df_full
+
+def _partition_operational_data(df_full):
+    """Split a full DataFrame into Today, Prev, and Backlog partitions.
+    
+    Returns (df_live, df_prev, df_backlog, slot_label, slot_boundaries).
+    slot_boundaries: (curr_slot, prev_slot, backlog_slot).
+    """
+    df_full = _apply_shipped_history(df_full)
 
     tz_bd = timezone(timedelta(hours=6))
     cutoff_today, prev_cutoff, day_before_prev, shipped_limit = _compute_cutoff_times(tz_bd)
@@ -352,6 +359,9 @@ def load_from_woocommerce():
             return _build_result_payload(
                 pd.DataFrame(), "", "N/A", {}, {}
             )
+            
+        if sync_mode != "Operational Cycle":
+            df_full = _apply_shipped_history(df_full)
 
         now_str = datetime.now(tz_bd).strftime("%Y-%m-%d %H:%M:%S")
 

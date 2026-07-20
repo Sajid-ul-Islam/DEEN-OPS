@@ -140,6 +140,15 @@ def render_manual_tab():
                 status_col = "Order Status" if "Order Status" in df.columns else "Status" if "Status" in df.columns else None
                 if status_col:
                     df = df[df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)]
+                    
+                    if "mod_dt_parsed" in df.columns:
+                        s_d = st.session_state.get("wc_sync_start_date")
+                        e_d = st.session_state.get("wc_sync_end_date")
+                        
+                        if s_d and e_d:
+                            s_dt = pd.to_datetime(s_d)
+                            e_dt = pd.to_datetime(e_d) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                            df = df[(df["mod_dt_parsed"] >= s_dt) & (df["mod_dt_parsed"] <= e_dt)]
             st.info(f"Rows matching criteria: {len(df)}")
             
             buf = BytesIO()
