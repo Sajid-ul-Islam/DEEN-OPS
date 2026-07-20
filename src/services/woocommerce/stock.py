@@ -38,7 +38,7 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
             v_r = request_with_backoff(
                 "GET",
                 f"{base_endpoint}/{p_id}/variations",
-                params={"per_page": 100, "status": "publish"},
+                params={"per_page": 100, "status": "any"},
                 auth=auth,
                 timeout=15,
             )
@@ -46,8 +46,6 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
                 results = []
                 data = json.loads(v_r.text.lstrip('\ufeff'))
                 for v in data:
-                    if v.get("status", "publish") != "publish":
-                        continue
                     size_val = v.get('attributes',[{}])[0].get('option','N/A')
                     full_name = f"{p_name} - {size_val}"
                     results.append({
@@ -68,7 +66,7 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
     try:
         page = 1
         all_products = []
-        with st.spinner("Fetching published inventory..."):
+        with st.spinner("Fetching all inventory (including drafts)..."):
             while True:
                 r = request_with_backoff(
                     "GET",
@@ -76,7 +74,7 @@ def fetch_woocommerce_stock(filter_skus=None, filter_titles=None):
                     params={
                         "per_page": 100,
                         "page": page,
-                        "status": "publish"
+                        "status": "any"
                     },
                     auth=auth,
                     timeout=25
