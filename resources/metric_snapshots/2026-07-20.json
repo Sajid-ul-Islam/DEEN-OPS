@@ -270,9 +270,39 @@
           "revenue": 1043.0
         }
       ]
+    },
+    {
+      "ts": "2026-07-20T13:46:55.465839+06:00",
+      "label": "Backlog",
+      "revenue": 18880.0,
+      "orders": 11,
+      "qty": 23,
+      "aov": 1716.36,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Slim Fit - 34",
+          "revenue": 4094.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Slim Fit - 30",
+          "revenue": 2072.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Slim Fit - 30",
+          "revenue": 1992.0
+        },
+        {
+          "name": "Off-white Trousers - L",
+          "revenue": 1497.0
+        },
+        {
+          "name": "Tropical Cuban Collar Shirt - XL",
+          "revenue": 1130.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 149198.0,
-  "daily_orders": 82,
-  "daily_qty": 197
+  "daily_revenue": 168078.0,
+  "daily_orders": 93,
+  "daily_qty": 220
 }
