@@ -90,9 +90,129 @@
           "revenue": 1113.0
         }
       ]
+    },
+    {
+      "ts": "2026-07-20T13:15:21.362243+06:00",
+      "label": "Today",
+      "revenue": 22758.0,
+      "orders": 11,
+      "qty": 26,
+      "aov": 2068.91,
+      "top_products": [
+        {
+          "name": "High-End Vintage Wash Jeans - Slim Fit - 34",
+          "revenue": 4094.0
+        },
+        {
+          "name": "High-End Light Blue Jeans - Regular Fit - 32",
+          "revenue": 2390.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Slim Fit - 30",
+          "revenue": 2072.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Slim Fit - 30",
+          "revenue": 1992.0
+        },
+        {
+          "name": "Off-white Trousers - L",
+          "revenue": 1497.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-07-20T13:15:24.772511+06:00",
+      "label": "Today",
+      "revenue": 16124.0,
+      "orders": 9,
+      "qty": 22,
+      "aov": 1791.56,
+      "top_products": [
+        {
+          "name": "High-End Light Blue Jeans - Regular Fit - 32",
+          "revenue": 2390.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Slim Fit - 34",
+          "revenue": 2022.0
+        },
+        {
+          "name": "Off-white Trousers - L",
+          "revenue": 1497.0
+        },
+        {
+          "name": "Tropical Cuban Collar Shirt - XL",
+          "revenue": 1130.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - 3XL",
+          "revenue": 1113.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-07-20T13:29:04.187800+06:00",
+      "label": "Today",
+      "revenue": 16124.0,
+      "orders": 9,
+      "qty": 22,
+      "aov": 1791.56,
+      "top_products": [
+        {
+          "name": "High-End Light Blue Jeans - Regular Fit - 32",
+          "revenue": 2390.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Slim Fit - 34",
+          "revenue": 2022.0
+        },
+        {
+          "name": "Off-white Trousers - L",
+          "revenue": 1497.0
+        },
+        {
+          "name": "Tropical Cuban Collar Shirt - XL",
+          "revenue": 1130.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - 3XL",
+          "revenue": 1113.0
+        }
+      ]
+    },
+    {
+      "ts": "2026-07-20T13:33:01.512635+06:00",
+      "label": "Today",
+      "revenue": 16124.0,
+      "orders": 9,
+      "qty": 22,
+      "aov": 1791.56,
+      "top_products": [
+        {
+          "name": "High-End Light Blue Jeans - Regular Fit - 32",
+          "revenue": 2390.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Slim Fit - 34",
+          "revenue": 2022.0
+        },
+        {
+          "name": "Off-white Trousers - L",
+          "revenue": 1497.0
+        },
+        {
+          "name": "Tropical Cuban Collar Shirt - XL",
+          "revenue": 1130.0
+        },
+        {
+          "name": "Light Blue Executive Formal Shirt - 3XL",
+          "revenue": 1113.0
+        }
+      ]
     }
   ],
-  "daily_revenue": 47374.0,
-  "daily_orders": 25,
-  "daily_qty": 64
+  "daily_revenue": 118504.0,
+  "daily_orders": 63,
+  "daily_qty": 156
 }
