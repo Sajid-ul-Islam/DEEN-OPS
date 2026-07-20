@@ -66,7 +66,7 @@ def generate_report_data():
         df_live_raw = df_live_raw[
             (df_live_raw["Order Status"].isin(SHIPPED_STATUSES)) & 
             (df_live_raw["mod_dt"] >= slot_start) &
-            (df_live_raw["mod_dt"] <= (slot_end + timedelta(minutes=30)))
+            (df_live_raw["mod_dt"] <= slot_end)
         ]
             
     if df_prev_raw is not None and not df_prev_raw.empty:
@@ -82,7 +82,7 @@ def generate_report_data():
             df_prev_raw = df_prev_raw[
                 (df_prev_raw["Order Status"].isin(SHIPPED_STATUSES)) &
                 (df_prev_raw["mod_dt"] >= p_start) &
-                (df_prev_raw["mod_dt"] <= (p_end + timedelta(minutes=30)))
+                (df_prev_raw["mod_dt"] <= p_end)
             ]
 
     if df_live_raw is None or df_live_raw.empty:

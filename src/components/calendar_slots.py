@@ -2,9 +2,9 @@ import streamlit as st
 from datetime import datetime, date, time, timedelta
 from src.state.persistence import save_state
 
-# Default shift cutoff: 17:30 (5:30 PM Bangladesh time)
-DEFAULT_SHIFT_HOUR = 17
-DEFAULT_SHIFT_MINUTE = 30
+# Default shift cutoff: 18:00 (6:00 PM Bangladesh time)
+DEFAULT_SHIFT_HOUR = 18
+DEFAULT_SHIFT_MINUTE = 0
 
 
 def get_shift_cutoff_time() -> time:

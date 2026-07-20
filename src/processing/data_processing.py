@@ -40,7 +40,7 @@ def filter_shipped_by_slot(df, nav_mode, is_comparison=False):
         return df[
             (df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)) &
             (df["mod_dt_parsed"] >= slot_start) &
-            (df["mod_dt_parsed"] <= (slot_end + timedelta(minutes=30)))
+            (df["mod_dt_parsed"] <= slot_end)
         ]
     else:
         return df[df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)]

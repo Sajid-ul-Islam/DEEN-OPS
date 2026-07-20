@@ -137,8 +137,8 @@ def _get_operational_sync_params() -> dict:
     """Build API params for the Operational Cycle sync mode (5-day rolling window)."""
     tz_bd = timezone(timedelta(hours=6))
     now_bd = datetime.now(tz_bd)
-    shift_h = st.session_state.get("shift_cutoff_hour", 17)
-    shift_m = st.session_state.get("shift_cutoff_minute", 30)
+    shift_h = st.session_state.get("shift_cutoff_hour", 18)
+    shift_m = st.session_state.get("shift_cutoff_minute", 0)
     anchor = now_bd.replace(hour=shift_h, minute=shift_m, second=0, microsecond=0) - timedelta(days=5)
 
     return {
@@ -203,8 +203,8 @@ def _compute_cutoff_times(tz_bd):
     """
     now_bd = datetime.now(tz_bd)
     ref_now = now_bd.replace(tzinfo=None)
-    shift_h = st.session_state.get("shift_cutoff_hour", 17)
-    shift_m = st.session_state.get("shift_cutoff_minute", 30)
+    shift_h = st.session_state.get("shift_cutoff_hour", 18)
+    shift_m = st.session_state.get("shift_cutoff_minute", 0)
     cutoff_today = ref_now.replace(hour=shift_h, minute=shift_m, second=0, microsecond=0)
 
     holiday_list = st.session_state.get("operational_holidays", [])
@@ -222,7 +222,7 @@ def _compute_cutoff_times(tz_bd):
     if st.session_state.get("override_merge_previous") or (_is_holiday(day_ending_prev) and not st.session_state.get("override_24h_previous")):
         day_before_prev = prev_cutoff - timedelta(days=2)
 
-    shipped_limit = cutoff_today + timedelta(minutes=30)
+    shipped_limit = cutoff_today
     return cutoff_today, prev_cutoff, day_before_prev, shipped_limit
 
 
@@ -236,6 +236,38 @@ def _partition_operational_data(df_full):
     df_full["dt_parsed"] = pd.to_datetime(df_full["Order Date"], errors="coerce").dt.tz_localize(None)
     df_full["mod_dt_parsed"] = pd.to_datetime(df_full["Order Date Modified"], errors="coerce").dt.tz_localize(None)
 
+    import os
+    import json
+    from src.config.constants import RESOURCES_DIR
+    os.makedirs(RESOURCES_DIR, exist_ok=True)
+    history_file = os.path.join(RESOURCES_DIR, "shipped_history.json")
+    
+    shipped_history = {}
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, "r") as f:
+                shipped_history = json.load(f)
+        except Exception:
+            pass
+
+    history_updated = False
+    is_shipped_mask = df_full["Order Status"].isin(SHIPPED_STATUSES)
+    
+    for idx, row in df_full[is_shipped_mask].iterrows():
+        oid = str(row["Order ID"])
+        if oid in shipped_history:
+            df_full.at[idx, "mod_dt_parsed"] = pd.to_datetime(shipped_history[oid])
+        else:
+            shipped_history[oid] = str(row["mod_dt_parsed"])
+            history_updated = True
+
+    if history_updated:
+        try:
+            with open(history_file, "w") as f:
+                json.dump(shipped_history, f)
+        except Exception:
+            pass
+
     tz_bd = timezone(timedelta(hours=6))
     cutoff_today, prev_cutoff, day_before_prev, shipped_limit = _compute_cutoff_times(tz_bd)
 
@@ -246,16 +278,15 @@ def _partition_operational_data(df_full):
     is_waiting = df_full["Order Status"].isin(["pending", "waiting"])
 
     df_live = df_full[
-        ((df_full["dt_parsed"] >= prev_cutoff) & (df_full["dt_parsed"] <= shipped_limit))
-        | ((df_full["mod_dt_parsed"] >= prev_cutoff) & (df_full["mod_dt_parsed"] <= shipped_limit) & is_shipped)
+        ((~is_shipped) & (df_full["dt_parsed"] >= prev_cutoff) & (df_full["dt_parsed"] <= shipped_limit))
+        | (is_shipped & (df_full["mod_dt_parsed"] >= prev_cutoff) & (df_full["mod_dt_parsed"] <= shipped_limit))
         | is_confirmed | is_processing
     ].copy()
 
     df_prev = df_full[
-        (
-            ((df_full["dt_parsed"] >= day_before_prev) & (df_full["dt_parsed"] < (prev_cutoff + timedelta(minutes=30))))
-            | ((df_full["mod_dt_parsed"] >= day_before_prev) & (df_full["mod_dt_parsed"] < (prev_cutoff + timedelta(minutes=30))))
-        ) & is_shipped
+        (df_full["mod_dt_parsed"] >= day_before_prev) & 
+        (df_full["mod_dt_parsed"] < prev_cutoff) & 
+        is_shipped
     ].copy()
 
     df_backlog = df_full[is_hold | is_waiting].copy()
