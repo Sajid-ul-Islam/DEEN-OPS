@@ -203,3 +203,165 @@ def render_live_tab():
         ),
         fallback_msg="Dashboard rendering encountered an error.",
     )
+
+    # ── Dispatch Export (Shipped Only / Active mode only) ─────────────────────
+    if nav_mode == "Today" and order_view_mode == "Shipped Only":
+        _render_dispatch_export()
+
+
+def _render_dispatch_export():
+    """Render today's full dispatch export: shipped + confirmed + waiting orders."""
+    import pandas as pd
+    from datetime import datetime, timedelta, timezone
+
+    raw_df = st.session_state.get("wc_curr_df")
+    if raw_df is None or raw_df.empty:
+        return
+
+    raw_df = raw_df.copy()
+
+    # Ensure mod_dt_parsed is datetime
+    if "mod_dt_parsed" in raw_df.columns:
+        raw_df["mod_dt_parsed"] = pd.to_datetime(raw_df["mod_dt_parsed"], errors="coerce")
+    if "dt_parsed" in raw_df.columns:
+        raw_df["dt_parsed"] = pd.to_datetime(raw_df["dt_parsed"], errors="coerce")
+
+    tz_bd = timezone(timedelta(hours=6))
+    today_bd = datetime.now(tz_bd).date()
+
+    status_col = "Order Status" if "Order Status" in raw_df.columns else "Status" if "Status" in raw_df.columns else None
+    if status_col is None:
+        return
+
+    from src.config.constants import SHIPPED_STATUSES
+
+    # ── 1. Shipped today (mod_dt_parsed date == today) ───────────────────────
+    is_shipped = raw_df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)
+    shipped_today = raw_df[
+        is_shipped & (raw_df["mod_dt_parsed"].dt.date == today_bd)
+    ]
+
+    # ── 2. Confirmed orders (in-transit / ready for dispatch) ────────────────
+    confirmed_df = raw_df[raw_df[status_col].astype(str).str.lower() == "confirmed"]
+
+    # ── 3. Waiting orders placed today ───────────────────────────────────────
+    waiting_df = raw_df[
+        (raw_df[status_col].astype(str).str.lower() == "waiting") &
+        (raw_df["dt_parsed"].dt.date == today_bd)
+    ]
+
+    # ── Build unified export table (one row per Order ID) ────────────────────
+    keep_cols = [
+        c for c in [
+            "Order ID", "Full Name (Billing)", "Phone (Billing)",
+            status_col, "Pathao Consignment ID", "mod_dt_parsed", "dt_parsed",
+            "Shipping Address 1", "Shipping City",
+        ] if c in raw_df.columns
+    ]
+
+    def _dedup(df, label):
+        if df.empty:
+            return pd.DataFrame()
+        d = df[keep_cols].drop_duplicates(subset=["Order ID"])
+        d = d.copy()
+        d["Export Tag"] = label
+        return d
+
+    parts = []
+    shipped_dedup = _dedup(shipped_today, "✅ Shipped Today")
+    confirmed_dedup = _dedup(confirmed_df, "🚚 Confirmed")
+    waiting_dedup = _dedup(waiting_df, "⏳ Waiting (today)")
+
+    if not shipped_dedup.empty:
+        parts.append(shipped_dedup)
+    if not confirmed_dedup.empty:
+        # Exclude orders already captured as shipped
+        confirmed_dedup = confirmed_dedup[~confirmed_dedup["Order ID"].isin(shipped_dedup["Order ID"])]
+        if not confirmed_dedup.empty:
+            parts.append(confirmed_dedup)
+    if not waiting_dedup.empty:
+        already_seen = set()
+        if not shipped_dedup.empty:
+            already_seen |= set(shipped_dedup["Order ID"])
+        if not confirmed_dedup.empty:
+            already_seen |= set(confirmed_dedup["Order ID"])
+        waiting_dedup = waiting_dedup[~waiting_dedup["Order ID"].isin(already_seen)]
+        if not waiting_dedup.empty:
+            parts.append(waiting_dedup)
+
+    if not parts:
+        return
+
+    export_df = pd.concat(parts, ignore_index=True)
+
+    # Rename for readability
+    rename_map = {
+        "Full Name (Billing)": "Customer",
+        "Phone (Billing)": "Phone",
+        status_col: "Status",
+        "mod_dt_parsed": "Last Modified",
+        "dt_parsed": "Order Date",
+    }
+    export_df = export_df.rename(columns={k: v for k, v in rename_map.items() if k in export_df.columns})
+
+    # Reorder: Export Tag first, then Order ID, then rest
+    col_order = ["Export Tag", "Order ID", "Customer", "Phone", "Status",
+                 "Pathao Consignment ID", "Last Modified", "Order Date",
+                 "Shipping Address 1", "Shipping City"]
+    export_df = export_df[[c for c in col_order if c in export_df.columns]]
+
+    # Format datetimes for display
+    for dt_col in ["Last Modified", "Order Date"]:
+        if dt_col in export_df.columns:
+            export_df[dt_col] = pd.to_datetime(export_df[dt_col], errors="coerce").dt.strftime("%Y-%m-%d %H:%M")
+
+    # ── Render ────────────────────────────────────────────────────────────────
+    st.divider()
+    with st.expander(
+        f"📋 Dispatch Export — {len(export_df)} Orders "
+        f"({len(shipped_dedup)} shipped · {len(confirmed_dedup) if not confirmed_dedup.empty else 0} confirmed · "
+        f"{len(waiting_dedup) if not waiting_dedup.empty else 0} waiting)",
+        expanded=True,
+    ):
+        st.caption(
+            "All orders shipped today + confirmed (in-transit) + today's waiting orders. "
+            "One row per Order ID — deduplicated."
+        )
+
+        # Search filter
+        search_q = st.text_input("🔍 Search by Order ID, Name, or Phone", key="dispatch_export_search").strip()
+        display_df = export_df.copy()
+        if search_q:
+            mask = (
+                display_df["Order ID"].astype(str).str.contains(search_q, case=False, na=False)
+                | display_df.get("Customer", pd.Series(dtype=str)).astype(str).str.contains(search_q, case=False, na=False)
+                | display_df.get("Phone", pd.Series(dtype=str)).astype(str).str.contains(search_q, case=False, na=False)
+            )
+            display_df = display_df[mask]
+
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Export Tag": st.column_config.TextColumn("Tag", width="small"),
+                "Order ID": st.column_config.NumberColumn("Order ID", format="%d"),
+                "Customer": st.column_config.TextColumn("Customer"),
+                "Phone": st.column_config.TextColumn("Phone"),
+                "Status": st.column_config.TextColumn("Status"),
+                "Pathao Consignment ID": st.column_config.TextColumn("Consignment ID"),
+                "Last Modified": st.column_config.TextColumn("Shipped/Modified At"),
+                "Order Date": st.column_config.TextColumn("Order Placed"),
+            },
+        )
+
+        now_str = datetime.now(tz_bd).strftime("%Y%m%d_%H%M")
+        st.download_button(
+            label=f"⬇️ Download Dispatch List ({len(export_df)} orders) — CSV",
+            data=export_df.to_csv(index=False).encode("utf-8"),
+            file_name=f"DEEN_Dispatch_{today_bd.strftime('%Y%m%d')}_{now_str}.csv",
+            mime="text/csv",
+            type="primary",
+            use_container_width=True,
+            key="dispatch_export_download",
+        )
