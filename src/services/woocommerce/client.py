@@ -151,6 +151,26 @@ def _get_operational_sync_params() -> dict:
     }
 
 
+def _get_today_modified_shipped_params() -> dict:
+    """Build API params to fetch orders modified today (any creation date) with shipped status.
+
+    This catches old orders (placed before the 5-day window) that were shipped today.
+    WooCommerce supports `modified_after` to filter by date_modified regardless of order date.
+    """
+    tz_bd = timezone(timedelta(hours=6))
+    today_bd = datetime.now(tz_bd).date()
+    # Midnight BD today as ISO — naive datetime, WC interprets as site timezone
+    today_start_iso = f"{today_bd}T00:00:00"
+    return {
+        "per_page": 100,
+        "modified_after": today_start_iso,
+        "status": "shipped,completed,confirmed",
+        "orderby": "modified",
+        "order": "desc",
+    }
+
+
+
 def _get_global_open_params() -> dict:
     """Build API params for fetching all open/hold orders."""
     return {
@@ -349,7 +369,11 @@ def load_from_woocommerce():
             rows = _fetch_wc_batch(endpoint, params, auth)
             global_params = _get_global_open_params()
             global_rows = _fetch_wc_batch(endpoint, global_params, auth)
+            # ── Supplemental: old orders shipped today (outside the 5-day window) ──
+            today_shipped_params = _get_today_modified_shipped_params()
+            today_shipped_rows = _fetch_wc_batch(endpoint, today_shipped_params, auth)
             rows = _merge_deduplicated_orders(rows, global_rows)
+            rows = _merge_deduplicated_orders(rows, today_shipped_rows)
         else:
             params = _get_custom_range_params()
             rows = _fetch_wc_batch(endpoint, params, auth)
