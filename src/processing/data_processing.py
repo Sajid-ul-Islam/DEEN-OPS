@@ -10,16 +10,20 @@ from src.utils.logging import log_system_event
 def filter_shipped_by_slot(df, nav_mode, is_comparison=False):
     """Filters a DataFrame to shipped statuses, optionally narrowing by slot boundaries.
 
+    For Active/Today mode (non-comparison), uses today's calendar date in BD timezone
+    (midnight → now) so that ALL orders shipped today are captured, not just those
+    within the operational slot window.
+
     Args:
         df: The order DataFrame to filter.
         nav_mode: Current navigation mode ('Today', 'Prev', 'Backlog').
         is_comparison: If True, applies the comparison slot (opposite of main slot).
 
     Returns:
-        Filtered DataFrame containing only shipped orders within the relevant slot window.
+        Filtered DataFrame containing only shipped orders within the relevant window.
     """
     import streamlit as st
-    from datetime import timedelta
+    from datetime import timedelta, timezone
     from src.config.constants import SHIPPED_STATUSES
 
     status_col = "Order Status" if "Order Status" in df.columns else "Status" if "Status" in df.columns else None
@@ -27,7 +31,22 @@ def filter_shipped_by_slot(df, nav_mode, is_comparison=False):
     if status_col is None:
         return df
 
-    # Determine which slot key to use
+    shipped_mask = df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)
+
+    # ── Active/Today (non-comparison): show ALL orders shipped today in BD timezone ──
+    if nav_mode == "Today" and not is_comparison and "mod_dt_parsed" in df.columns:
+        from datetime import datetime as _dt, time as _time
+        tz_bd = timezone(timedelta(hours=6))
+        today_bd = _dt.now(tz_bd).date()
+        today_start = _dt.combine(today_bd, _time.min)
+        today_end = _dt.now(tz_bd).replace(tzinfo=None)
+        return df[
+            shipped_mask &
+            (df["mod_dt_parsed"] >= today_start) &
+            (df["mod_dt_parsed"] <= today_end)
+        ]
+
+    # ── All other modes: use operational slot boundaries ──
     if not is_comparison:
         slot_key = "wc_curr_slot" if nav_mode == "Today" else "wc_prev_slot" if nav_mode == "Prev" else None
     else:
@@ -38,12 +57,12 @@ def filter_shipped_by_slot(df, nav_mode, is_comparison=False):
     if slot and "mod_dt_parsed" in df.columns:
         slot_start, slot_end = slot
         return df[
-            (df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)) &
+            shipped_mask &
             (df["mod_dt_parsed"] >= slot_start) &
             (df["mod_dt_parsed"] <= slot_end)
         ]
     else:
-        return df[df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)]
+        return df[shipped_mask]
 
 
 def process_data(df, selected_cols):

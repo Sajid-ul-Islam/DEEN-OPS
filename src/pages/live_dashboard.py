@@ -9,6 +9,43 @@ from src.services.woocommerce.client import load_live_source
 from src.utils.logging import log_system_event
 from src.utils.safe_ops import safe_render, safe_filter
 
+# ── Auto-Sync Fragments ───────────────────────────────────────────────────────
+# Two stable module-level fragments — Streamlit keys fragment identity by the
+# function object, so they must NOT be created inside a factory per render.
+# _sync_60s  → Active + Shipped Only (high-frequency, catches new dispatches)
+# _sync_180s → All other modes (light background refresh)
+
+@st.fragment(run_every=60)
+def _sync_60s():
+    """60-second background sync used in Shipped-Only / Active mode."""
+    try:
+        load_live_source()
+    except Exception:
+        pass
+    sync_time = st.session_state.get("live_sync_time")
+    if sync_time:
+        elapsed = int((datetime.now() - sync_time).total_seconds())
+        next_in = max(0, 60 - elapsed)
+        secs_label = f"{next_in}s"
+        st.caption(f"🔄 **Auto-Sync** · every 1m · next in **{secs_label}**")
+
+
+@st.fragment(run_every=180)
+def _sync_180s():
+    """3-minute background sync used for all other dashboard modes."""
+    try:
+        load_live_source()
+    except Exception:
+        pass
+    sync_time = st.session_state.get("live_sync_time")
+    if sync_time:
+        elapsed = int((datetime.now() - sync_time).total_seconds())
+        next_in = max(0, 180 - elapsed)
+        mins, secs = divmod(next_in, 60)
+        label = f"{mins}m {secs:02d}s" if mins else f"{secs}s"
+        st.caption(f"🔄 **Auto-Sync** · every 3m · next in **{label}**")
+
+
 
 def render_live_tab():
     def _reset_live_state():
@@ -36,7 +73,11 @@ def render_live_tab():
     nav_mode = st.session_state.get("wc_nav_mode", "Today")
     order_view_mode = st.session_state.get("live_order_filter", "All Orders") if nav_mode == "Today" else "All Orders"
 
-    # Standardize autorefresh for Live Dashboard
+    # ── Auto-Sync: pick the right interval fragment ───────────────────────────
+    if nav_mode == "Today" and order_view_mode == "Shipped Only":
+        _sync_60s()   # 60s — stays current with newly dispatched orders
+    else:
+        _sync_180s()  # 3m — lighter refresh for other modes
 
     try:
         df_live, source_name, modified_at = load_live_source()
