@@ -1,0 +1,38 @@
+{
+  "date": "2026-07-26",
+  "shifts": [
+    {
+      "ts": "2026-07-26T09:46:30.201696+06:00",
+      "label": "Today",
+      "revenue": 37858.0,
+      "orders": 18,
+      "qty": 34,
+      "aov": 2226.94,
+      "top_products": [
+        {
+          "name": "High-End Whisker Faded Jeans - Regular Fit - 32",
+          "revenue": 2490.0
+        },
+        {
+          "name": "High-End Light Blue Jeans - Regular Fit - 36",
+          "revenue": 2390.0
+        },
+        {
+          "name": "High-End Light Blue Jeans - Regular Fit - 32",
+          "revenue": 2390.0
+        },
+        {
+          "name": "High-End Vintage Wash Jeans - Slim Fit - 36",
+          "revenue": 2072.0
+        },
+        {
+          "name": "High-End Whisker Faded Jeans - Slim Fit - 34",
+          "revenue": 1992.0
+        }
+      ]
+    }
+  ],
+  "daily_revenue": 37858.0,
+  "daily_orders": 18,
+  "daily_qty": 34
+}
