@@ -273,10 +273,17 @@ def _apply_shipped_history(df_full):
     for idx, row in df_full[is_shipped_mask].iterrows():
         oid = str(row["Order ID"])
         if oid in shipped_history:
-            df_full.at[idx, "mod_dt_parsed"] = pd.to_datetime(shipped_history[oid])
+            stored_dt = pd.to_datetime(shipped_history[oid], errors="coerce")
+            actual_mod_dt = row["mod_dt_parsed"]
+            if pd.notnull(actual_mod_dt) and (pd.isnull(stored_dt) or actual_mod_dt > stored_dt):
+                shipped_history[oid] = str(actual_mod_dt)
+                history_updated = True
+            else:
+                df_full.at[idx, "mod_dt_parsed"] = stored_dt
         else:
-            shipped_history[oid] = str(row["mod_dt_parsed"])
-            history_updated = True
+            if pd.notnull(row["mod_dt_parsed"]):
+                shipped_history[oid] = str(row["mod_dt_parsed"])
+                history_updated = True
 
     if history_updated:
         try:
