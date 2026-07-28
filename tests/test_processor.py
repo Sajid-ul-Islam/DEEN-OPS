@@ -103,3 +103,28 @@ def test_manual_item_input_is_normalized_sorted_and_aggregated():
         "3 FS Shirt = Oxford Shirt - SKU-2 (3 pcs); "
         "1 Polo Shirt = Polo Shirt; (4 items)"
     )
+
+
+def test_bundle_combo_sku_exclusion():
+    from src.utils.product import is_bundle_or_combo
+    assert is_bundle_or_combo("Summer Combo Pack", "SKU-1") is True
+    assert is_bundle_or_combo("Polo Shirt", "PNJ-BUNDLE-01") is True
+    assert is_bundle_or_combo("Regular Polo Shirt", "POLO-01", "Polo Shirt") is False
+
+    df = pd.DataFrame(
+        {
+            "Order Number": ["O10", "O10"],
+            "Recipient Name": ["Alice", "Alice"],
+            "Address": ["House 1, Dhanmondi, Dhaka", "House 1, Dhanmondi, Dhaka"],
+            "Phone (Billing)": ["01711111111", "01711111111"],
+            "Item Name": ["Polo Shirt", "Special Combo Pack"],
+            "SKU": ["POLO-01", "COMBO-SKU-99"],
+            "Quantity": [1, 2],
+        }
+    )
+
+    res = processor.process_orders_dataframe(df)
+    assert len(res) == 1
+    # Only Polo Shirt (1 pcs) should be counted as physical item quantity, excluding combo (2 pcs)
+    assert res.loc[0, "ItemQuantity"] == 1
+

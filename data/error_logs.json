@@ -1,26 +1,5 @@
 [
     {
-        "timestamp": "2026-05-04 13:04:38",
-        "context": "App Bootstrap",
-        "error": "unmatched ']' (woocommerce_orders.py, line 55)",
-        "traceback": "Traceback (most recent call last):\n  File \"H:\\DEEN-OPS\\app.py\", line 241, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\DEEN-OPS\\app.py\", line 213, in run_app\n    from src.pages.woocommerce_orders import render_woocommerce_orders_tab\n  File \"H:\\DEEN-OPS\\src\\pages\\woocommerce_orders.py\", line 55\n    ].astype(str).str.lower() == \"processing\"])\n    ^\nSyntaxError: unmatched ']'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-05-04 20:40:41",
-        "context": "App Bootstrap",
-        "error": "No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\saaji\\.streamlit\\secrets.toml, E:\\DEEN-OPS\\.streamlit\\secrets.toml",
-        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\app.py\", line 241, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"E:\\DEEN-OPS\\app.py\", line 33, in run_app\n    is_auth_configured = \"auth\" in st.secrets\n                         ^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\secrets.py\", line 520, in __contains__\n    return key in self._parse()\n                  ~~~~~~~~~~~^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\secrets.py\", line 369, in _parse\n    raise StreamlitSecretNotFoundError(error_msg)\nstreamlit.errors.StreamlitSecretNotFoundError: No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\saaji\\.streamlit\\secrets.toml, E:\\DEEN-OPS\\.streamlit\\secrets.toml\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-05-04 20:46:01",
-        "context": "App Bootstrap",
-        "error": "No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\saaji\\.streamlit\\secrets.toml, E:\\DEEN-OPS\\.streamlit\\secrets.toml",
-        "traceback": "Traceback (most recent call last):\n  File \"E:\\DEEN-OPS\\app.py\", line 241, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"E:\\DEEN-OPS\\app.py\", line 33, in run_app\n    is_auth_configured = \"auth\" in st.secrets\n                         ^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\secrets.py\", line 520, in __contains__\n    return key in self._parse()\n                  ~~~~~~~~~~~^^\n  File \"C:\\Users\\saaji\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\streamlit\\runtime\\secrets.py\", line 369, in _parse\n    raise StreamlitSecretNotFoundError(error_msg)\nstreamlit.errors.StreamlitSecretNotFoundError: No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\saaji\\.streamlit\\secrets.toml, E:\\DEEN-OPS\\.streamlit\\secrets.toml\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-05-04 20:51:03",
         "context": "App Bootstrap",
         "error": "No module named 'polars'",
@@ -838,6 +817,33 @@
     },
     {
         "timestamp": "2026-07-28 17:43:02",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-07-28 17:44:26",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-07-28 17:44:49",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-07-28 17:45:20",
         "context": "safe_render",
         "error": "division by zero",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
