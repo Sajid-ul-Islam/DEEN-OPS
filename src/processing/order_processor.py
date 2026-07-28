@@ -583,7 +583,9 @@ def process_single_order_group(phone: str, group: pd.DataFrame, data_cols: Dict[
 
     for df_sub in subgroups:
         first_row = df_sub.iloc[0]
-        total_qty = df_sub["Quantity"].sum()
+        from src.utils.product import is_bundle_or_combo
+        physical_items = df_sub[~df_sub.apply(lambda r: is_bundle_or_combo(r.get("Item Name", ""), r.get("SKU", "")), axis=1)]
+        total_qty = physical_items["Quantity"].sum() if not physical_items.empty else df_sub["Quantity"].sum()
 
         cat_map, base_val = _build_parcel_category_map(df_sub)
         full_desc = build_item_description(cat_map, total_qty, trx_info)

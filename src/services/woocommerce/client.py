@@ -76,7 +76,7 @@ def _fetch_wc_page(url: str, params: dict, auth: HTTPBasicAuth, page: int):
 
 def _fetch_wc_batch(url: str, params: dict, auth: HTTPBasicAuth) -> list:
     """Fetch all pages of WooCommerce orders concurrently and return flattened rows."""
-    fields = "id,number,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total,meta_data"
+    fields = "id,number,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total"
     params["_fields"] = fields
 
     try:

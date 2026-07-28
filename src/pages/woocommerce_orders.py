@@ -102,17 +102,31 @@ def _render_live_orders_view():
                 
         if "Item Name" in df_copy.columns and "Quantity" in df_copy.columns:
             from src.processing.categorization import get_category_for_sales
+            from src.utils.product import is_bundle_or_combo
             df_copy["_Category"] = df_copy["Item Name"].apply(get_category_for_sales)
-            df_copy["_CatQty"] = df_copy.apply(lambda r: (r["_Category"], r["Quantity"]), axis=1)
+            df_copy["_CatQty"] = df_copy.apply(
+                lambda r: (
+                    r["_Category"], 
+                    r["Quantity"], 
+                    is_bundle_or_combo(r.get("Item Name"), r.get("SKU"), r.get("_Category"))
+                ), 
+                axis=1
+            )
             
             def cat_agg(tuples_series):
                 counts = {}
-                for cat, qty in tuples_series:
+                bundle_found = False
+                for cat, qty, is_bundle in tuples_series:
+                    if is_bundle:
+                        bundle_found = True
+                        continue
                     try:
                         q = int(qty)
                     except:
                         q = 1
                     counts[cat] = counts.get(cat, 0) + q
+                if not counts:
+                    return "Bundle Offer" if bundle_found else "0 Items"
                 return ", ".join([f"{q} {c}" for c, q in counts.items()])
                 
             agg_funcs["_CatQty"] = cat_agg

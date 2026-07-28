@@ -1,26 +1,5 @@
 [
     {
-        "timestamp": "2026-04-17 12:34:21",
-        "context": "App Bootstrap",
-        "error": "'src.components.styles'",
-        "traceback": "Traceback (most recent call last):\n  File \"G:\\DEEN-OPS\\app.py\", line 219, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"G:\\DEEN-OPS\\app.py\", line 63, in run_app\n    from src.components.styles import inject_base_styles\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1331, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 946, in _load_unlocked\nKeyError: 'src.components.styles'\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-29 10:57:33",
-        "context": "App Bootstrap",
-        "error": "No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\Sajid\\.streamlit\\secrets.toml, G:\\DEEN-OPS\\.streamlit\\secrets.toml",
-        "traceback": "Traceback (most recent call last):\n  File \"G:\\DEEN-OPS\\app.py\", line 238, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"G:\\DEEN-OPS\\app.py\", line 33, in run_app\n    is_auth_configured = \"auth\" in st.secrets\n                         ^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Sajid\\AppData\\Roaming\\Python\\Python313\\site-packages\\streamlit\\runtime\\secrets.py\", line 526, in __contains__\n    return key in self._parse()\n                  ~~~~~~~~~~~^^\n  File \"C:\\Users\\Sajid\\AppData\\Roaming\\Python\\Python313\\site-packages\\streamlit\\runtime\\secrets.py\", line 375, in _parse\n    raise StreamlitSecretNotFoundError(error_msg)\nstreamlit.errors.StreamlitSecretNotFoundError: No secrets found. Valid paths for a secrets.toml file or secret directories are: C:\\Users\\Sajid\\.streamlit\\secrets.toml, G:\\DEEN-OPS\\.streamlit\\secrets.toml\n",
-        "details": {}
-    },
-    {
-        "timestamp": "2026-04-29 10:58:57",
-        "context": "App Bootstrap",
-        "error": "No module named 'polars'",
-        "traceback": "Traceback (most recent call last):\n  File \"G:\\DEEN-OPS\\app.py\", line 238, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"G:\\DEEN-OPS\\app.py\", line 59, in run_app\n    from src.pages.live_dashboard import render_live_tab\n  File \"G:\\DEEN-OPS\\src\\pages\\live_dashboard.py\", line 6, in <module>\n    from src.processing.data_processing import prepare_granular_data, aggregate_data\n  File \"G:\\DEEN-OPS\\src\\processing\\data_processing.py\", line 2, in <module>\n    import polars as pl\nModuleNotFoundError: No module named 'polars'\n",
-        "details": {}
-    },
-    {
         "timestamp": "2026-05-04 13:04:38",
         "context": "App Bootstrap",
         "error": "unmatched ']' (woocommerce_orders.py, line 55)",
@@ -838,5 +817,32 @@
         "error": "unexpected indent (inventory_distribution.py, line 757)",
         "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 308, in <module>\n    run_app()\n    ~~~~~~~^^\n  File \"H:\\Repo\\DEEN-OPS\\app.py\", line 40, in run_app\n    from src.pages.inventory_distribution import render_distribution_tab\n  File \"H:\\Repo\\DEEN-OPS\\src\\pages\\inventory_distribution.py\", line 757\n    log_error(e, context=\"Inventory Pathao Processor\")\nIndentationError: unexpected indent\n",
         "details": {}
+    },
+    {
+        "timestamp": "2026-07-28 15:12:22",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-07-28 16:02:17",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
+    },
+    {
+        "timestamp": "2026-07-28 17:43:02",
+        "context": "safe_render",
+        "error": "division by zero",
+        "traceback": "Traceback (most recent call last):\n  File \"H:\\Repo\\DEEN-OPS\\src\\utils\\safe_ops.py\", line 81, in safe_render\n    return render_fn()\n  File \"H:\\Repo\\DEEN-OPS\\tests\\test_safe_ops.py\", line 64, in <lambda>\n    result = safe_render(lambda: 1 / 0, fallback_msg=\"Oops\")\n                                 ~~^~~\nZeroDivisionError: division by zero\n",
+        "details": {
+            "fallback_msg": "Oops"
+        }
     }
 ]

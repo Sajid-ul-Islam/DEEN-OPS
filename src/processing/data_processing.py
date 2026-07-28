@@ -28,10 +28,14 @@ def filter_shipped_by_slot(df, nav_mode, is_comparison=False):
 
     status_col = "Order Status" if "Order Status" in df.columns else "Status" if "Status" in df.columns else None
 
-    if status_col is None:
+    if status_col is None or df.empty:
         return df
 
     shipped_mask = df[status_col].astype(str).str.lower().isin(SHIPPED_STATUSES)
+    shipped_df = df[shipped_mask]
+
+    if shipped_df.empty:
+        return shipped_df
 
     # ── Operational slot boundaries (if available in session_state) ──
     slot_key = "wc_curr_slot" if nav_mode == "Today" else "wc_prev_slot" if nav_mode == "Prev" else None
@@ -40,28 +44,30 @@ def filter_shipped_by_slot(df, nav_mode, is_comparison=False):
 
     slot = st.session_state.get(slot_key) if slot_key else None
 
-    if slot and "mod_dt_parsed" in df.columns:
+    if slot and "mod_dt_parsed" in shipped_df.columns:
         slot_start, slot_end = slot
-        return df[
-            shipped_mask &
-            (df["mod_dt_parsed"] >= slot_start) &
-            (df["mod_dt_parsed"] <= slot_end)
+        filtered = shipped_df[
+            (shipped_df["mod_dt_parsed"] >= slot_start) &
+            (shipped_df["mod_dt_parsed"] <= slot_end)
         ]
+        if not filtered.empty:
+            return filtered
 
     # ── Active/Today (non-comparison): fallback to today's date in BD timezone ──
-    if nav_mode == "Today" and not is_comparison and "mod_dt_parsed" in df.columns:
+    if nav_mode == "Today" and not is_comparison and "mod_dt_parsed" in shipped_df.columns:
         from datetime import datetime as _dt, time as _time
         tz_bd = timezone(timedelta(hours=6))
         today_bd = _dt.now(tz_bd).date()
         today_start = _dt.combine(today_bd, _time.min)
         today_end = _dt.now(tz_bd).replace(tzinfo=None)
-        return df[
-            shipped_mask &
-            (df["mod_dt_parsed"] >= today_start) &
-            (df["mod_dt_parsed"] <= today_end)
+        filtered = shipped_df[
+            (shipped_df["mod_dt_parsed"] >= today_start) &
+            (shipped_df["mod_dt_parsed"] <= today_end)
         ]
+        if not filtered.empty:
+            return filtered
 
-    return df[shipped_mask]
+    return shipped_df
 
 
 def process_data(df, selected_cols):
@@ -184,6 +190,11 @@ def prepare_granular_data(df, selected_cols):
         df["Clean_Product"] = df["Product Name"].map(name_clean_map)
         df["Filter_Identity"] = df["Clean_Product"].astype(str) + " [" + df["SKU"].astype(str) + "]"
 
+        from src.utils.product import is_bundle_or_combo
+        df["Is_Bundle_Combo"] = df.apply(
+            lambda r: is_bundle_or_combo(r.get("Product Name"), r.get("SKU"), r.get("Category")), axis=1
+        )
+
         df["Total Amount"] = df["Item Cost"] * df["Quantity"]
 
 
@@ -284,7 +295,7 @@ def aggregate_data(df, selected_cols):
                 .agg([
                     pl.col("Quantity").sum().alias("Quantity"),
                     pl.col("Total Amount").sum().alias("Total Amount"),
-                    pl.col("Product Name").count().alias("Item Count")
+                    pl.when(~pl.col("Is_Bundle_Combo")).then(1).otherwise(0).sum().alias("Item Count")
                 ])
                 .collect()
                 .to_pandas()
