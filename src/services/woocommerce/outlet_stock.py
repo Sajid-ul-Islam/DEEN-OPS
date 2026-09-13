@@ -44,6 +44,8 @@ _KNOWN_OUTLET_PATTERNS = [
 
 # Known custom REST API endpoints for outlet stock
 _KNOWN_CUSTOM_ENDPOINTS = [
+    "/wp-json/wc/v3/sip/outlet-stock",
+    "/wp-json/sip/v1/outlet-stock",
     "/wp-json/custom-inventory/v1/outlet-stock",
     "/wp-json/wc/v3/inventory",
     "/wp-json/wms/v1/stock",
@@ -241,15 +243,43 @@ def fetch_outlet_stock_from_custom_endpoint(
 
         # Handle different response formats
         if isinstance(data, list) and len(data) > 0:
-            # Format 1: List of {sku, product, outlet1: qty, outlet2: qty}
             if isinstance(data[0], dict):
-                df = pd.DataFrame(data)
-                # Normalize column names
-                df.columns = [
-                    c.strip().title() if c.lower() != "sku" else "SKU"
-                    for c in df.columns
-                ]
-                return df
+                first = {str(k).lower(): v for k, v in data[0].items()}
+                outlet_key = next((k for k in ["outlet", "outlet_name", "outlet_slug"] if k in first), None)
+                qty_key = next((k for k in ["stock_qty", "qty", "stock", "quantity"] if k in first), None)
+                if outlet_key and qty_key:
+                    # Format 1A: Tabular rows [{product, size, sku, outlet, stock_qty}, ...] -> Pivot
+                    pivot = {}
+                    for item in data:
+                        item_map = {str(k).lower(): v for k, v in item.items()}
+                        sku = str(item_map.get("sku", "")).strip()
+                        prod = str(item_map.get("product", item_map.get("product_name", ""))).strip()
+                        size = str(item_map.get("size", item_map.get("variation_name", ""))).strip()
+                        outlet_name = str(item_map.get(outlet_key, "")).strip().title()
+                        try:
+                            qty = int(float(item_map.get(qty_key, 0)))
+                        except (ValueError, TypeError):
+                            qty = 0
+
+                        key = (sku, prod, size)
+                        if key not in pivot:
+                            pivot[key] = {"SKU": sku, "Product": prod}
+                            if size:
+                                pivot[key]["Size"] = size
+                        pivot[key][outlet_name] = qty
+
+                    df = pd.DataFrame(list(pivot.values()))
+                    base_cols = [c for c in ["SKU", "Product", "Size"] if c in df.columns]
+                    outlet_cols = sorted([c for c in df.columns if c not in base_cols])
+                    return df[base_cols + outlet_cols].fillna(0)
+                else:
+                    # Format 1B: Already pivoted {sku, product, Mirpur: 5, Wari: 3, ...}
+                    df = pd.DataFrame(data)
+                    df.columns = [
+                        c.strip().title() if c.lower() != "sku" else "SKU"
+                        for c in df.columns
+                    ]
+                    return df
 
         elif isinstance(data, dict):
             # Format 2: {products: [...], stock: {sku: {outlet: qty}}}

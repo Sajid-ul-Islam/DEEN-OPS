@@ -19,10 +19,17 @@ def read_uploaded(uploaded_file):
         return None
     if isinstance(uploaded_file, pd.DataFrame):
         return uploaded_file
-    uploaded_file.seek(0)
-    if getattr(uploaded_file, "name", "").lower().endswith(".csv"):
+    if hasattr(uploaded_file, "seek"):
+        uploaded_file.seek(0)
+    name = getattr(uploaded_file, "name", "")
+    if isinstance(name, str) and name.lower().endswith(".csv"):
         return pd.read_csv(uploaded_file)
-    return pd.read_excel(uploaded_file)
+    try:
+        return pd.read_excel(uploaded_file)
+    except Exception:
+        if hasattr(uploaded_file, "seek"):
+            uploaded_file.seek(0)
+        return pd.read_csv(uploaded_file)
 
 
 def to_excel_bytes(

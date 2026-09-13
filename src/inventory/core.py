@@ -47,9 +47,11 @@ def normalize_size(val) -> str:
         return "NO_SIZE"
     if s.endswith(".0"):
         s = s[:-2]
+    # Clean prefixes like "Size: ", "Size-", "Sz:", "Size"
+    s = re.sub(r"^(?:size|sz)\s*[:\-]?\s*", "", s, flags=re.IGNORECASE).strip()
     # Normalize common "no size" variants (case-insensitive)
     s_cf = s.casefold()
-    if s_cf in {"no_size", "no size", "nosize", "no-size"}:
+    if not s or s_cf in {"no_size", "no size", "nosize", "no-size"}:
         return "NO_SIZE"
     return s.upper()
 
@@ -293,6 +295,296 @@ def load_inventory_from_uploads(uploaded_files: Dict[str, object]):
     return inventory, warnings, enriched_dfs, sku_to_title_size
 
 
+def is_unified_stock_file(df: pd.DataFrame) -> bool:
+    """Detect if a dataframe has the unified Smart Inventory / multi-outlet structure.
+
+    Expects columns identifying:
+    - Product / Title / SKU
+    - Outlet / Location
+    - Stock Qty / Quantity
+    """
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return False
+    cols = {str(c).strip().lower() for c in df.columns}
+    has_outlet = any(
+        c in cols
+        for c in ["outlet", "location", "outlet name", "outlet_name", "branch", "store"]
+    )
+    has_qty = any(
+        c in cols
+        for c in [
+            "stock qty",
+            "stock_qty",
+            "stock quantity",
+            "quantity",
+            "qty",
+            "stock",
+        ]
+    )
+    has_ident = any(
+        c in cols
+        for c in ["sku", "product", "item name", "product name", "title", "name"]
+    )
+    return has_outlet and has_qty and has_ident
+
+
+def load_inventory_from_unified_stock_file(
+    file_or_df,
+    canonical_locations: Optional[list[str]] = None,
+) -> Tuple[
+    Dict[str, Dict[str, int]],
+    list[str],
+    Dict[str, pd.DataFrame],
+    Dict[str, str],
+    pd.DataFrame,
+]:
+    """
+    Build inventory mapping directly from a single unified multi-outlet stock file
+    (e.g., Smart Inventory with POS Current Stock Report).
+
+    Expected format:
+    Product, Size, SKU, Outlet, Stock Qty, Price, Last Updated
+    """
+    if isinstance(file_or_df, pd.DataFrame):
+        df = file_or_df.copy()
+    else:
+        df = read_uploaded(file_or_df)
+
+    if df is None or df.empty:
+        return {}, ["Uploaded stock file is empty"], {}, {}, pd.DataFrame()
+
+    cols_map = {str(c).strip().lower(): c for c in df.columns}
+    outlet_col = next(
+        (
+            cols_map[k]
+            for k in [
+                "outlet",
+                "outlet name",
+                "outlet_name",
+                "location",
+                "branch",
+                "store",
+            ]
+            if k in cols_map
+        ),
+        None,
+    )
+    qty_col = next(
+        (
+            cols_map[k]
+            for k in [
+                "stock qty",
+                "stock_qty",
+                "stock quantity",
+                "quantity",
+                "qty",
+                "stock",
+            ]
+            if k in cols_map
+        ),
+        None,
+    )
+    prod_col = next(
+        (
+            cols_map[k]
+            for k in ["product", "product name", "item name", "title", "name"]
+            if k in cols_map
+        ),
+        None,
+    )
+    sku_col = next(
+        (
+            cols_map[k]
+            for k in ["sku", "product code", "item code"]
+            if k in cols_map
+        ),
+        None,
+    )
+    size_col = next(
+        (
+            cols_map[k]
+            for k in ["size", "variation", "attribute"]
+            if k in cols_map
+        ),
+        None,
+    )
+
+    if not outlet_col or not qty_col or (not prod_col and not sku_col):
+        return (
+            {},
+            [
+                "Could not identify required columns (Product/SKU, Outlet, Stock Qty) in stock file."
+            ],
+            {},
+            {},
+            pd.DataFrame(),
+        )
+
+    warnings = []
+    # Identify unique outlets in file
+    raw_outlets = [
+        str(x).strip()
+        for x in df[outlet_col].dropna().unique()
+        if str(x).strip()
+    ]
+
+    # Standard location set
+    default_locations = canonical_locations or [
+        "Ecom",
+        "Mirpur",
+        "Wari",
+        "Cumilla",
+        "Sylhet",
+    ]
+    all_locations = list(default_locations)
+
+    def _map_outlet_name(raw: str) -> str:
+        s = str(raw).strip().title()
+        s_low = s.lower()
+        if "warehouse" in s_low or "ecom" in s_low:
+            return "Warehouse"
+        if "mirpur" in s_low:
+            return "Mirpur 12" if "12" in s_low else "Mirpur"
+        if "wari" in s_low:
+            return "Wari"
+        if "cumilla" in s_low or "comilla" in s_low:
+            return "Cumilla"
+        if "sylhet" in s_low:
+            return "Sylhet"
+        return s
+
+    mapped_outlets = {o: _map_outlet_name(o) for o in raw_outlets}
+    for mo in mapped_outlets.values():
+        if mo not in all_locations:
+            all_locations.append(mo)
+
+    for extra in ["Warehouse", "Mirpur 12"]:
+        if extra not in all_locations:
+            all_locations.append(extra)
+
+    inventory: Dict[str, Dict[str, int]] = {}
+    sku_to_title_size: Dict[str, str] = {}
+    location_rows: Dict[str, list[dict]] = {loc: [] for loc in all_locations}
+    pivoted_records: Dict[tuple, dict] = {}
+
+    for _, row in df.iterrows():
+        raw_outlet = str(row.get(outlet_col, "")).strip()
+        if not raw_outlet:
+            continue
+        outlet = mapped_outlets.get(raw_outlet, raw_outlet)
+
+        prod = str(row.get(prod_col, "")).strip() if prod_col else ""
+        raw_size = row.get(size_col, "") if size_col else ""
+        size_norm = normalize_size(raw_size)
+        raw_sku = row.get(sku_col, "") if sku_col else ""
+        norm_s = normalize_sku(raw_sku)
+
+        try:
+            val = row.get(qty_col, 0)
+            if pd.notna(val):
+                if isinstance(val, str):
+                    val = val.replace(",", "").strip()
+                qty = max(0, int(float(val)))
+            else:
+                qty = 0
+        except Exception:
+            qty = 0
+
+        # Title-Size key
+        if size_norm and size_norm != "NO_SIZE":
+            title_size_str = f"{prod} - {size_norm}"
+            ts_key = title_size_str.casefold()
+        else:
+            title_size_str = prod
+            ts_key = prod.casefold()
+
+        # Helper to defensively register stock to canonical names
+        def _add_to_inv(k: str, target_loc: str, amount: int):
+            if k not in inventory:
+                inventory[k] = {l: 0 for l in all_locations}
+            inventory[k][target_loc] = inventory[k].get(target_loc, 0) + amount
+            # Mirror Warehouse <-> Ecom
+            if target_loc == "Warehouse" and "Ecom" in all_locations:
+                inventory[k]["Ecom"] = inventory[k].get("Ecom", 0) + amount
+            elif target_loc == "Ecom" and "Warehouse" in all_locations:
+                inventory[k]["Warehouse"] = (
+                    inventory[k].get("Warehouse", 0) + amount
+                )
+            # Mirror Mirpur 12 <-> Mirpur
+            if target_loc == "Mirpur 12" and "Mirpur" in all_locations:
+                inventory[k]["Mirpur"] = inventory[k].get("Mirpur", 0) + amount
+            elif target_loc == "Mirpur" and "Mirpur 12" in all_locations:
+                inventory[k]["Mirpur 12"] = (
+                    inventory[k].get("Mirpur 12", 0) + amount
+                )
+
+        if ts_key:
+            _add_to_inv(ts_key, outlet, qty)
+
+        # SKU indexing
+        if norm_s and norm_s != "0":
+            # 1. Pure SKU
+            _add_to_inv(norm_s, outlet, qty)
+            if ts_key:
+                sku_to_title_size[norm_s] = ts_key
+
+            # 2. SKU + Size
+            sku_sz_key = f"SKU:{norm_s}_SZ:{size_norm}"
+            _add_to_inv(sku_sz_key, outlet, qty)
+            if ts_key:
+                sku_to_title_size[sku_sz_key] = ts_key
+
+        # Pivoted record for display & consolidated download
+        p_key = (
+            prod,
+            size_norm if size_norm != "NO_SIZE" else "",
+            norm_s if norm_s != "0" else "",
+        )
+        if p_key not in pivoted_records:
+            pivoted_records[p_key] = {
+                "Product": prod,
+                "Size": size_norm if size_norm != "NO_SIZE" else "—",
+                "SKU": raw_sku if pd.notna(raw_sku) and str(raw_sku).strip() else "—",
+            }
+        pivoted_records[p_key][outlet] = (
+            pivoted_records[p_key].get(outlet, 0) + qty
+        )
+
+        # Track per-location rows for enriched_dfs
+        if outlet in location_rows:
+            location_rows[outlet].append(
+                {
+                    "Product": prod,
+                    "Size": size_norm,
+                    "SKU": raw_sku,
+                    "Quantity": qty,
+                    "Title - Size": title_size_str,
+                }
+            )
+
+    # Build enriched_dfs
+    enriched_dfs = {}
+    for loc, rows in location_rows.items():
+        if rows:
+            enriched_dfs[loc] = pd.DataFrame(rows)
+
+    # Build pivoted DataFrame
+    pivoted_df = pd.DataFrame(list(pivoted_records.values()))
+    if not pivoted_df.empty:
+        outlet_cols_in_pivot = [
+            c for c in pivoted_df.columns if c not in ["Product", "Size", "SKU"]
+        ]
+        pivoted_df[outlet_cols_in_pivot] = (
+            pivoted_df[outlet_cols_in_pivot].fillna(0).astype(int)
+        )
+        pivoted_df["Total Stock"] = pivoted_df[outlet_cols_in_pivot].sum(axis=1)
+        pivoted_df = pivoted_df.sort_values(
+            by="Total Stock", ascending=False
+        ).reset_index(drop=True)
+
+    return inventory, warnings, enriched_dfs, sku_to_title_size, pivoted_df
+
+
 def sku_has_size_variations(sku_key: str, inventory: dict) -> bool:
     """Check if the inventory maps contain any size-specific keys for this SKU."""
     prefix = f"sku:{sku_key.casefold()}_sz:"
@@ -313,9 +605,12 @@ def _build_location_config(locations, priority_locations):
     Returns (location_keywords: dict, ordered_labels: list).
     """
     loc_kw = {
-        "Ecom-Mirpur": ["ecom", "mirpur"],
+        "Warehouse": ["warehouse", "ecom"],
+        "Ecom-Mirpur": ["ecom", "mirpur", "warehouse"],
+        "Mirpur 12": ["mirpur 12", "mirpur"],
+        "Mirpur": ["mirpur"],
         "Wari": ["wari"],
-        "Cumilla": ["cumilla"],
+        "Cumilla": ["cumilla", "comilla"],
         "Sylhet": ["sylhet"],
     }
     for loc in locations:
@@ -329,9 +624,10 @@ def _build_location_config(locations, priority_locations):
             if label not in ordered:
                 ordered.append(label)
     else:
-        ordered = ["Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"]
+        # Default priority: Warehouse/Ecom first, then outlets
+        ordered = ["Warehouse", "Ecom-Mirpur", "Wari", "Cumilla", "Sylhet"]
         for loc in locations:
-            if loc not in ["Ecom", "Mirpur"] and loc not in ordered:
+            if loc not in ["Ecom", "Mirpur", "Warehouse"] and loc not in ordered:
                 ordered.append(loc)
     return loc_kw, ordered
 

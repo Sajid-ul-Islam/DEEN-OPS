@@ -25,6 +25,11 @@ def _reset_inventory_state():
             "inv_sku_map",
             "inv_sku_col",
             "inv_outlet_stock_df",
+            "inv_unified_inventory_map",
+            "inv_unified_sku_map",
+            "inv_unified_enriched_dfs",
+            "inv_last_unified_file",
+            "inv_unified_active_locations",
         ]
     )
 
@@ -59,59 +64,182 @@ def _render_upload_summary(master_df, title_col):
 def render_distribution_tab(search_q):
     render_reset_confirm("Inventory Distribution", "inventory", _reset_inventory_state)
 
-    # ── Live Outlet Stock from Custom Plugin ───────────────────────────────
-    st.markdown("### 🏪 Live Outlet Stock (Auto-Discovery)")
+    # ── Multi-Outlet Stock Engine (Smart Inventory / POS) ─────────────────
+    st.markdown("### 🏪 Multi-Outlet Stock Engine")
     st.caption(
-        "Automatically detect and pull outlet stock from your WooCommerce custom plugin."
+        "Upload your Smart Inventory 'Current Stock Report' CSV or connect via live REST API to automatically load all outlet stocks."
     )
 
-    if st.button("🔌 Connect & Fetch Outlet Stock", key="fetch_outlet_stock"):
-        with st.status(
-            "🔍 Detecting outlet stock storage method...", expanded=True
-        ) as status:
-            from src.services.woocommerce.outlet_stock import fetch_live_outlet_stock
+    stock_tab1, stock_tab2 = st.tabs(
+        [
+            "📁 Upload Current Stock Report (CSV/Excel)",
+            "🔌 Live API Auto-Discovery",
+        ]
+    )
 
-            status.update(label="📡 Fetching outlet stock from WooCommerce...")
-            outlet_df = fetch_live_outlet_stock()
+    with stock_tab1:
+        st.write(
+            "Upload the **Current Stock Report** exported from WordPress Smart Inventory with POS."
+        )
+        unified_stock_file = st.file_uploader(
+            "Upload Current Stock Report (CSV/XLSX)",
+            type=["csv", "xlsx"],
+            key="inv_unified_stock_file",
+            help="Accepts the Smart Inventory CSV: Product, Size, SKU, Outlet, Stock Qty, Price, Last Updated",
+        )
+        if unified_stock_file is not None:
+            if st.session_state.get("inv_last_unified_file") != unified_stock_file.name:
+                st.session_state.inv_last_unified_file = unified_stock_file.name
+                try:
+                    (
+                        inv_map,
+                        warnings,
+                        enriched_dfs,
+                        sku_map,
+                        pivoted_df,
+                    ) = inv_core.load_inventory_from_unified_stock_file(
+                        unified_stock_file
+                    )
+                    if not pivoted_df.empty:
+                        st.session_state.inv_unified_inventory_map = inv_map
+                        st.session_state.inv_unified_sku_map = sku_map
+                        st.session_state.inv_unified_enriched_dfs = enriched_dfs
+                        st.session_state.inv_outlet_stock_df = pivoted_df
+                        st.session_state.inv_unified_active_locations = [
+                            c
+                            for c in pivoted_df.columns
+                            if c not in ["Product", "Size", "SKU", "Total Stock"]
+                        ]
+                        st.toast(
+                            f"✅ Loaded {len(pivoted_df)} products across {len(st.session_state.inv_unified_active_locations)} outlets!"
+                        )
+                    else:
+                        st.error("Could not parse stock data from this file.")
+                except Exception as exc:
+                    st.error(f"Failed to read unified stock file: {exc}")
 
-            if outlet_df is not None and not outlet_df.empty:
-                status.update(
-                    label="✅ Outlet stock fetched successfully!", state="complete"
+    with stock_tab2:
+        st.write(
+            "Automatically query your WooCommerce / Smart Inventory REST API endpoints."
+        )
+        if st.button("🔌 Connect & Fetch Outlet Stock", key="fetch_outlet_stock"):
+            with st.status(
+                "🔍 Detecting outlet stock storage method...", expanded=True
+            ) as status:
+                from src.services.woocommerce.outlet_stock import (
+                    fetch_live_outlet_stock,
                 )
-                st.session_state.inv_outlet_stock_df = outlet_df
-                st.toast(f"✅ Loaded {len(outlet_df)} products with outlet stock")
-            else:
-                status.update(label="⚠️ No outlet stock found", state="warning")
-                st.session_state.inv_outlet_stock_df = None
-                st.warning(
-                    "Could not detect outlet stock. Make sure your custom plugin is active and has data."
-                )
 
-    # Display outlet stock if available
+                status.update(label="📡 Fetching outlet stock from WooCommerce...")
+                outlet_df = fetch_live_outlet_stock()
+
+                if outlet_df is not None and not outlet_df.empty:
+                    status.update(
+                        label="✅ Outlet stock fetched successfully!",
+                        state="complete",
+                    )
+                    st.session_state.inv_outlet_stock_df = outlet_df
+                    # Also build inventory map from fetched DataFrame
+                    (
+                        inv_map,
+                        _,
+                        enriched_dfs,
+                        sku_map,
+                        _,
+                    ) = inv_core.load_inventory_from_unified_stock_file(outlet_df)
+                    if inv_map:
+                        st.session_state.inv_unified_inventory_map = inv_map
+                        st.session_state.inv_unified_sku_map = sku_map
+                        st.session_state.inv_unified_enriched_dfs = enriched_dfs
+                        st.session_state.inv_unified_active_locations = [
+                            c
+                            for c in outlet_df.columns
+                            if c not in ["Product", "Size", "SKU", "Total Stock"]
+                        ]
+                    st.toast(f"✅ Loaded {len(outlet_df)} products with outlet stock")
+                else:
+                    status.update(label="⚠️ No outlet stock found", state="warning")
+                    st.session_state.inv_outlet_stock_df = None
+                    st.warning(
+                        "Could not detect outlet stock via API. You can upload the Current Stock Report CSV in the tab to the left."
+                    )
+
+    # Display outlet stock overview if available
     if st.session_state.get("inv_outlet_stock_df") is not None:
         outlet_df = st.session_state.inv_outlet_stock_df
-        st.dataframe(outlet_df, use_container_width=True)
+        active_loc_cols = [
+            c
+            for c in outlet_df.columns
+            if c not in ["Product", "Size", "SKU", "Total Stock"]
+        ]
 
-        import io
-        import datetime
-
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            outlet_df.to_excel(writer, sheet_name="Outlet Stock", index=False)
-        excel_data = output.getvalue()
-
-        st.download_button(
-            "📥 Download Outlet Stock Excel",
-            excel_data,
-            f"{datetime.datetime.now().strftime('%Y-%m-%d')}_outlet_stock.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="download_outlet_stock",
+        # Summary metric tiles
+        m_cols = st.columns(min(len(active_loc_cols) + 2, 7))
+        m_cols[0].metric("Total SKUs", f"{len(outlet_df):,}")
+        total_units = (
+            int(outlet_df["Total Stock"].sum())
+            if "Total Stock" in outlet_df.columns
+            else int(outlet_df[active_loc_cols].sum().sum())
         )
+        m_cols[1].metric("Total Units", f"{total_units:,}")
+        for i, loc in enumerate(active_loc_cols[:5]):
+            if i + 2 < len(m_cols):
+                loc_sum = int(outlet_df[loc].sum())
+                m_cols[i + 2].metric(loc, f"{loc_sum:,}")
+
+        # Quick Search & Lookup
+        with st.expander(
+            "🔎 Quick Stock Lookup & Full Outlet Matrix", expanded=False
+        ):
+            stock_search = st.text_input(
+                "Filter by SKU or Product Name",
+                key="unified_stock_search_input",
+                placeholder="e.g. 101-0200-150 or Springfield",
+            )
+            display_stock_df = outlet_df
+            if stock_search:
+                match_mask = display_stock_df["Product"].astype(
+                    str
+                ).str.contains(
+                    stock_search, case=False, na=False
+                ) | display_stock_df[
+                    "SKU"
+                ].astype(
+                    str
+                ).str.contains(
+                    stock_search, case=False, na=False
+                )
+                display_stock_df = display_stock_df[match_mask]
+            st.dataframe(display_stock_df, use_container_width=True)
+
+            import datetime
+            import io
+
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                outlet_df.to_excel(
+                    writer, sheet_name="Outlet Stock", index=False
+                )
+            excel_data = output.getvalue()
+
+            st.download_button(
+                "📥 Download Consolidated Outlet Stock Excel",
+                excel_data,
+                f"{datetime.datetime.now().strftime('%Y-%m-%d')}_outlet_stock.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_outlet_stock",
+            )
 
     st.markdown("---")
 
+    # ── Orders Section ────────────────────────────────────────────────────────
+    st.markdown("### 📋 Match Orders with Outlet Stock")
+    st.caption(
+        "Upload orders spreadsheet or pull pending shift from Live Dashboard / WooCommerce to identify where each order's products are located."
+    )
+
     master_file = st.file_uploader(
-        "Upload Master Stock Spreadsheet",
+        "Upload Orders Spreadsheet",
         type=["xlsx", "csv"],
         key="inv_up",
         label_visibility="collapsed",
@@ -129,8 +257,6 @@ def render_distribution_tab(search_q):
     import os
 
     loc_files = {}
-    loc_cols = st.columns(len(INVENTORY_LOCATIONS))
-
     default_files = {
         "Mirpur": "Mir.xlsx",
         "Wari": "War.xlsx",
@@ -138,31 +264,51 @@ def render_distribution_tab(search_q):
         "Sylhet": "Syl.xlsx",
     }
 
-    for i, loc in enumerate(INVENTORY_LOCATIONS):
-        with loc_cols[i]:
-            if loc == "Ecom":
-                # Show status if synced or using manual upload
-                if st.session_state.get(f"inv_l_{loc}_df") is not None:
-                    st.caption("✅ Using Cached Web Stock")
-                    loc_files[loc] = st.session_state.get(f"inv_l_{loc}_df")
+    # If unified stock file is loaded, show a compact status badge
+    if st.session_state.get("inv_unified_inventory_map") is not None:
+        st.success(
+            f"✅ Multi-Outlet Stock Report is active ({len(st.session_state.inv_outlet_stock_df)} SKUs across {', '.join(st.session_state.inv_unified_active_locations)})."
+        )
+        with st.expander(
+            "📁 Optional: Override with Individual Outlet Spreadsheets",
+            expanded=False,
+        ):
+            loc_cols = st.columns(len(INVENTORY_LOCATIONS))
+            for i, loc in enumerate(INVENTORY_LOCATIONS):
+                with loc_cols[i]:
+                    uploaded = st.file_uploader(
+                        f"{loc}", key=f"inv_l_{loc}", type=["xlsx", "csv"]
+                    )
+                    if uploaded:
+                        loc_files[loc] = uploaded
+    else:
+        loc_cols = st.columns(len(INVENTORY_LOCATIONS))
+        for i, loc in enumerate(INVENTORY_LOCATIONS):
+            with loc_cols[i]:
+                if loc == "Ecom":
+                    if st.session_state.get(f"inv_l_{loc}_df") is not None:
+                        st.caption("✅ Using Cached Web Stock")
+                        loc_files[loc] = st.session_state.get(f"inv_l_{loc}_df")
 
-            uploaded = st.file_uploader(
-                f"{loc}", key=f"inv_l_{loc}", type=["xlsx", "csv"]
-            )
+                uploaded = st.file_uploader(
+                    f"{loc}", key=f"inv_l_{loc}", type=["xlsx", "csv"]
+                )
 
-            if uploaded:
-                loc_files[loc] = uploaded
-            elif loc in default_files:
-                default_path = os.path.join("src", "inventory", default_files[loc])
-                if os.path.exists(default_path):
-                    with open(default_path, "rb") as f:
-                        file_bytes = f.read()
-                    default_obj = io.BytesIO(file_bytes)
-                    default_obj.name = default_files[loc]
-                    loc_files[loc] = default_obj
-                    st.caption(f"✅ Default: {default_files[loc]}")
-                else:
-                    st.caption("ℹ️ No default file")
+                if uploaded:
+                    loc_files[loc] = uploaded
+                elif loc in default_files:
+                    default_path = os.path.join(
+                        "src", "inventory", default_files[loc]
+                    )
+                    if os.path.exists(default_path):
+                        with open(default_path, "rb") as f:
+                            file_bytes = f.read()
+                        default_obj = io.BytesIO(file_bytes)
+                        default_obj.name = default_files[loc]
+                        loc_files[loc] = default_obj
+                        st.caption(f"✅ Default: {default_files[loc]}")
+                    else:
+                        st.caption("ℹ️ No default file")
 
     master_df = None
     title_col = None
@@ -243,16 +389,40 @@ def render_distribution_tab(search_q):
             _clear_analysis_results()
 
         try:
-            master_df = read_uploaded(master_file)
-            st.session_state.inv_master_df_live = master_df
-            _, _, title_col, sku_col = inv_core.identify_columns(master_df)
-            _render_upload_summary(master_df, title_col)
-            if not title_col:
-                st.error(
-                    "Could not detect an item title/name column in the master list."
+            raw_up_df = read_uploaded(master_file)
+            if inv_core.is_unified_stock_file(raw_up_df):
+                (
+                    inv_map,
+                    warnings,
+                    enriched_dfs,
+                    sku_map,
+                    pivoted_df,
+                ) = inv_core.load_inventory_from_unified_stock_file(raw_up_df)
+                st.session_state.inv_unified_inventory_map = inv_map
+                st.session_state.inv_unified_sku_map = sku_map
+                st.session_state.inv_unified_enriched_dfs = enriched_dfs
+                st.session_state.inv_outlet_stock_df = pivoted_df
+                st.session_state.inv_unified_active_locations = [
+                    c
+                    for c in pivoted_df.columns
+                    if c not in ["Product", "Size", "SKU", "Total Stock"]
+                ]
+                st.info(
+                    f"ℹ️ Detected Multi-Outlet Current Stock Report ({len(pivoted_df)} SKUs across {', '.join(st.session_state.inv_unified_active_locations)})! "
+                    "Automatically loaded into your stock engine. Now click 'Pull from Live Dashboard' or upload an Orders spreadsheet to match where each order's products are."
                 )
+                master_df = None
             else:
-                st.toast("✅ Validation passed. Ready to run analysis.")
+                master_df = raw_up_df
+                st.session_state.inv_master_df_live = master_df
+                _, _, title_col, sku_col = inv_core.identify_columns(master_df)
+                _render_upload_summary(master_df, title_col)
+                if not title_col:
+                    st.error(
+                        "Could not detect an item title/name column in the master list."
+                    )
+                else:
+                    st.toast("✅ Validation passed. Ready to run analysis.")
         except Exception as exc:
             log_error(exc, context="Inventory Upload")
             st.error("Failed to read master stock list.")
@@ -269,9 +439,19 @@ def render_distribution_tab(search_q):
 
         if st.button("Generate Outlet Stock Report", use_container_width=True):
             with st.status("📊 Compiling stock data...", expanded=True) as stock_status:
-                inv_map, warnings, enriched_dfs, sku_to_title_size = (
-                    inv_core.load_inventory_from_uploads(loc_files)
-                )
+                if st.session_state.get("inv_unified_inventory_map") is not None:
+                    inv_map = st.session_state.inv_unified_inventory_map
+                    warnings = []
+                    enriched_dfs = st.session_state.get(
+                        "inv_unified_enriched_dfs", {}
+                    )
+                    sku_to_title_size = st.session_state.get(
+                        "inv_unified_sku_map", {}
+                    )
+                else:
+                    inv_map, warnings, enriched_dfs, sku_to_title_size = (
+                        inv_core.load_inventory_from_uploads(loc_files)
+                    )
                 stock_status.update(label="✅ Stock data compiled", state="complete")
                 if warnings:
                     for w in warnings:
@@ -621,22 +801,37 @@ def render_distribution_tab(search_q):
                                 "⚠️ WooCommerce sync failed. Analysis will proceed using other locations."
                             )
 
-                inventory_map, warnings, _, sku_map = (
-                    inv_core.load_inventory_from_uploads(loc_files)
-                )
-                if warnings:
-                    for warning in warnings:
-                        st.warning(warning)
+                if (
+                    st.session_state.get("inv_unified_inventory_map")
+                    is not None
+                ):
+                    inventory_map = st.session_state.inv_unified_inventory_map
+                    sku_map = st.session_state.inv_unified_sku_map
+                    target_locations = st.session_state.get(
+                        "inv_unified_active_locations", INVENTORY_LOCATIONS
+                    )
+                else:
+                    inventory_map, warnings, _, sku_map = (
+                        inv_core.load_inventory_from_uploads(loc_files)
+                    )
+                    if warnings:
+                        for warning in warnings:
+                            st.warning(warning)
+                    target_locations = INVENTORY_LOCATIONS
 
                 result_df, _ = inv_core.add_stock_columns_from_inventory(
                     master_df,
                     title_col,
                     inventory_map,
-                    INVENTORY_LOCATIONS,
+                    target_locations,
                     sku_col,
                     sku_map,
-                    priority_locations=st.session_state.get("inv_priority_order"),
+                    priority_locations=st.session_state.get(
+                        "inv_priority_order"
+                    ),
                 )
+
+                st.session_state.inv_active_l = target_locations
 
                 if "Fulfillment" in result_df.columns:
                     error_mask = (

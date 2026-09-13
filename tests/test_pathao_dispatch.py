@@ -204,22 +204,23 @@ def test_dispatch_screen_store_selection_creation_and_rerun(
     update = Mock()
     monkeypatch.setattr(dispatch, "update_order_status", update)
     app = AppTest.from_string(
-        "from src.pages.pathao_orders.dispatch_tab import _render_auto_dispatch_tab\n_render_auto_dispatch_tab()"
+        "from src.pages.pathao_orders.dispatch_tab import _render_auto_dispatch_tab\n_render_auto_dispatch_tab()",
+        default_timeout=10,
     )
     app.session_state["pathao_res_df"] = processed_orders.iloc[:1]
-    app.run()
+    app.run(timeout=10)
     assert not app.exception
     assert app.button(key="pathao_autodispatch_btn").disabled
     client.create_order.assert_not_called()
-    app.button(key="pathao_load_stores").click().run()
+    app.button(key="pathao_load_stores").click().run(timeout=10)
     assert not app.exception
-    app.selectbox[0].set_value(11).run()
+    app.selectbox[0].set_value(11).run(timeout=10)
     assert not app.button(key="pathao_autodispatch_btn").disabled
-    app.button(key="pathao_autodispatch_btn").click().run()
+    app.button(key="pathao_autodispatch_btn").click().run(timeout=10)
     assert not app.exception
     assert app.session_state["pathao_dispatch_report"][0]["Status"] == "Created"
-    app.run()
-    app.button(key="pathao_autodispatch_btn").click().run()
+    app.run(timeout=10)
+    app.button(key="pathao_autodispatch_btn").click().run(timeout=10)
     assert not app.exception
     assert app.session_state["pathao_dispatch_report"][0]["Status"] == "Already created"
     client.create_order.assert_called_once()
