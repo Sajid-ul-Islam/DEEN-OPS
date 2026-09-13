@@ -8,13 +8,13 @@ and generates warehouse-ready styled Excel picking lists.
 from __future__ import annotations
 
 import colorsys
-from datetime import datetime
 
 import pandas as pd
 import streamlit as st
 
 from src.components.ui.ui_components import render_premium_header
-from src.config.constants import bd_today
+from src.config.constants import bd_now, bd_today
+from src.processing.data_processing import aggregate_product_listing
 from src.processing.column_detection import (
     DATE_COL_CANDIDATES,
     ITEM_NAME_COL_CANDIDATES,
@@ -174,21 +174,12 @@ def _render_product_listing_content() -> None:
             key="pl_date_col",
         )
 
-    # Grouping & Aggregation
-    group_cols = [item_col]
-    if sku_col != "None":
-        group_cols.append(sku_col)
-
-    df[qty_col] = pd.to_numeric(
-        df[qty_col].astype(str).str.replace(r"[^\d.-]", "", regex=True),
-        errors="coerce",
-    ).fillna(1)
-
-    merged_df = (
-        df.groupby(group_cols, as_index=False)[qty_col]
-        .sum()
-        .sort_values(by=qty_col, ascending=False)
-        .reset_index(drop=True)
+    # Grouping & Aggregation: sorted first item-wise, then SKU-wise
+    merged_df = aggregate_product_listing(
+        df,
+        item_col=item_col,
+        qty_col=qty_col,
+        sku_col=sku_col if sku_col != "None" else None,
     )
 
     tot_units = int(merged_df[qty_col].sum()) if not merged_df.empty else 0
@@ -285,7 +276,13 @@ def _render_product_listing_content() -> None:
     # Style table with pastel group coloring
     def _apply_pastel_colors(data_df):
         styles = pd.DataFrame("", index=data_df.index, columns=data_df.columns)
-        color_col = sku_col if sku_col != "None" else item_col
+        color_col = (
+            item_col
+            if item_col in data_df.columns
+            else (sku_col if sku_col != "None" else None)
+        )
+        if not color_col:
+            return styles
         content_df = data_df.iloc[:-1] if len(data_df) > 1 else data_df
         unique_vals = content_df[color_col].unique()
 
@@ -326,7 +323,11 @@ def _render_product_listing_content() -> None:
     )
 
     # Export to styled Excel
-    export_col = sku_col if sku_col != "None" else item_col
+    export_col = (
+        item_col
+        if item_col in display_df.columns
+        else (sku_col if sku_col != "None" else None)
+    )
     excel_bytes = export_to_styled_excel(
         {"Product Listing": display_df},
         group_by_col=export_col,
@@ -335,7 +336,7 @@ def _render_product_listing_content() -> None:
     st.download_button(
         label="📥 Download Styled Product Listing (Excel)",
         data=excel_bytes,
-        file_name=f"Product_Listing_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+        file_name=f"Product_Listing_{bd_now().strftime('%Y%m%d_%H%M%S')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         type="primary",
         use_container_width=True,

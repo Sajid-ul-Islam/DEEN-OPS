@@ -38,6 +38,7 @@ from src.utils.logging import log_error
 # Standard column names the processor expects
 STANDARD_COLUMNS = [
     "Phone (Billing)",
+    "Full Name (Shipping)",
     "First Name (Shipping)",
     "Last Name (Shipping)",
     "Address 1&2 (Shipping)",
@@ -63,16 +64,31 @@ COLUMN_ALIASES: Dict[str, List[str]] = {
         "Mobile",
         "Contact",
     ],
+    "Full Name (Shipping)": [
+        "Full Name",
+        "Full Name (Shipping)",
+        "Full Name (Billing)",
+        "Customer Name",
+        "Recipient Name",
+        "Billing Name",
+        "Name",
+        "Customer",
+    ],
     "First Name (Shipping)": [
         "First Name",
         "Shipping First Name",
-        "Recipient Name",
-        "Customer Name",
-        "Name",
-        "Full Name (Shipping)",
-        "Full Name",
+        "First Name (Shipping)",
+        "First Name (Billing)",
+        "Billing First Name",
     ],
-    "Last Name (Shipping)": ["Last Name", "Shipping Last Name", "Surname"],
+    "Last Name (Shipping)": [
+        "Last Name",
+        "Shipping Last Name",
+        "Last Name (Shipping)",
+        "Last Name (Billing)",
+        "Billing Last Name",
+        "Surname",
+    ],
     "Address 1&2 (Shipping)": [
         "Address",
         "Shipping Address",
@@ -122,7 +138,6 @@ COLUMN_ALIASES: Dict[str, List[str]] = {
 
 REQUIRED_UPLOAD_COLUMNS = [
     "Phone (Billing)",
-    "First Name (Shipping)",
     "Address 1&2 (Shipping)",
     "Item Name",
     "Quantity",
@@ -166,6 +181,7 @@ def _detect_and_map_columns(
 ) -> tuple[pd.DataFrame, Dict[str, str], List[str]]:
     """
     Detect columns in uploaded file and map them to standard names.
+    Accepts recipient name either as Full Name or First Name + Last Name (merging them).
     Returns: (mapped_df, mapping_dict, missing_columns)
     """
     df_mapped = df.copy()
@@ -193,6 +209,44 @@ def _detect_and_map_columns(
             missing.append(standard)
             mapping[standard] = None
 
+    # Name resolution:
+    # 1. If Full Name is present: take it!
+    # 2. If Full Name is NOT present, but First Name and/or Last Name are present: merge them into Full Name!
+    has_full_name = (
+        mapping.get("Full Name (Shipping)") is not None
+        and (
+            df_mapped["Full Name (Shipping)"].notna()
+            & df_mapped["Full Name (Shipping)"].astype(str).str.strip().ne("")
+        ).any()
+    )
+    first_mapped = mapping.get("First Name (Shipping)")
+    last_mapped = mapping.get("Last Name (Shipping)")
+
+    if not has_full_name and (first_mapped or last_mapped):
+        first_s = (
+            df_mapped["First Name (Shipping)"].fillna("").astype(str).str.strip()
+            if first_mapped
+            else pd.Series("", index=df_mapped.index)
+        )
+        last_s = (
+            df_mapped["Last Name (Shipping)"].fillna("").astype(str).str.strip()
+            if last_mapped
+            else pd.Series("", index=df_mapped.index)
+        )
+        merged = (first_s + " " + last_s).str.strip()
+        df_mapped["Full Name (Shipping)"] = merged
+        parts = [p for p in (first_mapped, last_mapped) if p]
+        mapping["Full Name (Shipping)"] = " + ".join(parts)
+        if "Full Name (Shipping)" in missing:
+            missing.remove("Full Name (Shipping)")
+    elif has_full_name:
+        # Also ensure First Name (Shipping) is populated from Full Name for legacy downstream readers
+        if not first_mapped:
+            df_mapped["First Name (Shipping)"] = df_mapped["Full Name (Shipping)"]
+            mapping["First Name (Shipping)"] = mapping["Full Name (Shipping)"]
+            if "First Name (Shipping)" in missing:
+                missing.remove("First Name (Shipping)")
+
     return df_mapped, mapping, missing
 
 
@@ -209,6 +263,24 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
     # Show detection results
     detected_cols = {k: v for k, v in mapping.items() if v is not None}
     undetected_cols = [k for k, v in mapping.items() if v is None]
+
+    # If customer name is already mapped (via Full Name or First/Last), do not display
+    # the unused name variations as undetected missing columns.
+    has_name_mapped = (
+        mapping.get("Full Name (Shipping)") is not None
+        or mapping.get("First Name (Shipping)") is not None
+    )
+    if has_name_mapped:
+        undetected_cols = [
+            k
+            for k in undetected_cols
+            if k
+            not in (
+                "Full Name (Shipping)",
+                "First Name (Shipping)",
+                "Last Name (Shipping)",
+            )
+        ]
 
     if detected_cols:
         st.success(f"✅ Detected {len(detected_cols)} columns automatically")
@@ -255,8 +327,48 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
             for required_col, source_col in custom_mapping.items():
                 df_mapped[required_col] = df[source_col].copy()
                 mapping[required_col] = source_col
+
+            # Re-evaluate name merging if custom mapping changed name columns
+            if "Full Name (Shipping)" in custom_mapping:
+                df_mapped["First Name (Shipping)"] = df_mapped["Full Name (Shipping)"]
+            elif (
+                "First Name (Shipping)" in custom_mapping
+                or "Last Name (Shipping)" in custom_mapping
+            ):
+                f_col = custom_mapping.get(
+                    "First Name (Shipping)", mapping.get("First Name (Shipping)")
+                )
+                l_col = custom_mapping.get(
+                    "Last Name (Shipping)", mapping.get("Last Name (Shipping)")
+                )
+                f_s = (
+                    df[f_col].fillna("").astype(str).str.strip()
+                    if f_col and f_col in df.columns
+                    else pd.Series("", index=df.index)
+                )
+                l_s = (
+                    df[l_col].fillna("").astype(str).str.strip()
+                    if l_col and l_col in df.columns
+                    else pd.Series("", index=df.index)
+                )
+                df_mapped["Full Name (Shipping)"] = (f_s + " " + l_s).str.strip()
+
             # Refresh missing list
             undetected_cols = [k for k, v in mapping.items() if v is None]
+            if (
+                mapping.get("Full Name (Shipping)") is not None
+                or mapping.get("First Name (Shipping)") is not None
+            ):
+                undetected_cols = [
+                    k
+                    for k in undetected_cols
+                    if k
+                    not in (
+                        "Full Name (Shipping)",
+                        "First Name (Shipping)",
+                        "Last Name (Shipping)",
+                    )
+                ]
 
     def has_values(column):
         return (
@@ -268,6 +380,13 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
         )
 
     required_missing = [col for col in REQUIRED_UPLOAD_COLUMNS if not has_values(col)]
+    has_name = (
+        has_values("Full Name (Shipping)")
+        or has_values("First Name (Shipping)")
+    )
+    if not has_name:
+        required_missing.append("Customer Name (Full Name or First/Last Name)")
+
     if not any(has_values(col) for col in ("Order ID", "Order Number")):
         required_missing.append("Order ID or Order Number")
     if df.empty:

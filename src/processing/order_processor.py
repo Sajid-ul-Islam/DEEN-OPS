@@ -35,13 +35,31 @@ _COLUMN_ALIASES: Dict[str, List[str]] = {
         "Mobile",
         "Phone (Shipping)",
     ],
+    "Full Name (Shipping)": [
+        "Full Name",
+        "Full Name (Shipping)",
+        "Full Name (Billing)",
+        "Customer Name",
+        "Recipient Name",
+        "Billing Name",
+        "Name",
+        "Customer",
+    ],
     "First Name (Shipping)": [
         "Shipping First Name",
         "First Name",
-        "Recipient Name",
-        "Customer Name",
+        "First Name (Shipping)",
+        "First Name (Billing)",
+        "Billing First Name",
     ],
-    "Last Name (Shipping)": ["Shipping Last Name", "Last Name"],
+    "Last Name (Shipping)": [
+        "Shipping Last Name",
+        "Last Name",
+        "Last Name (Shipping)",
+        "Last Name (Billing)",
+        "Billing Last Name",
+        "Surname",
+    ],
     "Address 1&2 (Shipping)": [
         "Shipping Address",
         "Address (Shipping)",
@@ -107,9 +125,11 @@ def _apply_column_fallbacks(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
-    cleans and standardizes the input dataframe columns.
+    Cleans and standardizes the input dataframe columns.
     Applies column fallbacks for files with alternate header names.
-    Merges First/Last Name into Full Name (Shipping) if needed.
+    Accepts recipient name either as Full Name or First Name + Last Name:
+    - If Full Name is provided and has values, takes it.
+    - If First Name and Last Name are provided, merges them into Full Name (Shipping).
     Adds empty Phone (Billing) if missing.
     """
     if df.empty:
@@ -118,25 +138,91 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     # Apply column fallbacks for alternate header names
     df = _apply_column_fallbacks(df)
 
-    # Merge First Name + Last Name into Full Name (Shipping)
-    if "Full Name (Shipping)" not in df.columns:
-        if (
-            "First Name (Shipping)" in df.columns
-            and "Last Name (Shipping)" in df.columns
-        ):
-            df["Full Name (Shipping)"] = (
-                df["First Name (Shipping)"].astype(str).str.strip()
-                + " "
-                + df["Last Name (Shipping)"].astype(str).str.strip()
-            ).str.strip()
-        elif "First Name (Shipping)" in df.columns:
-            df["Full Name (Shipping)"] = (
-                df["First Name (Shipping)"].astype(str).str.strip()
-            )
-        elif "Last Name (Shipping)" in df.columns:
-            df["Full Name (Shipping)"] = (
-                df["Last Name (Shipping)"].astype(str).str.strip()
-            )
+    # Resolve recipient name: accept full name or first + last
+    has_full_name = (
+        "Full Name (Shipping)" in df.columns
+        and (
+            df["Full Name (Shipping)"]
+            .astype(str)
+            .str.strip()
+            .replace(["nan", "None", ""], pd.NA)
+            .notna()
+            .any()
+        )
+    )
+
+    first_col = next(
+        (
+            c
+            for c in [
+                "First Name (Shipping)",
+                "First Name",
+                "Shipping First Name",
+                "First Name (Billing)",
+            ]
+            if c in df.columns
+        ),
+        None,
+    )
+    last_col = next(
+        (
+            c
+            for c in [
+                "Last Name (Shipping)",
+                "Last Name",
+                "Shipping Last Name",
+                "Last Name (Billing)",
+            ]
+            if c in df.columns
+        ),
+        None,
+    )
+
+    if first_col or last_col:
+        first_series = (
+            df[first_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .replace(["nan", "None"], "")
+            if first_col
+            else pd.Series("", index=df.index)
+        )
+        last_series = (
+            df[last_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .replace(["nan", "None"], "")
+            if last_col
+            else pd.Series("", index=df.index)
+        )
+        merged_series = (first_series + " " + last_series).str.strip()
+    else:
+        merged_series = pd.Series("", index=df.index)
+
+    if has_full_name:
+        # Full name exists: take it, and fill any blank row from merged first+last if available
+        full_series = (
+            df["Full Name (Shipping)"]
+            .astype(str)
+            .str.strip()
+            .replace(["nan", "None", ""], pd.NA)
+        )
+        if (first_col or last_col) and merged_series.ne("").any():
+            df["Full Name (Shipping)"] = full_series.fillna(merged_series)
+        else:
+            df["Full Name (Shipping)"] = full_series.fillna("")
+    else:
+        # No full name: take merged first + last
+        df["Full Name (Shipping)"] = merged_series
+
+    # Ensure First Name (Shipping) exists for compatibility with components expecting it
+    if (
+        "First Name (Shipping)" not in df.columns
+        or df["First Name (Shipping)"].isna().all()
+    ):
+        df["First Name (Shipping)"] = df["Full Name (Shipping)"]
 
     # Add empty Phone (Billing) if missing
     if "Phone (Billing)" not in df.columns:
@@ -161,7 +247,9 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         "Phone (Billing)",
         "Item Name",
         "SKU",
+        "Full Name (Shipping)",
         "First Name (Shipping)",
+        "Last Name (Shipping)",
         "State Name (Billing)",
         "Order Number",
         "Order ID",
@@ -226,26 +314,47 @@ def identify_columns(df: pd.DataFrame) -> Dict[str, Any]:
     if not cols["city_col"] and cols["state_col"]:
         cols["city_col"] = cols["state_col"]
 
-    # Recipient Name Column - Broaden search
+    # Recipient Name Column - Prioritize Full Name first
     cols["name_col"] = None
-    for c in df.columns:
-        c_l = c.lower()
-        if "name" in c_l:
-            # Prefer Full Name first, then shipping/first/last
-            if "full" in c_l:
-                cols["name_col"] = c
-                break
-            if any(k in c_l for k in ["shipping", "customer", "recipient"]):
-                if (
-                    not cols["name_col"]
-                    or "first" in cols["name_col"].lower()
-                    or "last" in cols["name_col"].lower()
-                ):
+    if (
+        "Full Name (Shipping)" in df.columns
+        and df["Full Name (Shipping)"]
+        .astype(str)
+        .str.strip()
+        .replace(["nan", "None", ""], pd.NA)
+        .notna()
+        .any()
+    ):
+        cols["name_col"] = "Full Name (Shipping)"
+    elif (
+        "Full Name" in df.columns
+        and df["Full Name"]
+        .astype(str)
+        .str.strip()
+        .replace(["nan", "None", ""], pd.NA)
+        .notna()
+        .any()
+    ):
+        cols["name_col"] = "Full Name"
+    else:
+        for c in df.columns:
+            c_l = c.lower()
+            if "name" in c_l:
+                # Prefer Full Name first, then shipping/first/last
+                if "full" in c_l:
                     cols["name_col"] = c
-                    if "first" not in c_l and "last" not in c_l:
-                        break
-            if not cols["name_col"]:
-                cols["name_col"] = c
+                    break
+                if any(k in c_l for k in ["shipping", "customer", "recipient"]):
+                    if (
+                        not cols["name_col"]
+                        or "first" in cols["name_col"].lower()
+                        or "last" in cols["name_col"].lower()
+                    ):
+                        cols["name_col"] = c
+                        if "first" not in c_l and "last" not in c_l:
+                            break
+                if not cols["name_col"]:
+                    cols["name_col"] = c
 
     # If name_col is still first/last only, prefer full name
     if cols["name_col"] and (
@@ -913,8 +1022,12 @@ def process_single_order_group(
         combined_merchant_id = _build_combined_merchant_id(df_sub, order_col)
 
         recipient_name = str(first_row.get(data_cols["name_col"], "")).strip().title()
-        if not recipient_name or recipient_name.lower() == "nan":
-            recipient_name = "Customer"
+        if not recipient_name or recipient_name.lower() in ("nan", "none", "customer", ""):
+            full_val = str(first_row.get("Full Name (Shipping)", "")).strip().title()
+            if full_val and full_val.lower() not in ("nan", "none", ""):
+                recipient_name = full_val
+            else:
+                recipient_name = "Customer"
 
         recipient_city, extracted_zone = _validate_city_zone(
             recipient_city, extracted_zone, address_val

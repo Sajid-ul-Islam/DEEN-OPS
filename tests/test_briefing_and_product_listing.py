@@ -1,7 +1,10 @@
 """Unit tests for executive briefing gross format and product listing summary row."""
 
 import pandas as pd
-from src.processing.data_processing import generate_executive_briefing
+from src.processing.data_processing import (
+    aggregate_product_listing,
+    generate_executive_briefing,
+)
 
 
 def test_generate_executive_briefing_gross_only():
@@ -48,11 +51,11 @@ def test_product_listing_summary_row_structure():
         }
     )
 
-    merged = (
-        df.groupby(["Item Name", "SKU"], as_index=False)["Quantity"]
-        .sum()
-        .sort_values(by="Quantity", ascending=False)
-        .reset_index(drop=True)
+    merged = aggregate_product_listing(
+        df,
+        item_col="Item Name",
+        qty_col="Quantity",
+        sku_col="SKU",
     )
     tot_units = int(merged["Quantity"].sum())
     unique_orders = df["Order ID"].nunique()
@@ -73,6 +76,76 @@ def test_product_listing_summary_row_structure():
     assert "TOTAL: 3 Orders" in str(last_row["Item Name"])
     assert "#103" in str(last_row["Item Name"])
     assert last_row["Quantity"] == 10
+
+
+def test_aggregate_product_listing_sorts_item_then_sku():
+    """Ensure product listing sorts first item-wise, then SKU-wise regardless of row order or quantities."""
+    df = pd.DataFrame(
+        {
+            "Item Name": [
+                "Zebra Pants",
+                "Alpha Shirt",
+                "Alpha Shirt",
+                "Beta Panjabi",
+                "Beta Panjabi",
+                "Alpha Shirt",
+            ],
+            "SKU": [
+                "ZP-01",
+                "AS-XL",
+                "AS-M",
+                "BP-40",
+                "BP-38",
+                "AS-L",
+            ],
+            "Quantity": [100, 5, 20, 15, 30, 2],
+        }
+    )
+
+    result = aggregate_product_listing(
+        df,
+        item_col="Item Name",
+        qty_col="Quantity",
+        sku_col="SKU",
+    )
+
+    # Must be sorted: Alpha Shirt (AS-L, AS-M, AS-XL), Beta Panjabi (BP-38, BP-40), Zebra Pants (ZP-01)
+    expected_items = [
+        "Alpha Shirt",
+        "Alpha Shirt",
+        "Alpha Shirt",
+        "Beta Panjabi",
+        "Beta Panjabi",
+        "Zebra Pants",
+    ]
+    expected_skus = ["AS-L", "AS-M", "AS-XL", "BP-38", "BP-40", "ZP-01"]
+    expected_qtys = [2, 20, 5, 30, 15, 100]
+
+    assert result["Item Name"].tolist() == expected_items
+    assert result["SKU"].tolist() == expected_skus
+    assert result["Quantity"].tolist() == expected_qtys
+
+
+def test_aggregate_product_listing_without_sku():
+    """Ensure product listing sorts item-wise when SKU column is omitted or None."""
+    df = pd.DataFrame(
+        {
+            "Item Name": ["Shirt", "Pant", "Panjabi", "Belt"],
+            "Quantity": [10, 5, 20, 2],
+        }
+    )
+
+    result = aggregate_product_listing(
+        df,
+        item_col="Item Name",
+        qty_col="Quantity",
+        sku_col=None,
+    )
+
+    expected_items = ["Belt", "Panjabi", "Pant", "Shirt"]
+    assert result["Item Name"].tolist() == expected_items
+    assert result["Quantity"].tolist() == [2, 20, 5, 10]
+
 
 
 def test_product_listing_column_auto_detection():
@@ -170,3 +243,76 @@ def test_aggregate_data_and_donut_chart_handles_nan_quantity():
     assert not summ["Total Amount"].isna().any(), "Total Amount in summ must not contain any NaN"
     assert summ.loc[summ["Category"] == "Shirt", "Total Qty"].iloc[0] == 2.0
     assert summ.loc[summ["Category"] == "Shirt", "Total Amount"].iloc[0] == 2000.0
+
+
+def test_product_listing_export_file_sorted_item_then_sku():
+    """Verify that export file data is sorted item-wise first, then SKU-wise, and export_to_styled_excel generates valid xlsx."""
+    from src.services.exports.excel_exporter import export_to_styled_excel
+
+    raw_data = pd.DataFrame(
+        {
+            "Item Name": [
+                "Pants",
+                "Shirt",
+                "Shirt",
+                "Panjabi",
+                "Panjabi",
+            ],
+            "SKU": [
+                "P-32",
+                "S-XL",
+                "S-M",
+                "PJ-42",
+                "PJ-40",
+            ],
+            "Quantity": [1, 2, 3, 4, 5],
+        }
+    )
+
+    merged = aggregate_product_listing(
+        raw_data,
+        item_col="Item Name",
+        qty_col="Quantity",
+        sku_col="SKU",
+    )
+
+    summary_row = {
+        "Item Name": "TOTAL: 5 Orders",
+        "SKU": "Date: 13 Sep 2026",
+        "Quantity": 15,
+    }
+    display_df = pd.concat([merged, pd.DataFrame([summary_row])], ignore_index=True)
+
+    # First row is Panjabi / PJ-40
+    assert display_df.iloc[0]["Item Name"] == "Panjabi"
+    assert display_df.iloc[0]["SKU"] == "PJ-40"
+
+    # Second row is Panjabi / PJ-42
+    assert display_df.iloc[1]["Item Name"] == "Panjabi"
+    assert display_df.iloc[1]["SKU"] == "PJ-42"
+
+    # Third row is Pants / P-32
+    assert display_df.iloc[2]["Item Name"] == "Pants"
+    assert display_df.iloc[2]["SKU"] == "P-32"
+
+    # Fourth row is Shirt / S-M
+    assert display_df.iloc[3]["Item Name"] == "Shirt"
+    assert display_df.iloc[3]["SKU"] == "S-M"
+
+    # Fifth row is Shirt / S-XL
+    assert display_df.iloc[4]["Item Name"] == "Shirt"
+    assert display_df.iloc[4]["SKU"] == "S-XL"
+
+    # Summary row at the end
+    assert "TOTAL" in display_df.iloc[5]["Item Name"]
+
+    # Export to styled Excel
+    excel_bytes = export_to_styled_excel(
+        {"Product Listing": display_df},
+        group_by_col="Item Name",
+    )
+    assert isinstance(excel_bytes, bytes)
+    assert len(excel_bytes) > 0
+    # Valid ZIP header for xlsx
+    assert excel_bytes[:2] == b"PK"
+

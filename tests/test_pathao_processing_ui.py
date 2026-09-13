@@ -352,3 +352,121 @@ def test_reset_clears_mapping_and_uploaded_source_state(page, orders, monkeypatc
     assert "pathao_mapping_confirmation" not in page.session_state
     assert "pathao_map_Quantity" not in page.session_state
     assert "pathao_res_df" not in page.session_state
+
+
+def test_order_processor_accepts_full_name_directly():
+    """When Full Name column is provided, processor takes it directly."""
+    from src.processing.order_processor import clean_dataframe, process_orders_dataframe
+
+    df = pd.DataFrame(
+        [
+            {
+                "Order ID": "2001",
+                "Phone (Billing)": "01711223344",
+                "Full Name": "Rahim Uddin",
+                "Address 1&2 (Shipping)": "Road 1, Dhanmondi, Dhaka",
+                "Item Name": "Polo Shirt",
+                "Quantity": 1,
+                "Item Cost": 500,
+                "Order Total Amount": 500,
+            }
+        ]
+    )
+    cleaned = clean_dataframe(df)
+    assert cleaned["Full Name (Shipping)"].iloc[0] == "Rahim Uddin"
+
+    result = process_orders_dataframe(df)
+    assert result["RecipientName(*)"].iloc[0] == "Rahim Uddin"
+
+
+def test_order_processor_merges_first_and_last_name():
+    """When First Name and Last Name are provided without Full Name, processor merges them."""
+    from src.processing.order_processor import clean_dataframe, process_orders_dataframe
+
+    df = pd.DataFrame(
+        [
+            {
+                "Order ID": "2002",
+                "Phone (Billing)": "01811223344",
+                "First Name": "Karim",
+                "Last Name": "Chowdhury",
+                "Address 1&2 (Shipping)": "Road 2, Gulshan, Dhaka",
+                "Item Name": "Casual Shirt",
+                "Quantity": 1,
+                "Item Cost": 800,
+                "Order Total Amount": 800,
+            }
+        ]
+    )
+    cleaned = clean_dataframe(df)
+    assert cleaned["Full Name (Shipping)"].iloc[0] == "Karim Chowdhury"
+
+    result = process_orders_dataframe(df)
+    assert result["RecipientName(*)"].iloc[0] == "Karim Chowdhury"
+
+
+def test_order_processor_prefers_full_name_over_first_last():
+    """When both Full Name and First/Last name exist, processor takes Full Name."""
+    from src.processing.order_processor import clean_dataframe, process_orders_dataframe
+
+    df = pd.DataFrame(
+        [
+            {
+                "Order ID": "2003",
+                "Phone (Billing)": "01911223344",
+                "Full Name": "Dr. Mohammad Ali",
+                "First Name": "Mohammad",
+                "Last Name": "Ali",
+                "Address 1&2 (Shipping)": "Road 3, Banani, Dhaka",
+                "Item Name": "Panjabi",
+                "Quantity": 1,
+                "Item Cost": 1200,
+                "Order Total Amount": 1200,
+            }
+        ]
+    )
+    cleaned = clean_dataframe(df)
+    assert cleaned["Full Name (Shipping)"].iloc[0] == "Dr. Mohammad Ali"
+
+    result = process_orders_dataframe(df)
+    assert result["RecipientName(*)"].iloc[0] == "Dr. Mohammad Ali"
+
+
+def test_detect_and_map_columns_handles_full_or_first_last():
+    """Verify _detect_and_map_columns accepts either Full Name or First + Last name."""
+    # Case A: Full Name provided
+    df_full = pd.DataFrame(
+        {
+            "Phone": ["01711111111"],
+            "Customer Name": ["Tanvir Ahmed"],
+            "Address": ["House 1, Uttara, Dhaka"],
+            "Item": ["Shirt"],
+            "Qty": [1],
+            "Price": [500],
+            "Total": [500],
+            "Order #": ["9001"],
+        }
+    )
+    mapped_full, mapping_full, missing_full = processing_tab._detect_and_map_columns(df_full)
+    assert mapped_full["Full Name (Shipping)"].iloc[0] == "Tanvir Ahmed"
+    assert mapped_full["First Name (Shipping)"].iloc[0] == "Tanvir Ahmed"
+    assert "Full Name (Shipping)" not in missing_full
+
+    # Case B: First Name and Last Name provided
+    df_split = pd.DataFrame(
+        {
+            "Phone": ["01722222222"],
+            "First Name": ["Sabbir"],
+            "Last Name": ["Hossain"],
+            "Address": ["House 2, Mirpur, Dhaka"],
+            "Item": ["Pants"],
+            "Qty": [1],
+            "Price": [700],
+            "Total": [700],
+            "Order #": ["9002"],
+        }
+    )
+    mapped_split, mapping_split, missing_split = processing_tab._detect_and_map_columns(df_split)
+    assert mapped_split["Full Name (Shipping)"].iloc[0] == "Sabbir Hossain"
+    assert "Full Name (Shipping)" not in missing_split
+
