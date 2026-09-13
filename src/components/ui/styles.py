@@ -153,4 +153,3 @@ def inject_base_styles():
         """
         if hasattr(st, "html"):
             st.html(theme_sync_script, unsafe_allow_javascript=True)
-

@@ -991,8 +991,8 @@ def load_live_source(force_refresh=False):
 
     df_snap = load_sales_snapshot()
     if df_snap is not None and not df_snap.empty:
-        df_live, df_prev, df_backlog, slot_label, slots = (
-            _partition_operational_data(df_snap)
+        df_live, df_prev, df_backlog, slot_label, slots = _partition_operational_data(
+            df_snap
         )
         st.session_state["wc_curr_df"] = scrub_raw_dataframe(df_live)
         st.session_state["wc_prev_df"] = scrub_raw_dataframe(df_prev)

@@ -95,4 +95,3 @@ def test_stock_categorization(product_name, expected_stock_cat):
 def test_order_processor_get_short_sub_category(product_name, expected_type):
     item_type = get_short_sub_category(product_name)
     assert item_type == expected_type
-

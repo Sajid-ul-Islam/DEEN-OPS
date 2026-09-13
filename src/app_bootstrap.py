@@ -602,7 +602,9 @@ def run_app() -> None:
 
         def _seed_registry_bg():
             try:
-                from src.utils.customer_registry_full import update_full_registry_from_df
+                from src.utils.customer_registry_full import (
+                    update_full_registry_from_df,
+                )
                 from src.utils.snapshots import load_sales_snapshot
 
                 _snap = load_sales_snapshot()
@@ -613,7 +615,9 @@ def run_app() -> None:
 
         import threading
 
-        threading.Thread(target=_seed_registry_bg, daemon=True, name="CustomerRegistrySeed").start()
+        threading.Thread(
+            target=_seed_registry_bg, daemon=True, name="CustomerRegistrySeed"
+        ).start()
     inject_base_styles()
     _rotate_error_logs()
 

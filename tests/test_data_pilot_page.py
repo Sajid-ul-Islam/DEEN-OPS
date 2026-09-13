@@ -8,11 +8,11 @@ from streamlit.testing.v1 import AppTest
 
 def test_data_pilot_page_renders_without_unbound_local_error(tmp_path):
     """Ensure Data Pilot page renders cleanly without 'prompt' UnboundLocalError."""
-    script_content = '''import streamlit as st
+    script_content = """import streamlit as st
 from src.pages.data_pilot import render_ai_pilot_page
 
 render_ai_pilot_page()
-'''
+"""
     test_file = tmp_path / "test_pilot_render.py"
     test_file.write_text(script_content, encoding="utf-8")
 

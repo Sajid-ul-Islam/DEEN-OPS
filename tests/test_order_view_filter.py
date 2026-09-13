@@ -55,9 +55,7 @@ def fake_session(monkeypatch):
     monkeypatch.setattr(
         "src.processing.data_processing.bd_today", lambda: fixture_today
     )
-    monkeypatch.setattr(
-        "src.pages.live_dashboard.bd_today", lambda: fixture_today
-    )
+    monkeypatch.setattr("src.pages.live_dashboard.bd_today", lambda: fixture_today)
     return st.session_state
 
 
@@ -128,9 +126,7 @@ def test_live_dashboard_today_and_last_day_are_sales_only():
     assert set(
         filter_live_dashboard_view(df, "Last Day Shipped", reference)["Order ID"]
     ) == {2}
-    assert set(
-        filter_live_dashboard_view(df, "Last Day", reference)["Order ID"]
-    ) == {2}
+    assert set(filter_live_dashboard_view(df, "Last Day", reference)["Order ID"]) == {2}
 
 
 def test_live_dashboard_queue_is_date_independent_and_excludes_processing():
@@ -175,9 +171,11 @@ def test_live_dashboard_all_orders_excludes_hold_waiting_and_cancelled():
 
     # IDs 1 (today completed), 2 (today processing), 4 (prior unfulfilled queue processing) are kept.
     # Cancelled (3) and hold/waiting/pending (5, 7, 8, 9, 10) are excluded.
-    assert set(
-        filter_live_dashboard_view(df, "All Orders", reference)["Order ID"]
-    ) == {1, 2, 4}
+    assert set(filter_live_dashboard_view(df, "All Orders", reference)["Order ID"]) == {
+        1,
+        2,
+        4,
+    }
 
 
 def test_compute_live_filter_counts_matches_filter_views():

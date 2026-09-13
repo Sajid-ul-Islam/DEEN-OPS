@@ -85,14 +85,18 @@ def render_category_charts(
     summ_display = summ.copy()
     if "Total Qty" in summ_display.columns:
         summ_display["Total Qty"] = (
-            pd.to_numeric(summ_display["Total Qty"], errors="coerce").fillna(0).astype(float)
+            pd.to_numeric(summ_display["Total Qty"], errors="coerce")
+            .fillna(0)
+            .astype(float)
         )
     else:
         summ_display["Total Qty"] = 0.0
 
     if "Total Amount" in summ_display.columns:
         summ_display["Total Amount"] = (
-            pd.to_numeric(summ_display["Total Amount"], errors="coerce").fillna(0.0).astype(float)
+            pd.to_numeric(summ_display["Total Amount"], errors="coerce")
+            .fillna(0.0)
+            .astype(float)
         )
     else:
         summ_display["Total Amount"] = 0.0
@@ -208,18 +212,26 @@ def render_category_charts(
         )
 
         pie_display["Total Qty"] = (
-            pd.to_numeric(pie_display["Total Qty"], errors="coerce").fillna(0).astype(float)
+            pd.to_numeric(pie_display["Total Qty"], errors="coerce")
+            .fillna(0)
+            .astype(float)
         )
         pie_display["Total Amount"] = (
-            pd.to_numeric(pie_display["Total Amount"], errors="coerce").fillna(0.0).astype(float)
+            pd.to_numeric(pie_display["Total Amount"], errors="coerce")
+            .fillna(0.0)
+            .astype(float)
         )
 
         pie_display["Avg_Price"] = pie_display.apply(
-            lambda r: (r["Total Amount"] / r["Total Qty"]) if r["Total Qty"] > 0 else 0.0,
+            lambda r: (
+                (r["Total Amount"] / r["Total Qty"]) if r["Total Qty"] > 0 else 0.0
+            ),
             axis=1,
         )
         pie_display["Avg_Price"] = (
-            pd.to_numeric(pie_display["Avg_Price"], errors="coerce").fillna(0.0).astype(float)
+            pd.to_numeric(pie_display["Avg_Price"], errors="coerce")
+            .fillna(0.0)
+            .astype(float)
         )
 
         fig_pie = px.pie(
@@ -295,7 +307,6 @@ def render_category_charts(
             fig_pie, use_container_width=True, config={"displayModeBar": False}
         )
 
-
     with v2:
         bar_axis = "Sub-Category" if "Sub-Category" in summ.columns else display_col
         bar_display = summ_display.copy()
@@ -329,18 +340,26 @@ def render_category_charts(
             sorted_bars = x_totals.index.tolist()
 
         bar_display["Total Qty"] = (
-            pd.to_numeric(bar_display["Total Qty"], errors="coerce").fillna(0).astype(float)
+            pd.to_numeric(bar_display["Total Qty"], errors="coerce")
+            .fillna(0)
+            .astype(float)
         )
         bar_display["Total Amount"] = (
-            pd.to_numeric(bar_display["Total Amount"], errors="coerce").fillna(0.0).astype(float)
+            pd.to_numeric(bar_display["Total Amount"], errors="coerce")
+            .fillna(0.0)
+            .astype(float)
         )
         bar_display = bar_display.sort_values("Total Qty", ascending=False)
         bar_display["Avg_Unit_Price"] = bar_display.apply(
-            lambda r: (r["Total Amount"] / r["Total Qty"]) if r["Total Qty"] > 0 else 0.0,
+            lambda r: (
+                (r["Total Amount"] / r["Total Qty"]) if r["Total Qty"] > 0 else 0.0
+            ),
             axis=1,
         )
         bar_display["Avg_Unit_Price"] = (
-            pd.to_numeric(bar_display["Avg_Unit_Price"], errors="coerce").fillna(0.0).astype(float)
+            pd.to_numeric(bar_display["Avg_Unit_Price"], errors="coerce")
+            .fillna(0.0)
+            .astype(float)
         )
 
         unique_bars = pd.DataFrame({"Bar_X": sorted_bars})
@@ -599,4 +618,3 @@ def render_spotlight(
     fig_top.update_yaxes(automargin=True)
     fig_top.update_xaxes(automargin=True)
     st.plotly_chart(fig_top, use_container_width=True, config={"displayModeBar": False})
-

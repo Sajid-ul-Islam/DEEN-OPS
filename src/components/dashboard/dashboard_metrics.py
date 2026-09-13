@@ -670,7 +670,10 @@ def render_operational_metrics(
     )
 
     rendered_react = False
-    from src.components.react_kpi import is_react_kpi_available, render_react_kpi_toolbar
+    from src.components.react_kpi import (
+        is_react_kpi_available,
+        render_react_kpi_toolbar,
+    )
 
     if is_react_kpi_available() and st.session_state.get("use_react_kpi", True):
         try:
@@ -745,7 +748,11 @@ def render_operational_metrics(
                 sync_time=sync_time,
             )
 
-            if selected_new and selected_new != dashboard_view and selected_new in views:
+            if (
+                selected_new
+                and selected_new != dashboard_view
+                and selected_new in views
+            ):
                 apply_dashboard_view_selection(selected_new)
                 st.rerun()
 

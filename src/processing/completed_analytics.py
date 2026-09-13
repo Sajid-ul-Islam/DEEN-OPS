@@ -156,7 +156,8 @@ def classify_order_source(
                 "ecom mirpur",
             ):
                 if any(
-                    outlet in dispatch for outlet in ("wari", "cumilla", "sylhet", "outlet")
+                    outlet in dispatch
+                    for outlet in ("wari", "cumilla", "sylhet", "outlet")
                 ):
                     return "Outlet"
 
@@ -190,7 +191,6 @@ def filter_online_orders(df: pd.DataFrame) -> pd.DataFrame:
     source_col = detect_source_column(df)
     sources = df.apply(lambda r: classify_order_source(r, source_col), axis=1)
     return df[sources == "Online"].copy()
-
 
 
 def filter_completed_orders_by_date(

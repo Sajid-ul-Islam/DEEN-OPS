@@ -480,8 +480,8 @@ def filter_live_dashboard_view(df, view: str, reference_date=None):
         is_today_created_date = (created_date == today) | (created_date == friday_date)
         queue_prior_date = friday_date
     else:
-        is_today_shipped_date = (sale_date == today)
-        is_today_created_date = (created_date == today)
+        is_today_shipped_date = sale_date == today
+        is_today_created_date = created_date == today
         queue_prior_date = today
 
     if v in {"Today Shipped", "Today"}:
@@ -587,8 +587,8 @@ def compute_live_filter_counts(df, reference_date=None) -> dict[str, int]:
         is_today_created_date = (created_date == today) | (created_date == friday_date)
         queue_prior_date = friday_date
     else:
-        is_today_shipped_date = (sale_date == today)
-        is_today_created_date = (created_date == today)
+        is_today_shipped_date = sale_date == today
+        is_today_created_date = created_date == today
         queue_prior_date = today
 
     masks = {

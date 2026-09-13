@@ -337,6 +337,7 @@ def _render_dashboard_view_selector():
     }
     today_val = bd_today()
     from src.processing.data_processing import get_previous_working_day
+
     prev_w_day = get_previous_working_day(today_val)
     prev_day_name = prev_w_day.strftime("%A")
 
@@ -596,10 +597,20 @@ def _render_manual_upload_override():
                     df_up = read_sales_file(uploaded, uploaded.name)
                     if df_up is not None and not df_up.empty:
                         # Ensure date parsing compatibility
-                        if "Order Date" in df_up.columns and "dt_parsed" not in df_up.columns:
-                            df_up["dt_parsed"] = safe_coerce_datetime_naive(df_up["Order Date"])
-                        if "Order Date Modified" in df_up.columns and "mod_dt_parsed" not in df_up.columns:
-                            df_up["mod_dt_parsed"] = safe_coerce_datetime_naive(df_up["Order Date Modified"])
+                        if (
+                            "Order Date" in df_up.columns
+                            and "dt_parsed" not in df_up.columns
+                        ):
+                            df_up["dt_parsed"] = safe_coerce_datetime_naive(
+                                df_up["Order Date"]
+                            )
+                        if (
+                            "Order Date Modified" in df_up.columns
+                            and "mod_dt_parsed" not in df_up.columns
+                        ):
+                            df_up["mod_dt_parsed"] = safe_coerce_datetime_naive(
+                                df_up["Order Date Modified"]
+                            )
 
                         st.session_state["live_manual_override_df"] = df_up
                         st.session_state["live_manual_override_name"] = uploaded.name
@@ -630,4 +641,3 @@ def render_dashboard_banner(load_live_source):
         _render_refresh_controls(nav_mode, load_live_source)
 
     _render_manual_upload_override()
-

@@ -1,7 +1,7 @@
 """Unit tests for everyday product-wise shipped/completed order list export."""
 
 import pandas as pd
-from datetime import date, datetime
+from datetime import date
 import pytest
 
 from src.processing.completed_analytics import filter_shipped_order_items
@@ -93,7 +93,9 @@ def sample_orders_df():
 def test_filter_shipped_order_items_product_wise(sample_orders_df):
     """Verify that multiple line items for the same order are all preserved (product-wise)."""
     target_d = date(2026, 9, 12)
-    filtered = filter_shipped_order_items(sample_orders_df, start_date=target_d, end_date=target_d)
+    filtered = filter_shipped_order_items(
+        sample_orders_df, start_date=target_d, end_date=target_d
+    )
 
     # Order 1001 has 2 items on 2026-09-12; Order 1003 is processing (excluded); Order 1004 is cancelled (excluded)
     assert len(filtered) == 2
@@ -144,8 +146,12 @@ def test_filter_shipped_order_items_source_filter(sample_orders_df):
 def test_export_to_styled_excel_with_shipped_items(sample_orders_df):
     """Verify styled Excel export produces valid bytes with grouping by Order ID."""
     target_d = date(2026, 9, 12)
-    filtered = filter_shipped_order_items(sample_orders_df, start_date=target_d, end_date=target_d)
-    excel_bytes = export_to_styled_excel({"Shipped Items": filtered}, group_by_col="Order ID")
+    filtered = filter_shipped_order_items(
+        sample_orders_df, start_date=target_d, end_date=target_d
+    )
+    excel_bytes = export_to_styled_excel(
+        {"Shipped Items": filtered}, group_by_col="Order ID"
+    )
     assert isinstance(excel_bytes, bytes)
     assert len(excel_bytes) > 1000
 
@@ -155,9 +161,22 @@ def test_classify_order_source_checkout_vs_pos():
     from src.processing.completed_analytics import classify_order_source
 
     # Website checkout orders
-    online_row1 = pd.Series({"Payment Method Title": "Cash on delivery", "Order ID": "15001"})
-    online_row2 = pd.Series({"Payment Method Title": "Pay Online(Credit/Debit Card/MobileBanking/NetBanking/bKash)", "Order ID": "15002"})
-    online_row3 = pd.Series({"Created via": "checkout", "Payment Method Title": "bKash", "Order ID": "15003"})
+    online_row1 = pd.Series(
+        {"Payment Method Title": "Cash on delivery", "Order ID": "15001"}
+    )
+    online_row2 = pd.Series(
+        {
+            "Payment Method Title": "Pay Online(Credit/Debit Card/MobileBanking/NetBanking/bKash)",
+            "Order ID": "15002",
+        }
+    )
+    online_row3 = pd.Series(
+        {
+            "Created via": "checkout",
+            "Payment Method Title": "bKash",
+            "Order ID": "15003",
+        }
+    )
     online_row4 = pd.Series({"Payment Method Title": "Ecom", "Order ID": "15004"})
 
     assert classify_order_source(online_row1) == "Online"
@@ -169,8 +188,12 @@ def test_classify_order_source_checkout_vs_pos():
     pos_row1 = pd.Series({"Payment Method Title": "Cash", "Order ID": "14248"})
     pos_row2 = pd.Series({"Payment Method Title": "UCB", "Order ID": "14241"})
     pos_row3 = pd.Series({"Payment Method Title": "City Bank", "Order ID": "14058"})
-    pos_row4 = pd.Series({"Payment Method Title": "Split: bKash + Cash", "Order ID": "14022"})
-    pos_row5 = pd.Series({"Order ID": "15005 c", "Payment Method Title": "Cash on delivery"})  # Cumilla outlet order ID
+    pos_row4 = pd.Series(
+        {"Payment Method Title": "Split: bKash + Cash", "Order ID": "14022"}
+    )
+    pos_row5 = pd.Series(
+        {"Order ID": "15005 c", "Payment Method Title": "Cash on delivery"}
+    )  # Cumilla outlet order ID
     pos_row6 = pd.Series({"Created via": "pos", "Order ID": "15006"})
 
     assert classify_order_source(pos_row1) == "Outlet"
@@ -218,7 +241,10 @@ def test_order_placed_any_date_shipped_target_date_exported():
 
 def test_kpi_card_matches_product_wise_export():
     """Verify that KPI card metrics (Orders, Units, Revenue) match the product-wise export 100%."""
-    from src.processing.data_processing import filter_live_dashboard_view, prepare_granular_data
+    from src.processing.data_processing import (
+        filter_live_dashboard_view,
+        prepare_granular_data,
+    )
 
     # Dataset with orders of varying statuses and line items
     test_df = pd.DataFrame(
@@ -273,7 +299,9 @@ def test_kpi_card_matches_product_wise_export():
     target_d = date(2026, 9, 12)
 
     # 1. KPI View path
-    df_kpi_view = filter_live_dashboard_view(test_df, "Today Shipped", reference_date=target_d)
+    df_kpi_view = filter_live_dashboard_view(
+        test_df, "Today Shipped", reference_date=target_d
+    )
     mapping = {
         "name": "Product Name",
         "cost": "Item Cost",
@@ -288,7 +316,9 @@ def test_kpi_card_matches_product_wise_export():
     kpi_revenue = std_kpi["Total Amount"].sum()
 
     # 2. Product-wise Export path
-    df_export = filter_shipped_order_items(test_df, start_date=target_d, end_date=target_d)
+    df_export = filter_shipped_order_items(
+        test_df, start_date=target_d, end_date=target_d
+    )
     exp_orders = df_export["Order ID"].nunique()
     exp_units = df_export["Quantity"].sum()
     exp_revenue = (df_export["Quantity"] * df_export["Item Cost"]).sum()
@@ -306,15 +336,27 @@ def test_filter_online_orders_isolates_checkout():
     df = pd.DataFrame(
         [
             # Online COD
-            {"Order ID": 201, "Payment Method Title": "Cash on delivery", "Created via": "checkout"},
+            {
+                "Order ID": 201,
+                "Payment Method Title": "Cash on delivery",
+                "Created via": "checkout",
+            },
             # Online Pay Online
-            {"Order ID": 202, "Payment Method Title": "Pay Online(bKash)", "Created via": "checkout"},
+            {
+                "Order ID": 202,
+                "Payment Method Title": "Pay Online(bKash)",
+                "Created via": "checkout",
+            },
             # Outlet Cash counter
             {"Order ID": 203, "Payment Method Title": "Cash", "Created via": ""},
             # Outlet Card terminal
             {"Order ID": 204, "Payment Method Title": "UCB", "Created via": ""},
             # Outlet suffix
-            {"Order ID": "205 c", "Payment Method Title": "Cash on delivery", "Created via": ""},
+            {
+                "Order ID": "205 c",
+                "Payment Method Title": "Cash on delivery",
+                "Created via": "",
+            },
         ]
     )
 
@@ -330,8 +372,16 @@ def test_live_dashboard_manual_override():
 
     mock_manual = pd.DataFrame(
         [
-            {"Order ID": 901, "Payment Method Title": "Cash on delivery", "Order Status": "shipped"},
-            {"Order ID": 902, "Payment Method Title": "Cash", "Order Status": "shipped"},  # Outlet
+            {
+                "Order ID": 901,
+                "Payment Method Title": "Cash on delivery",
+                "Order Status": "shipped",
+            },
+            {
+                "Order ID": 902,
+                "Payment Method Title": "Cash",
+                "Order Status": "shipped",
+            },  # Outlet
         ]
     )
 
@@ -376,29 +426,48 @@ def test_saturday_counts_friday_and_compares_with_thursday():
     df = pd.DataFrame(
         [
             # Thursday shipment (1 order)
-            {"Order ID": 10, "Order Status": "shipped", "dt_parsed": "2026-09-10 10:00:00", "mod_dt_parsed": "2026-09-10 12:00:00"},
+            {
+                "Order ID": 10,
+                "Order Status": "shipped",
+                "dt_parsed": "2026-09-10 10:00:00",
+                "mod_dt_parsed": "2026-09-10 12:00:00",
+            },
             # Friday shipment (1 order - off day dispatch)
-            {"Order ID": 11, "Order Status": "shipped", "dt_parsed": "2026-09-11 11:00:00", "mod_dt_parsed": "2026-09-11 15:00:00"},
+            {
+                "Order ID": 11,
+                "Order Status": "shipped",
+                "dt_parsed": "2026-09-11 11:00:00",
+                "mod_dt_parsed": "2026-09-11 15:00:00",
+            },
             # Saturday shipment (2 orders)
-            {"Order ID": 12, "Order Status": "shipped", "dt_parsed": "2026-09-12 09:00:00", "mod_dt_parsed": "2026-09-12 11:00:00"},
-            {"Order ID": 13, "Order Status": "completed", "dt_parsed": "2026-09-12 10:00:00", "mod_dt_parsed": "2026-09-12 14:00:00"},
+            {
+                "Order ID": 12,
+                "Order Status": "shipped",
+                "dt_parsed": "2026-09-12 09:00:00",
+                "mod_dt_parsed": "2026-09-12 11:00:00",
+            },
+            {
+                "Order ID": 13,
+                "Order Status": "completed",
+                "dt_parsed": "2026-09-12 10:00:00",
+                "mod_dt_parsed": "2026-09-12 14:00:00",
+            },
         ]
     )
 
     # 2. On Saturday, Today Shipped includes Friday (Order 11) + Saturday (Orders 12, 13) = 3 orders
-    today_shipped = filter_live_dashboard_view(df, "Today Shipped", reference_date=saturday)
+    today_shipped = filter_live_dashboard_view(
+        df, "Today Shipped", reference_date=saturday
+    )
     assert set(today_shipped["Order ID"]) == {11, 12, 13}
 
     # 3. On Saturday, Last Day Shipped includes Thursday (Order 10)
-    last_day_shipped = filter_live_dashboard_view(df, "Last Day Shipped", reference_date=saturday)
+    last_day_shipped = filter_live_dashboard_view(
+        df, "Last Day Shipped", reference_date=saturday
+    )
     assert set(last_day_shipped["Order ID"]) == {10}
 
     # 4. Count badges match
     counts = compute_live_filter_counts(df, reference_date=saturday)
     assert counts["Today Shipped"] == 3
     assert counts["Last Day Shipped"] == 1
-
-
-
-
-

@@ -239,8 +239,12 @@ def test_aggregate_data_and_donut_chart_handles_nan_quantity():
 
     drill, summ, top, basket = aggregate_data(df, {})
     assert summ is not None
-    assert not summ["Total Qty"].isna().any(), "Total Qty in summ must not contain any NaN"
-    assert not summ["Total Amount"].isna().any(), "Total Amount in summ must not contain any NaN"
+    assert not summ["Total Qty"].isna().any(), (
+        "Total Qty in summ must not contain any NaN"
+    )
+    assert not summ["Total Amount"].isna().any(), (
+        "Total Amount in summ must not contain any NaN"
+    )
     assert summ.loc[summ["Category"] == "Shirt", "Total Qty"].iloc[0] == 2.0
     assert summ.loc[summ["Category"] == "Shirt", "Total Amount"].iloc[0] == 2000.0
 

@@ -41,7 +41,7 @@ def test_get_mobile_nav_items_filtering():
 
 def test_mobile_navbar_state_synchronization_apptest(tmp_path):
     """Test two-way synchronization between sidebar nav and mobile bottom navbar."""
-    script_content = '''import streamlit as st
+    script_content = """import streamlit as st
 from src.config.ui_config import PRIMARY_NAV, LEGACY_NAV_MAPPING
 from src.components.ui.mobile_navbar import render_mobile_navbar
 
@@ -85,7 +85,7 @@ render_mobile_navbar(
     current_nav=st.session_state["selected_nav"],
     on_change=_sync_from_mobile,
 )
-'''
+"""
     test_file = tmp_path / "test_app_mobile_sync.py"
     test_file.write_text(script_content, encoding="utf-8")
 
@@ -111,7 +111,7 @@ render_mobile_navbar(
 
 def test_nav_override_mapping_apptest(tmp_path):
     """Test that legacy/feature nav overrides map cleanly to consolidated primary nav."""
-    script_content = '''import streamlit as st
+    script_content = """import streamlit as st
 from src.config.ui_config import PRIMARY_NAV, LEGACY_NAV_MAPPING
 from src.components.ui.mobile_navbar import render_mobile_navbar
 
@@ -135,7 +135,7 @@ render_mobile_navbar(
     PRIMARY_NAV,
     current_nav=st.session_state["selected_nav"],
 )
-'''
+"""
     test_file = tmp_path / "test_app_override.py"
     test_file.write_text(script_content, encoding="utf-8")
 

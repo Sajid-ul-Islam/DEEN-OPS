@@ -151,7 +151,9 @@ def update_full_registry_from_df(df: "pd.DataFrame | None") -> int:
         raw_name = row.get(name_col)
         name = _norm_name(str(raw_name)) if name_col and pd.notnull(raw_name) else ""
         raw_city = row.get(city_col)
-        city = normalize_city_name(raw_city) if city_col and pd.notnull(raw_city) else ""
+        city = (
+            normalize_city_name(raw_city) if city_col and pd.notnull(raw_city) else ""
+        )
 
         # Determine bucket + key for THIS row.
         bucket = None
