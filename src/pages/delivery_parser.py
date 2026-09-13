@@ -124,138 +124,118 @@ def render_visual_report(df: pd.DataFrame):
         fig_store.update_layout(showlegend=False, margin=dict(t=40, b=10, l=10, r=10))
         st.plotly_chart(fig_store, use_container_width=True)
 
-    # ── COD amount distribution histogram ────────────────────────────────────
-    cod_nonzero = df[df["COD Amount"] > 0]["COD Amount"]
-    if not cod_nonzero.empty:
-        fig_cod = px.histogram(
-            cod_nonzero,
-            x=cod_nonzero,
-            nbins=20,
-            title="COD Amount Distribution",
-            labels={"x": "COD Amount (৳)"},
-            color_discrete_sequence=["#636EFA"],
-        )
-        fig_cod.update_layout(
-            bargap=0.05,
-            xaxis_title="COD Amount (৳)",
-            yaxis_title="Number of Parcels",
-            margin=dict(t=40, b=10, l=10, r=10),
-        )
-        st.plotly_chart(fig_cod, use_container_width=True)
+    # ── Financial Distribution Chart ─────────────────────────────────────────
+    fig_cod = px.histogram(
+        df,
+        x="COD Amount",
+        nbins=20,
+        title="COD Amount Distribution",
+        color_discrete_sequence=["#3b82f6"],
+    )
+    fig_cod.update_layout(
+        xaxis_title="COD Amount (৳)",
+        yaxis_title="Number of Parcels",
+        margin=dict(t=40, b=10, l=10, r=10),
+    )
+    st.plotly_chart(fig_cod, use_container_width=True)
 
 
 def render_fuzzy_parser_tab():
     render_reset_confirm("Delivery Data Parser", "parser", _reset_parser_state)
 
-    tab1, tab2 = st.tabs(
-        [":material/rule: Standard Parser", ":material/psychology_alt: Fuzzy Parser"]
+    st.markdown("### 🧩 Smart Delivery Data Parser")
+    st.caption(
+        "Paste copied courier or delivery detail blocks (standard or unstructured). "
+        "The smart engine applies pattern recognition and automatic fuzzy fallback to extract parcels, COD amounts, and customer details."
     )
 
-    with tab1:
-        raw_text = st.text_area(
-            "",
-            value="",
-            height=150,
-            placeholder="Paste copied courier detail blocks...",
-            key="standard_raw_text",
+    raw_text = st.text_area(
+        "Courier Data Input",
+        value="",
+        height=180,
+        placeholder="Paste copied courier detail blocks (e.g., standard Pathao/courier logs or unstructured notes)...",
+        key="delivery_parser_raw_text",
+        label_visibility="collapsed",
+    )
+
+    col_btn, col_opt = st.columns([2, 1])
+    with col_opt:
+        force_fuzzy = st.checkbox(
+            "Force Aggressive Fuzzy Mode",
+            value=False,
+            help="Bypasses standard parsing rules to handle heavily irregular or fragmented text directly with fuzzy pattern matching.",
+            key="delivery_force_fuzzy",
         )
+    with col_btn:
         parse_clicked, _ = render_action_bar(
-            "Parse with standard rules",
-            "standard_btn",
+            "Parse Delivery Records",
+            "delivery_parse_btn",
         )
 
-        if parse_clicked:
-            parsed_df = parse_records(raw_text)
-            if parsed_df.empty:
-                st.error("No records were found from standard parser input.")
-            else:
-                st.session_state.standard_parsed_df = parsed_df
-                st.toast(f"✅ Parsed {len(parsed_df)} records.")
-
-        if st.session_state.get("standard_parsed_df") is not None:
-            df_to_show = st.session_state.standard_parsed_df
-            calc_height = min(800, max(400, len(df_to_show) * 35 + 43))
-            search_df = render_dataframe_search(df_to_show, "delivery_std")
-            st.dataframe(search_df, use_container_width=True, height=calc_height)
-            render_visual_report(df_to_show)
-            st.download_button(
-                "Download standard parser output",
-                to_excel_bytes(
-                    st.session_state.standard_parsed_df,
-                    sheet_name="Deliveries",
-                    style_fn=_style_deliveries_sheet,
-                ),
-                f"deliveries_{datetime.now().strftime('%d-%m-%Y')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                type="primary",
-            )
-
-    with tab2:
-        fuzzy_raw_text = st.text_area(
-            "",
-            value="",
-            height=150,
-            placeholder="Paste loosely structured text here...",
-            key="fuzzy_raw_text",
-        )
-        fuzzy_parse_clicked, _ = render_action_bar(
-            "Parse with fuzzy fallback",
-            "fuzzy_btn",
-        )
-
-        if fuzzy_parse_clicked:
-            if not fuzzy_raw_text.strip():
-                st.warning("Paste some text before parsing.")
-            else:
-                with st.status("🧩 Processing text...", expanded=True) as parse_status:
-                    parse_status.update(label="🔍 Trying standard parser...")
+    if parse_clicked:
+        if not raw_text.strip():
+            st.warning("Please paste some text before parsing.")
+        else:
+            with st.status(
+                "🧩 Processing delivery records...", expanded=True
+            ) as parse_status:
+                parsed_df = pd.DataFrame()
+                if not force_fuzzy:
+                    parse_status.update(label="🔍 Applying standard parsing rules...")
                     try:
-                        parsed_df = parse_records(fuzzy_raw_text)
+                        parsed_df = parse_records(raw_text)
                     except Exception:
                         parsed_df = pd.DataFrame()
-                    if parsed_df.empty:
-                        parse_status.update(label="🔄 Falling back to fuzzy parser...")
-                        try:
-                            parsed_df = parse_data_fuzzy(fuzzy_raw_text)
-                        except Exception:
-                            parsed_df = pd.DataFrame()
-                    else:
-                        parse_status.update(
-                            label="✅ Standard parsing succeeded", state="complete"
-                        )
-                    if not parsed_df.empty:
-                        parse_status.update(
-                            label=f"✅ Parsed {len(parsed_df)} records",
-                            state="complete",
-                        )
 
                 if parsed_df.empty:
-                    st.error("No valid records found from fuzzy parser input.")
-
+                    parse_status.update(
+                        label="🔄 Applying intelligent fuzzy matching..."
+                    )
+                    try:
+                        parsed_df = parse_data_fuzzy(raw_text)
+                    except Exception:
+                        parsed_df = pd.DataFrame()
                 else:
-                    st.session_state.fuzzy_parsed_df = parsed_df
-                    st.toast(
-                        f"✅ Parsed {len(parsed_df)} records using fuzzy fallback."
+                    parse_status.update(
+                        label="✅ Standard parsing succeeded", state="complete"
                     )
 
-        if st.session_state.get("fuzzy_parsed_df") is not None:
-            df_to_show_fuzzy = st.session_state.fuzzy_parsed_df
-            calc_height_fuzzy = min(800, max(400, len(df_to_show_fuzzy) * 35 + 43))
-            search_fuzzy = render_dataframe_search(df_to_show_fuzzy, "delivery_fuzzy")
-            st.dataframe(
-                search_fuzzy, use_container_width=True, height=calc_height_fuzzy
-            )
-            render_visual_report(df_to_show_fuzzy)
-            st.download_button(
-                "Download fuzzy parser output",
-                to_excel_bytes(
-                    st.session_state.fuzzy_parsed_df,
-                    sheet_name="Deliveries",
-                    style_fn=_style_deliveries_sheet,
-                ),
-                f"fuzzy_deliveries_{datetime.now().strftime('%d-%m-%Y')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                type="primary",
-            )
+                if not parsed_df.empty:
+                    parse_status.update(
+                        label=f"✅ Successfully parsed {len(parsed_df)} records",
+                        state="complete",
+                    )
+                    st.session_state.parsed_delivery_df = parsed_df
+                    st.toast(f"✅ Parsed {len(parsed_df)} delivery records!")
+                else:
+                    parse_status.update(
+                        label="❌ No valid records detected", state="error"
+                    )
+                    st.error(
+                        "No valid delivery records could be parsed from the provided input."
+                    )
+
+    parsed_df = st.session_state.get("parsed_delivery_df")
+    if parsed_df is None:
+        parsed_df = st.session_state.get("standard_parsed_df")
+    if parsed_df is None:
+        parsed_df = st.session_state.get("fuzzy_parsed_df")
+
+    if parsed_df is not None and not parsed_df.empty:
+        calc_height = min(800, max(400, len(parsed_df) * 35 + 43))
+        search_df = render_dataframe_search(parsed_df, "delivery_parsed_search")
+        st.dataframe(search_df, use_container_width=True, height=calc_height)
+        render_visual_report(parsed_df)
+        st.download_button(
+            "📥 Download Parsed Deliveries (Excel)",
+            to_excel_bytes(
+                parsed_df,
+                sheet_name="Deliveries",
+                style_fn=_style_deliveries_sheet,
+            ),
+            f"deliveries_{datetime.now().strftime('%d-%m-%Y')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary",
+        )
+

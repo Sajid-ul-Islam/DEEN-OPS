@@ -397,21 +397,17 @@ def _route_page(selected_nav: str) -> None:
     # === 🛒 Orders & Fulfillment (Consolidated) ===
     elif selected_nav == "🛒 Orders & Fulfillment":
         # Get sub-feature selection from session state
+        orders_sub_options = ["Order Tracking", "Pathao Processor", "Delivery Data Parser"]
         sub_feature = st.session_state.get("orders_sub_feature", "Order Tracking")
-
-        # Render sub-feature selector if not already set
-        if "orders_sub_feature" not in st.session_state:
-            st.session_state.orders_sub_feature = "Order Tracking"
+        if sub_feature not in orders_sub_options:
+            sub_feature = "Order Tracking"
+            st.session_state.orders_sub_feature = sub_feature
 
         with st.expander("📂 Select Feature", expanded=False):
             sub_feature = st.radio(
                 "Choose a feature:",
-                ["Order Tracking", "Pathao Processor", "Delivery Data Parser"],
-                index=[
-                    "Order Tracking",
-                    "Pathao Processor",
-                    "Delivery Data Parser",
-                ].index(st.session_state.orders_sub_feature),
+                orders_sub_options,
+                index=orders_sub_options.index(st.session_state.orders_sub_feature),
                 label_visibility="collapsed",
                 horizontal=True,
             )

@@ -982,10 +982,6 @@ def render_outlet_stock_analysis_tab():
 
 def render_stock_analytics_tab():
     """Renders the category-wise stock monitoring interface."""
-    # Ensure navigation lock is in place
-    if "_nav_override" not in st.session_state:
-        st.session_state["_nav_override"] = "📦 Current Stock Analytics"
-
     # Initialize session state for outlet stock report
     if "outlet_stock_report_excel" not in st.session_state:
         st.session_state.outlet_stock_report_excel = None

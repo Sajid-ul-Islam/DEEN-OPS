@@ -1201,10 +1201,13 @@ def _render_bulk_updater_tab():
 
 
 def render_woocommerce_orders_tab():
-    """Renders the WooCommerce Operations & Customer Hub module with organized tabs."""
-    tab_orders, tab_customers, tab_updater = st.tabs(
+    """Renders the unified Order Tracking & Operations module with organized tabs."""
+    from src.pages.pathao_orders.tracking_tab import _render_status_tracking_tab
+
+    tab_orders, tab_pathao, tab_customers, tab_updater = st.tabs(
         [
-            "🛒 Live Orders & Tracking",
+            "🛒 Live Orders (WooCommerce)",
+            "📡 Pathao Courier Tracking",
             "👥 Customer Profiles & Order 360",
             "⚡ Bulk Status Sync & Match",
         ]
@@ -1213,8 +1216,12 @@ def render_woocommerce_orders_tab():
     with tab_orders:
         _render_live_orders_view()
 
+    with tab_pathao:
+        _render_status_tracking_tab()
+
     with tab_customers:
         _render_customer_profiles_view()
 
     with tab_updater:
         _render_bulk_updater_tab()
+
