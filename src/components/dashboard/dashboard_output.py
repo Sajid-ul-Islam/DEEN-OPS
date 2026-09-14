@@ -255,7 +255,7 @@ def _render_sku_report(top):
     group_keys = ["SKU"]
     if "Clean_Product" in top_df.columns:
         group_keys.append("Clean_Product")
-    else:
+    elif "Product Name" in top_df.columns:
         group_keys.append("Product Name")
 
     report_df = top_df.groupby(group_keys, as_index=False).agg(
@@ -265,9 +265,13 @@ def _render_sku_report(top):
     if "Clean_Product" in report_df.columns:
         report_df.rename(columns={"Clean_Product": "Product Name"}, inplace=True)
 
-    report_df = report_df.sort_values("Total Qty", ascending=False).reset_index(
-        drop=True
-    )
+    if "SKU" in report_df.columns:
+        report_df["SKU"] = report_df["SKU"].fillna("N/A").astype(str).str.strip()
+        report_df["SKU"] = report_df["SKU"].replace({"": "N/A", "nan": "N/A", "None": "N/A"})
+
+    col_order = [c for c in ["SKU", "Product Name", "Category", "Total Qty", "Total Amount"] if c in report_df.columns]
+    report_df = report_df[col_order]
+    report_df = report_df.sort_values("Total Qty", ascending=False).reset_index(drop=True)
     report_df.index = report_df.index + 1
 
     display_df = report_df.copy()
@@ -288,6 +292,7 @@ def _render_sku_report(top):
     st.dataframe(
         display_df.style.format({"Total Qty": "{:,.0f}", "Total Amount": "৳{:,.0f}"}),
         use_container_width=True,
+        column_order=col_order,
         column_config={
             "SKU": st.column_config.TextColumn(
                 "SKU", help="Master SKU identification key"
@@ -746,6 +751,7 @@ def render_dashboard_output(
     last_updated="N/A",
     granular_df=None,
     show_core_metrics=True,
+    raw_df=None,
 ):
     """Renders common dashboard widgets/charts/tables/export.
 
@@ -863,11 +869,11 @@ def render_dashboard_output(
             else:
                 gross_rev = today_rev + cashback_disc
 
-    # Conditional rendering avoids building hidden Plotly charts and tables.
+    # Unified performance view selector
     hub_view = st.segmented_control(
         "Performance view",
-        ["Category Share", "Spotlight", "SKU Report"],
-        default="Category Share",
+        ["Category Share", "Spotlight", "SKU Report", "Basket Analysis"],
+        default=st.session_state.get("dashboard_performance_view", "Category Share"),
         key="dashboard_performance_view",
         label_visibility="collapsed",
     )
@@ -875,6 +881,39 @@ def render_dashboard_output(
 
     if hub_view == "Category Share":
         color_map = _render_charts(summ, total_rev=gross_rev)
+    elif hub_view == "Spotlight":
+        prev_top = None
+        if st.session_state.get("wc_sync_mode") == "Operational Cycle":
+            nav_mode = st.session_state.get("wc_nav_mode", "Today")
+            comp_df = (
+                st.session_state.get("wc_prev_df")
+                if nav_mode == "Today"
+                else st.session_state.get("wc_curr_df")
+                if nav_mode == "Prev"
+                else None
+            )
+
+            if comp_df is not None and not comp_df.empty:
+                from src.processing.data_processing import (
+                    aggregate_data,
+                    prepare_granular_data,
+                )
+
+                comp_df_std, _ = prepare_granular_data(comp_df, wc_raw_mapping)
+                if not comp_df_std.empty:
+                    _, _, prev_top, _ = aggregate_data(comp_df_std, wc_raw_mapping)
+
+        render_spotlight(top, color_map, prev_top=prev_top)
+    elif hub_view == "SKU Report":
+        _render_sku_report(top)
+    elif hub_view == "Basket Analysis":
+        from src.components.dashboard.market_basket_view import (
+            render_market_basket_analysis_section,
+        )
+
+        render_market_basket_analysis_section(
+            active_df, raw_df=raw_df if raw_df is not None else active_df
+        )
 
     if is_operational:
         gross_aov = float(
@@ -933,48 +972,6 @@ def render_dashboard_output(
             new_customers=new_cust_cnt,
             returning_customers=ret_cust_cnt,
         )
-
-    if hub_view == "Spotlight":
-        prev_top = None
-        if st.session_state.get("wc_sync_mode") == "Operational Cycle":
-            nav_mode = st.session_state.get("wc_nav_mode", "Today")
-            comp_df = (
-                st.session_state.get("wc_prev_df")
-                if nav_mode == "Today"
-                else st.session_state.get("wc_curr_df")
-                if nav_mode == "Prev"
-                else None
-            )
-
-            if comp_df is not None and not comp_df.empty:
-                from src.processing.data_processing import (
-                    aggregate_data,
-                    prepare_granular_data,
-                )
-
-                comp_df_std, _ = prepare_granular_data(comp_df, wc_raw_mapping)
-                if not comp_df_std.empty:
-                    _, _, prev_top, _ = aggregate_data(comp_df_std, wc_raw_mapping)
-
-        render_spotlight(top, color_map, prev_top=prev_top)
-
-    if hub_view == "SKU Report":
-        _render_sku_report(top)
-
-    # ── Market Basket & Cross-Selling Analysis (Ingestion mode) ──────────────
-    if not is_operational and active_df is not None and not active_df.empty:
-        st.divider()
-        show_mba = st.toggle(
-            "🛒 Market Basket & Cross-Sell Analysis",
-            value=st.session_state.get("ingest_show_mba", False),
-            key="ingest_show_mba",
-        )
-        if show_mba:
-            from src.components.dashboard.market_basket_view import (
-                render_market_basket_analysis_section,
-            )
-
-            render_market_basket_analysis_section(active_df, raw_df=active_df)
 
     # ── Export Preparation ──
     export_data = _build_export_data(

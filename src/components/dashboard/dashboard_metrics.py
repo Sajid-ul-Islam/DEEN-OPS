@@ -11,10 +11,12 @@ import streamlit as st
 from src.components.dashboard.svg import _generate_sparkline_svg
 from src.processing.column_detection import (
     EMAIL_COL_CANDIDATES,
+    NAME_COL_CANDIDATES,
     ORDER_ID_COL_CANDIDATES,
     PHONE_COL_CANDIDATES,
     pick_column,
 )
+from src.processing.completed_analytics import has_blank_phone, is_walkin_customer
 from src.processing.data_processing import (
     aggregate_data,
     prepare_granular_data,
@@ -129,19 +131,19 @@ def render_operational_metrics(
         dashboard_view = st.session_state.get("live_dashboard_view")
         if dashboard_view in {"Last Day Shipped", "Last Day"}:
             prefix = ""
-            suffix = " vs Prior"
+            suffix = " vs Today"
             dq = m_qty - co_q
             dr = m_gross_rev - co_gross
             d_o = m_ord - co_o
             db = m_gross_bv - co_b
-            cmp_label = "Day Prior"
+            cmp_label = "Today"
         elif nav_mode == "Prev":
-            prefix = "Today "
-            suffix = ""
-            dq = co_q - m_qty
-            dr = co_gross - m_gross_rev
-            d_o = co_o - m_ord
-            db = co_b - m_gross_bv
+            prefix = ""
+            suffix = " vs Today"
+            dq = m_qty - co_q
+            dr = m_gross_rev - co_gross
+            d_o = m_ord - co_o
+            db = m_gross_bv - co_b
             cmp_label = "Today"
         else:
             from src.config.constants import bd_today
@@ -157,26 +159,10 @@ def render_operational_metrics(
             db = m_gross_bv - co_b
             cmp_label = prev_w_day.strftime("%A")
 
-        pct_q = (
-            ((dq / co_q) * 100)
-            if co_q > 0
-            else (100.0 if dq > 0 else 0.0 if dq == 0 else -100.0)
-        )
-        pct_r = (
-            ((dr / co_gross) * 100)
-            if co_gross > 0
-            else (100.0 if dr > 0 else 0.0 if dr == 0 else -100.0)
-        )
-        pct_o = (
-            ((d_o / co_o) * 100)
-            if co_o > 0
-            else (100.0 if d_o > 0 else 0.0 if d_o == 0 else -100.0)
-        )
-        pct_b = (
-            ((db / co_b) * 100)
-            if co_b > 0
-            else (100.0 if db > 0 else 0.0 if db == 0 else -100.0)
-        )
+        pct_q = ((dq / co_q) * 100) if co_q > 0 else None
+        pct_r = ((dr / co_gross) * 100) if co_gross > 0 else None
+        pct_o = ((d_o / co_o) * 100) if co_o > 0 else None
+        pct_b = ((db / co_b) * 100) if co_b > 0 else None
 
         dq_str = f"{prefix}{dq:+,.0f}{suffix}"
         dr_str = f"{prefix}{'+' if dr >= 0 else '-'}TK {abs(dr):,.0f}{suffix}"
@@ -199,8 +185,9 @@ def render_operational_metrics(
             if pct_val is not None and not pd.isna(pct_val)
             else ""
         )
+        prev_tag = cmp_label if "cmp_label" in locals() and cmp_label else "Prev"
         prev_snippet = (
-            f' <span class="delta-prev">(Prev: {prev_val_str})</span>'
+            f' <span class="delta-prev">({prev_tag}: {prev_val_str})</span>'
             if prev_val_str
             else ""
         )
@@ -494,6 +481,10 @@ def render_operational_metrics(
 
                         for d_key, d_grp in f_df.groupby("_day"):
                             d_uniq = d_grp.drop_duplicates(subset=[order_id_col])
+                            name_c = pick_column(d_uniq, NAME_COL_CANDIDATES)
+                            if name_c and name_c in d_uniq.columns:
+                                d_uniq = d_uniq[~d_uniq[name_c].apply(is_walkin_customer)]
+                            d_uniq = d_uniq[~d_uniq.apply(has_blank_phone, axis=1)]
                             day_map_total[d_key] = len(d_uniq)
 
                             for _, drow in d_uniq.iterrows():
@@ -647,8 +638,9 @@ def render_operational_metrics(
                     if co_new_cnt > 0
                     else (100.0 if m_new_cnt > 0 else 0.0)
                 )
+                cmp_cust_suffix = f" vs {cmp_badge_label}" if "cmp_badge_label" in locals() and cmp_badge_label else " vs Prev"
                 html_dcust = format_delta(
-                    f"{d_new:+d} New vs Prev",
+                    f"{d_new:+d} New{cmp_cust_suffix}",
                     prev_val_str=f"{co_new_cnt}N / {co_ret_cnt}R",
                     pct_val=pct_new_change,
                 )

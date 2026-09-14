@@ -739,9 +739,19 @@ def prepare_granular_data(df, selected_cols):
             errors="coerce",
         ).fillna(0)
 
-        # v10.4 Standardized SKU support
+        # Standardized SKU support
+        sku_col = None
         if "sku" in selected_cols and selected_cols["sku"] in df.columns:
-            df["SKU"] = df[selected_cols["sku"]].fillna("N/A").astype(str)
+            sku_col = selected_cols["sku"]
+        elif "SKU" in df.columns:
+            sku_col = "SKU"
+        else:
+            from src.processing.column_detection import pick_column
+
+            sku_col = pick_column(df, ["SKU", "sku", "Item SKU", "Product SKU"])
+
+        if sku_col and sku_col in df.columns:
+            df["SKU"] = df[sku_col].fillna("N/A").astype(str)
         else:
             df["SKU"] = "N/A"
 

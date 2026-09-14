@@ -786,17 +786,24 @@ def _render_customer_profiles_view():
             if name_col and not grp[name_col].dropna().empty
             else "Customer"
         )
+        from src.processing.completed_analytics import is_walkin_customer
+
+        if is_walkin_customer(c_name):
+            continue
         c_phone = (
             str(grp[phone_col].dropna().iloc[0])
             if phone_col and not grp[phone_col].dropna().empty
             else ""
         )
+        c_norm_phone = normalize_phone_number(c_phone)
+        if not c_norm_phone:
+            continue
+
         c_email = (
             str(grp[email_col].dropna().iloc[0])
             if email_col and not grp[email_col].dropna().empty
             else ""
         )
-        c_norm_phone = normalize_phone_number(c_phone)
 
         unique_orders = (
             grp.drop_duplicates(subset=[order_id_col])

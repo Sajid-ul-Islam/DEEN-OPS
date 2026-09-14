@@ -115,13 +115,12 @@ def _get_comparison_frame(
                     _cmp_raw, nav_mode, order_view_mode
                 )
     elif selected_view in {"Last Day Shipped", "Last Day"}:
-        if _dash_src is not None and not _dash_src.empty:
-            prev_work_d = get_previous_working_day(bd_today())
-            _cmp_f = filter_live_dashboard_view(
-                _dash_src,
-                "Last Day Shipped",
-                reference_date=prev_work_d,
-            )
+        _cmp_f = filter_live_dashboard_view(_dash_src, "Today Shipped")
+        if _cmp_f is None or _cmp_f.empty:
+            _cmp_raw = st.session_state.get("wc_curr_df")
+            if _cmp_raw is not None and not _cmp_raw.empty:
+                _cmp_raw = filter_online_orders(_cmp_raw)
+                _cmp_f = filter_live_dashboard_view(_cmp_raw, "Today Shipped")
     else:
         _cmp_raw = (
             st.session_state.get("wc_prev_df")
@@ -635,6 +634,7 @@ def render_live_tab():
         "date": auto_cols.get("date", "Order Date"),
         "order_id": auto_cols.get("order_id", "Order ID"),
         "phone": auto_cols.get("phone", "Phone"),
+        "sku": auto_cols.get("sku", "SKU"),
     }
     # Standardize data for current view
     df_standard, timeframe = prepare_granular_data(df_live, live_mapping)
@@ -680,53 +680,27 @@ def render_live_tab():
         render_staleness_monitor()
         return
 
-    # A conditional view selector avoids executing hidden tab content on every
-    # Streamlit rerun.
-    if hasattr(st, "segmented_control"):
-        dashboard_view = st.segmented_control(
-            "Dashboard detail",
-            ["📋 Today", "🔍 Analysis"],
-            default="📋 Today",
-            key="live_dashboard_detail_view",
-            label_visibility="collapsed",
-        )
-    else:
-        dashboard_view = st.radio(
-            "Dashboard detail",
-            ["📋 Today", "🔍 Analysis"],
-            horizontal=True,
-            key="live_dashboard_detail_view_radio",
-            label_visibility="collapsed",
-        )
+    # ── Unified Dashboard Output (Performance views, charts, tables, briefing) ───
+    safe_render(
+        lambda: render_dashboard_output(
+            drill,
+            summ,
+            top,
+            str(timeframe) if timeframe is not None else None,
+            basket,
+            str(source_name) if source_name is not None else None,
+            str(modified_at) if modified_at is not None else None,
+            granular_df=df_standard,
+            show_core_metrics=False,
+            raw_df=df_live,
+        ),
+        fallback_msg="Dashboard rendering encountered an error.",
+    )
 
-    if dashboard_view == "📋 Today":
-        # ── Dashboard Output (charts, tables, AI briefing, export) ───────────
-        safe_render(
-            lambda: render_dashboard_output(
-                drill,
-                summ,
-                top,
-                str(timeframe) if timeframe is not None else None,
-                basket,
-                str(source_name) if source_name is not None else None,
-                str(modified_at) if modified_at is not None else None,
-                granular_df=df_standard,
-                show_core_metrics=False,
-            ),
-            fallback_msg="Dashboard rendering encountered an error.",
-        )
+    # ── Product-Wise Shipped & Completed Orders Export ───────────────────
+    _render_dispatch_export(selected_view)
 
-        # ── Product-Wise Shipped & Completed Orders Export ───────────────────
-        _render_dispatch_export(selected_view)
-    else:
-        # ── Market Basket & Cross-Selling Intelligence ───────────────────────
-        from src.components.dashboard.market_basket_view import (
-            render_market_basket_analysis_section,
-        )
-
-        render_market_basket_analysis_section(df_standard, raw_df=df_live)
-
-    # ── Staleness monitor stays visible below both tabs ──────────────────────
+    # ── Staleness monitor stays visible below ────────────────────────────
     render_staleness_monitor()
 
 

@@ -21,6 +21,7 @@ from src.processing.column_detection import (
     PHONE_COL_CANDIDATES,
     pick_column,
 )
+from src.processing.completed_analytics import has_blank_phone, is_walkin_customer
 from src.processing.data_processing import safe_coerce_datetime_naive
 from src.utils.customer_registry_full import classify_customer  # noqa: F401,E402
 from src.utils.logging import log_system_event
@@ -115,6 +116,10 @@ def update_customer_registry(
             return 0
 
         t_df = df.copy()
+        name_col = pick_column(df, NAME_COL_CANDIDATES)
+        if name_col and name_col in t_df.columns:
+            t_df = t_df[~t_df[name_col].apply(is_walkin_customer)]
+        t_df = t_df[~t_df.apply(has_blank_phone, axis=1)]
         t_df["_dt"] = safe_coerce_datetime_naive(t_df[date_col])
         t_df["_norm_cust"] = t_df[cust_col].apply(normalize_phone_key)
         t_df = t_df.dropna(subset=["_dt"])
@@ -215,6 +220,11 @@ def compute_new_vs_returning_counts(
                 continue
             seen.add(oid)
 
+            # Skip anonymous walk-in outlet customers or blank phone numbers
+            c_name = str(urow.get(name_col) or "") if name_col else ""
+            if is_walkin_customer(c_name) or has_blank_phone(urow):
+                continue
+
             billing = {}
             if email_col:
                 billing["email"] = urow.get(email_col)
@@ -283,6 +293,10 @@ def _build_legacy_structures(
         full_dt_col = pick_column(full_df, DATE_COL_CANDIDATES, full_df.columns[0])
 
     f_df = full_df.copy()
+    full_name_col = pick_column(full_df, NAME_COL_CANDIDATES)
+    if full_name_col and full_name_col in f_df.columns:
+        f_df = f_df[~f_df[full_name_col].apply(is_walkin_customer)]
+    f_df = f_df[~f_df.apply(has_blank_phone, axis=1)]
     f_df["_dt"] = safe_coerce_datetime_naive(f_df[full_dt_col])
     f_df["_norm_cust"] = (
         f_df[cust_col].apply(normalize_phone_key)
@@ -346,6 +360,7 @@ def _legacy_compute(
         if not legacy["cust_col"]:
             return 0, 0
         order_id_col = legacy["order_id_col"]
+        name_col = pick_column(m_df, NAME_COL_CANDIDATES)
         seen = set()
         new_cnt, ret_cnt = 0, 0
         for _, urow in m_df.iterrows():
@@ -353,6 +368,9 @@ def _legacy_compute(
             if oid in seen:
                 continue
             seen.add(oid)
+            c_name = str(urow.get(name_col) or "") if name_col else ""
+            if is_walkin_customer(c_name) or has_blank_phone(urow):
+                continue
             if _legacy_is_returning(urow, legacy):
                 ret_cnt += 1
             else:

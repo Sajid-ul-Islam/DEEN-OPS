@@ -149,6 +149,13 @@ def update_full_registry_from_df(df: "pd.DataFrame | None") -> int:
         fs = o_dt.isoformat()
 
         raw_name = row.get(name_col)
+        from src.processing.completed_analytics import (
+            has_blank_phone,
+            is_walkin_customer,
+        )
+
+        if is_walkin_customer(raw_name) or has_blank_phone(row):
+            continue
         name = _norm_name(str(raw_name)) if name_col and pd.notnull(raw_name) else ""
         raw_city = row.get(city_col)
         city = (
@@ -263,9 +270,20 @@ def find_customer(
 
     email = _norm_text(billing.get("email"))
     phone = billing.get("phone")
+    phone_str = str(phone or "").strip()
     first_name = _norm_name(billing.get("first_name", ""))
     last_name = _norm_name(billing.get("last_name", ""))
     name = f"{first_name} {last_name}".strip()
+    from src.processing.completed_analytics import is_walkin_customer
+
+    if (
+        is_walkin_customer(name)
+        or is_walkin_customer(billing.get("name"))
+        or is_walkin_customer(billing.get("first_name"))
+        or not phone_str
+        or phone_str.lower() in ("nan", "none", "null")
+    ):
+        return None
     city = normalize_city_name(billing.get("city") or "")
 
     # 1) EMAIL priority (registered or guest-with-email bucket)
@@ -313,6 +331,19 @@ def classify_customer(
                      (this IS their first recorded order)
     - 'unknown'   : no identity matched in the registry at all
     """
+    from src.processing.completed_analytics import is_walkin_customer
+
+    full_name = f"{billing.get('first_name', '')} {billing.get('last_name', '')}".strip()
+    phone_str = str(billing.get("phone") or "").strip()
+    if (
+        is_walkin_customer(full_name)
+        or is_walkin_customer(billing.get("name"))
+        or is_walkin_customer(billing.get("first_name"))
+        or not phone_str
+        or phone_str.lower() in ("nan", "none", "null")
+    ):
+        return "unknown"
+
     match = find_customer(billing, registry)
     if not match:
         return "unknown"

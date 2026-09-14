@@ -203,6 +203,56 @@ def test_classify_order_source_checkout_vs_pos():
     assert classify_order_source(pos_row5) == "Outlet"
     assert classify_order_source(pos_row6) == "Outlet"
 
+    # Walk-in Customer orders are ALWAYS Outlet even if payment method is Ecom or COD
+    walkin_row1 = pd.Series(
+        {"Full Name (Billing)": "Walk-in Customer", "Payment Method Title": "Ecom"}
+    )
+    walkin_row2 = pd.Series(
+        {"Customer Name": "Walk In Customer", "Payment Method Title": "Cash on delivery"}
+    )
+    walkin_row3 = pd.Series({"Customer": "walk-in", "Created via": "checkout"})
+    walkin_row4 = pd.Series({"Full Name": "Walkin", "Payment Method Title": "bKash"})
+    walkin_row5 = pd.Series({"name": "walkin customer"})
+
+    assert classify_order_source(walkin_row1) == "Outlet"
+    assert classify_order_source(walkin_row2) == "Outlet"
+    assert classify_order_source(walkin_row3) == "Outlet"
+    assert classify_order_source(walkin_row4) == "Outlet"
+    assert classify_order_source(walkin_row5) == "Outlet"
+
+    # Orders with present but blank phone number are Outlet orders (counter sales)
+    blank_phone_row1 = pd.Series(
+        {
+            "Phone (Billing)": "",
+            "Full Name (Billing)": "Some Name",
+            "Payment Method Title": "Ecom",
+        }
+    )
+    blank_phone_row2 = pd.Series(
+        {
+            "Phone": "   ",
+            "Full Name (Billing)": "Another Name",
+            "Payment Method Title": "bKash",
+        }
+    )
+    blank_phone_row3 = pd.Series(
+        {
+            "Customer Phone": None,
+            "Payment Method Title": "Cash on delivery",
+        }
+    )
+    assert classify_order_source(blank_phone_row1) == "Outlet"
+    assert classify_order_source(blank_phone_row2) == "Outlet"
+    assert classify_order_source(blank_phone_row3) == "Outlet"
+
+    # Non-checkout Created via (admin, rest-api, wepos, manual) are Outlet
+    admin_row = pd.Series({"Created via": "admin", "Phone (Billing)": "01711111111"})
+    api_row = pd.Series({"Created via": "rest-api", "Phone (Billing)": "01711111111"})
+    wepos_row = pd.Series({"Created via": "wepos", "Phone (Billing)": "01711111111"})
+    assert classify_order_source(admin_row) == "Outlet"
+    assert classify_order_source(api_row) == "Outlet"
+    assert classify_order_source(wepos_row) == "Outlet"
+
 
 def test_order_placed_any_date_shipped_target_date_exported():
     """Verify that an order placed on any past date is exported if it was shipped/completed on the target date."""
@@ -340,12 +390,14 @@ def test_filter_online_orders_isolates_checkout():
                 "Order ID": 201,
                 "Payment Method Title": "Cash on delivery",
                 "Created via": "checkout",
+                "Phone (Billing)": "01711111111",
             },
             # Online Pay Online
             {
                 "Order ID": 202,
                 "Payment Method Title": "Pay Online(bKash)",
                 "Created via": "checkout",
+                "Phone (Billing)": "01722222222",
             },
             # Outlet Cash counter
             {"Order ID": 203, "Payment Method Title": "Cash", "Created via": ""},
@@ -357,11 +409,79 @@ def test_filter_online_orders_isolates_checkout():
                 "Payment Method Title": "Cash on delivery",
                 "Created via": "",
             },
+            # Walk-in Customer (must be filtered out even if payment method is Ecom)
+            {
+                "Order ID": 206,
+                "Payment Method Title": "Ecom",
+                "Full Name (Billing)": "Walk-in Customer",
+                "Phone (Billing)": "",
+            },
+            # Blank phone number order (must be filtered out)
+            {
+                "Order ID": 207,
+                "Payment Method Title": "Cash on delivery",
+                "Full Name (Billing)": "Anonymous",
+                "Phone (Billing)": "",
+            },
         ]
     )
 
     online_df = filter_online_orders(df)
     assert set(online_df["Order ID"]) == {201, 202}
+
+
+def test_walkin_and_blank_phone_excluded_from_customer_mix():
+    """Verify that walk-in customers and orders with blank phone numbers are excluded from customer mix."""
+    from src.utils.customer_registry import compute_new_vs_returning_counts
+
+    orders_df = pd.DataFrame(
+        [
+            # Real online customer 1
+            {
+                "Order ID": 301,
+                "Date": "2026-09-14 10:00:00",
+                "Full Name (Billing)": "John Doe",
+                "Phone (Billing)": "01711111111",
+                "Billing Email": "john@example.com",
+            },
+            # Real online customer 2
+            {
+                "Order ID": 302,
+                "Date": "2026-09-14 11:00:00",
+                "Full Name (Billing)": "Jane Smith",
+                "Phone (Billing)": "01822222222",
+                "Billing Email": "jane@example.com",
+            },
+            # Walk-in Customer (should be excluded from customer mix)
+            {
+                "Order ID": 303,
+                "Date": "2026-09-14 12:00:00",
+                "Full Name (Billing)": "Walk-in Customer",
+                "Phone (Billing)": "",
+                "Billing Email": "",
+            },
+            # Another Walk-in variation
+            {
+                "Order ID": 304,
+                "Date": "2026-09-14 12:30:00",
+                "Full Name (Billing)": "Walk In Customer",
+                "Phone (Billing)": "01933333333",
+                "Billing Email": "",
+            },
+            # Blank phone order
+            {
+                "Order ID": 305,
+                "Date": "2026-09-14 13:00:00",
+                "Full Name (Billing)": "No Phone User",
+                "Phone (Billing)": "",
+                "Billing Email": "",
+            },
+        ]
+    )
+
+    new_cnt, ret_cnt = compute_new_vs_returning_counts(orders_df, orders_df)
+    # Only the 2 real customers should be counted
+    assert new_cnt + ret_cnt == 2
 
 
 def test_live_dashboard_manual_override():

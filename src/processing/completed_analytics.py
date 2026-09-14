@@ -4,10 +4,30 @@ Date-wise completed order analytics with source filtering (Online/Outlet).
 
 from __future__ import annotations
 
+import re
+from typing import Any, Optional
+
 import pandas as pd
-from typing import Optional
 
 from src.config.constants import SHIPPED_STATUSES
+
+WALKIN_CUSTOMER_PATTERN = re.compile(
+    r"\bwalk[- ]?in\b|\bwalkin\b|ওয়াক[- ]?ইন|ওয়াকইন", re.IGNORECASE
+)
+
+
+def is_walkin_customer(name: Any) -> bool:
+    """Check if customer name represents an anonymous walk-in outlet customer.
+
+    Matches variations such as 'Walk-in Customer', 'Walk In Customer', 'walk-in',
+    'Walkin', and Bengali equivalents.
+    """
+    if not name or pd.isna(name):
+        return False
+    s = str(name).strip()
+    if not s or s.lower() in ("nan", "none", "null", "undefined"):
+        return False
+    return bool(WALKIN_CUSTOMER_PATTERN.search(s))
 
 
 def detect_source_column(df: pd.DataFrame) -> Optional[str]:
@@ -75,6 +95,37 @@ ONLINE_PAYMENT_KEYWORDS = (
 )
 
 
+def has_blank_phone(row: Any) -> bool:
+    """Check if row/dict has phone column(s) present and all of them are blank/empty."""
+    keys = getattr(row, "index", None)
+    if keys is None and isinstance(row, dict):
+        keys = row.keys()
+    if keys is None:
+        return False
+
+    candidate_cols = [
+        "Phone (Billing)",
+        "Billing Phone",
+        "Phone",
+        "Customer Phone",
+        "phone",
+        "billing_phone",
+        "Phone Number",
+        "phone_number",
+    ]
+    phone_cols = [c for c in candidate_cols if c in keys]
+    if not phone_cols:
+        return False
+
+    for col in phone_cols:
+        val = row.get(col) if hasattr(row, "get") else row[col]
+        if pd.notna(val):
+            s = str(val).strip()
+            if s and s.lower() not in ("nan", "none", "null", "undefined"):
+                return False
+    return True
+
+
 def classify_order_source(
     row: pd.Series,
     source_col: Optional[str] = None,
@@ -83,12 +134,36 @@ def classify_order_source(
     Classify an order as 'Online' (website/ecom checkout) or 'Outlet' (physical store/POS).
 
     Classification priority:
+    0. Walk-in / Blank Phone check: 'Walk-in Customer' orders or orders with blank phone
+       numbers are physical outlet sales (online checkout orders require a customer phone).
     1. Explicit source column ('Order Source', 'Source', 'sales_channel', 'Created via', etc.)
+       Only online checkout orders are considered 'Online'; non-checkout channels ('pos', 'admin',
+       'rest-api', 'wepos', 'manual') are 'Outlet'.
     2. Order ID / Order Number suffix (e.g. ' c' = Cumilla, ' w' = Wari, ' s' = Sylhet)
     3. Dispatch Suggestion / Warehouse Outlet (e.g. 'Cumilla', 'Wari', 'Sylhet' -> Outlet)
     4. Payment Method Title (e.g. 'Cash', 'UCB', 'City Bank' -> Outlet POS; 'Cash on delivery', 'Pay Online' -> Online checkout)
     """
-    # 1. Check explicit source column if passed or present in row
+    # 0. Check Customer Name & Phone Number:
+    # Walk-in customers or orders with blank phone numbers are physical outlet sales.
+    customer_name_candidates = [
+        "Full Name (Billing)",
+        "Customer Name",
+        "Customer",
+        "Full Name",
+        "Billing Name",
+        "name",
+        "billing_name",
+        "first_name",
+    ]
+    for c_col in customer_name_candidates:
+        if c_col in row.index and pd.notna(row[c_col]):
+            if is_walkin_customer(row[c_col]):
+                return "Outlet"
+
+    if has_blank_phone(row):
+        return "Outlet"
+
+    # 1. Check explicit source / created_via column
     candidates = [source_col] if source_col else []
     candidates.extend(
         [
@@ -109,9 +184,11 @@ def classify_order_source(
             val = str(row[col]).strip().lower()
             if not val or val in ("nan", "none", "null"):
                 continue
+            # Known online website checkout channels
             if val in (
                 "checkout",
                 "store-api",
+                "checkout-draft",
                 "online",
                 "web",
                 "website",
@@ -120,6 +197,7 @@ def classify_order_source(
                 "digital",
             ):
                 return "Online"
+            # Known outlet / POS / admin / API non-checkout channels
             if val in (
                 "outlet",
                 "store",
@@ -130,11 +208,16 @@ def classify_order_source(
                 "offline",
                 "admin",
                 "manual",
+                "rest-api",
+                "phone-order",
             ):
                 return "Outlet"
-            if "checkout" in val or "online" in val or "web" in val or "ecom" in val:
+            if "checkout" in val or "online" in val or "web" in val:
                 return "Online"
-            if "pos" in val or "outlet" in val or "store" in val:
+            if "pos" in val or "outlet" in val or "store" in val or "admin" in val:
+                return "Outlet"
+            # Explicit non-checkout created_via channel should not be counted as ecom
+            if col in ("Created via", "created_via"):
                 return "Outlet"
 
     # 2. Check Order ID / Order Number suffix conventions
