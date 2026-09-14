@@ -147,3 +147,33 @@ render_mobile_navbar(
     assert at.session_state["selected_nav"] == "🤖 Automation Tools"
     assert at.session_state["sidebar_nav"] == "🤖 Automation Tools"
     assert at.session_state["mobile_bottom_nav"] == "🤖 Automation Tools"
+
+
+def test_orders_sub_feature_initialization_in_route_page(tmp_path):
+    """Ensure Orders & Fulfillment initializes orders_sub_feature without AttributeError."""
+    script_content = """import streamlit as st
+from src.app_bootstrap import _route_page
+
+for key in ["orders_sub_feature", "inventory_sub_feature", "analytics_sub_feature", "automation_sub_feature"]:
+    st.session_state.pop(key, None)
+
+_route_page("🛒 Orders & Fulfillment")
+"""
+    test_file = tmp_path / "test_route_orders.py"
+    test_file.write_text(script_content, encoding="utf-8")
+
+    at = AppTest.from_file(str(test_file)).run()
+    assert not at.exception, f"Failed with exception: {at.exception}"
+    assert at.session_state["orders_sub_feature"] == "Order Tracking"
+
+
+def test_legacy_subfeature_override():
+    """Ensure legacy subfeature mappings correctly match expected sub-features."""
+    from src.config.ui_config import LEGACY_SUBFEATURE_MAPPING
+    assert "📦 Pathao Processor" in LEGACY_SUBFEATURE_MAPPING
+    sub_key, sub_val = LEGACY_SUBFEATURE_MAPPING["📦 Pathao Processor"]
+    assert sub_key == "orders_sub_feature"
+    assert sub_val == "Pathao Processor"
+    assert LEGACY_SUBFEATURE_MAPPING["🛒 Order Tracking"] == ("orders_sub_feature", "Order Tracking")
+    assert LEGACY_SUBFEATURE_MAPPING[":material/rocket_launch: Data Pilot"] == ("automation_sub_feature", "Data Pilot")
+

@@ -20,6 +20,7 @@ LEGACY_NAV_MAPPING = {
     "📈 Live Dashboard": "📈 Live Dashboard",
     # Section: Orders & Fulfillment
     "🛒 Order Tracking": "🛒 Orders & Fulfillment",
+    "🛒 Order tracking": "🛒 Orders & Fulfillment",
     "📦 Pathao Processor": "🛒 Orders & Fulfillment",
     "🧩 Delivery Data Parser": "🛒 Orders & Fulfillment",
     # Section: Inventory & Stock
@@ -32,6 +33,22 @@ LEGACY_NAV_MAPPING = {
     # Section: Automation Tools
     "💬 WhatsApp Messaging": "🤖 Automation Tools",
     "🚀 Data Pilot": "🤖 Automation Tools",
+    ":material/rocket_launch: Data Pilot": "🤖 Automation Tools",
+}
+
+LEGACY_SUBFEATURE_MAPPING = {
+    "🛒 Order Tracking": ("orders_sub_feature", "Order Tracking"),
+    "🛒 Order tracking": ("orders_sub_feature", "Order Tracking"),
+    "📦 Pathao Processor": ("orders_sub_feature", "Pathao Processor"),
+    "🧩 Delivery Data Parser": ("orders_sub_feature", "Delivery Data Parser"),
+    "📋 Product Listing": ("inventory_sub_feature", "Product Listing"),
+    "📦 Current Stock Analytics": ("inventory_sub_feature", "Current Stock Analytics"),
+    "📊 Inventory Distribution": ("inventory_sub_feature", "Inventory Distribution"),
+    "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),
+    "📉 Return Analytics": ("analytics_sub_feature", "Return Analytics"),
+    "💬 WhatsApp Messaging": ("automation_sub_feature", "WhatsApp Messaging"),
+    "🚀 Data Pilot": ("automation_sub_feature", "Data Pilot"),
+    ":material/rocket_launch: Data Pilot": ("automation_sub_feature", "Data Pilot"),
 }
 
 CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"

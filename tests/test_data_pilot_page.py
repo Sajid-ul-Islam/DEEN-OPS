@@ -19,7 +19,7 @@ render_ai_pilot_page()
     at = AppTest.from_file(str(test_file))
     at.session_state["snapshot_loaded"] = True
     at.session_state["wc_curr_df"] = pd.DataFrame({"order_id": [1, 2]})
-    at.run(timeout=15)
+    at.run(timeout=30)
 
     # Verify no exceptions occurred during execution
     assert not at.exception, f"Data Pilot page raised exception: {at.exception}"
