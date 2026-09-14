@@ -57,7 +57,10 @@ export function useStreamlitBridge() {
       const data = event.data as StreamlitRenderMessage;
       if (data && data.type === "streamlit:render") {
         if (data.args) {
-          setArgs(data.args);
+          const resolvedArgs = (data.args as any)?.args
+            ? { ...data.args, ...(data.args as any).args }
+            : data.args;
+          setArgs(resolvedArgs);
         }
         if (data.theme) {
           setTheme(data.theme);

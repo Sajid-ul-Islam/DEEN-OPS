@@ -647,7 +647,9 @@ def render_live_tab():
     )
 
     # ── KPI Cards (5 core metric cards + comparison deltas) ────────────────────
-    safe_render("Operational KPI Metrics", _refresh_core_metrics)
+    safe_render(
+        _refresh_core_metrics, fallback_msg="Operational KPI Metrics unavailable."
+    )
 
     # ── Operational Pipeline Summary (for All Orders view) ────────────────────
     if selected_view == "All Orders" and not df_live.empty:

@@ -27,6 +27,10 @@ def safe_render(
     Returns:
         The return value of render_fn, or None on failure.
     """
+    # Defensively support inverted argument order: safe_render("msg", callable)
+    if not callable(render_fn) and callable(fallback_msg):
+        render_fn, fallback_msg = fallback_msg, str(render_fn)
+
     try:
         return render_fn()
     except Exception as e:

@@ -220,7 +220,7 @@ def _render_sidebar_maintenance(is_auth_on: bool, config_issues: list[str]) -> N
         if is_react_kpi_available():
             st.session_state.use_react_kpi = st.toggle(
                 "⚡ React UI (Modern Toolbar)",
-                value=st.session_state.get("use_react_kpi", True),
+                value=st.session_state.get("use_react_kpi", False),
                 help="Interactive React-powered KPI cards and view switcher",
             )
 

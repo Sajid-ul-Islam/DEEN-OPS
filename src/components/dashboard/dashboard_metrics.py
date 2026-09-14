@@ -62,7 +62,10 @@ def render_operational_metrics(
     drill, summ, top, basket = aggregate_data(m_df, dummy_mapping)
 
     m_qty = m_df["Quantity"].sum() if "Quantity" in m_df.columns else 0
-    m_ord = basket["total_orders"] if basket else 0
+    m_ord = basket.get("total_orders", 0) if basket else 0
+    if m_ord == 0 and not m_df.empty:
+        _ord_col = pick_column(m_df, ORDER_ID_COL_CANDIDATES)
+        m_ord = int(m_df[_ord_col].nunique()) if _ord_col else len(m_df)
     m_item_rev = (
         (m_df["Quantity"] * m_df["Item Cost"]).sum()
         if "Quantity" in m_df.columns and "Item Cost" in m_df.columns
@@ -105,7 +108,10 @@ def render_operational_metrics(
             else 0.0
         )
         _, _, _, co_basket = aggregate_data(c_df, dummy_mapping)
-        co_o = co_basket["total_orders"] if co_basket else 0
+        co_o = co_basket.get("total_orders", 0) if co_basket else 0
+        if co_o == 0 and not c_df.empty:
+            _co_ord_col = pick_column(c_df, ORDER_ID_COL_CANDIDATES)
+            co_o = int(c_df[_co_ord_col].nunique()) if _co_ord_col else len(c_df)
 
         co_cb = (
             float(c_df["Cashback Discount"].sum())
@@ -676,7 +682,7 @@ def render_operational_metrics(
         render_react_kpi_toolbar,
     )
 
-    if is_react_kpi_available() and st.session_state.get("use_react_kpi", True):
+    if is_react_kpi_available() and st.session_state.get("use_react_kpi", False):
         try:
             from src.components.dashboard.live_components import (
                 _get_live_combined_source,

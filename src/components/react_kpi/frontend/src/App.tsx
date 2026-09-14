@@ -20,7 +20,8 @@ export const App: React.FC = () => {
     sendValue(view);
   };
 
-  const { views, selectedView, viewCounts, metrics, customerMix, syncTime } = args;
+  const rawData = (args as any)?.args ? { ...args, ...(args as any).args } : args;
+  const { views, selectedView, viewCounts, metrics, customerMix, syncTime } = rawData || {};
 
   return (
     <div ref={containerRef} className="w-full text-slate-900 dark:text-slate-100 p-1 select-none font-sans">

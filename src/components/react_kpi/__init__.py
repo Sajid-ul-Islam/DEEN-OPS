@@ -82,5 +82,15 @@ def render_react_kpi_toolbar(
         "syncTime": formatted_sync_time,
     }
 
-    result = _component_func(args=args, default=selected_view, key=key)
+    result = _component_func(
+        args=args,
+        views=views,
+        selectedView=selected_view,
+        viewCounts=view_counts,
+        metrics=metrics,
+        customerMix=customer_mix,
+        syncTime=formatted_sync_time,
+        default=selected_view,
+        key=key,
+    )
     return str(result) if result else selected_view

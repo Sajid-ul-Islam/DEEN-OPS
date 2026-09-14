@@ -38,7 +38,19 @@ SHIPPED_STATUSES = [
     "wc-completed",
 ]
 
-CANCELLED_STATUSES = {"cancelled", "wc-cancelled"}
+CANCELLED_STATUSES = {
+    "cancelled",
+    "wc-cancelled",
+    "failed",
+    "wc-failed",
+    "refunded",
+    "wc-refunded",
+    "trash",
+    "wc-trash",
+    "pending payment",
+    "wc-pending-payment",
+    "wc-pending_payment",
+}
 
 # Open / Active statuses that should never be treated as shipped
 ACTIVE_STATUSES = [
