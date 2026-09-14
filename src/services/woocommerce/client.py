@@ -8,6 +8,7 @@ from src.config.settings import get_woocommerce_config
 from src.processing.column_detection import scrub_raw_dataframe
 from src.utils.http import request_with_backoff
 from src.utils.logging import log_system_event
+from src.utils.snapshots import load_sales_snapshot
 from src.utils.streamlit_runtime import runtime as st
 
 # ── Data transformation helpers ──────────────────────────────────────────────
@@ -827,8 +828,6 @@ def load_live_source(force_refresh=False):
     # load local sales snapshot immediately so UI renders in <0.3s without waiting for network.
     if not force_refresh and st.session_state.get("wc_curr_df") is None:
         try:
-            from src.utils.snapshots import load_sales_snapshot
-
             df_snap = load_sales_snapshot()
             if df_snap is not None and not df_snap.empty:
                 df_live, df_prev, df_backlog, slot_label, slots = (
@@ -987,8 +986,6 @@ def load_live_source(force_refresh=False):
         return results
 
     # Automatic Fallback: Load last saved snapshot when API is not working
-    from src.utils.snapshots import load_sales_snapshot
-
     df_snap = load_sales_snapshot()
     if df_snap is not None and not df_snap.empty:
         df_live, df_prev, df_backlog, slot_label, slots = _partition_operational_data(

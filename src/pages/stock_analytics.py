@@ -1,7 +1,6 @@
 import io
 import os
 from collections import Counter
-from datetime import datetime
 from itertools import combinations
 
 import pandas as pd
@@ -9,7 +8,7 @@ import plotly.express as px
 import streamlit as st
 
 from src.components.ui.ui_components import render_premium_header
-from src.config.constants import COMMON_CATS, OFFER_KEYWORDS
+from src.config.constants import COMMON_CATS, OFFER_KEYWORDS, bd_now, bd_today
 from src.inventory import core as inv_core
 from src.processing.categorization import (
     get_category_for_sales,
@@ -151,7 +150,7 @@ def render_woocommerce_stock_tab():
             df_raw = fetch_woocommerce_stock()
             if df_raw is not None:
                 st.session_state.wc_stock_df = df_raw
-                st.session_state.stock_sync_time = datetime.now()
+                st.session_state.stock_sync_time = bd_now()
                 sync_status.update(
                     label="Inventory Sync Complete", state="complete", expanded=False
                 )
@@ -177,7 +176,7 @@ def render_woocommerce_stock_tab():
                 df_fresh = fetch_woocommerce_stock()
                 if df_fresh is not None:
                     st.session_state.wc_stock_df = df_fresh
-                    st.session_state.stock_sync_time = datetime.now()
+                    st.session_state.stock_sync_time = bd_now()
                     df_raw = df_fresh
                     sync_status.update(
                         label="Database Updated", state="complete", expanded=False
@@ -219,7 +218,7 @@ def render_woocommerce_stock_tab():
 
                 if "Product" in df_manual.columns and "Stock" in df_manual.columns:
                     st.session_state.wc_stock_df = df_manual
-                    st.session_state.stock_sync_time = datetime.now()
+                    st.session_state.stock_sync_time = bd_now()
                     st.toast("✅ Manual stock file loaded!", icon="🎉")
                     st.rerun()
                 else:
@@ -535,7 +534,7 @@ def render_woocommerce_stock_tab():
         st.download_button(
             label="💾 Download Comprehensive Stock Report (Excel)",
             data=excel_bytes,
-            file_name=f"DEEN_Stock_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            file_name=f"DEEN_Stock_Report_{bd_today().strftime('%Y%m%d')}.xlsx",
             type="primary",
             use_container_width=True,
             key="wc_stock_report_download",
@@ -543,7 +542,7 @@ def render_woocommerce_stock_tab():
 
     safe_render(_render_stock_body, fallback_msg="Stock analytics rendering failed.")
     st.caption(
-        f"Database last refreshed: {st.session_state.get('stock_sync_time', datetime.now()).strftime('%I:%M %p')}"
+        f"Database last refreshed: {st.session_state.get('stock_sync_time', bd_now()).strftime('%I:%M %p')}"
     )
 
 
@@ -940,7 +939,7 @@ def render_outlet_stock_analysis_tab():
         st.download_button(
             "📥 Download Consolidated Outlet Stock Excel",
             data=excel_data,
-            file_name=f"{datetime.now().strftime('%Y-%m-%d')}_outlet_stock.xlsx",
+            file_name=f"{bd_today().strftime('%Y-%m-%d')}_outlet_stock.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             type="primary",

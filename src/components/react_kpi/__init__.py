@@ -66,13 +66,20 @@ def render_react_kpi_toolbar(
         # Graceful fallback: return selected_view unmodified
         return selected_view
 
+    if hasattr(sync_time, "strftime"):
+        formatted_sync_time = sync_time.strftime("%I:%M %p")
+    elif sync_time is not None:
+        formatted_sync_time = str(sync_time)
+    else:
+        formatted_sync_time = None
+
     args = {
         "views": views,
         "selectedView": selected_view,
         "viewCounts": view_counts,
         "metrics": metrics,
         "customerMix": customer_mix,
-        "syncTime": sync_time,
+        "syncTime": formatted_sync_time,
     }
 
     result = _component_func(args=args, default=selected_view, key=key)

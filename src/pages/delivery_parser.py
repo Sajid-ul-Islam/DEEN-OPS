@@ -1,11 +1,10 @@
-from datetime import datetime
-
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
 from src.components.ui.dataframe_search import render_dataframe_search
 from src.components.ui.widgets import render_action_bar, render_reset_confirm
+from src.config.constants import bd_today
 from src.processing.delivery_parser import parse_data_fuzzy, parse_records
 from src.state.persistence import clear_state_keys
 from src.utils.file_io import to_excel_bytes
@@ -44,16 +43,32 @@ def _reset_parser_state():
 
 def render_visual_report(df: pd.DataFrame):
     """Render a visual summary report for parsed delivery data."""
+    if df is None or df.empty:
+        return
+
     st.divider()
     st.subheader(":material/bar_chart: Visual Report")
 
     # ── KPI metrics ──────────────────────────────────────────────────────────
     total = len(df)
-    paid_count = (df["Payment Status"].str.lower() == "paid").sum()
+    payment_col = df["Payment Status"] if "Payment Status" in df.columns else pd.Series(dtype=str)
+    paid_count = (payment_col.astype(str).str.lower() == "paid").sum()
     unpaid_count = total - paid_count
-    total_cod = df["COD Amount"].sum()
-    total_charge = df["Charge"].sum()
-    total_discount = df["Discount"].sum()
+    total_cod = (
+        float(pd.to_numeric(df["COD Amount"], errors="coerce").fillna(0).sum())
+        if "COD Amount" in df.columns
+        else 0.0
+    )
+    total_charge = (
+        float(pd.to_numeric(df["Charge"], errors="coerce").fillna(0).sum())
+        if "Charge" in df.columns
+        else 0.0
+    )
+    total_discount = (
+        float(pd.to_numeric(df["Discount"], errors="coerce").fillna(0).sum())
+        if "Discount" in df.columns
+        else 0.0
+    )
     net_revenue = total_cod - total_charge + total_discount
 
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -68,48 +83,50 @@ def render_visual_report(df: pd.DataFrame):
     col_left, col_right = st.columns(2)
 
     # ── Payment status pie ────────────────────────────────────────────────────
-    with col_left:
-        payment_counts = df["Payment Status"].value_counts().reset_index()
-        payment_counts.columns = ["Status", "Count"]
-        fig_pay = px.pie(
-            payment_counts,
-            names="Status",
-            values="Count",
-            title="Payment Status Breakdown",
-            color_discrete_sequence=px.colors.qualitative.Set2,
-            hole=0.4,
-        )
-        fig_pay.update_traces(textposition="inside", textinfo="percent+label")
-        fig_pay.update_layout(showlegend=False, margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig_pay, use_container_width=True)
+    if "Payment Status" in df.columns and not df["Payment Status"].dropna().empty:
+        with col_left:
+            payment_counts = df["Payment Status"].fillna("Unknown").value_counts().reset_index()
+            payment_counts.columns = ["Status", "Count"]
+            fig_pay = px.pie(
+                payment_counts,
+                names="Status",
+                values="Count",
+                title="Payment Status Breakdown",
+                color_discrete_sequence=px.colors.qualitative.Set2,
+                hole=0.4,
+            )
+            fig_pay.update_traces(textposition="inside", textinfo="percent+label")
+            fig_pay.update_layout(showlegend=False, margin=dict(t=40, b=10, l=10, r=10))
+            st.plotly_chart(fig_pay, use_container_width=True)
 
     # ── Delivery status bar ───────────────────────────────────────────────────
-    with col_right:
-        status_counts = (
-            df["Delivery Status"].replace("", "Unknown").value_counts().reset_index()
-        )
-        status_counts.columns = ["Delivery Status", "Count"]
-        fig_status = px.bar(
-            status_counts,
-            x="Count",
-            y="Delivery Status",
-            orientation="h",
-            title="Delivery Status Distribution",
-            color="Count",
-            color_continuous_scale="Blues",
-            text="Count",
-        )
-        fig_status.update_traces(textposition="outside")
-        fig_status.update_layout(
-            yaxis=dict(autorange="reversed"),
-            coloraxis_showscale=False,
-            margin=dict(t=40, b=10, l=10, r=10),
-        )
-        st.plotly_chart(fig_status, use_container_width=True)
+    if "Delivery Status" in df.columns and not df["Delivery Status"].dropna().empty:
+        with col_right:
+            status_counts = (
+                df["Delivery Status"].replace("", "Unknown").fillna("Unknown").value_counts().reset_index()
+            )
+            status_counts.columns = ["Delivery Status", "Count"]
+            fig_status = px.bar(
+                status_counts,
+                x="Count",
+                y="Delivery Status",
+                orientation="h",
+                title="Delivery Status Distribution",
+                color="Count",
+                color_continuous_scale="Blues",
+                text="Count",
+            )
+            fig_status.update_traces(textposition="outside")
+            fig_status.update_layout(
+                yaxis=dict(autorange="reversed"),
+                coloraxis_showscale=False,
+                margin=dict(t=40, b=10, l=10, r=10),
+            )
+            st.plotly_chart(fig_status, use_container_width=True)
 
     # ── Store breakdown (only if multiple stores present) ────────────────────
-    if df["Store"].nunique() > 1:
-        store_counts = df["Store"].replace("", "Unknown").value_counts().reset_index()
+    if "Store" in df.columns and df["Store"].nunique() > 1:
+        store_counts = df["Store"].replace("", "Unknown").fillna("Unknown").value_counts().reset_index()
         store_counts.columns = ["Store", "Parcels"]
         fig_store = px.bar(
             store_counts,
@@ -125,19 +142,22 @@ def render_visual_report(df: pd.DataFrame):
         st.plotly_chart(fig_store, use_container_width=True)
 
     # ── Financial Distribution Chart ─────────────────────────────────────────
-    fig_cod = px.histogram(
-        df,
-        x="COD Amount",
-        nbins=20,
-        title="COD Amount Distribution",
-        color_discrete_sequence=["#3b82f6"],
-    )
-    fig_cod.update_layout(
-        xaxis_title="COD Amount (৳)",
-        yaxis_title="Number of Parcels",
-        margin=dict(t=40, b=10, l=10, r=10),
-    )
-    st.plotly_chart(fig_cod, use_container_width=True)
+    if "COD Amount" in df.columns and not df["COD Amount"].dropna().empty:
+        cod_series = pd.to_numeric(df["COD Amount"], errors="coerce").dropna()
+        if not cod_series.empty:
+            fig_cod = px.histogram(
+                cod_series,
+                x="COD Amount",
+                nbins=20,
+                title="COD Amount Distribution",
+                color_discrete_sequence=["#3b82f6"],
+            )
+            fig_cod.update_layout(
+                xaxis_title="COD Amount (৳)",
+                yaxis_title="Number of Parcels",
+                margin=dict(t=40, b=10, l=10, r=10),
+            )
+            st.plotly_chart(fig_cod, use_container_width=True)
 
 
 def render_fuzzy_parser_tab():
@@ -233,7 +253,7 @@ def render_fuzzy_parser_tab():
                 sheet_name="Deliveries",
                 style_fn=_style_deliveries_sheet,
             ),
-            f"deliveries_{datetime.now().strftime('%d-%m-%Y')}.xlsx",
+            f"deliveries_{bd_today().strftime('%d-%m-%Y')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             type="primary",

@@ -420,7 +420,7 @@ def _render_status_tracking_tab():
                     progress_bar = st.progress(0)
                     total = len(bulk_df)
 
-                    for i, row in bulk_df.iterrows():
+                    for step_idx, (_, row) in enumerate(bulk_df.iterrows()):
                         cid = str(row[id_col]).strip()
                         row_copy = row.to_dict()
 
@@ -455,7 +455,10 @@ def _render_status_tracking_tab():
                                                 "Skipped (already updated in this run)"
                                             )
                                             results.append(row_copy)
-                                            progress_bar.progress((i + 1) / total)
+                                            if total > 0:
+                                                progress_bar.progress(
+                                                    min(1.0, (step_idx + 1) / total)
+                                                )
                                             continue
 
                                         success, msg = update_order_status(
@@ -476,7 +479,8 @@ def _render_status_tracking_tab():
                             row_copy["Payment Status"] = ""
 
                         results.append(row_copy)
-                        progress_bar.progress((i + 1) / total)
+                        if total > 0:
+                            progress_bar.progress(min(1.0, (step_idx + 1) / total))
 
                     status_ui.update(
                         label="Bulk check complete!", state="complete", expanded=False

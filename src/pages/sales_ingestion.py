@@ -10,7 +10,7 @@ from src.components.ui.widgets import (
     render_reset_confirm,
     section_card,
 )
-from src.config.constants import SHIPPED_STATUSES
+from src.config.constants import SHIPPED_STATUSES, bd_now, bd_today
 from src.processing.column_detection import find_columns
 from src.processing.data_processing import aggregate_data, prepare_granular_data
 from src.services.woocommerce.client import load_from_woocommerce
@@ -29,7 +29,7 @@ def render_manual_tab():
     st.session_state["wc_sync_mode"] = "Custom Range"
 
     # ── Timeframe & Date Range Preset Controls (Default: Last 7 Days) ───────────
-    today_date = datetime.now().date()
+    today_date = bd_today()
     if "ingest_preset" not in st.session_state:
         st.session_state["ingest_preset"] = "Last 7 Days"
         st.session_state["wc_sync_start_date"] = today_date - timedelta(days=7)
@@ -130,7 +130,7 @@ def render_manual_tab():
 
                 st.write("Fetching transaction payloads from WooCommerce...")
                 wc_res = load_from_woocommerce(
-                    cache_buster=str(int(datetime.now().timestamp() * 1000))
+                    cache_buster=str(int(bd_now().timestamp() * 1000))
                 )
                 df_res = wc_res["df_to_return"]
                 if not df_res.empty:
@@ -374,7 +374,7 @@ def render_manual_tab():
                         label="✅ Data processed, rendering dashboard...",
                         state="complete",
                     )
-                    manual_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    manual_updated = bd_now().strftime("%Y-%m-%d %H:%M:%S")
                     render_dashboard_output(
                         drill,
                         summ,

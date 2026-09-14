@@ -264,6 +264,7 @@ def render_operational_metrics(
     s_cust, d_cust = "", ""
     s_qty, s_rev, s_ord, s_bv = "", "", "", ""
     d_qty, d_rev, d_ord, d_bv, d_cust = "", "", "", "", ""
+    t_qty_vals, t_rev_vals, t_ord_vals, t_bv_vals = [], [], [], []
     if not m_df.empty and nav_mode != "Backlog":
         try:
             # 1. Fetch the multi-day source DataFrame from session state if available, fallback to m_df
@@ -687,6 +688,11 @@ def render_operational_metrics(
             source_df = _get_live_combined_source()
             view_counts = compute_live_filter_counts(source_df)
             sync_time = st.session_state.get("live_sync_time")
+            sync_time_str = (
+                sync_time.strftime("%I:%M %p")
+                if hasattr(sync_time, "strftime")
+                else (str(sync_time) if sync_time else None)
+            )
 
             def _clean_delta(pct_val, delta_str):
                 if pct_val is not None:
@@ -745,7 +751,7 @@ def render_operational_metrics(
                 view_counts=view_counts,
                 metrics=react_metrics,
                 customer_mix=customer_mix_data,
-                sync_time=sync_time,
+                sync_time=sync_time_str,
             )
 
             if (

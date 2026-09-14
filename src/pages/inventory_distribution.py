@@ -1,7 +1,10 @@
+import io
+
 import pandas as pd
 import streamlit as st
 
 from src.components.ui.widgets import render_action_bar, render_reset_confirm
+from src.config.constants import bd_today
 from src.config.ui_config import INVENTORY_LOCATIONS
 from src.inventory import core as inv_core
 from src.services.exports.excel_exporter import export_to_styled_excel
@@ -156,7 +159,7 @@ def render_distribution_tab(search_q):
                         ]
                     st.toast(f"✅ Loaded {len(outlet_df)} products with outlet stock")
                 else:
-                    status.update(label="⚠️ No outlet stock found", state="warning")
+                    status.update(label="⚠️ No outlet stock found", state="error")
                     st.session_state.inv_outlet_stock_df = None
                     st.warning(
                         "Could not detect outlet stock via API. You can upload the Current Stock Report CSV in the tab to the left."
@@ -210,9 +213,6 @@ def render_distribution_tab(search_q):
                 display_stock_df = display_stock_df[match_mask]
             st.dataframe(display_stock_df, use_container_width=True)
 
-            import datetime
-            import io
-
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
                 outlet_df.to_excel(
@@ -223,7 +223,7 @@ def render_distribution_tab(search_q):
             st.download_button(
                 "📥 Download Consolidated Outlet Stock Excel",
                 excel_data,
-                f"{datetime.datetime.now().strftime('%Y-%m-%d')}_outlet_stock.xlsx",
+                f"{bd_today().strftime('%Y-%m-%d')}_outlet_stock.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="download_outlet_stock",
             )
@@ -919,9 +919,7 @@ def render_distribution_tab(search_q):
                     index=False
                 )
 
-                import datetime
-
-                current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+                current_date = bd_today().strftime("%Y-%m-%d")
                 st.download_button(
                     "Download OOS Products (CSV)",
                     data=oos_csv_data,
@@ -950,9 +948,7 @@ def render_distribution_tab(search_q):
                     {"Products Name": unique_titles_in_stock}
                 ).to_csv(index=False)
 
-                import datetime
-
-                current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+                current_date = bd_today().strftime("%Y-%m-%d")
                 st.download_button(
                     "Download In-Stock Products (CSV)",
                     data=in_stock_csv_data,

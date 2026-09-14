@@ -6,9 +6,12 @@ This module implements Hick's Law principles:
 - Clear visual hierarchy between primary/secondary actions
 """
 
-import streamlit as st
+from datetime import time
+
 import pandas as pd
-from datetime import datetime, time
+import streamlit as st
+
+from src.config.constants import bd_today
 
 
 def render_date_range_selector() -> tuple:
@@ -17,7 +20,7 @@ def render_date_range_selector() -> tuple:
     Returns:
         tuple: (date_range, fetch_clicked)
     """
-    today = datetime.now().date()
+    today = bd_today()
     c_date, c_fetch = st.columns([1.5, 1])
 
     with c_date:
@@ -48,15 +51,22 @@ def _handle_fetch_orders(date_range):
     from src.services.woocommerce.client import load_from_woocommerce
 
     st.session_state["wc_sync_mode"] = "Custom Range"
-    if isinstance(date_range, tuple) and len(date_range) == 2:
-        st.session_state["wc_sync_start_date"] = date_range[0]
-        st.session_state["wc_sync_end_date"] = date_range[1]
-    elif isinstance(date_range, tuple) and len(date_range) == 1:
-        st.session_state["wc_sync_start_date"] = date_range[0]
-        st.session_state["wc_sync_end_date"] = date_range[0]
-    else:
+    if isinstance(date_range, (tuple, list)):
+        if len(date_range) >= 2:
+            st.session_state["wc_sync_start_date"] = date_range[0]
+            st.session_state["wc_sync_end_date"] = date_range[1]
+        elif len(date_range) == 1:
+            st.session_state["wc_sync_start_date"] = date_range[0]
+            st.session_state["wc_sync_end_date"] = date_range[0]
+        else:
+            st.session_state["wc_sync_start_date"] = bd_today()
+            st.session_state["wc_sync_end_date"] = bd_today()
+    elif date_range:
         st.session_state["wc_sync_start_date"] = date_range
         st.session_state["wc_sync_end_date"] = date_range
+    else:
+        st.session_state["wc_sync_start_date"] = bd_today()
+        st.session_state["wc_sync_end_date"] = bd_today()
 
     st.session_state["wc_sync_start_time"] = time(0, 0, 0)
     st.session_state["wc_sync_end_time"] = time(23, 59, 59)

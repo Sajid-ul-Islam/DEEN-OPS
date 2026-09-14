@@ -1,8 +1,6 @@
 import asyncio
 import io
 import re
-from datetime import datetime
-
 # Vectorization for RAG
 import numpy as np
 import pandas as pd
@@ -17,11 +15,11 @@ from src.services.llm.manager import init_llm_controller
 from src.services.pathao.status import get_pathao_order_status
 
 # Add direct WooCommerce sync imports
+from src.config.constants import bd_now
 from src.services.woocommerce.client import load_live_source
 from src.services.woocommerce.stock import fetch_woocommerce_stock
 
 
-@st.cache_resource
 # ------------------------------
 # 2. UI COMPONENTS
 # ------------------------------
@@ -187,7 +185,7 @@ def _execute_action_tags(full_response: str, agent):
             st.download_button(
                 label="📥 Download Cleaned Dataset (CSV)",
                 data=csv_data,
-                file_name=f"DEEN_Data_Export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                file_name=f"DEEN_Data_Export_{bd_now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
                 use_container_width=True,
             )
@@ -200,8 +198,10 @@ def _handle_auto_sync(auto_sync: bool):
     if not auto_sync:
         return
     last_sync = st.session_state.get("live_sync_time")
-    if last_sync and (datetime.now() - last_sync).total_seconds() <= 900:
-        return
+    if last_sync:
+        now_bd = bd_now().replace(tzinfo=None)
+        if (now_bd - last_sync).total_seconds() <= 900:
+            return
 
     with st.status("🔄 Smart Auto-Sync (Data is stale)...", expanded=True) as status:
         try:
@@ -349,7 +349,7 @@ document.addEventListener('keydown', function(e) {
             if st.session_state.get("pilot_last_intent") == "report_generation":
                 st.session_state.pilot_reports.append(
                     {
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "date": bd_now().strftime("%Y-%m-%d %H:%M:%S"),
                         "content": full_response,
                     }
                 )
@@ -664,7 +664,7 @@ def _render_knowledge_base_tab():
             st.download_button(
                 label="📥 Export Tracking Data",
                 data=output_buffer.getvalue(),
-                file_name=f"Pathao_Tracking_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                file_name=f"Pathao_Tracking_{bd_now().strftime('%Y%m%d_%H%M')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )

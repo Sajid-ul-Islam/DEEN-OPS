@@ -24,7 +24,7 @@ def _render_delivery_health_tab():
             "📊 No bulk tracking data available. Run a Bulk Status Check in the **Order Tracking** tab first."
         )
         if st.button("📡 Go to Order Tracking", key="health_goto_tracking_btn"):
-            st.session_state.orders_sub_feature = "Order Tracking"
+            st.session_state["orders_sub_feature"] = "Order Tracking"
             st.rerun()
         return
 

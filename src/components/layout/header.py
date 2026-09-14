@@ -1,11 +1,12 @@
 import base64
 import os
 import textwrap
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import streamlit as st
 
 from src.components.ui.clock import get_clock_html
+from src.config.constants import bd_now
 
 
 def render_header(right_slot_callback=None):
@@ -32,9 +33,11 @@ def render_app_banner():
     clock_html = get_clock_html()
 
     sync_label = "Checking status..."
-    if st.session_state.get("live_sync_time"):
-        diff = datetime.now() - st.session_state.live_sync_time
-        mins = int(diff.total_seconds() / 60)
+    last_sync = st.session_state.get("live_sync_time")
+    if last_sync:
+        now_bd = bd_now().replace(tzinfo=None)
+        diff = now_bd - last_sync
+        mins = max(0, int(diff.total_seconds() / 60))
         sync_label = "Synced: Just now" if mins < 1 else f"Synced: {mins}m ago"
     elif st.session_state.get("wc_sync_mode") == "Operational Cycle":
         sync_label = "Syncing with WooCommerce..."

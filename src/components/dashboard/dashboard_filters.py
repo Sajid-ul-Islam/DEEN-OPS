@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-from src.config.constants import COMMON_CATS
+from src.config.constants import COMMON_CATS, bd_now, bd_today
 from src.processing.categorization import (
     get_category_for_sales,
     get_sub_category_for_sales,
@@ -85,12 +85,12 @@ def render_ingestion_filters(
                 value=st.session_state.get(
                     "ingest_range",
                     (
-                        (datetime.now() - timedelta(days=30)).date(),
-                        datetime.now().date(),
+                        (bd_today() - timedelta(days=30)),
+                        bd_today(),
                     ),
                 ),
                 min_value=datetime(2021, 8, 31).date(),
-                max_value=datetime.now().date(),
+                max_value=bd_today(),
                 key="ingest_range",
             )
 
@@ -114,7 +114,7 @@ def render_ingestion_filters(
                         try:
                             st.write("📡 Connecting to WooCommerce API...")
                             wc_res = load_from_woocommerce(
-                                cache_buster=str(int(datetime.now().timestamp() * 1000))
+                                cache_buster=str(int(bd_now().timestamp() * 1000))
                             )
                             st.write("🧮 Processing data...")
                             df_res = wc_res["df_to_return"]
@@ -237,7 +237,7 @@ def render_ingestion_filters(
                         ) as sync_status:
                             st.write("📡 Connecting to WooCommerce API...")
                             wc_res = load_from_woocommerce(
-                                cache_buster=str(int(datetime.now().timestamp() * 1000))
+                                cache_buster=str(int(bd_now().timestamp() * 1000))
                             )
                             st.write("🧮 Restructuring and applying filters...")
                             df_res = wc_res["df_to_return"]

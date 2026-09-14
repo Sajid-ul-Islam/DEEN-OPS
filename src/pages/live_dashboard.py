@@ -528,15 +528,13 @@ def render_live_tab():
         try:
             import pandas as _pd
 
-            mod_col = (
-                "mod_dt_parsed"
-                if "mod_dt_parsed" in df_live.columns
-                else (
-                    "Order Date Modified"
-                    if "Order Date Modified" in df_live.columns
-                    else None
-                )
-            )
+            mod_col = None
+            if df_live is not None and not df_live.empty:
+                if "mod_dt_parsed" in df_live.columns:
+                    mod_col = "mod_dt_parsed"
+                elif "Order Date Modified" in df_live.columns:
+                    mod_col = "Order Date Modified"
+
             if df_live is not None and not df_live.empty and mod_col:
                 mods = _pd.to_datetime(
                     df_live[mod_col].astype(str).str.replace("Z", "", regex=False),
@@ -563,8 +561,8 @@ def render_live_tab():
         if new_cnt > 0:
             tot_today = (
                 len(df_live["Order ID"].unique())
-                if "Order ID" in df_live.columns
-                else len(df_live)
+                if df_live is not None and "Order ID" in df_live.columns
+                else (len(df_live) if df_live is not None else 0)
             )
             st.toast(
                 f"⚡ **{new_cnt} new WooCommerce order{'s' if new_cnt > 1 else ''} synced** from REST API (Total: {tot_today} orders)",
@@ -649,7 +647,7 @@ def render_live_tab():
     )
 
     # ── KPI Cards (5 core metric cards + comparison deltas) ────────────────────
-    _refresh_core_metrics()
+    safe_render("Operational KPI Metrics", _refresh_core_metrics)
 
     # ── Operational Pipeline Summary (for All Orders view) ────────────────────
     if selected_view == "All Orders" and not df_live.empty:
@@ -800,13 +798,20 @@ def _render_dispatch_export(selected_view: str | None = None):
                     key="shipped_export_custom_range",
                 )
                 if isinstance(custom_range, (list, tuple)):
-                    start_date = custom_range[0]
-                    end_date = (
-                        custom_range[-1] if len(custom_range) > 1 else custom_range[0]
-                    )
-                else:
+                    if len(custom_range) > 0:
+                        start_date = custom_range[0]
+                        end_date = (
+                            custom_range[-1] if len(custom_range) > 1 else custom_range[0]
+                        )
+                    else:
+                        start_date = today_bd
+                        end_date = today_bd
+                elif custom_range:
                     start_date = custom_range
                     end_date = custom_range
+                else:
+                    start_date = today_bd
+                    end_date = today_bd
 
         with col_source:
             source_filter = st.radio(
