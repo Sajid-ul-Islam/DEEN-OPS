@@ -191,3 +191,78 @@ def test_no_invalid_status_state_warning():
                 violations.append(path)
 
     assert not violations, f"Found invalid state='warning' in st.status calls: {violations}"
+
+
+def test_pathao_processor_order_id_order_number_equivalence():
+    """Verify that Order ID and Order Number are treated as interchangeable in Pathao Processor."""
+    from src.pages.pathao_orders.processing_tab import _detect_and_map_columns
+    from src.processing.order_processor import clean_dataframe, identify_columns
+
+    # 1. File with only "Order ID"
+    df_id_only = pd.DataFrame([
+        {
+            "Phone (Billing)": "01712345678",
+            "Full Name (Shipping)": "John Doe",
+            "Address 1&2 (Shipping)": "Dhanmondi, Dhaka",
+            "Order ID": "ORD-5001",
+            "Item Name": "Panjabi",
+            "Quantity": 1,
+            "Item Cost": 1500,
+            "Order Total Amount": 1500,
+        }
+    ])
+    mapped_df, mapping, missing = _detect_and_map_columns(df_id_only)
+    assert mapping["Order ID"] == "Order ID"
+    assert mapping["Order Number"] == "Order ID"
+    assert "Order ID" not in missing
+    assert "Order Number" not in missing
+    assert "Order Number" in mapped_df.columns
+    assert mapped_df["Order Number"].iloc[0] == "ORD-5001"
+
+    # 2. File with only "Order Number"
+    df_num_only = pd.DataFrame([
+        {
+            "Phone (Billing)": "01712345678",
+            "Full Name (Shipping)": "John Doe",
+            "Address 1&2 (Shipping)": "Dhanmondi, Dhaka",
+            "Order Number": "ORD-6002",
+            "Item Name": "Panjabi",
+            "Quantity": 1,
+            "Item Cost": 1500,
+            "Order Total Amount": 1500,
+        }
+    ])
+    mapped_df2, mapping2, missing2 = _detect_and_map_columns(df_num_only)
+    assert mapping2["Order Number"] == "Order Number"
+    assert mapping2["Order ID"] == "Order Number"
+    assert "Order ID" not in missing2
+    assert "Order Number" not in missing2
+    assert "Order ID" in mapped_df2.columns
+    assert mapped_df2["Order ID"].iloc[0] == "ORD-6002"
+
+    # 3. File with case-insensitive variation e.g. "order_id"
+    df_lower = pd.DataFrame([
+        {
+            "Phone (Billing)": "01712345678",
+            "Full Name (Shipping)": "John Doe",
+            "Address 1&2 (Shipping)": "Dhanmondi, Dhaka",
+            "order_id": "ORD-7003",
+            "Item Name": "Panjabi",
+            "Quantity": 1,
+            "Item Cost": 1500,
+            "Order Total Amount": 1500,
+        }
+    ])
+    mapped_df3, mapping3, missing3 = _detect_and_map_columns(df_lower)
+    assert mapping3["Order ID"] == "order_id"
+    assert mapping3["Order Number"] == "order_id"
+    assert "Order ID" not in missing3
+    assert "Order Number" not in missing3
+
+    # 4. order_processor identify_columns resilience
+    from src.processing.order_processor import clean_dataframe
+    cleaned = clean_dataframe(df_id_only.copy())
+    assert "Order Number" in cleaned.columns
+    cols = identify_columns(cleaned)
+    assert cols["order_col"] in ("Order ID", "Order Number")
+

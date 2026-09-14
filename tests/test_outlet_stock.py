@@ -1,7 +1,5 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import pandas as pd
-import json
 
 from src.services.woocommerce.outlet_stock import (
     fetch_outlet_stock_from_custom_endpoint,

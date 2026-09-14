@@ -258,6 +258,19 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip()
 
+    # Ensure Order ID and Order Number equivalence if one is missing or empty
+    if "Order Number" in df.columns and "Order ID" not in df.columns:
+        df["Order ID"] = df["Order Number"]
+    elif "Order ID" in df.columns and "Order Number" not in df.columns:
+        df["Order Number"] = df["Order ID"]
+    elif "Order Number" in df.columns and "Order ID" in df.columns:
+        num_has = (df["Order Number"].notna() & df["Order Number"].astype(str).str.strip().ne("")).any()
+        id_has = (df["Order ID"].notna() & df["Order ID"].astype(str).str.strip().ne("")).any()
+        if num_has and not id_has:
+            df["Order ID"] = df["Order Number"]
+        elif id_has and not num_has:
+            df["Order Number"] = df["Order ID"]
+
     return df
 
 
@@ -284,11 +297,28 @@ def identify_columns(df: pd.DataFrame) -> Dict[str, Any]:
             cols["trx_col"] = c
             break
 
-    # Order Number Column
+    # Order Number Column (Order ID and Order Number are interchangeable)
     cols["order_col"] = "Order Number"
-    if "Order Number" not in df.columns:
+    if "Order Number" in df.columns and (df["Order Number"].notna() & df["Order Number"].astype(str).str.strip().ne("")).any():
+        cols["order_col"] = "Order Number"
+    elif "Order ID" in df.columns and (df["Order ID"].notna() & df["Order ID"].astype(str).str.strip().ne("")).any():
+        cols["order_col"] = "Order ID"
+    else:
         for c in df.columns:
-            if c.lower() in ["order number", "order id", "id", "order #", "order_id"]:
+            if c.lower() in [
+                "order number",
+                "order id",
+                "id",
+                "order #",
+                "order_id",
+                "order_number",
+                "order no",
+                "order no.",
+                "invoice no",
+                "invoice #",
+                "invoice number",
+                "merchantorderid",
+            ]:
                 cols["order_col"] = c
                 break
 
