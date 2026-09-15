@@ -218,3 +218,162 @@ def batch_get_pathao_order_statuses(
                 results[cid] = "Status Not Found"
 
     return results
+
+
+# Alias for backward/naming compatibility
+bulk_get_pathao_order_statuses = batch_get_pathao_order_statuses
+
+
+def fetch_pending_pathao_orders(
+    client, max_pages: int = 5
+) -> tuple[list[dict], str | None]:
+    """Fetch orders directly from Pathao API and filter for pending / in-transit orders.
+
+    Returns (pending_orders, error_message).
+    """
+    if client is None:
+        return [], "Pathao client not initialized."
+
+    pending_list = []
+    seen_consignments = set()
+
+    for page in range(1, max_pages + 1):
+        orders, meta, err = client.get_orders(page=page, limit=50)
+        if err:
+            return pending_list, err
+        if not orders:
+            break
+
+        for o in orders:
+            if not isinstance(o, dict):
+                continue
+            cid = str(o.get("consignment_id", "")).strip()
+            if not cid or cid in seen_consignments:
+                continue
+
+            raw_status = str(o.get("order_status", "")).strip()
+            st_lower = raw_status.lower()
+
+            # Filter out terminal statuses (delivered, returned, cancelled, etc.)
+            if st_lower in TERMINAL_PATHAO_STATUSES or not st_lower:
+                continue
+
+            seen_consignments.add(cid)
+            collected = o.get("collected_amount", 0)
+            try:
+                amt = float(collected) if collected is not None else 0.0
+            except (ValueError, TypeError):
+                amt = 0.0
+
+            pending_list.append(
+                {
+                    "Consignment ID": cid,
+                    "Order ID": str(o.get("merchant_order_id", "")).strip(),
+                    "Customer Name": str(o.get("recipient_name", "")).strip(),
+                    "Phone": str(o.get("recipient_phone", "")).strip(),
+                    "Address": str(o.get("recipient_address", "")).strip(),
+                    "Date": str(o.get("created_at", "")).split(" ")[0],
+                    "COD Amount": amt,
+                    "Status": raw_status.replace("_", " ").title(),
+                    "Store": str(o.get("store_name", "")).strip(),
+                }
+            )
+
+        if meta and meta.get("last_page") is not None:
+            if page >= int(meta["last_page"]):
+                break
+
+    return pending_list, None
+
+
+def fetch_wc_pending_in_pathao(
+    wc_df, force_refresh: bool = False
+) -> list[dict]:
+    """Filter WooCommerce orders with Pathao tracking IDs whose Pathao status is pending/in-transit."""
+    import pandas as pd
+
+    if wc_df is None or wc_df.empty:
+        return []
+
+    # Find tracking column
+    tracking_col = next(
+        (
+            c
+            for c in wc_df.columns
+            if any(k in str(c).lower() for k in ["consignment", "tracking", "pathao"])
+        ),
+        None,
+    )
+    if not tracking_col:
+        return []
+
+    valid_mask = (
+        wc_df[tracking_col].notna()
+        & (wc_df[tracking_col].astype(str).str.strip() != "")
+        & (wc_df[tracking_col].astype(str).str.lower() != "nan")
+    )
+    filtered = wc_df[valid_mask].copy()
+    if filtered.empty:
+        return []
+
+    id_col = next(
+        (
+            c
+            for c in filtered.columns
+            if "order id" in str(c).lower() or "order number" in str(c).lower()
+        ),
+        filtered.columns[0],
+    )
+    name_col = next((c for c in filtered.columns if "name" in str(c).lower()), "")
+    phone_col = next((c for c in filtered.columns if "phone" in str(c).lower()), "")
+    date_col = next((c for c in filtered.columns if "date" in str(c).lower()), "")
+    amount_col = next(
+        (
+            c
+            for c in filtered.columns
+            if "total" in str(c).lower() or "amount" in str(c).lower()
+        ),
+        "",
+    )
+
+    cids = filtered[tracking_col].astype(str).str.strip().unique().tolist()
+    status_map = bulk_get_pathao_order_statuses(cids, force_refresh=force_refresh)
+
+    results = []
+    seen_cids = set()
+    for _, row in filtered.iterrows():
+        cid = str(row[tracking_col]).strip()
+        if not cid or cid in seen_cids:
+            continue
+
+        p_status = status_map.get(cid, "Unknown")
+        st_lower = p_status.lower().strip()
+
+        if st_lower in TERMINAL_PATHAO_STATUSES or st_lower == "status not found":
+            continue
+
+        seen_cids.add(cid)
+        amt_raw = row[amount_col] if amount_col else 0
+        try:
+            amt = float(amt_raw) if pd.notna(amt_raw) else 0.0
+        except (ValueError, TypeError):
+            amt = 0.0
+
+        results.append(
+            {
+                "Consignment ID": cid,
+                "Order ID": str(row[id_col]) if id_col else "",
+                "Customer Name": str(row[name_col]) if name_col else "",
+                "Phone": str(row[phone_col]) if phone_col else "",
+                "Address": str(
+                    row.get("Address 1&2 (Shipping)", row.get("Shipping Address", ""))
+                ),
+                "Date": str(row[date_col]).split(" ")[0] if date_col else "",
+                "COD Amount": amt,
+                "Status": p_status.replace("_", " ").title(),
+                "Store": "WooCommerce",
+            }
+        )
+
+    return results
+

@@ -12,8 +12,14 @@ from requests import Response
 from requests.exceptions import HTTPError, Timeout
 
 from src.services.pathao import client as client_module
+from src.services.pathao import status as status_module
 from src.services.pathao.client import PathaoClient
 from src.services.pathao.orders import PathaoOrderError, build_order_payload
+from src.services.pathao.status import (
+    TERMINAL_PATHAO_STATUSES,
+    fetch_pending_pathao_orders,
+    fetch_wc_pending_in_pathao,
+)
 
 
 @pytest.fixture
@@ -435,3 +441,188 @@ def test_legacy_cache_is_ignored_and_new_cache_is_private(monkeypatch, tmp_path)
     reopened = PathaoClient("https://pathao.invalid", "test", "test", "test", "test")
     assert reopened.access_token is None
     assert not list(tmp_path.glob(".pathao-token-*"))
+
+
+def test_pathao_client_get_orders_success(monkeypatch, client):
+    payload = {
+        "data": {
+            "data": [
+                {
+                    "consignment_id": "PT12345",
+                    "merchant_order_id": "ORD-1",
+                    "recipient_name": "Test Customer",
+                    "recipient_phone": "01711111111",
+                    "recipient_address": "Dhaka, Bangladesh",
+                    "created_at": "2026-09-15 10:00:00",
+                    "collected_amount": 750.0,
+                    "order_status": "In_Transit",
+                    "store_name": "Main Warehouse",
+                }
+            ],
+            "current_page": 1,
+            "last_page": 2,
+            "total": 1,
+        }
+    }
+    captured_params = {}
+
+    def mock_request(method, url, headers=None, params=None, timeout=None):
+        captured_params.update(params or {})
+        return response(200, payload)
+
+    monkeypatch.setattr(client_module, "request_with_backoff", mock_request)
+    orders, meta, err = client.get_orders(
+        page=1, limit=50, search="ORD-1", status="In_Transit"
+    )
+
+    assert err is None
+    assert len(orders) == 1
+    assert orders[0]["consignment_id"] == "PT12345"
+    assert meta == {"current_page": 1, "last_page": 2, "total": 1}
+    assert captured_params == {
+        "page": 1,
+        "limit": 50,
+        "search": "ORD-1",
+        "status": "In_Transit",
+    }
+
+
+def test_pathao_client_get_orders_error_handling(monkeypatch, client):
+    def mock_request(method, url, headers=None, params=None, timeout=None):
+        res = Response()
+        res.status_code = 500
+        res._content = b"Server Unavailable"
+        return res
+
+    monkeypatch.setattr(client_module, "request_with_backoff", mock_request)
+    orders, meta, err = client.get_orders()
+    assert orders == []
+    assert meta is None
+    assert "500" in err
+
+
+def test_fetch_pending_pathao_orders_filters_terminal(monkeypatch, client):
+    page_1_data = [
+        {
+            "consignment_id": "PT001",
+            "merchant_order_id": "ORD-001",
+            "recipient_name": "Pending User",
+            "recipient_phone": "01710000001",
+            "recipient_address": "Dhaka",
+            "created_at": "2026-09-14 12:00:00",
+            "collected_amount": 1200.0,
+            "order_status": "in_transit",
+            "store_name": "Store 1",
+        },
+        {
+            "consignment_id": "PT002",
+            "merchant_order_id": "ORD-002",
+            "recipient_name": "Delivered User",
+            "recipient_phone": "01710000002",
+            "recipient_address": "Chittagong",
+            "created_at": "2026-09-14 12:00:00",
+            "collected_amount": 500.0,
+            "order_status": "delivered",
+            "store_name": "Store 1",
+        },
+        {
+            "consignment_id": "PT003",
+            "merchant_order_id": "ORD-003",
+            "recipient_name": "Pickup User",
+            "recipient_phone": "01710000003",
+            "recipient_address": "Sylhet",
+            "created_at": "2026-09-14 12:00:00",
+            "collected_amount": 800.0,
+            "order_status": "pickup_requested",
+            "store_name": "Store 1",
+        },
+        {
+            "consignment_id": "PT004",
+            "merchant_order_id": "ORD-004",
+            "recipient_name": "Returned User",
+            "recipient_phone": "01710000004",
+            "recipient_address": "Rajshahi",
+            "created_at": "2026-09-14 12:00:00",
+            "collected_amount": 400.0,
+            "order_status": "returned",
+            "store_name": "Store 1",
+        },
+    ]
+
+    def mock_get_orders(page=1, limit=50, search=None, status=None):
+        return page_1_data, {"current_page": 1, "last_page": 1, "total": 4}, None
+
+    monkeypatch.setattr(client, "get_orders", mock_get_orders)
+    pending_list, err = fetch_pending_pathao_orders(client, max_pages=1)
+
+    assert err is None
+    assert len(pending_list) == 2
+    cids = [item["Consignment ID"] for item in pending_list]
+    assert cids == ["PT001", "PT003"]
+    statuses = [item["Status"] for item in pending_list]
+    assert statuses == ["In Transit", "Pickup Requested"]
+    assert pending_list[0]["COD Amount"] == 1200.0
+    assert pending_list[1]["COD Amount"] == 800.0
+
+
+def test_fetch_wc_pending_in_pathao(monkeypatch):
+    wc_df = pd.DataFrame(
+        [
+            {
+                "Order ID": "WC-101",
+                "Consignment ID": "PT-WC-001",
+                "Customer Name": "Customer A",
+                "Phone": "01711111111",
+                "Shipping Address": "Dhaka",
+                "Order Date": "2026-09-13",
+                "Order Total Amount": 1500.0,
+            },
+            {
+                "Order ID": "WC-102",
+                "Consignment ID": "PT-WC-002",
+                "Customer Name": "Customer B",
+                "Phone": "01722222222",
+                "Shipping Address": "Dhaka",
+                "Order Date": "2026-09-13",
+                "Order Total Amount": 600.0,
+            },
+            {
+                "Order ID": "WC-103",
+                "Consignment ID": "PT-WC-003",
+                "Customer Name": "Customer C",
+                "Phone": "01733333333",
+                "Shipping Address": "Dhaka",
+                "Order Date": "2026-09-13",
+                "Order Total Amount": 900.0,
+            },
+            {
+                "Order ID": "WC-104",
+                "Consignment ID": "",
+                "Customer Name": "Customer D",
+                "Phone": "01744444444",
+                "Shipping Address": "Dhaka",
+                "Order Date": "2026-09-13",
+                "Order Total Amount": 1000.0,
+            },
+        ]
+    )
+
+    mock_status_map = {
+        "PT-WC-001": "in_transit",
+        "PT-WC-002": "delivered",
+        "PT-WC-003": "Status Not Found",
+    }
+
+    monkeypatch.setattr(
+        status_module,
+        "bulk_get_pathao_order_statuses",
+        lambda cids, force_refresh=False: mock_status_map,
+    )
+
+    pending = fetch_wc_pending_in_pathao(wc_df)
+    assert len(pending) == 1
+    assert pending[0]["Consignment ID"] == "PT-WC-001"
+    assert pending[0]["Order ID"] == "WC-101"
+    assert pending[0]["Status"] == "In Transit"
+    assert pending[0]["COD Amount"] == 1500.0
+    assert pending[0]["Store"] == "WooCommerce"

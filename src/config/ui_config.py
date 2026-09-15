@@ -21,10 +21,10 @@ LEGACY_NAV_MAPPING = {
     # Section: Orders & Fulfillment
     "🛒 Order Tracking": "🛒 Orders & Fulfillment",
     "🛒 Order tracking": "🛒 Orders & Fulfillment",
+    "📋 Product Listing": "🛒 Orders & Fulfillment",
     "📦 Pathao Processor": "🛒 Orders & Fulfillment",
     "🧩 Delivery Data Parser": "🛒 Orders & Fulfillment",
     # Section: Inventory & Stock
-    "📋 Product Listing": "📦 Inventory & Stock",
     "📦 Current Stock Analytics": "📦 Inventory & Stock",
     "📊 Inventory Distribution": "📦 Inventory & Stock",
     # Section: Analytics & Insights
@@ -39,9 +39,9 @@ LEGACY_NAV_MAPPING = {
 LEGACY_SUBFEATURE_MAPPING = {
     "🛒 Order Tracking": ("orders_sub_feature", "Order Tracking"),
     "🛒 Order tracking": ("orders_sub_feature", "Order Tracking"),
+    "📋 Product Listing": ("orders_sub_feature", "Product Listing"),
     "📦 Pathao Processor": ("orders_sub_feature", "Pathao Processor"),
     "🧩 Delivery Data Parser": ("orders_sub_feature", "Delivery Data Parser"),
-    "📋 Product Listing": ("inventory_sub_feature", "Product Listing"),
     "📦 Current Stock Analytics": ("inventory_sub_feature", "Current Stock Analytics"),
     "📊 Inventory Distribution": ("inventory_sub_feature", "Inventory Distribution"),
     "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),

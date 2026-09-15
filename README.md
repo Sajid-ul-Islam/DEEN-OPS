@@ -1733,11 +1733,11 @@ LEGACY_NAV_MAPPING = {
     
     # Orders & Fulfillment (consolidated)
     "🛒 Order Tracking": "🛒 Orders & Fulfillment",
+    "📋 Product Listing": "🛒 Orders & Fulfillment",
     "📦 Pathao Processor": "🛒 Orders & Fulfillment",
     "🧩 Delivery Data Parser": "🛒 Orders & Fulfillment",
     
     # Inventory & Stock (consolidated)
-    "📋 Product Listing": "📦 Inventory & Stock",
     "📦 Current Stock Analytics": "📦 Inventory & Stock",
     "📊 Inventory Distribution": "📦 Inventory & Stock",
     
@@ -3072,8 +3072,8 @@ The foundation is now in place for systematic UX improvements following Hick's L
 ### New 5-Tab Jakob's Law Compliant Navigation
 ```
 📈 Live Dashboard          → render_live_tab()
-🛒 Orders & Fulfillment    → 3 sub-features (Order Tracking, Pathao, Delivery Parser)
-📦 Inventory & Stock       → 3 sub-features (Product Listing, Stock Analytics, Distribution)
+🛒 Orders & Fulfillment    → 4 sub-features (Order Tracking, Product Listing, Pathao, Delivery Parser)
+📦 Inventory & Stock       → 2 sub-features (Stock Analytics, Distribution)
 📊 Analytics & Insights    → 2 sub-features (Sales Ingestion, Return Analytics)
 🤖 Automation Tools        → 2 sub-features (WhatsApp Messaging, Data Pilot)
 ```

@@ -169,11 +169,51 @@ _route_page("🛒 Orders & Fulfillment")
 
 def test_legacy_subfeature_override():
     """Ensure legacy subfeature mappings correctly match expected sub-features."""
-    from src.config.ui_config import LEGACY_SUBFEATURE_MAPPING
+    from src.config.ui_config import LEGACY_NAV_MAPPING, LEGACY_SUBFEATURE_MAPPING
+
     assert "📦 Pathao Processor" in LEGACY_SUBFEATURE_MAPPING
     sub_key, sub_val = LEGACY_SUBFEATURE_MAPPING["📦 Pathao Processor"]
     assert sub_key == "orders_sub_feature"
     assert sub_val == "Pathao Processor"
     assert LEGACY_SUBFEATURE_MAPPING["🛒 Order Tracking"] == ("orders_sub_feature", "Order Tracking")
+    assert LEGACY_SUBFEATURE_MAPPING["📋 Product Listing"] == ("orders_sub_feature", "Product Listing")
+    assert LEGACY_NAV_MAPPING["📋 Product Listing"] == "🛒 Orders & Fulfillment"
     assert LEGACY_SUBFEATURE_MAPPING[":material/rocket_launch: Data Pilot"] == ("automation_sub_feature", "Data Pilot")
+
+
+def test_product_listing_routed_under_orders_fulfillment(tmp_path):
+    """Ensure Product Listing routes cleanly under Orders & Fulfillment."""
+    script_content = """import streamlit as st
+from unittest.mock import patch
+from src.app_bootstrap import _route_page
+
+st.session_state["orders_sub_feature"] = "Product Listing"
+with patch("src.pages.product_listing.render_product_listing_tab"):
+    _route_page("🛒 Orders & Fulfillment")
+"""
+    test_file = tmp_path / "test_route_product_listing.py"
+    test_file.write_text(script_content, encoding="utf-8")
+
+    at = AppTest.from_file(str(test_file)).run(timeout=10)
+    assert not at.exception, f"Failed with exception: {at.exception}"
+    assert at.session_state["orders_sub_feature"] == "Product Listing"
+
+
+def test_inventory_sub_feature_initialization_defaults_to_stock_analytics(tmp_path):
+    """Ensure Inventory & Stock defaults to Current Stock Analytics."""
+    script_content = """import streamlit as st
+from unittest.mock import patch
+from src.app_bootstrap import _route_page
+
+st.session_state.pop("inventory_sub_feature", None)
+with patch("src.pages.stock_analytics.render_stock_analytics_tab"):
+    _route_page("📦 Inventory & Stock")
+"""
+    test_file = tmp_path / "test_route_inventory_defaults.py"
+    test_file.write_text(script_content, encoding="utf-8")
+
+    at = AppTest.from_file(str(test_file)).run(timeout=10)
+    assert not at.exception, f"Failed with exception: {at.exception}"
+    assert at.session_state["inventory_sub_feature"] == "Current Stock Analytics"
+
 

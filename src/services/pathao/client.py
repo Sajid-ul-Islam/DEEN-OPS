@@ -354,3 +354,49 @@ class PathaoClient:
                 return [], f"API Error {res.status_code}: {res.text}"
         except Exception as e:
             return [], f"Connection Error: {e}"
+
+    def get_orders(
+        self,
+        page: int = 1,
+        limit: int = 50,
+        search: str | None = None,
+        status: str | None = None,
+    ) -> tuple[list[dict], dict | None, str | None]:
+        """Fetch a page of orders from the Pathao Aladdin API.
+
+        Returns (orders_list, pagination_metadata, error_message).
+        """
+        url = f"{self.base_url}/aladdin/api/v1/orders"
+        params: dict = {"page": page}
+        if limit:
+            params["limit"] = limit
+        if search and str(search).strip():
+            params["search"] = str(search).strip()
+        if status and str(status).strip():
+            params["status"] = str(status).strip()
+
+        try:
+            headers = self._get_headers()
+            res = request_with_backoff(
+                "GET", url, headers=headers, params=params, timeout=15
+            )
+            if res.status_code != 200:
+                return [], None, f"Pathao API error (HTTP {res.status_code}): {res.text[:200]}"
+            doc = res.json()
+            data_container = doc.get("data", {})
+            if isinstance(data_container, dict):
+                orders = data_container.get("data", [])
+                meta = {
+                    "current_page": data_container.get("current_page", page),
+                    "last_page": data_container.get("last_page", 1),
+                    "total": data_container.get("total", len(orders)),
+                }
+                return orders, meta, None
+            elif isinstance(data_container, list):
+                return data_container, None, None
+            return [], None, None
+        except PathaoOrderError as exc:
+            return [], None, str(exc)
+        except Exception as e:
+            return [], None, f"Connection Error: {e}"
+

@@ -397,7 +397,12 @@ def _route_page(selected_nav: str) -> None:
 
     # === 🛒 Orders & Fulfillment (Consolidated) ===
     elif selected_nav == "🛒 Orders & Fulfillment":
-        orders_sub_options = ["Order Tracking", "Pathao Processor", "Delivery Data Parser"]
+        orders_sub_options = [
+            "Order Tracking",
+            "Product Listing",
+            "Pathao Processor",
+            "Delivery Data Parser",
+        ]
         if (
             "orders_sub_feature" not in st.session_state
             or st.session_state["orders_sub_feature"] not in orders_sub_options
@@ -426,6 +431,12 @@ def _route_page(selected_nav: str) -> None:
                 render_woocommerce_orders_tab,
                 fallback_msg="Order Tracking unavailable.",
             )
+        elif active_sub == "Product Listing":
+            from src.pages.product_listing import render_product_listing_tab
+
+            safe_render(
+                render_product_listing_tab, fallback_msg="Product Listing unavailable."
+            )
         elif active_sub == "Pathao Processor":
             from src.pages.pathao_orders import render_pathao_tab
 
@@ -441,7 +452,6 @@ def _route_page(selected_nav: str) -> None:
     # === 📦 Inventory & Stock (Consolidated) ===
     elif selected_nav == "📦 Inventory & Stock":
         inventory_sub_options = [
-            "Product Listing",
             "Current Stock Analytics",
             "Inventory Distribution",
         ]
@@ -449,7 +459,7 @@ def _route_page(selected_nav: str) -> None:
             "inventory_sub_feature" not in st.session_state
             or st.session_state.inventory_sub_feature not in inventory_sub_options
         ):
-            st.session_state.inventory_sub_feature = "Product Listing"
+            st.session_state.inventory_sub_feature = "Current Stock Analytics"
 
         with st.expander("📂 Select Feature", expanded=False):
             sub_feature = st.radio(
@@ -463,13 +473,7 @@ def _route_page(selected_nav: str) -> None:
                 st.session_state.inventory_sub_feature = sub_feature
                 st.rerun()
 
-        if st.session_state.inventory_sub_feature == "Product Listing":
-            from src.pages.product_listing import render_product_listing_tab
-
-            safe_render(
-                render_product_listing_tab, fallback_msg="Product Listing unavailable."
-            )
-        elif st.session_state.inventory_sub_feature == "Current Stock Analytics":
+        if st.session_state.inventory_sub_feature == "Current Stock Analytics":
             from src.pages.stock_analytics import render_stock_analytics_tab
 
             safe_render(
@@ -626,7 +630,7 @@ def run_app() -> None:
     if "orders_sub_feature" not in st.session_state:
         st.session_state["orders_sub_feature"] = "Order Tracking"
     if "inventory_sub_feature" not in st.session_state:
-        st.session_state["inventory_sub_feature"] = "Product Listing"
+        st.session_state["inventory_sub_feature"] = "Current Stock Analytics"
     if "analytics_sub_feature" not in st.session_state:
         st.session_state["analytics_sub_feature"] = "Sales Data Ingestion"
     if "automation_sub_feature" not in st.session_state:
