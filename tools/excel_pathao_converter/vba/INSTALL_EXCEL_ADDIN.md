@@ -1,58 +1,65 @@
 # How to Install & Use the Excel Add-in
 
-This guide explains how to install the `PathaoBulkConverter` macro/add-in directly inside Microsoft Excel so you can convert any product-wise order list into Pathao Bulk format with a single click.
+This guide explains how to make the `PathaoBulkConverter` macro available in Microsoft Excel.
 
 ---
 
-## Method 1: Save as an Excel Add-in (`.xlam`) — Recommended
+## ⚠️ Why Did You See: *"Cannot run the macro 'Book1.xlsx'!ConvertToPathaoBulk"*?
 
-Once installed as an add-in, the conversion macro is permanently available in Excel on this computer for any workbook!
-
-1. Open Microsoft Excel with a blank workbook.
-2. Press **`Alt + F11`** to open the **Visual Basic for Applications (VBA)** editor.
-3. In the top menu, click **File** -> **Import File...** (or press **`Ctrl + M`**).
-4. Browse to this folder and select:
-   ```
-   PathaoBulkConverter.bas
-   ```
-   *(You will see `PathaoBulkConverter` appear under Modules in the left Project Explorer)*.
-5. In Excel, go to **File** -> **Save As**.
-6. In the **Save as type** dropdown, choose:
-   **Excel Add-in (*.xlam)**.
-7. Name it:
-   ```
-   Pathao_Bulk_Converter.xlam
-   ```
-   *(Excel will automatically save it in your default Microsoft Excel AddIns directory, or you can save it right in this folder)*.
-8. To activate it in Excel:
-   - Go to **File** -> **Options** -> **Add-ins**.
-   - At the bottom next to *Manage: Excel Add-ins*, click **Go...**
-   - Check the box for **Pathao_Bulk_Converter** (or click *Browse...* and select the `.xlam` file).
-   - Click **OK**.
-
-### How to Run it anytime:
-- Open your product-wise order list file in Excel.
-- Press **`Alt + F8`**, select **`ConvertToPathaoBulk`**, and click **Run**.
-- A new worksheet named **`Pathao_Bulk_Upload`** is generated instantly with the official 15 columns!
+When you first opened Excel and imported the code, Excel called the temporary blank file **`Book1`**. 
+- If you clicked **Save** as a normal Excel file (`.xlsx`), Excel automatically **deleted the macro** (because standard `.xlsx` files are not allowed to contain macros!).
+- When you later tried to run the macro, Excel tried to find the code inside `Book1.xlsx` and couldn't find it.
+- **The macro is NOT trying to convert `Book1.xlsx`** — Excel was simply looking for the code inside `Book1.xlsx`!
 
 ---
 
-## Method 2: Add a 1-Click Button to your Excel Ribbon / Quick Access Toolbar
+## 🏆 Recommended Solution: Put it in your "Personal Macro Workbook" (1 Minute)
 
-For the fastest workflow, you can add a dedicated button to Excel's top toolbar:
+The Personal Macro Workbook (`PERSONAL.XLSB`) is a hidden workbook that opens silently with Excel every time. Any macro saved here is **permanently available in EVERY file you open forever**!
 
-1. In Excel, go to **File** -> **Options** -> **Quick Access Toolbar** (or **Customize Ribbon**).
-2. Under **Choose commands from:**, select **Macros**.
-3. Select **`ConvertToPathaoBulk`** and click **Add >>**.
-4. Click **Modify...** to choose a friendly icon (like a package or truck icon 📦) and change the display name to `Convert to Pathao Bulk`.
+### Step 1: Make sure Personal Macro Workbook exists
+1. Open Excel.
+2. Go to the **View** tab at the top.
+3. Click **Macros** -> **Record Macro...**.
+4. In the *Store macro in:* dropdown, select **Personal Macro Workbook**.
+5. Click **OK**, then immediately click **Macros** -> **Stop Recording**.
+   *(This takes 3 seconds and tells Excel to create your `PERSONAL.XLSB` file).*
+
+### Step 2: Import the Converter into Personal Workbook
+1. Press **`Alt + F11`** to open the VBA Editor.
+2. In the left panel (Project Explorer), look for:
+   ```text
+   VBAProject (PERSONAL.XLSB)
+   ```
+3. Right-click on **`VBAProject (PERSONAL.XLSB)`**, select **Import File...** (or press **`Ctrl + M`**).
+4. Select `PathaoBulkConverter.bas`.
+5. Click the **Save** icon (diskette 💾) in the VBA toolbar to save `PERSONAL.XLSB`.
+6. Close the VBA window.
+
+### Step 3: Run it on any order file!
+1. Open your product-wise orders file.
+2. If there is a yellow banner at the top, click **"Enable Editing"**.
+3. Press **`Alt + F8`**, select **`ConvertToPathaoBulk`** (or `PERSONAL.XLSB!ConvertToPathaoBulk`), and click **Run**.
+4. A clean new workbook will appear containing the official 15 Pathao bulk upload columns!
+
+---
+
+## 💡 Pro Tip: 1-Click Button on Excel Top Toolbar
+
+1. In Excel, go to **File -> Options -> Quick Access Toolbar**.
+2. Under *Choose commands from:*, choose **Macros**.
+3. Select **`PERSONAL.XLSB!ConvertToPathaoBulk`** and click **Add >>**.
+4. Click **Modify...** to choose an icon (e.g. a box 📦 or truck) and change display name to `Convert to Pathao Bulk`.
 5. Click **OK**.
-6. Now, whenever you have an order sheet open, simply click that icon in your top toolbar!
+6. Now you have a 1-click button at the very top of Excel to convert any sheet instantly!
 
 ---
 
-## Method 3: One-time Use in Any Open File
+## ⚡ Alternative (No Excel Setup Needed): Use the Desktop Converter
 
-If you don't want to install an add-in permanently:
-1. Open your product-wise orders file in Excel.
-2. Press **`Alt + F11`**, click **File** -> **Import File...**, and choose `PathaoBulkConverter.bas`.
-3. Press **`F5`** (or close the VBA window, press **`Alt + F8`**, and click **Run**).
+If you don't want to configure Excel macros:
+- Drag and drop your order file directly onto:
+  ```text
+  tools\excel_pathao_converter\run_converter.bat
+  ```
+- Or double-click `run_converter.bat` to choose your file. It converts in 2 seconds!
