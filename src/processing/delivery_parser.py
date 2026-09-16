@@ -124,14 +124,26 @@ def parse_records(raw: str):
             i += 1
         rec["Action"] = ", ".join(action_lines)
 
+        if re.search(r"^(?:D|EX)\s*-\s*\d", rec["Recipient Name"], re.IGNORECASE) and not rec["Order ID"]:
+            rec["Order ID"] = rec["Recipient Name"]
+            rec["Recipient Name"] = ""
+            rec["Type"] = "Exchange"
+        elif re.search(r"^(?:D|EX)\s*-\s*\d", rec["Order ID"], re.IGNORECASE):
+            if not rec["Type"] or rec["Type"].lower() in ["parcel", "normal"]:
+                rec["Type"] = "Exchange"
+
         records.append(rec)
 
     return pd.DataFrame(records)
 
 
 def extract_fields_fuzzy(cons_id, text_block):
-    order_id_match = re.search(r"\b(\d{6})\b", text_block)
-    order_id = order_id_match.group(1) if order_id_match else ""
+    order_id_match = re.search(
+        r"\b((?:D|EX)\s*-\s*\d{3,8}(?:\s*[a-zA-Z0-9_-]+)?|[a-zA-Z]{1,4}-\d{3,8}(?:\s*[a-zA-Z0-9_-]+)?|\d{5,8}(?:\s*[a-zA-Z])?)\b",
+        text_block,
+        re.IGNORECASE,
+    )
+    order_id = order_id_match.group(1).strip() if order_id_match else ""
 
     store_match = re.search(
         r"(Deen Commerce|w DEEN WARI OUTLET|c DEEN CUMILLA OUTLET)", text_block
