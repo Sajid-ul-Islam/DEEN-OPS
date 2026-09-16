@@ -591,3 +591,150 @@ def test_saturday_counts_friday_and_compares_with_thursday():
     counts = compute_live_filter_counts(df, reference_date=saturday)
     assert counts["Today Shipped"] == 3
     assert counts["Last Day Shipped"] == 1
+
+
+def test_has_blank_address_detection():
+    """Verify has_blank_address handles missing, empty, and valid addresses accurately."""
+    from src.processing.completed_analytics import has_blank_address
+
+    # 1. Blank variations
+    assert has_blank_address({"Shipping Address 1": ""}) is True
+    assert has_blank_address({"Shipping Address 1": "   "}) is True
+    assert has_blank_address({"Shipping Address 1": None}) is True
+    assert has_blank_address({"Shipping Address 1": float("nan")}) is True
+    assert has_blank_address({"Shipping Address 1": "nan"}) is True
+    assert has_blank_address({"Shipping Address 1": "none"}) is True
+    assert has_blank_address({"Shipping Address 1": "Address Not Provided"}) is True
+    assert has_blank_address({"Address": "missing"}) is True
+    assert has_blank_address({"RecipientAddress(*)": "unknown"}) is True
+    assert has_blank_address({"Billing Address 1": "n/a"}) is True
+
+    # 2. Multiple columns where all are blank
+    assert (
+        has_blank_address(
+            {"Shipping Address 1": "", "Billing Address 1": "Address Missing"}
+        )
+        is True
+    )
+
+    # 3. Valid address present
+    assert (
+        has_blank_address({"Shipping Address 1": "House 10, Road 4, Mirpur, Dhaka"})
+        is False
+    )
+    assert (
+        has_blank_address(
+            {"Shipping Address 1": "", "Billing Address 1": "Dhanmondi 27, Dhaka"}
+        )
+        is False
+    )
+    assert (
+        has_blank_address({"Address 1&2 (Shipping)": "GEC Circle, Chittagong"})
+        is False
+    )
+    assert (
+        has_blank_address({"RecipientAddress(*)": "House 1, Block A, Uttara"}) is False
+    )
+
+    # 4. No address columns present in dict/row (fixture compatibility)
+    assert has_blank_address({"Order ID": 101, "Phone": "01711111111"}) is False
+
+
+def test_orders_without_address_classified_as_outlet():
+    """Verify that orders without customer address are classified as Outlet even if payment/channel looks online."""
+    from src.processing.completed_analytics import (
+        classify_order_source,
+        filter_online_orders,
+    )
+
+    orders = pd.DataFrame(
+        [
+            # 1. Genuine online checkout order with address
+            {
+                "Order ID": 401,
+                "Payment Method Title": "Cash on delivery",
+                "Created via": "checkout",
+                "Phone (Billing)": "01711111111",
+                "Shipping Address 1": "House 12, Road 5, Mirpur, Dhaka",
+            },
+            # 2. Genuine online checkout order with billing address only
+            {
+                "Order ID": 402,
+                "Payment Method Title": "Pay Online(bKash)",
+                "Created via": "checkout",
+                "Phone (Billing)": "01722222222",
+                "Shipping Address 1": "",
+                "Billing Address 1": "Dhanmondi, Dhaka",
+            },
+            # 3. Outlet order: has customer name & phone, but NO address (walk-in outlet purchase)
+            {
+                "Order ID": 403,
+                "Payment Method Title": "Cash on delivery",
+                "Created via": "checkout",
+                "Full Name (Billing)": "Outlet Walkin",
+                "Phone (Billing)": "01733333333",
+                "Shipping Address 1": "",
+                "Billing Address 1": "",
+            },
+            # 4. Outlet order: Payment is online but address is placeholder "Address Not Provided"
+            {
+                "Order ID": 404,
+                "Payment Method Title": "Cash on delivery",
+                "Created via": "checkout",
+                "Phone (Billing)": "01744444444",
+                "Shipping Address 1": "Address Not Provided",
+            },
+            # 5. Outlet counter cash order
+            {
+                "Order ID": 405,
+                "Payment Method Title": "Cash",
+                "Created via": "",
+                "Shipping Address 1": "",
+            },
+        ]
+    )
+
+    # Test individual classification
+    assert classify_order_source(orders.iloc[0]) == "Online"
+    assert classify_order_source(orders.iloc[1]) == "Online"
+    assert classify_order_source(orders.iloc[2]) == "Outlet"
+    assert classify_order_source(orders.iloc[3]) == "Outlet"
+    assert classify_order_source(orders.iloc[4]) == "Outlet"
+
+    # Test filter_online_orders keeps only orders with address
+    online_only = filter_online_orders(orders)
+    assert set(online_only["Order ID"]) == {401, 402}
+
+
+def test_orders_without_address_excluded_from_customer_mix():
+    """Verify that orders without addresses are excluded from customer mix counts."""
+    from src.utils.customer_registry import compute_new_vs_returning_counts
+
+    orders_df = pd.DataFrame(
+        [
+            # Real online customer with address
+            {
+                "Order ID": 501,
+                "Date": "2026-09-14 10:00:00",
+                "Full Name (Billing)": "Alice Real",
+                "Phone (Billing)": "01711111111",
+                "Billing Email": "alice@example.com",
+                "Shipping Address 1": "House 1, Road 2, Banani",
+            },
+            # Outlet customer with phone but NO address
+            {
+                "Order ID": 502,
+                "Date": "2026-09-14 11:00:00",
+                "Full Name (Billing)": "Bob Outlet",
+                "Phone (Billing)": "01822222222",
+                "Billing Email": "bob@example.com",
+                "Shipping Address 1": "",
+                "Billing Address 1": "",
+            },
+        ]
+    )
+
+    new_cnt, ret_cnt = compute_new_vs_returning_counts(orders_df, orders_df)
+    # Only Alice should be counted; Bob has no address (outlet) and must be excluded
+    assert new_cnt + ret_cnt == 1
+

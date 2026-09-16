@@ -126,6 +126,92 @@ def has_blank_phone(row: Any) -> bool:
     return True
 
 
+BLANK_ADDRESS_STRINGS = frozenset(
+    {
+        "",
+        "nan",
+        "none",
+        "null",
+        "undefined",
+        "n/a",
+        "na",
+        "-",
+        "--",
+        ".",
+        "address not provided",
+        "address missing",
+        "missing",
+        "unknown",
+        "no address",
+        "not provided",
+        "nil",
+        "0",
+    }
+)
+
+CANDIDATE_ADDRESS_COLS = (
+    # Shipping address variants
+    "Shipping Address 1",
+    "Shipping Address 2",
+    "Shipping Address",
+    "Address 1&2 (Shipping)",
+    "Address (Shipping)",
+    "shipping_address_1",
+    "shipping_address_2",
+    "shipping_address",
+    "Shipping_Address",
+    # Billing address variants
+    "Billing Address 1",
+    "Billing Address 2",
+    "Billing Address",
+    "Address 1&2 (Billing)",
+    "Address (Billing)",
+    "billing_address_1",
+    "billing_address_2",
+    "billing_address",
+    "Billing_Address",
+    # Generic / export / courier address variants
+    "Address",
+    "Address 1",
+    "Address 2",
+    "address",
+    "address_1",
+    "address_2",
+    "Delivery Address",
+    "Customer Address",
+    "Street Address",
+    "RecipientAddress(*)",
+    "Recipient Address",
+    "recipient_address",
+    "Full Address",
+)
+
+
+def has_blank_address(row: Any) -> bool:
+    """Check if row/dict has address column(s) present and all of them are blank/empty/missing.
+
+    If no address columns are present in the row/dict, returns False (backward compatibility
+    for minimal synthetic fixtures without address columns).
+    """
+    keys = getattr(row, "index", None)
+    if keys is None and isinstance(row, dict):
+        keys = row.keys()
+    if keys is None:
+        return False
+
+    addr_cols = [c for c in CANDIDATE_ADDRESS_COLS if c in keys]
+    if not addr_cols:
+        return False
+
+    for col in addr_cols:
+        val = row.get(col) if hasattr(row, "get") else row[col]
+        if pd.notna(val):
+            s = str(val).strip()
+            if s and s.lower() not in BLANK_ADDRESS_STRINGS:
+                return False
+    return True
+
+
 def classify_order_source(
     row: pd.Series,
     source_col: Optional[str] = None,
@@ -134,8 +220,9 @@ def classify_order_source(
     Classify an order as 'Online' (website/ecom checkout) or 'Outlet' (physical store/POS).
 
     Classification priority:
-    0. Walk-in / Blank Phone check: 'Walk-in Customer' orders or orders with blank phone
-       numbers are physical outlet sales (online checkout orders require a customer phone).
+    0. Walk-in / Blank Phone / Blank Address check: 'Walk-in Customer' orders, orders with blank phone
+       numbers, or orders without delivery address are physical outlet sales (online checkout orders require
+       both customer phone and delivery address).
     1. Explicit source column ('Order Source', 'Source', 'sales_channel', 'Created via', etc.)
        Only online checkout orders are considered 'Online'; non-checkout channels ('pos', 'admin',
        'rest-api', 'wepos', 'manual') are 'Outlet'.
@@ -143,8 +230,10 @@ def classify_order_source(
     3. Dispatch Suggestion / Warehouse Outlet (e.g. 'Cumilla', 'Wari', 'Sylhet' -> Outlet)
     4. Payment Method Title (e.g. 'Cash', 'UCB', 'City Bank' -> Outlet POS; 'Cash on delivery', 'Pay Online' -> Online checkout)
     """
-    # 0. Check Customer Name & Phone Number:
-    # Walk-in customers or orders with blank phone numbers are physical outlet sales.
+    # 0. Check Customer Name, Phone Number, & Delivery Address:
+    # Walk-in customers, orders with blank phone numbers, or orders with blank/missing
+    # addresses are physical outlet sales (online website checkout orders require
+    # both customer phone and delivery address).
     customer_name_candidates = [
         "Full Name (Billing)",
         "Customer Name",
@@ -161,6 +250,9 @@ def classify_order_source(
                 return "Outlet"
 
     if has_blank_phone(row):
+        return "Outlet"
+
+    if has_blank_address(row):
         return "Outlet"
 
     # 1. Check explicit source / created_via column

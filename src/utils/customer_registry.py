@@ -21,7 +21,11 @@ from src.processing.column_detection import (
     PHONE_COL_CANDIDATES,
     pick_column,
 )
-from src.processing.completed_analytics import has_blank_phone, is_walkin_customer
+from src.processing.completed_analytics import (
+    has_blank_address,
+    has_blank_phone,
+    is_walkin_customer,
+)
 from src.processing.data_processing import safe_coerce_datetime_naive
 from src.utils.customer_registry_full import classify_customer  # noqa: F401,E402
 from src.utils.logging import log_system_event
@@ -220,9 +224,13 @@ def compute_new_vs_returning_counts(
                 continue
             seen.add(oid)
 
-            # Skip anonymous walk-in outlet customers or blank phone numbers
+            # Skip anonymous walk-in outlet customers, blank phone numbers, or orders with no address
             c_name = str(urow.get(name_col) or "") if name_col else ""
-            if is_walkin_customer(c_name) or has_blank_phone(urow):
+            if (
+                is_walkin_customer(c_name)
+                or has_blank_phone(urow)
+                or has_blank_address(urow)
+            ):
                 continue
 
             billing = {}
@@ -297,6 +305,7 @@ def _build_legacy_structures(
     if full_name_col and full_name_col in f_df.columns:
         f_df = f_df[~f_df[full_name_col].apply(is_walkin_customer)]
     f_df = f_df[~f_df.apply(has_blank_phone, axis=1)]
+    f_df = f_df[~f_df.apply(has_blank_address, axis=1)]
     f_df["_dt"] = safe_coerce_datetime_naive(f_df[full_dt_col])
     f_df["_norm_cust"] = (
         f_df[cust_col].apply(normalize_phone_key)
@@ -369,7 +378,11 @@ def _legacy_compute(
                 continue
             seen.add(oid)
             c_name = str(urow.get(name_col) or "") if name_col else ""
-            if is_walkin_customer(c_name) or has_blank_phone(urow):
+            if (
+                is_walkin_customer(c_name)
+                or has_blank_phone(urow)
+                or has_blank_address(urow)
+            ):
                 continue
             if _legacy_is_returning(urow, legacy):
                 ret_cnt += 1

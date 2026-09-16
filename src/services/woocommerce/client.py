@@ -126,6 +126,18 @@ def _flatten_order(order: dict) -> list[dict]:
         item_disc = max(0.0, sub_val - tot_val)
         total_cashback_disc = item_disc + split_ord_discount + split_fee_discount
 
+        ship_addr1 = str(ship.get("address_1", "") or "").strip()
+        bill_addr1 = str(bill.get("address_1", "") or "").strip()
+        effective_addr1 = ship_addr1 or bill_addr1
+
+        ship_addr2 = str(ship.get("address_2", "") or "").strip()
+        bill_addr2 = str(bill.get("address_2", "") or "").strip()
+        effective_addr2 = ship_addr2 or bill_addr2
+
+        ship_city = str(ship.get("city", "") or "").strip()
+        bill_city = str(bill.get("city", "") or "").strip()
+        effective_city = ship_city or bill_city
+
         flattened.append(
             {
                 "Order ID": oid,
@@ -139,8 +151,12 @@ def _flatten_order(order: dict) -> list[dict]:
                 "Full Name (Billing)": c_name,
                 "Phone (Billing)": bill.get("phone", ""),
                 "Billing Email": bill.get("email", ""),
-                "Shipping Address 1": ship.get("address_1", ""),
-                "Shipping City": ship.get("city", ""),
+                "Shipping Address 1": effective_addr1,
+                "Billing Address 1": bill_addr1,
+                "Shipping Address 2": effective_addr2,
+                "Billing Address 2": bill_addr2,
+                "Shipping City": effective_city,
+                "Billing City": bill_city,
                 "State Name (Billing)": bill.get("state", ""),
                 "Item Name": item.get("name"),
                 "SKU": item.get("sku", ""),
