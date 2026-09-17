@@ -34,6 +34,8 @@ LEGACY_NAV_MAPPING = {
     "💬 WhatsApp Messaging": "🤖 Automation Tools",
     "🚀 Data Pilot": "🤖 Automation Tools",
     ":material/rocket_launch: Data Pilot": "🤖 Automation Tools",
+    "🏬 SIP Outlet Mapper": "🤖 Automation Tools",
+    "SIP Outlet Mapper": "🤖 Automation Tools",
 }
 
 LEGACY_SUBFEATURE_MAPPING = {
@@ -49,6 +51,8 @@ LEGACY_SUBFEATURE_MAPPING = {
     "💬 WhatsApp Messaging": ("automation_sub_feature", "WhatsApp Messaging"),
     "🚀 Data Pilot": ("automation_sub_feature", "Data Pilot"),
     ":material/rocket_launch: Data Pilot": ("automation_sub_feature", "Data Pilot"),
+    "🏬 SIP Outlet Mapper": ("automation_sub_feature", "SIP Outlet Mapper"),
+    "SIP Outlet Mapper": ("automation_sub_feature", "SIP Outlet Mapper"),
 }
 
 CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"

@@ -174,6 +174,38 @@ def _render_product_listing_content() -> None:
             key="pl_date_col",
         )
 
+    # Optional Outlet Filtering if SIP / Outlet data is present
+    has_sip = "SIP" in df.columns or "Item Outlet" in df.columns
+    if has_sip:
+        from src.processing.sip_outlet_processor import process_order_item_outlets
+
+        actual_order_col = (
+            order_col
+            if (order_col != "None" and order_col in df.columns)
+            else ("Order Number" if "Order Number" in df.columns else df.columns[0])
+        )
+        if "Item Outlet" not in df.columns and "SIP" in df.columns:
+            df = process_order_item_outlets(
+                df,
+                order_col=actual_order_col,
+                sip_col="SIP",
+            )
+
+        if "Item Outlet" in df.columns:
+            unique_outlets = [o for o in df["Item Outlet"].dropna().unique() if o != "Warehouse"]
+            outlet_opts = ["🏭 Warehouse Only (Recommended)", "🌐 All Outlets"] + unique_outlets
+            chosen_outlet = st.selectbox(
+                "Filter Product Listing by Outlet:",
+                outlet_opts,
+                index=0,
+                key="pl_outlet_filter_choice",
+                help="Filters picking list to items fulfilled by the selected outlet.",
+            )
+            if chosen_outlet == "🏭 Warehouse Only (Recommended)":
+                df = df[df["Item Outlet"] == "Warehouse"]
+            elif chosen_outlet != "🌐 All Outlets":
+                df = df[df["Item Outlet"] == chosen_outlet]
+
     # Grouping & Aggregation: sorted first item-wise, then SKU-wise
     merged_df = aggregate_product_listing(
         df,

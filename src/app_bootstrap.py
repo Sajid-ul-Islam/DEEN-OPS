@@ -528,7 +528,11 @@ def _route_page(selected_nav: str) -> None:
 
     # === 🤖 Automation Tools (Consolidated) ===
     elif selected_nav == "🤖 Automation Tools":
-        automation_sub_options = ["WhatsApp Messaging", "Data Pilot"]
+        automation_sub_options = [
+            "WhatsApp Messaging",
+            "Data Pilot",
+            "SIP Outlet Mapper",
+        ]
         if (
             "automation_sub_feature" not in st.session_state
             or st.session_state.automation_sub_feature not in automation_sub_options
@@ -557,6 +561,12 @@ def _route_page(selected_nav: str) -> None:
             from src.pages.data_pilot import render_ai_pilot_page
 
             safe_render(render_ai_pilot_page, fallback_msg="Data Pilot unavailable.")
+        elif st.session_state.automation_sub_feature == "SIP Outlet Mapper":
+            from src.pages.sip_outlet_mapper import render_sip_outlet_tab
+
+            safe_render(
+                render_sip_outlet_tab, fallback_msg="SIP Outlet Mapper unavailable."
+            )
 
 
 # ── Public entry point ──────────────────────────────────────────────────────

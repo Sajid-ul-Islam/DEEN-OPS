@@ -77,6 +77,8 @@ MODULES = [
     "src.utils.http",
     "src.utils.metric_history",
     "src.utils.ml_brain",
+    "src.processing.sip_outlet_processor",
+    "src.pages.sip_outlet_mapper",
 ]
 
 
