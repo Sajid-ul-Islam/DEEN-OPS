@@ -313,18 +313,19 @@ def _get_operational_sync_params(cache_buster: str | None = None) -> dict:
 
 
 def _get_today_modified_shipped_params(cache_buster: str | None = None) -> dict:
-    """Build API params to fetch orders modified during today's operational shift with shipped status.
+    """Build API params to fetch orders modified during the operational window with shipped status.
 
-    This catches old orders (placed before the 3-day window) that were shipped in current shift.
+    This catches old backlog orders (placed before the 3-day window) that were shipped in either
+    the current operational shift (df_live) or the previous operational working shift (df_prev).
     WooCommerce supports `modified_after` to filter by date_modified regardless of order date.
-    Note: Subtract 6 hours from prev_cutoff (BD Time UTC+6) so WooCommerce API receives UTC ISO time.
+    Note: Subtract 6 hours from day_before_prev (BD Time UTC+6) so WooCommerce API receives UTC ISO time.
     """
-    _, prev_cutoff, _, _ = _compute_cutoff_times(BD_TZ)
-    prev_cutoff_utc = prev_cutoff - timedelta(hours=6)
+    _, prev_cutoff, day_before_prev, _ = _compute_cutoff_times(BD_TZ)
+    mod_start_utc = day_before_prev - timedelta(hours=6)
     return _apply_cache_buster(
         {
             "per_page": 100,
-            "modified_after": f"{prev_cutoff_utc.strftime('%Y-%m-%dT%H:%M:%S')}Z",
+            "modified_after": f"{mod_start_utc.strftime('%Y-%m-%dT%H:%M:%S')}Z",
             "status": "any",
             "orderby": "modified",
             "order": "desc",
@@ -514,23 +515,21 @@ def _apply_shipped_history(df_full):
         if not oid:
             continue
         actual_mod_dt = row["mod_dt_parsed"]
-        if pd.notnull(actual_mod_dt):
-            if oid in shipped_history:
-                stored_dt = safe_coerce_datetime_naive(
-                    pd.Series([shipped_history[oid]])
-                ).iloc[0]
-                if pd.isnull(stored_dt) or actual_mod_dt > stored_dt:
-                    shipped_history[oid] = str(actual_mod_dt)
-                    history_updated = True
-            else:
-                shipped_history[oid] = str(actual_mod_dt)
-                history_updated = True
-        elif oid in shipped_history:
+        if oid in shipped_history:
             stored_dt = safe_coerce_datetime_naive(
                 pd.Series([shipped_history[oid]])
             ).iloc[0]
             if pd.notnull(stored_dt):
+                # Preserve the original shipment date so subsequent admin edits
+                # (customer messaging, notes, tracking updates) do not move the
+                # order out of its original operational shift.
                 df_full.at[idx, "mod_dt_parsed"] = stored_dt
+            elif pd.notnull(actual_mod_dt):
+                shipped_history[oid] = str(actual_mod_dt)
+                history_updated = True
+        elif pd.notnull(actual_mod_dt):
+            shipped_history[oid] = str(actual_mod_dt)
+            history_updated = True
 
     # If an order's status is NOT in SHIPPED_STATUSES, remove it from shipped_history
     for idx, row in df_full[~is_shipped_mask].iterrows():

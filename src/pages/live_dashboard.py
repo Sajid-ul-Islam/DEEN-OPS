@@ -48,10 +48,10 @@ def _get_dashboard_source(fallback=None, online_only: bool = True):
     frames = [
         frame
         for frame in (
-            st.session_state.get("wc_full_df"),
             st.session_state.get("wc_curr_df"),
             st.session_state.get("wc_prev_df"),
             st.session_state.get("wc_backlog_df"),
+            st.session_state.get("wc_full_df"),
         )
         if frame is not None and not frame.empty
     ]
@@ -68,6 +68,18 @@ def _get_dashboard_source(fallback=None, online_only: bool = True):
                 if c in combined.columns
             ]
             res = combined.drop_duplicates(subset=subset) if subset else combined
+
+    if res is not None and not res.empty:
+        from src.processing.data_processing import safe_coerce_datetime_naive
+
+        if "mod_dt_parsed" not in res.columns or res["mod_dt_parsed"].isna().all():
+            if "Order Date Modified" in res.columns:
+                res["mod_dt_parsed"] = safe_coerce_datetime_naive(
+                    res["Order Date Modified"]
+                )
+        if "dt_parsed" not in res.columns or res["dt_parsed"].isna().all():
+            if "Order Date" in res.columns:
+                res["dt_parsed"] = safe_coerce_datetime_naive(res["Order Date"])
 
     if res is not None and not res.empty and online_only:
         return filter_online_orders(res)

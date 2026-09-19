@@ -484,6 +484,9 @@ def filter_live_dashboard_view(df, view: str, reference_date=None):
         is_today_created_date = created_date == today
         queue_prior_date = today
 
+    queue_cutoff_ts = pd.Timestamp(queue_prior_date).normalize()
+    is_prior_queue = (created.dt.normalize() < queue_cutoff_ts) & is_queue
+
     if v in {"Today Shipped", "Today"}:
         mask = is_sale & is_today_shipped_date
     elif v in {"Last Day Shipped", "Last Day"}:
@@ -494,7 +497,7 @@ def filter_live_dashboard_view(df, view: str, reference_date=None):
         mask = (
             ~is_cancelled
             & ~is_hold_waiting
-            & (is_today_created_date | ((created_date < queue_prior_date) & is_queue))
+            & (is_today_created_date | is_prior_queue)
         )
     else:
         mask = pd.Series(False, index=df.index)
@@ -591,6 +594,9 @@ def compute_live_filter_counts(df, reference_date=None) -> dict[str, int]:
         is_today_created_date = created_date == today
         queue_prior_date = today
 
+    queue_cutoff_ts = pd.Timestamp(queue_prior_date).normalize()
+    is_prior_queue = (created.dt.normalize() < queue_cutoff_ts) & is_queue
+
     masks = {
         "Today Shipped": is_sale & is_today_shipped_date,
         "Last Day Shipped": is_sale & (sale_date == previous_day),
@@ -598,7 +604,7 @@ def compute_live_filter_counts(df, reference_date=None) -> dict[str, int]:
         "All Orders": (
             ~is_cancelled
             & ~is_hold_waiting
-            & (is_today_created_date | ((created_date < queue_prior_date) & is_queue))
+            & (is_today_created_date | is_prior_queue)
         ),
     }
 

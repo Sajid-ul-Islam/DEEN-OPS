@@ -491,7 +491,7 @@ def _route_page(selected_nav: str) -> None:
 
     # === 📊 Analytics & Insights (Consolidated) ===
     elif selected_nav == "📊 Analytics & Insights":
-        analytics_sub_options = ["Sales Data Ingestion", "Return Analytics"]
+        analytics_sub_options = ["Sales Data Ingestion", "Return Analytics", "Return Orders Extractor"]
         if (
             "analytics_sub_feature" not in st.session_state
             or st.session_state.analytics_sub_feature not in analytics_sub_options
@@ -524,6 +524,13 @@ def _route_page(selected_nav: str) -> None:
             safe_render(
                 render_return_analytics_tab,
                 fallback_msg="Return Analytics unavailable.",
+            )
+        elif st.session_state.analytics_sub_feature == "Return Orders Extractor":
+            from src.pages.return_order_extractor import render_return_order_extractor_tab
+
+            safe_render(
+                render_return_order_extractor_tab,
+                fallback_msg="Return Orders Extractor unavailable.",
             )
 
     # === 🤖 Automation Tools (Consolidated) ===

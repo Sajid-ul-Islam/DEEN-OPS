@@ -48,6 +48,7 @@ LEGACY_SUBFEATURE_MAPPING = {
     "📊 Inventory Distribution": ("inventory_sub_feature", "Inventory Distribution"),
     "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),
     "📉 Return Analytics": ("analytics_sub_feature", "Return Analytics"),
+    "🔎 Return Orders Extractor": ("analytics_sub_feature", "Return Orders Extractor"),
     "💬 WhatsApp Messaging": ("automation_sub_feature", "WhatsApp Messaging"),
     "🚀 Data Pilot": ("automation_sub_feature", "Data Pilot"),
     ":material/rocket_launch: Data Pilot": ("automation_sub_feature", "Data Pilot"),
