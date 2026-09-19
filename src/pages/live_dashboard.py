@@ -718,6 +718,7 @@ def render_live_tab():
 
 def _render_dispatch_export(selected_view: str | None = None):
     """Render product-wise everyday shipped and completed orders export with date picker, XLSX and CSV."""
+    from datetime import timedelta
     from src.processing.completed_analytics import (
         filter_shipped_order_items,
     )
@@ -769,9 +770,16 @@ def _render_dispatch_export(selected_view: str | None = None):
 
         with col_date:
             if date_preset == "Today":
-                start_date = today_bd
-                end_date = today_bd
-                st.caption(f"🗓️ Active Day: **{today_bd.strftime('%Y-%m-%d (%A)')}**")
+                if today_bd.weekday() == 5:
+                    start_date = today_bd - timedelta(days=1)
+                    end_date = today_bd
+                    st.caption(
+                        f"🗓️ Active Days: **{start_date.strftime('%Y-%m-%d (%a)')}** to **{end_date.strftime('%Y-%m-%d (%a)')}** (Includes Friday off-day)"
+                    )
+                else:
+                    start_date = today_bd
+                    end_date = today_bd
+                    st.caption(f"🗓️ Active Day: **{today_bd.strftime('%Y-%m-%d (%A)')}**")
             elif date_preset == prev_label:
                 start_date = prev_work_bd
                 end_date = prev_work_bd

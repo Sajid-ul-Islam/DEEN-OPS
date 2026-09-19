@@ -379,6 +379,67 @@ def test_kpi_card_matches_product_wise_export():
     assert kpi_revenue == exp_revenue == 4700.0
 
 
+def test_saturday_kpi_card_matches_product_wise_export_with_friday():
+    """Verify that on Saturday, the KPI card and product-wise export with Friday off-day include 100% matched orders."""
+    from datetime import timedelta
+    from src.processing.data_processing import (
+        filter_live_dashboard_view,
+        prepare_granular_data,
+    )
+
+    saturday = date(2026, 9, 19)
+    assert saturday.weekday() == 5
+    friday = saturday - timedelta(days=1)
+
+    # Dataset with 1 order shipped Friday and 1 order shipped Saturday
+    df = pd.DataFrame(
+        [
+            # Friday shipment (off-day)
+            {
+                "Order ID": 14946,
+                "Order Status": "completed",
+                "Product Name": "Shirt Blue",
+                "SKU": "SHT-BLU",
+                "Quantity": 1,
+                "Item Cost": 1200.0,
+                "dt_parsed": "2026-09-16 22:00:00",
+                "mod_dt_parsed": "2026-09-18 11:30:00",
+            },
+            # Saturday shipment
+            {
+                "Order ID": 15100,
+                "Order Status": "shipped",
+                "Product Name": "Pants Khaki",
+                "SKU": "PNT-KHK",
+                "Quantity": 2,
+                "Item Cost": 1500.0,
+                "dt_parsed": "2026-09-19 10:00:00",
+                "mod_dt_parsed": "2026-09-19 12:00:00",
+            },
+        ]
+    )
+
+    # 1. KPI View path on Saturday includes Friday + Saturday
+    df_kpi_view = filter_live_dashboard_view(df, "Today Shipped", reference_date=saturday)
+    mapping = {
+        "name": "Product Name",
+        "cost": "Item Cost",
+        "qty": "Quantity",
+        "date": "dt_parsed",
+        "order_id": "Order ID",
+        "sku": "SKU",
+    }
+    std_kpi, _ = prepare_granular_data(df_kpi_view, mapping)
+    kpi_orders = std_kpi["Order ID"].nunique()
+
+    # 2. Product-wise Export path for Saturday 'Today' preset (start_date=friday, end_date=saturday)
+    df_export = filter_shipped_order_items(df, start_date=friday, end_date=saturday)
+    exp_orders = df_export["Order ID"].nunique()
+
+    # 3. Assert exact synchronization (both should be 2 orders)
+    assert kpi_orders == exp_orders == 2
+
+
 def test_filter_online_orders_isolates_checkout():
     """Verify filter_online_orders excludes physical outlet/POS orders and keeps checkout orders."""
     from src.processing.completed_analytics import filter_online_orders
