@@ -768,9 +768,16 @@ def render_operational_metrics(
         st.markdown(card_html, unsafe_allow_html=True)
 
     # ── Feature #5: Auto-Save Shift Snapshot ───────────────────────────────────
-    # Only save once per render cycle, silently — keyed by data fingerprint
+    # Only save once per render cycle, silently — keyed by data fingerprint.
+    # Only "Today" views are auto-saved: "Prev" is slot-scoped (a partial
+    # slice of the previous day) and Backlog/Offline aren't daily sales —
+    # saving those would pollute the daily snapshot file.
     snap_key = f"{m_gross_rev:.0f}_{m_ord}_{m_qty}"
-    if st.session_state.get("_last_snap_key") != snap_key and m_ord > 0:
+    if (
+        nav_mode == "Today"
+        and st.session_state.get("_last_snap_key") != snap_key
+        and m_ord > 0
+    ):
         top_list = []
         if top is not None and not top.empty:
             name_col = (

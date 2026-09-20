@@ -33,7 +33,10 @@ def save_shift_snapshot(
 ) -> bool:
     """Persist a single shift's key metrics to a daily JSON snapshot file.
 
-    Multiple calls on the same day APPEND shift entries (morning / evening).
+    Repeated calls on the same day append shift entries as an audit trail, but
+    the day-level totals (daily_revenue / daily_orders / daily_qty) always
+    OVERWRITE with the latest call's values (last-write-wins) — they are never
+    summed, so a day rendered many times is counted exactly once.
     Returns True on success.
     """
     try:
@@ -51,30 +54,83 @@ def save_shift_snapshot(
                 existing = {}
 
         shifts: list = existing.get("shifts", [])
-        shifts.append(
-            {
-                "ts": bd_now().isoformat(),
-                "label": shift_label,
-                "revenue": round(revenue, 2),
-                "orders": orders,
-                "qty": qty,
-                "aov": round(aov, 2),
-                "top_products": top_products or [],
-            }
-        )
+        entry = {
+            "ts": bd_now().isoformat(),
+            "label": shift_label,
+            "revenue": round(revenue, 2),
+            "orders": int(orders),
+            "qty": int(qty),
+            "aov": round(aov, 2),
+            "top_products": top_products or [],
+        }
+        # Skip duplicate appends when the metrics are unchanged since the last
+        # save — just refresh the timestamp so the file records the latest
+        # observation without bloating the audit trail.
+        if shifts:
+            last = shifts[-1]
+            if last.get("label") == shift_label and all(
+                last.get(k) == entry[k] for k in ("revenue", "orders", "qty", "aov")
+            ):
+                last["ts"] = entry["ts"]
+            else:
+                shifts.append(entry)
+        else:
+            shifts.append(entry)
         existing["date"] = key
         existing["shifts"] = shifts
 
-        # Day-level aggregates (last-write-wins for totals)
-        existing["daily_revenue"] = round(sum(s["revenue"] for s in shifts), 2)
-        existing["daily_orders"] = sum(s["orders"] for s in shifts)
-        existing["daily_qty"] = sum(s["qty"] for s in shifts)
+        # Day-level aggregates: OVERWRITE (last-write-wins), never sum.
+        existing["daily_revenue"] = round(revenue, 2)
+        existing["daily_orders"] = int(orders)
+        existing["daily_qty"] = int(qty)
 
         with open(path, "w", encoding="utf-8") as f:
             json.dump(existing, f, indent=2, ensure_ascii=False)
         return True
     except Exception:
         return False
+
+
+def _is_valid_shift(entry: dict) -> bool:
+    """A shift entry is valid when it carries the expected numeric metrics."""
+    try:
+        float(entry["revenue"])
+        int(entry["orders"])
+        int(entry["qty"])
+        return True
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def _pick_last_valid_shift(shifts: list) -> Optional[dict]:
+    """Pick the day's most representative shift entry.
+
+    Prefers the LAST 'Today'-labelled entry (the fullest, most recent view of
+    that calendar day's sales). Falls back to the last entry of any label —
+    e.g. 'Prev' — only when no 'Today' entry exists.
+    """
+    valid = [s for s in shifts if isinstance(s, dict) and _is_valid_shift(s)]
+    if not valid:
+        return None
+    today_entries = [s for s in valid if s.get("label") == "Today"]
+    return today_entries[-1] if today_entries else valid[-1]
+
+
+def rebuild_daily_totals(data: dict) -> bool:
+    """Rebuild a snapshot dict's daily_* aggregates from its last valid shift.
+
+    Earlier versions SUMMED every appended shift entry, massively double-
+    counting days that were rendered multiple times. The last 'Today'-labelled
+    entry is the best available approximation of that day's true totals.
+    Returns True if totals were rebuilt, False when no valid shift exists.
+    """
+    shift = _pick_last_valid_shift(data.get("shifts", []))
+    if shift is None:
+        return False
+    data["daily_revenue"] = round(float(shift["revenue"]), 2)
+    data["daily_orders"] = int(shift["orders"])
+    data["daily_qty"] = int(shift["qty"])
+    return True
 
 
 def load_snapshot_history(days: int = 30) -> pd.DataFrame:
