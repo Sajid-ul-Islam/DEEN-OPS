@@ -101,11 +101,13 @@ def _get_comparison_frame(
     if selected_view in {"Today Shipped", "Today"}:
         _cmp_f = filter_live_dashboard_view(_dash_src, "Last Day Shipped")
     elif selected_view == "All Orders":
+        # First try to get previous day's data from dashboard source using date-based filtering
         if _dash_src is not None and not _dash_src.empty:
             prev_work_d = get_previous_working_day(bd_today())
             _cmp_f = filter_live_dashboard_view(
                 _dash_src, "All Orders", reference_date=prev_work_d
             )
+        # Fallback: use wc_prev_df from session state
         if _cmp_f is None or _cmp_f.empty:
             _cmp_raw = st.session_state.get("wc_prev_df")
             if _cmp_raw is None or _cmp_raw.empty:
@@ -120,6 +122,16 @@ def _get_comparison_frame(
                         _cmp_raw = df_prev_ext
                     except Exception:
                         pass
+            # If still no comparison frame, apply date-based filtering directly to wc_full_df
+            if (
+                (_cmp_raw is None or _cmp_raw.empty)
+                and full_raw is not None
+                and not full_raw.empty
+            ):
+                prev_work_d = get_previous_working_day(bd_today())
+                _cmp_raw = filter_live_dashboard_view(
+                    full_raw, "All Orders", reference_date=prev_work_d
+                )
             if _cmp_raw is not None and not _cmp_raw.empty:
                 _cmp_raw = filter_online_orders(_cmp_raw)
                 _cmp_f = apply_order_view_comparison(
@@ -778,7 +790,9 @@ def _render_dispatch_export(selected_view: str | None = None):
                 else:
                     start_date = today_bd
                     end_date = today_bd
-                    st.caption(f"🗓️ Active Day: **{today_bd.strftime('%Y-%m-%d (%A)')}**")
+                    st.caption(
+                        f"🗓️ Active Day: **{today_bd.strftime('%Y-%m-%d (%A)')}**"
+                    )
             elif date_preset == prev_label:
                 start_date = prev_work_bd
                 end_date = prev_work_bd
@@ -796,7 +810,9 @@ def _render_dispatch_export(selected_view: str | None = None):
                     if len(custom_range) > 0:
                         start_date = custom_range[0]
                         end_date = (
-                            custom_range[-1] if len(custom_range) > 1 else custom_range[0]
+                            custom_range[-1]
+                            if len(custom_range) > 1
+                            else custom_range[0]
                         )
                     else:
                         start_date = today_bd

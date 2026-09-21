@@ -16,16 +16,14 @@ from src.pages.pathao_orders.processing_tab import (
 
 
 def render_pathao_tab():
-    processing_tab, helper_tab, dispatch_tab, health_tab, notes_tab = (
-        st.tabs(
-            [
-                ":material/settings: Order Processing",
-                ":material/build: Item Description Helper",
-                ":material/rocket_launch: Auto-Dispatch",
-                ":material/analytics: Delivery Health",
-                ":material/edit_note: WC Notes Sync",
-            ]
-        )
+    processing_tab, helper_tab, dispatch_tab, health_tab, notes_tab = st.tabs(
+        [
+            ":material/settings: Order Processing",
+            ":material/build: Item Description Helper",
+            ":material/rocket_launch: Auto-Dispatch",
+            ":material/analytics: Delivery Health",
+            ":material/edit_note: WC Notes Sync",
+        ]
     )
     with processing_tab:
         _render_processing_tab()
@@ -37,4 +35,3 @@ def render_pathao_tab():
         _render_delivery_health_tab()
     with notes_tab:
         _render_wc_notes_tab()
-

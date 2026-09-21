@@ -44,64 +44,134 @@ DEFAULT_WEIGHT = "0.5"
 
 COLUMN_ALIASES: Dict[str, List[str]] = {
     "order_id": [
-        "Order ID", "Order Number", "Order #", "Order No", "Order No.",
-        "order_id", "order_number", "order no", "order #", "order id",
-        "Invoice Number", "Invoice #", "Invoice No", "MerchantOrderId", "ID",
+        "Order ID",
+        "Order Number",
+        "Order #",
+        "Order No",
+        "Order No.",
+        "order_id",
+        "order_number",
+        "order no",
+        "order #",
+        "order id",
+        "Invoice Number",
+        "Invoice #",
+        "Invoice No",
+        "MerchantOrderId",
+        "ID",
     ],
     "phone": [
-        "Phone (Billing)", "Phone", "Billing Phone", "Customer Phone",
-        "Phone Number", "Mobile", "Contact", "Phone (Shipping)", "Customer Mobile",
+        "Phone (Billing)",
+        "Phone",
+        "Billing Phone",
+        "Customer Phone",
+        "Phone Number",
+        "Mobile",
+        "Contact",
+        "Phone (Shipping)",
+        "Customer Mobile",
     ],
     "name": [
-        "Full Name (Shipping)", "Full Name", "Full Name (Billing)",
-        "Customer Name", "Recipient Name", "Billing Name", "Name", "Customer",
+        "Full Name (Shipping)",
+        "Full Name",
+        "Full Name (Billing)",
+        "Customer Name",
+        "Recipient Name",
+        "Billing Name",
+        "Name",
+        "Customer",
     ],
     "first_name": [
-        "First Name (Shipping)", "First Name", "Shipping First Name",
-        "First Name (Billing)", "Billing First Name",
+        "First Name (Shipping)",
+        "First Name",
+        "Shipping First Name",
+        "First Name (Billing)",
+        "Billing First Name",
     ],
     "last_name": [
-        "Last Name (Shipping)", "Last Name", "Shipping Last Name",
-        "Last Name (Billing)", "Billing Last Name", "Surname",
+        "Last Name (Shipping)",
+        "Last Name",
+        "Shipping Last Name",
+        "Last Name (Billing)",
+        "Billing Last Name",
+        "Surname",
     ],
     "address": [
-        "Address 1&2 (Shipping)", "Shipping Address", "Address (Shipping)",
-        "Address", "Delivery Address", "Street Address", "Customer Address",
+        "Address 1&2 (Shipping)",
+        "Shipping Address",
+        "Address (Shipping)",
+        "Address",
+        "Delivery Address",
+        "Street Address",
+        "Customer Address",
     ],
     "city": [
-        "City (Shipping)", "Shipping City", "City", "District",
-        "Recipient City", "Town / City",
+        "City (Shipping)",
+        "Shipping City",
+        "City",
+        "District",
+        "Recipient City",
+        "Town / City",
     ],
     "state": [
-        "State Code (Shipping)", "Shipping State", "State", "State Code",
-        "Division", "State / County",
+        "State Code (Shipping)",
+        "Shipping State",
+        "State",
+        "State Code",
+        "Division",
+        "State / County",
     ],
     "item_name": [
-        "Item Name", "Product Name", "Product", "Line Item Name",
-        "Item", "Product Title", "Title",
+        "Item Name",
+        "Product Name",
+        "Product",
+        "Line Item Name",
+        "Item",
+        "Product Title",
+        "Title",
     ],
     "sku": ["SKU", "Item SKU", "Product SKU", "Variation SKU"],
     "quantity": [
-        "Quantity", "Quantity (- Refund)", "Qty", "Quantity (Refund)",
-        "Item Qty", "Item Quantity", "Line Item Quantity",
+        "Quantity",
+        "Quantity (- Refund)",
+        "Qty",
+        "Quantity (Refund)",
+        "Item Qty",
+        "Item Quantity",
+        "Line Item Quantity",
     ],
     "item_cost": [
-        "Item Cost", "Line Item Price", "Price", "Item Price", "Cost",
-        "Line Total", "Item Total",
+        "Item Cost",
+        "Line Item Price",
+        "Price",
+        "Item Price",
+        "Cost",
+        "Line Total",
+        "Item Total",
     ],
     "order_total": [
-        "Order Total Amount", "Total", "Order Total", "Total Amount",
-        "Grand Total", "Order Amount", "Total (BDT)",
+        "Order Total Amount",
+        "Total",
+        "Order Total",
+        "Total Amount",
+        "Grand Total",
+        "Order Amount",
+        "Total (BDT)",
     ],
     "payment_method": [
-        "Payment Method Title", "Payment Method", "Payment Type",
-        "Payment Status", "Payment", "Payment Title",
+        "Payment Method Title",
+        "Payment Method",
+        "Payment Type",
+        "Payment Status",
+        "Payment",
+        "Payment Title",
     ],
 }
 
 # ---------------------------------------------------------------------------
 # Data Cleaning & Normalization Helpers
 # ---------------------------------------------------------------------------
+
 
 def normalize_phone(phone_str: Any) -> str:
     """Normalize phone number to 11-digit BD mobile format (01XXXXXXXXX)."""
@@ -171,7 +241,15 @@ def clean_dataframe(df: pd.DataFrame, col_map: Dict[str, str | None]) -> pd.Data
             df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
 
     # Clean string fields
-    for key in ["order_id", "phone", "address", "city", "state", "item_name", "payment_method"]:
+    for key in [
+        "order_id",
+        "phone",
+        "address",
+        "city",
+        "state",
+        "item_name",
+        "payment_method",
+    ]:
         c = col_map.get(key)
         if c and c in df.columns:
             df[c] = df[c].fillna("").astype(str).str.strip()
@@ -217,7 +295,9 @@ def categorize_item(item_name: str) -> str:
     return " ".join(words[:2]).title() if words else "Apparel"
 
 
-def build_item_description(items_df: pd.DataFrame, item_col: str | None, qty_col: str | None) -> str:
+def build_item_description(
+    items_df: pd.DataFrame, item_col: str | None, qty_col: str | None
+) -> str:
     """Build item description (e.g. '2x Drop Shoulder, 1x Jeans')."""
     if not item_col or item_col not in items_df.columns:
         return "General Items"
@@ -229,7 +309,11 @@ def build_item_description(items_df: pd.DataFrame, item_col: str | None, qty_col
             continue
         cat = categorize_item(raw_name)
         try:
-            qty = int(float(row.get(qty_col, 1))) if qty_col and qty_col in items_df.columns else 1
+            qty = (
+                int(float(row.get(qty_col, 1)))
+                if qty_col and qty_col in items_df.columns
+                else 1
+            )
             qty = max(1, qty)
         except Exception:
             qty = 1
@@ -272,7 +356,11 @@ def resolve_address_and_city(
     parts = []
     if raw_addr and raw_addr.lower() != "nan":
         parts.append(raw_addr)
-    if raw_city and raw_city.lower() != "nan" and raw_city.lower() not in raw_addr.lower():
+    if (
+        raw_city
+        and raw_city.lower() != "nan"
+        and raw_city.lower() not in raw_addr.lower()
+    ):
         parts.append(raw_city)
     if (
         raw_state
@@ -286,20 +374,36 @@ def resolve_address_and_city(
     return full_address, norm_city, norm_zone
 
 
-def calculate_amount_to_collect(group: pd.DataFrame, total_col: str | None, payment_col: str | None, city: str) -> int:
+def calculate_amount_to_collect(
+    group: pd.DataFrame, total_col: str | None, payment_col: str | None, city: str
+) -> int:
     """Calculate Cash on Delivery (COD) amount to collect."""
     if not total_col or total_col not in group.columns:
         return 0
 
     first_row = group.iloc[0]
     total_val = float(first_row.get(total_col, 0) or 0)
-    pay_method = str(first_row.get(payment_col, "")).lower() if payment_col and payment_col in group.columns else ""
+    pay_method = (
+        str(first_row.get(payment_col, "")).lower()
+        if payment_col and payment_col in group.columns
+        else ""
+    )
 
     # Prepaid detection (bKash, Nagad, Card, SSLCommerz, etc.)
-    is_prepaid = any(kw in pay_method for kw in [
-        "bkash", "nagad", "rocket", "sslcommerz", "card",
-        "bank", "online", "paid", "advance",
-    ])
+    is_prepaid = any(
+        kw in pay_method
+        for kw in [
+            "bkash",
+            "nagad",
+            "rocket",
+            "sslcommerz",
+            "card",
+            "bank",
+            "online",
+            "paid",
+            "advance",
+        ]
+    )
 
     if is_prepaid:
         # Prepaid orders have 0 COD collection unless delivery fee only
@@ -307,9 +411,11 @@ def calculate_amount_to_collect(group: pd.DataFrame, total_col: str | None, paym
 
     return int(round(total_val))
 
+
 # ---------------------------------------------------------------------------
 # Core Transformation Logic
 # ---------------------------------------------------------------------------
+
 
 def convert_orders(
     df_raw: pd.DataFrame,
@@ -326,7 +432,11 @@ def convert_orders(
     phone_col = col_map.get("phone")
 
     # Determine grouping column: prefer Order ID if present, otherwise Phone
-    if order_col and order_col in df.columns and df[order_col].replace("", pd.NA).notna().any():
+    if (
+        order_col
+        and order_col in df.columns
+        and df[order_col].replace("", pd.NA).notna().any()
+    ):
         df["_group_key"] = df[order_col].astype(str).str.strip()
     elif phone_col and phone_col in df.columns:
         df["_group_key"] = df[phone_col].apply(normalize_phone)
@@ -384,7 +494,9 @@ def convert_orders(
         item_desc = build_item_description(group, item_col, qty_col)
 
         # Amount to Collect
-        amount_to_collect = calculate_amount_to_collect(group, total_col, pay_col, recipient_city)
+        amount_to_collect = calculate_amount_to_collect(
+            group, total_col, pay_col, recipient_city
+        )
 
         # Special instruction
         special_instruction = ""
@@ -438,9 +550,13 @@ def convert_file(
     elif ext in [".csv", ".txt"]:
         df_raw = pd.read_csv(input_path, dtype=str)
     else:
-        raise ValueError(f"Unsupported file format: {ext}. Supported: .xlsx, .xls, .csv")
+        raise ValueError(
+            f"Unsupported file format: {ext}. Supported: .xlsx, .xls, .csv"
+        )
 
-    out_df = convert_orders(df_raw, store_name=store_name, default_weight=default_weight)
+    out_df = convert_orders(
+        df_raw, store_name=store_name, default_weight=default_weight
+    )
 
     # Determine output path if not given
     if not output_path:
@@ -458,12 +574,16 @@ def convert_file(
         # Openpyxl styling
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-        header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+        header_fill = PatternFill(
+            start_color="1E3A8A", end_color="1E3A8A", fill_type="solid"
+        )
         header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
         header_align = Alignment(horizontal="center", vertical="center")
         cell_font = Font(name="Segoe UI", size=10)
         thin_side = Side(border_style="thin", color="CBD5E1")
-        border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+        border = Border(
+            left=thin_side, right=thin_side, top=thin_side, bottom=thin_side
+        )
 
         ws.row_dimensions[1].height = 28
 
@@ -495,7 +615,12 @@ def convert_file(
                 if col_idx in (phone_col_idx, order_col_idx):
                     cell.number_format = "@"
                     val = str(cell.value) if cell.value is not None else ""
-                    if col_idx == phone_col_idx and val and not val.startswith("0") and len(val) == 10:
+                    if (
+                        col_idx == phone_col_idx
+                        and val
+                        and not val.startswith("0")
+                        and len(val) == 10
+                    ):
                         val = "0" + val
                     cell.value = val
 
@@ -511,9 +636,11 @@ def convert_file(
 
     return output_path
 
+
 # ---------------------------------------------------------------------------
 # Graphical User Interface (GUI)
 # ---------------------------------------------------------------------------
+
 
 def launch_gui():
     """Launch a clean desktop file picker and converter dialog."""
@@ -521,7 +648,9 @@ def launch_gui():
         import tkinter as tk
         from tkinter import filedialog, messagebox
     except ImportError:
-        print("Tkinter is not available. Please run in CLI mode: python convert_to_pathao.py -i <file>")
+        print(
+            "Tkinter is not available. Please run in CLI mode: python convert_to_pathao.py -i <file>"
+        )
         return
 
     root = tk.Tk()
@@ -555,7 +684,9 @@ def launch_gui():
     file_frame = tk.Frame(root, bg="#F8F9FA")
     file_frame.pack(fill="x", padx=24, pady=4)
 
-    file_entry = tk.Entry(file_frame, textvariable=selected_file, font=("Segoe UI", 9), width=42)
+    file_entry = tk.Entry(
+        file_frame, textvariable=selected_file, font=("Segoe UI", 9), width=42
+    )
     file_entry.pack(side="left", padx=(0, 8), ipady=3)
 
     def browse_file():
@@ -565,7 +696,9 @@ def launch_gui():
             ("CSV Files", "*.csv"),
             ("All Files", "*.*"),
         ]
-        chosen = filedialog.askopenfilename(title="Select Product-Wise Order List File", filetypes=filetypes)
+        chosen = filedialog.askopenfilename(
+            title="Select Product-Wise Order List File", filetypes=filetypes
+        )
         if chosen:
             selected_file.set(chosen)
 
@@ -583,13 +716,17 @@ def launch_gui():
     browse_btn.pack(side="right")
 
     status_var = tk.StringVar(value="Ready. Select an Excel file to convert.")
-    status_label = tk.Label(root, textvariable=status_var, font=("Segoe UI", 8), bg="#F8F9FA", fg="#475569")
+    status_label = tk.Label(
+        root, textvariable=status_var, font=("Segoe UI", 8), bg="#F8F9FA", fg="#475569"
+    )
     status_label.pack(pady=(12, 10))
 
     def run_conversion():
         in_file = selected_file.get().strip()
         if not in_file:
-            messagebox.showwarning("File Missing", "Please select a product-wise Excel or CSV file.")
+            messagebox.showwarning(
+                "File Missing", "Please select a product-wise Excel or CSV file."
+            )
             return
 
         status_var.set("Converting orders...")
@@ -604,7 +741,9 @@ def launch_gui():
             )
         except Exception as e:
             status_var.set(f"Error: {str(e)[:50]}")
-            messagebox.showerror("Conversion Failed", f"An error occurred during conversion:\n\n{str(e)}")
+            messagebox.showerror(
+                "Conversion Failed", f"An error occurred during conversion:\n\n{str(e)}"
+            )
 
     convert_btn = tk.Button(
         root,
@@ -624,9 +763,11 @@ def launch_gui():
 
     root.mainloop()
 
+
 # ---------------------------------------------------------------------------
 # Entry Point
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -634,9 +775,15 @@ def main():
     )
     parser.add_argument("-i", "--input", help="Path to input Excel or CSV file")
     parser.add_argument("-o", "--output", help="Path to output Excel file (optional)")
-    parser.add_argument("--store-name", default=DEFAULT_STORE_NAME, help="Pathao store name")
-    parser.add_argument("--default-weight", default=DEFAULT_WEIGHT, help="Default parcel weight in kg")
-    parser.add_argument("--gui", action="store_true", help="Explicitly launch graphical user interface")
+    parser.add_argument(
+        "--store-name", default=DEFAULT_STORE_NAME, help="Pathao store name"
+    )
+    parser.add_argument(
+        "--default-weight", default=DEFAULT_WEIGHT, help="Default parcel weight in kg"
+    )
+    parser.add_argument(
+        "--gui", action="store_true", help="Explicitly launch graphical user interface"
+    )
 
     args = parser.parse_args()
 
@@ -656,7 +803,7 @@ def main():
             store_name=args.store_name,
             default_weight=args.default_weight,
         )
-        print(f"[SUCCESS] Converted successfully!")
+        print("[SUCCESS] Converted successfully!")
         print(f"Output saved to: {out_file}")
     except Exception as e:
         print(f"[ERROR] Conversion failed: {e}", file=sys.stderr)

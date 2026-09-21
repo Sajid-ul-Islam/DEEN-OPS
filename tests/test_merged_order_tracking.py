@@ -18,10 +18,16 @@ def test_woocommerce_orders_tab_contains_merged_pathao_tracking():
         return [MagicMock() for _ in labels]
 
     with patch.object(st, "tabs", side_effect=mock_tabs):
-        with patch("src.pages.woocommerce_orders._render_live_orders_view") as mock_live, \
-             patch("src.pages.pathao_orders.tracking_tab._render_status_tracking_tab") as mock_pathao_track, \
-             patch("src.pages.woocommerce_orders._render_customer_profiles_view") as mock_cust, \
-             patch("src.pages.woocommerce_orders._render_bulk_updater_tab") as mock_sync:
+        with (
+            patch("src.pages.woocommerce_orders._render_live_orders_view") as mock_live,
+            patch(
+                "src.pages.pathao_orders.tracking_tab._render_status_tracking_tab"
+            ) as mock_pathao_track,
+            patch(
+                "src.pages.woocommerce_orders._render_customer_profiles_view"
+            ) as mock_cust,
+            patch("src.pages.woocommerce_orders._render_bulk_updater_tab") as mock_sync,
+        ):
             render_woocommerce_orders_tab()
 
             assert any("Pathao" in label for label in created_tab_labels)
@@ -47,11 +53,15 @@ def test_pathao_tab_no_longer_has_redundant_order_tracking():
         return [MagicMock() for _ in labels]
 
     with patch.object(st, "tabs", side_effect=mock_tabs):
-        with patch("src.pages.pathao_orders.processing_tab._render_processing_tab"), \
-             patch("src.pages.pathao_orders.processing_tab._render_item_description_tab"), \
-             patch("src.pages.pathao_orders.dispatch_tab._render_auto_dispatch_tab"), \
-             patch("src.pages.pathao_orders.health_tab._render_delivery_health_tab"), \
-             patch("src.pages.pathao_orders.health_tab._render_wc_notes_tab"):
+        with (
+            patch("src.pages.pathao_orders.processing_tab._render_processing_tab"),
+            patch(
+                "src.pages.pathao_orders.processing_tab._render_item_description_tab"
+            ),
+            patch("src.pages.pathao_orders.dispatch_tab._render_auto_dispatch_tab"),
+            patch("src.pages.pathao_orders.health_tab._render_delivery_health_tab"),
+            patch("src.pages.pathao_orders.health_tab._render_wc_notes_tab"),
+        ):
             render_pathao_tab()
 
             # Confirm no tab is named "Order Tracking" inside Pathao Processor
@@ -84,9 +94,10 @@ def test_stock_analytics_does_not_set_nav_override():
     if "_nav_override" in st.session_state:
         del st.session_state["_nav_override"]
 
-    with patch("streamlit.tabs", return_value=[MagicMock(), MagicMock()]), \
-         patch("src.pages.stock_analytics.render_woocommerce_stock_tab"), \
-         patch("src.pages.stock_analytics.render_outlet_stock_analysis_tab"):
+    with (
+        patch("streamlit.tabs", return_value=[MagicMock(), MagicMock()]),
+        patch("src.pages.stock_analytics.render_woocommerce_stock_tab"),
+        patch("src.pages.stock_analytics.render_outlet_stock_analysis_tab"),
+    ):
         render_stock_analytics_tab()
         assert "_nav_override" not in st.session_state
-

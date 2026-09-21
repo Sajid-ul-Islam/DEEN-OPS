@@ -20,7 +20,11 @@ import streamlit as st
 
 from src.components.ui.ui_components import render_metric_grid, render_premium_header
 from src.config.constants import BD_TZ, bd_today
-from src.services.woocommerce.returns import DEFAULT_RETURN_STATUSES
+from src.services.woocommerce.returns import (
+    DEFAULT_RETURN_STATUSES,
+    fetch_pathao_returned_orders,
+    fetch_wc_return_orders,
+)
 
 
 # ── Column ordering & display labels ────────────────────────────────────────
@@ -122,13 +126,17 @@ def _compute_summary_metrics(df: pd.DataFrame) -> dict:
     if "WC Return Status" in df.columns and "Pathao Status" in df.columns:
         wc_lower = df["WC Return Status"].astype(str).str.lower()
         pa_lower = df["Pathao Status"].astype(str).str.lower()
-        is_return = wc_lower.str.contains("refund|cancel|return|fail", regex=True, na=False)
+        is_return = wc_lower.str.contains(
+            "refund|cancel|return|fail", regex=True, na=False
+        )
         is_delivered_pathao = pa_lower.str.contains("delivered", na=False)
         mismatches = int((is_return & is_delivered_pathao).sum())
 
     has_reason = 0
     if "Return Reason (Pathao)" in df.columns:
-        has_reason = int(df["Return Reason (Pathao)"].astype(str).str.strip().ne("").sum())
+        has_reason = int(
+            df["Return Reason (Pathao)"].astype(str).str.strip().ne("").sum()
+        )
 
     return {
         "unique_orders": unique_orders,
@@ -167,7 +175,9 @@ def _df_to_excel(df: pd.DataFrame) -> bytes:
                     .reset_index()
                     .sort_values("Count", ascending=False)
                 )
-                reason_summary.to_excel(writer, index=False, sheet_name="Return Reasons")
+                reason_summary.to_excel(
+                    writer, index=False, sheet_name="Return Reasons"
+                )
 
     return output.getvalue()
 
@@ -288,7 +298,7 @@ def render_return_order_extractor_tab() -> None:
                 value=True,
                 key="ret_ext_pathao_enabled",
                 help="Fetch live Pathao tracking status and return reason for each consignment ID. "
-                     "Disable to speed up extraction when Pathao data is not needed.",
+                "Disable to speed up extraction when Pathao data is not needed.",
             )
     else:
         # Pathao mode: Pathao data is inherent, no WC status filter needed
@@ -299,7 +309,11 @@ def render_return_order_extractor_tab() -> None:
         )
 
     # ── Validate inputs ─────────────────────────────────────────────────────
-    date_valid = isinstance(start_date, date) and isinstance(end_date, date) and start_date <= end_date
+    date_valid = (
+        isinstance(start_date, date)
+        and isinstance(end_date, date)
+        and start_date <= end_date
+    )
 
     if not date_valid:
         st.error("⚠️ Start date must be before or equal to end date.")
@@ -315,7 +329,9 @@ def render_return_order_extractor_tab() -> None:
             key="btn_ret_ext_extract",
         )
     with col_clear:
-        if st.button("🗑️ Clear Results", use_container_width=True, key="btn_ret_ext_clear"):
+        if st.button(
+            "🗑️ Clear Results", use_container_width=True, key="btn_ret_ext_clear"
+        ):
             for key in ("ret_ext_results_df", "ret_ext_last_params"):
                 st.session_state.pop(key, None)
             st.rerun()
@@ -379,12 +395,20 @@ def render_return_order_extractor_tab() -> None:
 
                 # Pathao enrichment (WC mode only — Pathao mode already has status/reason)
                 if not is_pathao_mode and enable_pathao:
-                    cids = list({r.get("Consignment ID", "") for r in rows if r.get("Consignment ID")})
+                    cids = list(
+                        {
+                            r.get("Consignment ID", "")
+                            for r in rows
+                            if r.get("Consignment ID")
+                        }
+                    )
                     if cids:
                         status_box.update(
                             label=f"🔄 Enriching {len(cids)} consignment ID(s) with Pathao data..."
                         )
-                        from src.services.pathao.returns import enrich_return_orders_with_pathao
+                        from src.services.pathao.returns import (
+                            enrich_return_orders_with_pathao,
+                        )
 
                         rows = enrich_return_orders_with_pathao(rows)
                         status_box.update(
@@ -408,15 +432,19 @@ def render_return_order_extractor_tab() -> None:
 
                 # Sort: newest first
                 if "Order Date" in df_results.columns:
-                    df_results["Order Date"] = pd.to_datetime(
-                        df_results["Order Date"], errors="coerce", utc=True
-                    ).dt.tz_convert(BD_TZ).dt.tz_localize(None)
+                    df_results["Order Date"] = (
+                        pd.to_datetime(
+                            df_results["Order Date"], errors="coerce", utc=True
+                        )
+                        .dt.tz_convert(BD_TZ)
+                        .dt.tz_localize(None)
+                    )
                     df_results = df_results.sort_values("Order Date", ascending=False)
 
                 st.session_state["ret_ext_results_df"] = df_results
                 status_box.update(
                     label=f"✅ Extraction complete — {len(df_results)} line items from "
-                          f"{df_results['Order Number'].nunique() if 'Order Number' in df_results.columns else '?'} orders",
+                    f"{df_results['Order Number'].nunique() if 'Order Number' in df_results.columns else '?'} orders",
                     state="complete",
                 )
 
@@ -482,7 +510,9 @@ def render_return_order_extractor_tab() -> None:
 
         with col_status_filter:
             if "WC Return Status" in df.columns:
-                all_statuses = ["All"] + sorted(df["WC Return Status"].dropna().unique().tolist())
+                all_statuses = ["All"] + sorted(
+                    df["WC Return Status"].dropna().unique().tolist()
+                )
                 status_filter_val = st.selectbox(
                     "Filter by WC Status",
                     all_statuses,
@@ -493,17 +523,30 @@ def render_return_order_extractor_tab() -> None:
         filtered_df = df.copy()
         if search_q:
             search_cols = [
-                c for c in ["Order Number", "Product Description", "Phone",
-                             "Consignment ID", "Customer Name", "SKU"]
+                c
+                for c in [
+                    "Order Number",
+                    "Product Description",
+                    "Phone",
+                    "Consignment ID",
+                    "Customer Name",
+                    "SKU",
+                ]
                 if c in filtered_df.columns
             ]
             mask = pd.Series(False, index=filtered_df.index)
             for col in search_cols:
-                mask |= filtered_df[col].astype(str).str.contains(search_q, case=False, na=False)
+                mask |= (
+                    filtered_df[col]
+                    .astype(str)
+                    .str.contains(search_q, case=False, na=False)
+                )
             filtered_df = filtered_df[mask]
 
         if "WC Return Status" in df.columns and status_filter_val != "All":
-            filtered_df = filtered_df[filtered_df["WC Return Status"] == status_filter_val]
+            filtered_df = filtered_df[
+                filtered_df["WC Return Status"] == status_filter_val
+            ]
 
         st.caption(f"Showing **{len(filtered_df)}** of **{len(df)}** line items")
 
@@ -551,7 +594,9 @@ def render_return_order_extractor_tab() -> None:
                         xaxis_title=None,
                         yaxis_title="Unique Orders",
                     )
-                    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+                    st.plotly_chart(
+                        fig, use_container_width=True, config={"displayModeBar": False}
+                    )
                 except ImportError:
                     st.info("Install plotly to see charts.")
             else:
@@ -563,7 +608,9 @@ def render_return_order_extractor_tab() -> None:
                 try:
                     import plotly.express as px
 
-                    reasons = df[df["Return Reason (Pathao)"].astype(str).str.strip() != ""]
+                    reasons = df[
+                        df["Return Reason (Pathao)"].astype(str).str.strip() != ""
+                    ]
                     if not reasons.empty:
                         reason_counts = (
                             reasons["Return Reason (Pathao)"]
@@ -591,10 +638,16 @@ def render_return_order_extractor_tab() -> None:
                             paper_bgcolor="rgba(0,0,0,0)",
                             plot_bgcolor="rgba(0,0,0,0)",
                         )
-                        st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
+                        st.plotly_chart(
+                            fig2,
+                            use_container_width=True,
+                            config={"displayModeBar": False},
+                        )
                     else:
-                        st.info("No Pathao return reasons available for this dataset. "
-                                "Return reasons are provided by Pathao only for courier-returned parcels.")
+                        st.info(
+                            "No Pathao return reasons available for this dataset. "
+                            "Return reasons are provided by Pathao only for courier-returned parcels."
+                        )
                 except ImportError:
                     st.info("Install plotly to see charts.")
             else:

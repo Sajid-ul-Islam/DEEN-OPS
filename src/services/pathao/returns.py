@@ -50,8 +50,14 @@ def get_pathao_return_reason(consignment_id: str) -> tuple[str, str]:
     if cached_entry:
         data = cached_entry.get("data", {})
         inner = data.get("data", {}) if isinstance(data, dict) else {}
-        status = str(inner.get("order_status", "") or data.get("order_status", "")).strip()
-        reason = str(inner.get("return_reason", "") or inner.get("returnReason", "") or data.get("return_reason", "")).strip()
+        status = str(
+            inner.get("order_status", "") or data.get("order_status", "")
+        ).strip()
+        reason = str(
+            inner.get("return_reason", "")
+            or inner.get("returnReason", "")
+            or data.get("return_reason", "")
+        ).strip()
         if status.lower() in TERMINAL_PATHAO_STATUSES:
             # Permanent cache hit — return immediately
             return status, reason
@@ -73,6 +79,7 @@ def get_pathao_return_reason(consignment_id: str) -> tuple[str, str]:
 
         # Update disk cache
         import time
+
         disk_cache[cid] = {"timestamp": time.time(), "data": resp_json}
         _save_pathao_disk_cache(disk_cache)
 
@@ -132,7 +139,9 @@ def batch_get_pathao_return_info(
             cached_ts = cached_entry.get("timestamp", 0)
 
             inner = cached_data.get("data", {}) if isinstance(cached_data, dict) else {}
-            status = str(inner.get("order_status", "") or cached_data.get("order_status", "")).strip()
+            status = str(
+                inner.get("order_status", "") or cached_data.get("order_status", "")
+            ).strip()
             reason = str(
                 inner.get("return_reason", "")
                 or inner.get("returnReason", "")
@@ -167,7 +176,9 @@ def batch_get_pathao_return_info(
             "return_reason": reason,
         }
 
-    with ThreadPoolExecutor(max_workers=min(len(missing_cids), max_workers)) as executor:
+    with ThreadPoolExecutor(
+        max_workers=min(len(missing_cids), max_workers)
+    ) as executor:
         future_to_cid = {executor.submit(_fetch_one, cid): cid for cid in missing_cids}
         for future in as_completed(future_to_cid):
             cid = future_to_cid[future]
@@ -232,7 +243,9 @@ def enrich_return_orders_with_pathao(
             row["Pathao Status"] = raw_status.replace("_", " ").title()
             row["Return Reason (Pathao)"] = info.get("return_reason", "")
         else:
-            row["Pathao Status"] = "N/A (No Consignment ID)" if not cid else "Status Not Found"
+            row["Pathao Status"] = (
+                "N/A (No Consignment ID)" if not cid else "Status Not Found"
+            )
             row["Return Reason (Pathao)"] = ""
 
     return orders

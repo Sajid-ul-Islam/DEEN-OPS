@@ -381,7 +381,11 @@ class PathaoClient:
                 "GET", url, headers=headers, params=params, timeout=15
             )
             if res.status_code != 200:
-                return [], None, f"Pathao API error (HTTP {res.status_code}): {res.text[:200]}"
+                return (
+                    [],
+                    None,
+                    f"Pathao API error (HTTP {res.status_code}): {res.text[:200]}",
+                )
             doc = res.json()
             data_container = doc.get("data", {})
             if isinstance(data_container, dict):
@@ -399,4 +403,3 @@ class PathaoClient:
             return [], None, str(exc)
         except Exception as e:
             return [], None, f"Connection Error: {e}"
-

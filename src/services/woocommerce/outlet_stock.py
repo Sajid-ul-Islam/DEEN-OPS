@@ -245,16 +245,30 @@ def fetch_outlet_stock_from_custom_endpoint(
         if isinstance(data, list) and len(data) > 0:
             if isinstance(data[0], dict):
                 first = {str(k).lower(): v for k, v in data[0].items()}
-                outlet_key = next((k for k in ["outlet", "outlet_name", "outlet_slug"] if k in first), None)
-                qty_key = next((k for k in ["stock_qty", "qty", "stock", "quantity"] if k in first), None)
+                outlet_key = next(
+                    (k for k in ["outlet", "outlet_name", "outlet_slug"] if k in first),
+                    None,
+                )
+                qty_key = next(
+                    (
+                        k
+                        for k in ["stock_qty", "qty", "stock", "quantity"]
+                        if k in first
+                    ),
+                    None,
+                )
                 if outlet_key and qty_key:
                     # Format 1A: Tabular rows [{product, size, sku, outlet, stock_qty}, ...] -> Pivot
                     pivot = {}
                     for item in data:
                         item_map = {str(k).lower(): v for k, v in item.items()}
                         sku = str(item_map.get("sku", "")).strip()
-                        prod = str(item_map.get("product", item_map.get("product_name", ""))).strip()
-                        size = str(item_map.get("size", item_map.get("variation_name", ""))).strip()
+                        prod = str(
+                            item_map.get("product", item_map.get("product_name", ""))
+                        ).strip()
+                        size = str(
+                            item_map.get("size", item_map.get("variation_name", ""))
+                        ).strip()
                         outlet_name = str(item_map.get(outlet_key, "")).strip().title()
                         try:
                             qty = int(float(item_map.get(qty_key, 0)))
@@ -269,7 +283,9 @@ def fetch_outlet_stock_from_custom_endpoint(
                         pivot[key][outlet_name] = qty
 
                     df = pd.DataFrame(list(pivot.values()))
-                    base_cols = [c for c in ["SKU", "Product", "Size"] if c in df.columns]
+                    base_cols = [
+                        c for c in ["SKU", "Product", "Size"] if c in df.columns
+                    ]
                     outlet_cols = sorted([c for c in df.columns if c not in base_cols])
                     return df[base_cols + outlet_cols].fillna(0)
                 else:

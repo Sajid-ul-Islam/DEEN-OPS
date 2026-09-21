@@ -192,8 +192,13 @@ def _render_product_listing_content() -> None:
             )
 
         if "Item Outlet" in df.columns:
-            unique_outlets = [o for o in df["Item Outlet"].dropna().unique() if o != "Warehouse"]
-            outlet_opts = ["🏭 Warehouse Only (Recommended)", "🌐 All Outlets"] + unique_outlets
+            unique_outlets = [
+                o for o in df["Item Outlet"].dropna().unique() if o != "Warehouse"
+            ]
+            outlet_opts = [
+                "🏭 Warehouse Only (Recommended)",
+                "🌐 All Outlets",
+            ] + unique_outlets
             chosen_outlet = st.selectbox(
                 "Filter Product Listing by Outlet:",
                 outlet_opts,

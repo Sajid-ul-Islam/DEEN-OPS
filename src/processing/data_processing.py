@@ -495,9 +495,7 @@ def filter_live_dashboard_view(df, view: str, reference_date=None):
         mask = is_queue & ~is_processing
     elif v == "All Orders":
         mask = (
-            ~is_cancelled
-            & ~is_hold_waiting
-            & (is_today_created_date | is_prior_queue)
+            ~is_cancelled & ~is_hold_waiting & (is_today_created_date | is_prior_queue)
         )
     else:
         mask = pd.Series(False, index=df.index)
@@ -602,9 +600,7 @@ def compute_live_filter_counts(df, reference_date=None) -> dict[str, int]:
         "Last Day Shipped": is_sale & (sale_date == previous_day),
         "Queue": is_queue & ~is_processing,
         "All Orders": (
-            ~is_cancelled
-            & ~is_hold_waiting
-            & (is_today_created_date | is_prior_queue)
+            ~is_cancelled & ~is_hold_waiting & (is_today_created_date | is_prior_queue)
         ),
     }
 
@@ -770,7 +766,8 @@ def prepare_granular_data(df, selected_cols):
 
             cand = (
                 selected_cols.get("order_id")
-                if "order_id" in selected_cols and selected_cols["order_id"] in df.columns
+                if "order_id" in selected_cols
+                and selected_cols["order_id"] in df.columns
                 else pick_column(df, ORDER_ID_COL_CANDIDATES)
             )
             if cand and cand in df.columns:
@@ -915,6 +912,7 @@ def aggregate_data(df, selected_cols):
     try:
         if "Category" not in df.columns:
             from src.processing.data_processing import prepare_granular_data
+
             df, _ = prepare_granular_data(df, selected_cols)
             if df is None or df.empty or "Category" not in df.columns:
                 return None, None, None, {}
@@ -1000,10 +998,7 @@ def aggregate_data(df, selected_cols):
 
         if group_by_cols:
             top_items = (
-                lazy_df.group_by(group_by_cols)
-                .agg(top_aggs)
-                .collect()
-                .to_pandas()
+                lazy_df.group_by(group_by_cols).agg(top_aggs).collect().to_pandas()
             )
             top_items = top_items.sort_values("Total Amount", ascending=False)
         else:
@@ -1033,7 +1028,11 @@ def aggregate_data(df, selected_cols):
 
         # Count unique orders BEFORE adding phone to group_cols
         order_id_col = group_cols[0] if group_cols else None
-        unique_orders_count = int(df[order_id_col].nunique()) if order_id_col and order_id_col in df.columns else len(df)
+        unique_orders_count = (
+            int(df[order_id_col].nunique())
+            if order_id_col and order_id_col in df.columns
+            else len(df)
+        )
         basket_metrics["total_orders"] = unique_orders_count
 
         if "phone" in selected_cols and selected_cols["phone"] in df.columns:
@@ -1571,4 +1570,3 @@ def aggregate_product_listing(
     ).reset_index(drop=True)
 
     return merged
-

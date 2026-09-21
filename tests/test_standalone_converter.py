@@ -6,7 +6,6 @@ import os
 import tempfile
 import openpyxl
 import pandas as pd
-import pytest
 
 from tools.excel_pathao_converter.convert_to_pathao import (
     PATHAO_COLUMNS,

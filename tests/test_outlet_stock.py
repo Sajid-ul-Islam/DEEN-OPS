@@ -19,15 +19,43 @@ class TestOutletStock(unittest.TestCase):
         mock_auth.return_value = (MagicMock(), "https://deencommerce.com")
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.text = json.dumps([
-            {"product": "Polo A", "size": "M", "sku": "101-M", "outlet": "Mirpur", "stock_qty": 5},
-            {"product": "Polo A", "size": "M", "sku": "101-M", "outlet": "Wari", "stock_qty": 2},
-            {"product": "Polo A", "size": "L", "sku": "101-L", "outlet": "Mirpur", "stock_qty": 3},
-            {"product": "Polo A", "size": "L", "sku": "101-L", "outlet": "Warehouse", "stock_qty": 10},
-        ])
+        mock_response.text = json.dumps(
+            [
+                {
+                    "product": "Polo A",
+                    "size": "M",
+                    "sku": "101-M",
+                    "outlet": "Mirpur",
+                    "stock_qty": 5,
+                },
+                {
+                    "product": "Polo A",
+                    "size": "M",
+                    "sku": "101-M",
+                    "outlet": "Wari",
+                    "stock_qty": 2,
+                },
+                {
+                    "product": "Polo A",
+                    "size": "L",
+                    "sku": "101-L",
+                    "outlet": "Mirpur",
+                    "stock_qty": 3,
+                },
+                {
+                    "product": "Polo A",
+                    "size": "L",
+                    "sku": "101-L",
+                    "outlet": "Warehouse",
+                    "stock_qty": 10,
+                },
+            ]
+        )
         mock_request.return_value = mock_response
 
-        df = fetch_outlet_stock_from_custom_endpoint("https://deencommerce.com/wp-json/wc/v3/sip/outlet-stock")
+        df = fetch_outlet_stock_from_custom_endpoint(
+            "https://deencommerce.com/wp-json/wc/v3/sip/outlet-stock"
+        )
         self.assertIsNotNone(df)
         self.assertEqual(len(df), 2)
         self.assertIn("Mirpur", df.columns)
@@ -46,12 +74,14 @@ class TestOutletStock(unittest.TestCase):
         mock_auth.return_value = (MagicMock(), "https://deencommerce.com")
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.text = json.dumps([
-            {"SKU": "101-M", "Product": "Polo A - M", "Mirpur": 5, "Wari": 2}
-        ])
+        mock_response.text = json.dumps(
+            [{"SKU": "101-M", "Product": "Polo A - M", "Mirpur": 5, "Wari": 2}]
+        )
         mock_request.return_value = mock_response
 
-        df = fetch_outlet_stock_from_custom_endpoint("https://deencommerce.com/wp-json/wc/v3/sip/outlet-stock")
+        df = fetch_outlet_stock_from_custom_endpoint(
+            "https://deencommerce.com/wp-json/wc/v3/sip/outlet-stock"
+        )
         self.assertIsNotNone(df)
         self.assertEqual(len(df), 1)
         self.assertEqual(df.iloc[0]["Mirpur"], 5)

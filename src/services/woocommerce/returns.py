@@ -85,7 +85,13 @@ def _flatten_return_order(order: dict) -> list[dict]:
     oid = order.get("id")
     onum = order.get("number")
     raw_date = order.get("date_created_gmt") or order.get("date_created", "")
-    if raw_date and isinstance(raw_date, str) and not raw_date.endswith("Z") and "+" not in raw_date and "-" not in raw_date[10:]:
+    if (
+        raw_date
+        and isinstance(raw_date, str)
+        and not raw_date.endswith("Z")
+        and "+" not in raw_date
+        and "-" not in raw_date[10:]
+    ):
         raw_date = raw_date + "Z"
 
     wc_status = str(order.get("status", "")).strip()
@@ -143,7 +149,9 @@ def _flatten_return_order(order: dict) -> list[dict]:
 
         item_total = float(item.get("total", 0) or 0)
         item_qty = max(qty, 1)
-        unit_price = item_total / item_qty if item_total else float(item.get("price", 0) or 0)
+        unit_price = (
+            item_total / item_qty if item_total else float(item.get("price", 0) or 0)
+        )
 
         rows.append(
             {
@@ -168,9 +176,13 @@ def _flatten_return_order(order: dict) -> list[dict]:
     return rows
 
 
-def _fetch_page(url: str, params: dict, auth: HTTPBasicAuth, page: int) -> tuple[list[dict], int]:
+def _fetch_page(
+    url: str, params: dict, auth: HTTPBasicAuth, page: int
+) -> tuple[list[dict], int]:
     """Fetch one page of WC orders. Returns (rows, total_pages)."""
-    res = request_with_backoff("GET", url, params={**params, "page": page}, auth=auth, timeout=15)
+    res = request_with_backoff(
+        "GET", url, params={**params, "page": page}, auth=auth, timeout=15
+    )
     res.raise_for_status()
     data = json.loads(res.content.decode("utf-8-sig"))
     rows: list[dict] = []
@@ -212,8 +224,13 @@ def fetch_wc_return_orders(
         error_message: None on success, str on failure.
     """
     cfg = get_woocommerce_config(required=False)
-    if not cfg or not all(cfg.get(k) for k in ("store_url", "consumer_key", "consumer_secret")):
-        return [], "WooCommerce credentials are not configured. Add [woocommerce] in secrets.toml."
+    if not cfg or not all(
+        cfg.get(k) for k in ("store_url", "consumer_key", "consumer_secret")
+    ):
+        return (
+            [],
+            "WooCommerce credentials are not configured. Add [woocommerce] in secrets.toml.",
+        )
 
     endpoint = f"{cfg['store_url'].rstrip('/')}/wp-json/wc/v3/orders"
     auth = HTTPBasicAuth(cfg["consumer_key"], cfg["consumer_secret"])
@@ -258,14 +275,16 @@ def fetch_wc_return_orders(
 
     # Optional order-number filter (applied post-fetch since WC REST does not support it directly)
     if order_numbers:
-        normalised = {str(on).strip().lower() for on in order_numbers if str(on).strip()}
+        normalised = {
+            str(on).strip().lower() for on in order_numbers if str(on).strip()
+        }
         rows = [
-            r for r in rows
+            r
+            for r in rows
             if str(r.get("Order Number", "")).strip().lower() in normalised
         ]
 
     return rows, None
-
 
 
 def fetch_wc_orders_by_ids(
@@ -294,7 +313,9 @@ def fetch_wc_orders_by_ids(
         return [], None
 
     cfg = get_woocommerce_config(required=False)
-    if not cfg or not all(cfg.get(k) for k in ("store_url", "consumer_key", "consumer_secret")):
+    if not cfg or not all(
+        cfg.get(k) for k in ("store_url", "consumer_key", "consumer_secret")
+    ):
         return [], "WooCommerce credentials are not configured."
 
     endpoint = f"{cfg['store_url'].rstrip('/')}/wp-json/wc/v3/orders"
@@ -397,11 +418,15 @@ def fetch_pathao_returned_orders(
                 continue
 
             # Date filter: Pathao returns created_at as "YYYY-MM-DD HH:MM:SS"
-            created_raw = str(o.get("created_at", "") or o.get("updated_at", "")).strip()
+            created_raw = str(
+                o.get("created_at", "") or o.get("updated_at", "")
+            ).strip()
             if created_raw:
                 try:
                     # Parse Pathao datetime (assumed BD local, UTC+6)
-                    created_dt = datetime.strptime(created_raw[:19], "%Y-%m-%d %H:%M:%S")
+                    created_dt = datetime.strptime(
+                        created_raw[:19], "%Y-%m-%d %H:%M:%S"
+                    )
                     if created_dt < after_dt or created_dt > before_dt:
                         continue
                 except ValueError:
@@ -409,7 +434,9 @@ def fetch_pathao_returned_orders(
 
             seen_cids.add(cid)
             merchant_oid = str(o.get("merchant_order_id", "")).strip()
-            return_reason = str(o.get("return_reason", "") or o.get("return_note", "")).strip()
+            return_reason = str(
+                o.get("return_reason", "") or o.get("return_note", "")
+            ).strip()
 
             collected = o.get("collected_amount", 0)
             try:
@@ -417,19 +444,21 @@ def fetch_pathao_returned_orders(
             except (ValueError, TypeError):
                 amt = 0.0
 
-            pathao_rows.append({
-                "_wc_order_ref": merchant_oid,  # used for WC lookup
-                "Consignment ID": cid,
-                "Order Number": merchant_oid,
-                "Pathao Status": "Returned",
-                "Return Reason (Pathao)": return_reason,
-                "Customer Name": str(o.get("recipient_name", "")).strip(),
-                "Phone": str(o.get("recipient_phone", "")).strip(),
-                "Address": str(o.get("recipient_address", "")).strip(),
-                "Order Date": created_raw,
-                "COD Amount": amt,
-                "Store": str(o.get("store_name", "")).strip(),
-            })
+            pathao_rows.append(
+                {
+                    "_wc_order_ref": merchant_oid,  # used for WC lookup
+                    "Consignment ID": cid,
+                    "Order Number": merchant_oid,
+                    "Pathao Status": "Returned",
+                    "Return Reason (Pathao)": return_reason,
+                    "Customer Name": str(o.get("recipient_name", "")).strip(),
+                    "Phone": str(o.get("recipient_phone", "")).strip(),
+                    "Address": str(o.get("recipient_address", "")).strip(),
+                    "Order Date": created_raw,
+                    "COD Amount": amt,
+                    "Store": str(o.get("store_name", "")).strip(),
+                }
+            )
 
         if meta and meta.get("last_page") is not None:
             if page >= int(meta["last_page"]):
