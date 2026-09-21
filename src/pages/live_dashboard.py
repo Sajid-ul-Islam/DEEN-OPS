@@ -136,9 +136,7 @@ def _get_comparison_frame(
                 _cmp_raw = filter_online_orders(_cmp_raw)
                 # For All Orders comparison, pass nav_mode="Prev" to include all non-cancelled orders
                 # from the previous period, not just processing orders within today's slot
-                _cmp_f = apply_order_view_comparison(
-                    _cmp_raw, "Prev", order_view_mode
-                )
+                _cmp_f = apply_order_view_comparison(_cmp_raw, "Prev", order_view_mode)
     elif selected_view in {"Last Day Shipped", "Last Day"}:
         _cmp_f = filter_live_dashboard_view(_dash_src, "Today Shipped")
         if _cmp_f is None or _cmp_f.empty:
