@@ -19,9 +19,7 @@ def _snapshot_dir(monkeypatch, tmp_path):
 
 
 def _read_file(snapshot_dir, key):
-    return json.loads(
-        (snapshot_dir / f"{key}.json").read_text(encoding="utf-8")
-    )
+    return json.loads((snapshot_dir / f"{key}.json").read_text(encoding="utf-8"))
 
 
 def _today_key():
@@ -91,8 +89,20 @@ def test_rebuild_daily_totals_uses_last_today_entry():
         "date": "2026-09-20",
         "shifts": [
             {"ts": "t1", "label": "Today", "revenue": 41532.0, "orders": 25, "qty": 40},
-            {"ts": "t2", "label": "Prev", "revenue": 155902.0, "orders": 92, "qty": 149},
-            {"ts": "t3", "label": "Today", "revenue": 119584.0, "orders": 36, "qty": 110},
+            {
+                "ts": "t2",
+                "label": "Prev",
+                "revenue": 155902.0,
+                "orders": 92,
+                "qty": 149,
+            },
+            {
+                "ts": "t3",
+                "label": "Today",
+                "revenue": 119584.0,
+                "orders": 36,
+                "qty": 110,
+            },
             {"ts": "t4", "label": "Today", "revenue": 59792.0, "orders": 36, "qty": 55},
         ],
         "daily_revenue": 376810.0,
@@ -125,7 +135,12 @@ def test_rebuild_daily_totals_falls_back_to_last_entry():
 
 def test_rebuild_daily_totals_without_valid_shifts_is_noop():
     """Malformed or missing shift entries leave the file untouched."""
-    data = {"shifts": [{"label": "Today"}], "daily_revenue": 1.0, "daily_orders": 1, "daily_qty": 1}
+    data = {
+        "shifts": [{"label": "Today"}],
+        "daily_revenue": 1.0,
+        "daily_orders": 1,
+        "daily_qty": 1,
+    }
 
     assert mh.rebuild_daily_totals(data) is False
     assert data["daily_revenue"] == 1.0

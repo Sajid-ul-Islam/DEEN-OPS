@@ -267,11 +267,19 @@ def _render_sku_report(top):
 
     if "SKU" in report_df.columns:
         report_df["SKU"] = report_df["SKU"].fillna("N/A").astype(str).str.strip()
-        report_df["SKU"] = report_df["SKU"].replace({"": "N/A", "nan": "N/A", "None": "N/A"})
+        report_df["SKU"] = report_df["SKU"].replace(
+            {"": "N/A", "nan": "N/A", "None": "N/A"}
+        )
 
-    col_order = [c for c in ["SKU", "Product Name", "Category", "Total Qty", "Total Amount"] if c in report_df.columns]
+    col_order = [
+        c
+        for c in ["SKU", "Product Name", "Category", "Total Qty", "Total Amount"]
+        if c in report_df.columns
+    ]
     report_df = report_df[col_order]
-    report_df = report_df.sort_values("Total Qty", ascending=False).reset_index(drop=True)
+    report_df = report_df.sort_values("Total Qty", ascending=False).reset_index(
+        drop=True
+    )
     report_df.index = report_df.index + 1
 
     display_df = report_df.copy()

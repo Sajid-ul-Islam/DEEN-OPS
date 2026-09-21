@@ -6,6 +6,7 @@ or macro-enabled template (.xlsm) using Excel COM automation.
 
 import os
 
+
 def build_excel_addin():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     bas_file = os.path.join(base_dir, "PathaoBulkConverter.bas")
@@ -19,7 +20,9 @@ def build_excel_addin():
     try:
         import win32com.client
     except ImportError:
-        print("[INFO] pywin32 is not installed. To build .xlam automatically: pip install pywin32")
+        print(
+            "[INFO] pywin32 is not installed. To build .xlam automatically: pip install pywin32"
+        )
         return False
 
     print("[*] Launching Excel in background to create Add-in...")
@@ -29,7 +32,9 @@ def build_excel_addin():
         excel.DisplayAlerts = False
     except Exception as e:
         print(f"[INFO] Could not launch Excel COM: {e}")
-        print("[INFO] You can manually import 'PathaoBulkConverter.bas' into Excel anytime.")
+        print(
+            "[INFO] You can manually import 'PathaoBulkConverter.bas' into Excel anytime."
+        )
         return False
 
     try:
@@ -38,8 +43,12 @@ def build_excel_addin():
             wb.VBProject.VBComponents.Import(bas_file)
             print("[+] Successfully imported VBA module into workbook.")
         except Exception as e:
-            print(f"[WARN] Access to VBA project object model is disabled in Excel Trust Center: {e}")
-            print("[INFO] To enable: Excel Options -> Trust Center -> Trust Center Settings -> Macro Settings -> Trust access to the VBA project object model.")
+            print(
+                f"[WARN] Access to VBA project object model is disabled in Excel Trust Center: {e}"
+            )
+            print(
+                "[INFO] To enable: Excel Options -> Trust Center -> Trust Center Settings -> Macro Settings -> Trust access to the VBA project object model."
+            )
             wb.Close(False)
             excel.Quit()
             return False
@@ -47,7 +56,7 @@ def build_excel_addin():
         # File format constants:
         # xlOpenXMLAddIn = 55 (.xlam)
         # xlOpenXMLWorkbookMacroEnabled = 52 (.xlsm)
-        
+
         # Save as .xlsm
         if os.path.exists(output_xlsm):
             try:
@@ -78,6 +87,7 @@ def build_excel_addin():
         except Exception:
             pass
         return False
+
 
 if __name__ == "__main__":
     success = build_excel_addin()

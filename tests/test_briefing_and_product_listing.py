@@ -147,7 +147,6 @@ def test_aggregate_product_listing_without_sku():
     assert result["Quantity"].tolist() == [2, 20, 5, 10]
 
 
-
 def test_product_listing_column_auto_detection():
     """Verify that product listing column autodetection identifies standard and variant headers."""
     from src.processing.column_detection import (
@@ -319,4 +318,3 @@ def test_product_listing_export_file_sorted_item_then_sku():
     assert len(excel_bytes) > 0
     # Valid ZIP header for xlsx
     assert excel_bytes[:2] == b"PK"
-

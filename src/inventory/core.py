@@ -393,19 +393,11 @@ def load_inventory_from_unified_stock_file(
         None,
     )
     sku_col = next(
-        (
-            cols_map[k]
-            for k in ["sku", "product code", "item code"]
-            if k in cols_map
-        ),
+        (cols_map[k] for k in ["sku", "product code", "item code"] if k in cols_map),
         None,
     )
     size_col = next(
-        (
-            cols_map[k]
-            for k in ["size", "variation", "attribute"]
-            if k in cols_map
-        ),
+        (cols_map[k] for k in ["size", "variation", "attribute"] if k in cols_map),
         None,
     )
 
@@ -423,9 +415,7 @@ def load_inventory_from_unified_stock_file(
     warnings = []
     # Identify unique outlets in file
     raw_outlets = [
-        str(x).strip()
-        for x in df[outlet_col].dropna().unique()
-        if str(x).strip()
+        str(x).strip() for x in df[outlet_col].dropna().unique() if str(x).strip()
     ]
 
     # Standard location set
@@ -507,16 +497,12 @@ def load_inventory_from_unified_stock_file(
             if target_loc == "Warehouse" and "Ecom" in all_locations:
                 inventory[k]["Ecom"] = inventory[k].get("Ecom", 0) + amount
             elif target_loc == "Ecom" and "Warehouse" in all_locations:
-                inventory[k]["Warehouse"] = (
-                    inventory[k].get("Warehouse", 0) + amount
-                )
+                inventory[k]["Warehouse"] = inventory[k].get("Warehouse", 0) + amount
             # Mirror Mirpur 12 <-> Mirpur
             if target_loc == "Mirpur 12" and "Mirpur" in all_locations:
                 inventory[k]["Mirpur"] = inventory[k].get("Mirpur", 0) + amount
             elif target_loc == "Mirpur" and "Mirpur 12" in all_locations:
-                inventory[k]["Mirpur 12"] = (
-                    inventory[k].get("Mirpur 12", 0) + amount
-                )
+                inventory[k]["Mirpur 12"] = inventory[k].get("Mirpur 12", 0) + amount
 
         if ts_key:
             _add_to_inv(ts_key, outlet, qty)
@@ -546,9 +532,7 @@ def load_inventory_from_unified_stock_file(
                 "Size": size_norm if size_norm != "NO_SIZE" else "—",
                 "SKU": raw_sku if pd.notna(raw_sku) and str(raw_sku).strip() else "—",
             }
-        pivoted_records[p_key][outlet] = (
-            pivoted_records[p_key].get(outlet, 0) + qty
-        )
+        pivoted_records[p_key][outlet] = pivoted_records[p_key].get(outlet, 0) + qty
 
         # Track per-location rows for enriched_dfs
         if outlet in location_rows:

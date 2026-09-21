@@ -340,14 +340,11 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
 
     # If Order ID or Order Number is mapped, do not display the other as undetected
     has_order_mapped = (
-        mapping.get("Order ID") is not None
-        or mapping.get("Order Number") is not None
+        mapping.get("Order ID") is not None or mapping.get("Order Number") is not None
     )
     if has_order_mapped:
         undetected_cols = [
-            k
-            for k in undetected_cols
-            if k not in ("Order ID", "Order Number")
+            k for k in undetected_cols if k not in ("Order ID", "Order Number")
         ]
 
     if detected_cols:
@@ -450,9 +447,7 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
                 or mapping.get("Order Number") is not None
             ):
                 undetected_cols = [
-                    k
-                    for k in undetected_cols
-                    if k not in ("Order ID", "Order Number")
+                    k for k in undetected_cols if k not in ("Order ID", "Order Number")
                 ]
 
     def has_values(column):
@@ -465,10 +460,7 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
         )
 
     required_missing = [col for col in REQUIRED_UPLOAD_COLUMNS if not has_values(col)]
-    has_name = (
-        has_values("Full Name (Shipping)")
-        or has_values("First Name (Shipping)")
-    )
+    has_name = has_values("Full Name (Shipping)") or has_values("First Name (Shipping)")
     if not has_name:
         required_missing.append("Customer Name (Full Name or First/Last Name)")
 
@@ -754,7 +746,12 @@ def _render_processing_tab():
                 for _, row in df_v.iterrows():
                     token = f"{random.getrandbits(32):08x}"
                     order_id = str(
-                        row.get("Order ID", row.get("Order Number", row.get("MerchantOrderId", "VERIFY")))
+                        row.get(
+                            "Order ID",
+                            row.get(
+                                "Order Number", row.get("MerchantOrderId", "VERIFY")
+                            ),
+                        )
                     )
                     links.append(f"{domain}/verify?id={order_id}&token={token}")
                 df_v["Verification Link"] = links

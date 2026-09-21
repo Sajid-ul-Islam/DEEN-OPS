@@ -20,7 +20,9 @@ from requests import Response
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _make_response(status: int = 200, body: dict | list | None = None, headers: dict | None = None) -> Response:
+def _make_response(
+    status: int = 200, body: dict | list | None = None, headers: dict | None = None
+) -> Response:
     """Fabricate a `requests.Response` with controlled status, body, and headers."""
     r = Response()
     r.status_code = status
@@ -29,7 +31,9 @@ def _make_response(status: int = 200, body: dict | list | None = None, headers: 
     if headers:
         r.headers.update(headers)
     r.headers.setdefault("X-WP-TotalPages", "1")
-    r.headers.setdefault("X-WP-Total", str(len(payload) if isinstance(payload, list) else 1))
+    r.headers.setdefault(
+        "X-WP-Total", str(len(payload) if isinstance(payload, list) else 1)
+    )
     return r
 
 
@@ -98,9 +102,7 @@ class TestExtractConsignmentId:
     def test_extracts_pathao_consignment_id_key(self):
         from src.services.woocommerce.returns import _extract_consignment_id
 
-        order = {
-            "meta_data": [{"key": "pathao_consignment_id", "value": "XYZ-999"}]
-        }
+        order = {"meta_data": [{"key": "pathao_consignment_id", "value": "XYZ-999"}]}
         assert _extract_consignment_id(order) == "XYZ-999"
 
     def test_returns_empty_string_when_no_meta(self):
@@ -202,9 +204,7 @@ class TestFetchWcReturnOrders:
         from src.services.woocommerce.returns import fetch_wc_return_orders
 
         mock_cfg.return_value = {}
-        rows, err = fetch_wc_return_orders(
-            datetime(2026, 9, 1), datetime(2026, 9, 30)
-        )
+        rows, err = fetch_wc_return_orders(datetime(2026, 9, 1), datetime(2026, 9, 30))
         assert rows == []
         assert err is not None
         assert "credentials" in err.lower()
@@ -221,9 +221,7 @@ class TestFetchWcReturnOrders:
         }
         mock_req.return_value = _make_response(200, [], {"X-WP-TotalPages": "1"})
 
-        rows, err = fetch_wc_return_orders(
-            datetime(2026, 9, 1), datetime(2026, 9, 30)
-        )
+        rows, err = fetch_wc_return_orders(datetime(2026, 9, 1), datetime(2026, 9, 30))
         assert rows == []
         assert err is None
 
@@ -240,9 +238,7 @@ class TestFetchWcReturnOrders:
         order = _minimal_wc_order(order_id=200, order_number="2001", status="refunded")
         mock_req.return_value = _make_response(200, [order], {"X-WP-TotalPages": "1"})
 
-        rows, err = fetch_wc_return_orders(
-            datetime(2026, 9, 1), datetime(2026, 9, 30)
-        )
+        rows, err = fetch_wc_return_orders(datetime(2026, 9, 1), datetime(2026, 9, 30))
         assert err is None
         assert len(rows) == 1
         assert rows[0]["Order Number"] == "2001"
@@ -358,18 +354,22 @@ class TestGetPathaoReturnReason:
 
         mock_pathao_client = MagicMock()
         mock_pathao_client.base_url = "https://api.pathao.com"
-        mock_pathao_client._get_headers.return_value = {"Authorization": "Bearer fake-token"}
+        mock_pathao_client._get_headers.return_value = {
+            "Authorization": "Bearer fake-token"
+        }
         mock_client.return_value = (mock_pathao_client, None)
 
         api_resp = Response()
         api_resp.status_code = 200
-        api_resp._content = json.dumps({
-            "type": "success",
-            "data": {
-                "order_status": "returned",
-                "return_reason": "Customer not at home",
+        api_resp._content = json.dumps(
+            {
+                "type": "success",
+                "data": {
+                    "order_status": "returned",
+                    "return_reason": "Customer not at home",
+                },
             }
-        }).encode()
+        ).encode()
         mock_req.return_value = api_resp
 
         status, reason = get_pathao_return_reason("JKT-555")
@@ -416,11 +416,31 @@ class TestReturnOrderExtractorHelpers:
     def test_compute_summary_metrics_calculates_correctly(self):
         from src.pages.return_order_extractor import _compute_summary_metrics
 
-        df = pd.DataFrame([
-            {"Order Number": "1001", "Order Total": 1500.0, "WC Return Status": "refunded", "Pathao Status": "Returned", "Return Reason (Pathao)": "Wrong size"},
-            {"Order Number": "1001", "Order Total": 1500.0, "WC Return Status": "refunded", "Pathao Status": "Returned", "Return Reason (Pathao)": ""},
-            {"Order Number": "1002", "Order Total": 800.0, "WC Return Status": "cancelled", "Pathao Status": "Delivered", "Return Reason (Pathao)": ""},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "Order Number": "1001",
+                    "Order Total": 1500.0,
+                    "WC Return Status": "refunded",
+                    "Pathao Status": "Returned",
+                    "Return Reason (Pathao)": "Wrong size",
+                },
+                {
+                    "Order Number": "1001",
+                    "Order Total": 1500.0,
+                    "WC Return Status": "refunded",
+                    "Pathao Status": "Returned",
+                    "Return Reason (Pathao)": "",
+                },
+                {
+                    "Order Number": "1002",
+                    "Order Total": 800.0,
+                    "WC Return Status": "cancelled",
+                    "Pathao Status": "Delivered",
+                    "Return Reason (Pathao)": "",
+                },
+            ]
+        )
         metrics = _compute_summary_metrics(df)
         assert metrics["unique_orders"] == 2
         assert metrics["total_line_items"] == 3

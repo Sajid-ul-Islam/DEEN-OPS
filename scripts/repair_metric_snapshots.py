@@ -80,9 +80,7 @@ def main() -> int:
     BACKUP_DIR = args.backup_dir
 
     files = sorted(
-        os.path.join(args.dir, f)
-        for f in os.listdir(args.dir)
-        if f.endswith(".json")
+        os.path.join(args.dir, f) for f in os.listdir(args.dir) if f.endswith(".json")
     )
     if not files:
         print(f"No snapshot files found in {args.dir}")

@@ -52,7 +52,11 @@ def render_sip_outlet_tab() -> None:
     with c_source:
         source_opt = st.radio(
             "Select Data Source:",
-            ["📁 Upload Order File (Excel/CSV)", "📋 Load Sample Input File", "⚡ Live WooCommerce Data"],
+            [
+                "📁 Upload Order File (Excel/CSV)",
+                "📋 Load Sample Input File",
+                "⚡ Live WooCommerce Data",
+            ],
             horizontal=True,
             key="sip_source_opt",
         )
@@ -77,7 +81,9 @@ def render_sip_outlet_tab() -> None:
             df = wc_df.copy()
             st.info(f"Loaded **{len(df):,}** order rows from live WooCommerce sync.")
         else:
-            st.warning("No live order data in memory. Please sync orders or upload a file.")
+            st.warning(
+                "No live order data in memory. Please sync orders or upload a file."
+            )
     else:
         uploaded_file = st.file_uploader(
             "Upload Customer Order Spreadsheet (Excel or CSV)",
@@ -92,14 +98,22 @@ def render_sip_outlet_tab() -> None:
                 st.error(f"Error reading file: {e}")
 
     if df is None or df.empty:
-        st.info("💡 Upload an order file (or click 'Load Sample Input File') to extract item-wise outlets.")
+        st.info(
+            "💡 Upload an order file (or click 'Load Sample Input File') to extract item-wise outlets."
+        )
         return
 
     cols = df.columns.tolist()
 
     # 2. Configuration & Column Mapping
     with st.expander("⚙️ Column & Extraction Settings", expanded=False):
-        order_candidates = ["Order Number", "Order ID", "order_id", "ID", "Invoice Number"]
+        order_candidates = [
+            "Order Number",
+            "Order ID",
+            "order_id",
+            "ID",
+            "Invoice Number",
+        ]
         sip_candidates = ["SIP", "sip", "SIP Stock", "Outlet SIP", "Outlet Stock"]
 
         def_order_idx = _detect_col(df, order_candidates, 0)
@@ -150,9 +164,17 @@ def render_sip_outlet_tab() -> None:
 
     # 4. Display KPI Metrics
     metrics = [
-        {"label": "Total Line Items", "value": f"{stats['total_items']:,}", "icon": "📦"},
+        {
+            "label": "Total Line Items",
+            "value": f"{stats['total_items']:,}",
+            "icon": "📦",
+        },
         {"label": "Unique Orders", "value": f"{stats['total_orders']:,}", "icon": "🧾"},
-        {"label": "Multi-Item Orders", "value": f"{stats['multi_item_orders']:,}", "icon": "🛍️"},
+        {
+            "label": "Multi-Item Orders",
+            "value": f"{stats['multi_item_orders']:,}",
+            "icon": "🛍️",
+        },
         {
             "label": "Split Outlet Orders",
             "value": f"{stats['split_orders_count']:,}",
@@ -168,8 +190,10 @@ def render_sip_outlet_tab() -> None:
         cols_b = st.columns(min(len(outlet_counts), 5))
         for idx, (outlet, count) in enumerate(outlet_counts.items()):
             col_target = cols_b[idx % len(cols_b)]
-            pct = (count / stats['total_items'] * 100) if stats['total_items'] else 0
-            col_target.metric(label=outlet, value=f"{count:,} items", delta=f"{pct:.1f}%")
+            pct = (count / stats["total_items"] * 100) if stats["total_items"] else 0
+            col_target.metric(
+                label=outlet, value=f"{count:,} items", delta=f"{pct:.1f}%"
+            )
 
     # 6. Split Orders Warning Card
     if stats["split_orders_count"] > 0:
@@ -185,23 +209,39 @@ def render_sip_outlet_tab() -> None:
             for item in stats["split_orders"]:
                 order_id = item["order_id"]
                 sub = processed_df[processed_df[order_col] == order_id]
-                item_names = sub.get("Item Name", sub.iloc[:, 1]).tolist() if "Item Name" in sub else []
+                item_names = (
+                    sub.get("Item Name", sub.iloc[:, 1]).tolist()
+                    if "Item Name" in sub
+                    else []
+                )
                 outlets = sub[target_col_name].tolist()
-                items_detail = " | ".join([f"{name} ({out})" for name, out in zip(item_names, outlets)]) if item_names else item["summary"]
-                split_rows.append({
-                    "Order Number": order_id,
-                    "Items Count": item["item_count"],
-                    "Outlets": item["summary"],
-                    "Details": items_detail,
-                })
-            st.dataframe(pd.DataFrame(split_rows), use_container_width=True, hide_index=True)
+                items_detail = (
+                    " | ".join(
+                        [f"{name} ({out})" for name, out in zip(item_names, outlets)]
+                    )
+                    if item_names
+                    else item["summary"]
+                )
+                split_rows.append(
+                    {
+                        "Order Number": order_id,
+                        "Items Count": item["item_count"],
+                        "Outlets": item["summary"],
+                        "Details": items_detail,
+                    }
+                )
+            st.dataframe(
+                pd.DataFrame(split_rows), use_container_width=True, hide_index=True
+            )
 
     # 7. Multi-View Tabs: Full Orders vs Warehouse Product Listing vs Pathao Bulk
-    tab_full, tab_wh_listing, tab_pathao = st.tabs([
-        "📋 Full Orders with Outlet Mapping",
-        "🏭 Warehouse Product Listing (Picking List)",
-        "🚚 Pathao Bulk Consignments",
-    ])
+    tab_full, tab_wh_listing, tab_pathao = st.tabs(
+        [
+            "📋 Full Orders with Outlet Mapping",
+            "🏭 Warehouse Product Listing (Picking List)",
+            "🚚 Pathao Bulk Consignments",
+        ]
+    )
 
     with tab_full:
         st.markdown(f"##### 📋 Order Line Items with '{target_col_name}' Column")
@@ -209,9 +249,13 @@ def render_sip_outlet_tab() -> None:
         c_filter, c_search = st.columns([2, 2])
         with c_filter:
             avail_outlets = ["All Outlets"] + list(outlet_counts.keys())
-            selected_outlet = st.selectbox("Filter by Outlet:", avail_outlets, key="sip_outlet_filter")
+            selected_outlet = st.selectbox(
+                "Filter by Outlet:", avail_outlets, key="sip_outlet_filter"
+            )
         with c_search:
-            search_query = st.text_input("Search Order or Item:", "", key="sip_search_query")
+            search_query = st.text_input(
+                "Search Order or Item:", "", key="sip_search_query"
+            )
 
         display_df = processed_df.copy()
         if selected_outlet != "All Outlets":
@@ -219,7 +263,11 @@ def render_sip_outlet_tab() -> None:
 
         if search_query.strip():
             q = search_query.strip().lower()
-            mask = display_df.astype(str).apply(lambda row: row.str.lower().str.contains(q, regex=False)).any(axis=1)
+            mask = (
+                display_df.astype(str)
+                .apply(lambda row: row.str.lower().str.contains(q, regex=False))
+                .any(axis=1)
+            )
             display_df = display_df[mask]
 
         st.caption(f"Showing **{len(display_df):,}** of **{len(processed_df):,}** rows")
@@ -238,7 +286,11 @@ def render_sip_outlet_tab() -> None:
     with tab_wh_listing:
         c_pick_out, c_item, c_sku, c_qty = st.columns([2, 2, 2, 1])
         with c_pick_out:
-            listing_outlet_options = ["Warehouse"] + [o for o in outlet_counts.keys() if o != "Warehouse"] + ["All"]
+            listing_outlet_options = (
+                ["Warehouse"]
+                + [o for o in outlet_counts.keys() if o != "Warehouse"]
+                + ["All"]
+            )
             selected_listing_outlet = st.selectbox(
                 "Select Outlet for Product Listing:",
                 listing_outlet_options,
@@ -248,7 +300,9 @@ def render_sip_outlet_tab() -> None:
         with c_item:
             item_candidates = ["Item Name", "Product Name", "Item", "Product", "Title"]
             det_item_idx = _detect_col(processed_df, item_candidates, 0)
-            pl_item_col = st.selectbox("Item Column:", cols, index=det_item_idx, key="sip_pl_item_col")
+            pl_item_col = st.selectbox(
+                "Item Column:", cols, index=det_item_idx, key="sip_pl_item_col"
+            )
         with c_sku:
             sku_candidates = ["SKU", "sku", "Product SKU", "Variation SKU"]
             det_sku_idx = _detect_col(processed_df, sku_candidates, 0)
@@ -256,13 +310,19 @@ def render_sip_outlet_tab() -> None:
             pl_sku_col = st.selectbox(
                 "SKU Column:",
                 sku_options,
-                index=(sku_options.index(cols[det_sku_idx]) if cols[det_sku_idx] in sku_options else 0),
+                index=(
+                    sku_options.index(cols[det_sku_idx])
+                    if cols[det_sku_idx] in sku_options
+                    else 0
+                ),
                 key="sip_pl_sku_col",
             )
         with c_qty:
             qty_candidates = ["Quantity", "Qty", "Units", "Count"]
             det_qty_idx = _detect_col(processed_df, qty_candidates, 0)
-            pl_qty_col = st.selectbox("Qty Column:", cols, index=det_qty_idx, key="sip_pl_qty_col")
+            pl_qty_col = st.selectbox(
+                "Qty Column:", cols, index=det_qty_idx, key="sip_pl_qty_col"
+            )
 
         filtered_raw = (
             processed_df[processed_df[target_col_name] == selected_listing_outlet]
@@ -284,13 +344,19 @@ def render_sip_outlet_tab() -> None:
         else:
             tot_units = int(outlet_listing_df[pl_qty_col].sum())
             tot_skus = len(outlet_listing_df)
-            unique_orders = filtered_raw[order_col].nunique() if order_col in filtered_raw else len(filtered_raw)
+            unique_orders = (
+                filtered_raw[order_col].nunique()
+                if order_col in filtered_raw
+                else len(filtered_raw)
+            )
 
             # Resolve Date from order data
             date_val = None
             for c in ["Order Date", "Date", "date", "created_at"]:
                 if c in filtered_raw.columns:
-                    dt_series = pd.to_datetime(filtered_raw[c], errors="coerce").dropna()
+                    dt_series = pd.to_datetime(
+                        filtered_raw[c], errors="coerce"
+                    ).dropna()
                     if not dt_series.empty:
                         date_val = dt_series.max().strftime("%d %b %Y")
                     else:
@@ -307,7 +373,9 @@ def render_sip_outlet_tab() -> None:
                 valid_orders = filtered_raw.dropna(subset=[order_col])
                 if not valid_orders.empty:
                     try:
-                        num_ids = pd.to_numeric(valid_orders[order_col], errors="coerce")
+                        num_ids = pd.to_numeric(
+                            valid_orders[order_col], errors="coerce"
+                        )
                         if num_ids.notna().any():
                             last_order_num = str(int(num_ids.max()))
                         else:
@@ -336,7 +404,11 @@ def render_sip_outlet_tab() -> None:
             st.divider()
 
             # Construct summary last row
-            orders_label = f"{unique_orders:,} Orders" if isinstance(unique_orders, (int, float)) else f"{unique_orders}"
+            orders_label = (
+                f"{unique_orders:,} Orders"
+                if isinstance(unique_orders, (int, float))
+                else f"{unique_orders}"
+            )
             summary_row = {}
             if pl_sku_col != "None" and pl_sku_col in outlet_listing_df.columns:
                 summary_row[pl_item_col] = (
@@ -349,7 +421,9 @@ def render_sip_outlet_tab() -> None:
                 )
             summary_row[pl_qty_col] = tot_units
 
-            display_df = pd.concat([outlet_listing_df, pd.DataFrame([summary_row])], ignore_index=True)
+            display_df = pd.concat(
+                [outlet_listing_df, pd.DataFrame([summary_row])], ignore_index=True
+            )
 
             # Style table with pastel group coloring
             def _apply_pastel_colors(data_df):
@@ -388,13 +462,17 @@ def render_sip_outlet_tab() -> None:
                     )
                 return styles
 
-            st.markdown(f"### 📋 Aggregated Product Picking List — {selected_listing_outlet}")
+            st.markdown(
+                f"### 📋 Aggregated Product Picking List — {selected_listing_outlet}"
+            )
             st.dataframe(
                 display_df.style.apply(_apply_pastel_colors, axis=None),
                 use_container_width=True,
                 height=min(600, max(300, len(display_df) * 35 + 40)),
                 column_config={
-                    pl_qty_col: st.column_config.NumberColumn("📦 Total Quantity", format="%d"),
+                    pl_qty_col: st.column_config.NumberColumn(
+                        "📦 Total Quantity", format="%d"
+                    ),
                     pl_item_col: st.column_config.TextColumn("🛍️ Item Name"),
                 },
             )
@@ -430,13 +508,21 @@ def render_sip_outlet_tab() -> None:
         with st.expander("⚙️ Pathao Consignment Settings", expanded=False):
             pc1, pc2, pc3, pc4 = st.columns(4)
             with pc1:
-                store_name_val = st.text_input("Store Name:", value="DEEN", key="pathao_store_name")
+                store_name_val = st.text_input(
+                    "Store Name:", value="DEEN", key="pathao_store_name"
+                )
             with pc2:
-                in_dhaka_fee = st.number_input("Inside Dhaka Fee (Tk):", value=50, step=5, key="pathao_in_fee")
+                in_dhaka_fee = st.number_input(
+                    "Inside Dhaka Fee (Tk):", value=50, step=5, key="pathao_in_fee"
+                )
             with pc3:
-                out_dhaka_fee = st.number_input("Outside Dhaka Fee (Tk):", value=90, step=5, key="pathao_out_fee")
+                out_dhaka_fee = st.number_input(
+                    "Outside Dhaka Fee (Tk):", value=90, step=5, key="pathao_out_fee"
+                )
             with pc4:
-                def_weight_val = st.text_input("Default Weight (kg):", value="0.5", key="pathao_weight")
+                def_weight_val = st.text_input(
+                    "Default Weight (kg):", value="0.5", key="pathao_weight"
+                )
 
         pathao_df = generate_pathao_bulk_consignments(
             df=processed_df,
@@ -453,10 +539,19 @@ def render_sip_outlet_tab() -> None:
             st.warning("No consignments generated.")
         else:
             tot_consignments = len(pathao_df)
-            tot_cod = int(pd.to_numeric(pathao_df["AmountToCollect(*)"], errors="coerce").fillna(0).sum())
-            split_consignments_count = len(pathao_df[pathao_df["SpecialInstruction"].str.contains("Split Part", na=False)])
+            tot_cod = int(
+                pd.to_numeric(pathao_df["AmountToCollect(*)"], errors="coerce")
+                .fillna(0)
+                .sum()
+            )
+            split_consignments_count = len(
+                pathao_df[
+                    pathao_df["SpecialInstruction"].str.contains("Split Part", na=False)
+                ]
+            )
             inside_dhaka_count = sum(
-                1 for _, r in pathao_df.iterrows()
+                1
+                for _, r in pathao_df.iterrows()
                 if is_inside_dhaka(r["RecipientCity(*)"], r["RecipientAddress(*)"])
             )
             outside_dhaka_count = tot_consignments - inside_dhaka_count
@@ -465,17 +560,28 @@ def render_sip_outlet_tab() -> None:
             pm1.metric("📦 Total Consignments", f"{tot_consignments:,}")
             pm2.metric("🔀 Split Consignments", f"{split_consignments_count:,}")
             pm3.metric("💰 Total Amount to Collect", f"৳{tot_cod:,}")
-            pm4.metric("🏙️ Dhaka / Outside", f"{inside_dhaka_count} in / {outside_dhaka_count} out")
+            pm4.metric(
+                "🏙️ Dhaka / Outside",
+                f"{inside_dhaka_count} in / {outside_dhaka_count} out",
+            )
 
             st.divider()
 
             # Filter and search Pathao records
             c_p_filter, c_p_search = st.columns([2, 2])
             with c_p_filter:
-                p_outlets = ["All Outlets"] + [o for o in pathao_df["WarehouseOutlet"].dropna().unique() if o]
-                selected_p_outlet = st.selectbox("Filter Consignments by Outlet:", p_outlets, key="pathao_outlet_filter")
+                p_outlets = ["All Outlets"] + [
+                    o for o in pathao_df["WarehouseOutlet"].dropna().unique() if o
+                ]
+                selected_p_outlet = st.selectbox(
+                    "Filter Consignments by Outlet:",
+                    p_outlets,
+                    key="pathao_outlet_filter",
+                )
             with c_p_search:
-                p_search_q = st.text_input("Search Consignments (ID, Phone, Name):", "", key="pathao_search_q")
+                p_search_q = st.text_input(
+                    "Search Consignments (ID, Phone, Name):", "", key="pathao_search_q"
+                )
 
             p_display = pathao_df.copy()
             if selected_p_outlet != "All Outlets":
@@ -483,10 +589,16 @@ def render_sip_outlet_tab() -> None:
 
             if p_search_q.strip():
                 pq = p_search_q.strip().lower()
-                p_mask = p_display.astype(str).apply(lambda row: row.str.lower().str.contains(pq, regex=False)).any(axis=1)
+                p_mask = (
+                    p_display.astype(str)
+                    .apply(lambda row: row.str.lower().str.contains(pq, regex=False))
+                    .any(axis=1)
+                )
                 p_display = p_display[p_mask]
 
-            st.caption(f"Showing **{len(p_display):,}** of **{len(pathao_df):,}** consignments")
+            st.caption(
+                f"Showing **{len(p_display):,}** of **{len(pathao_df):,}** consignments"
+            )
             st.dataframe(p_display, use_container_width=True)
 
             # Download buttons for Pathao Bulk (Excel and CSV)

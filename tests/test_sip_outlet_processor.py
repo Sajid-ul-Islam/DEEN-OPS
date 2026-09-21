@@ -155,7 +155,9 @@ def test_compute_sip_stats():
     assert stats["total_items"] == 5
     assert stats["total_orders"] == 3
     assert stats["multi_item_orders"] == 2
-    assert stats["split_orders_count"] == 1  # Only Order 2 has multiple different outlets
+    assert (
+        stats["split_orders_count"] == 1
+    )  # Only Order 2 has multiple different outlets
     assert stats["split_orders"][0]["order_id"] == 2
     assert stats["outlet_counts"]["Warehouse"] == 2
     assert stats["outlet_counts"]["Cumilla"] == 1
@@ -183,12 +185,10 @@ def test_real_sample_file_processing():
 
     # Single item orders
     assert (
-        processed[processed["Order Number"] == 14944]["Item Outlet"].iloc[0]
-        == "Sylhet"
+        processed[processed["Order Number"] == 14944]["Item Outlet"].iloc[0] == "Sylhet"
     )
     assert (
-        processed[processed["Order Number"] == 14957]["Item Outlet"].iloc[0]
-        == "Mirpur"
+        processed[processed["Order Number"] == 14957]["Item Outlet"].iloc[0] == "Mirpur"
     )
     assert (
         processed[processed["Order Number"] == 14964]["Item Outlet"].iloc[0]
@@ -265,7 +265,9 @@ def test_generate_pathao_bulk_sample_file():
     assert "WarehouseOutlet" in pathao_df.columns
 
     # Check split order 14948
-    order_14948 = pathao_df[pathao_df["MerchantOrderId"].astype(str).str.startswith("14948")]
+    order_14948 = pathao_df[
+        pathao_df["MerchantOrderId"].astype(str).str.startswith("14948")
+    ]
     assert len(order_14948) == 2
 
     wh_part = order_14948[order_14948["MerchantOrderId"] == "14948"].iloc[0]
@@ -279,10 +281,10 @@ def test_generate_pathao_bulk_sample_file():
     assert cu_part["ItemQuantity"] == 1
 
     # Check combined warehouse + mirpur order 14967 (treated as one)
-    order_14967 = pathao_df[pathao_df["MerchantOrderId"].astype(str).str.startswith("14967")]
+    order_14967 = pathao_df[
+        pathao_df["MerchantOrderId"].astype(str).str.startswith("14967")
+    ]
     assert len(order_14967) == 1
     assert order_14967.iloc[0]["MerchantOrderId"] == "14967"
     assert order_14967.iloc[0]["WarehouseOutlet"] == "Warehouse"
     assert order_14967.iloc[0]["ItemQuantity"] == 4
-
-

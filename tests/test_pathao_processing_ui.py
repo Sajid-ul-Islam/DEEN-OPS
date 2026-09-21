@@ -447,7 +447,9 @@ def test_detect_and_map_columns_handles_full_or_first_last():
             "Order #": ["9001"],
         }
     )
-    mapped_full, mapping_full, missing_full = processing_tab._detect_and_map_columns(df_full)
+    mapped_full, mapping_full, missing_full = processing_tab._detect_and_map_columns(
+        df_full
+    )
     assert mapped_full["Full Name (Shipping)"].iloc[0] == "Tanvir Ahmed"
     assert mapped_full["First Name (Shipping)"].iloc[0] == "Tanvir Ahmed"
     assert "Full Name (Shipping)" not in missing_full
@@ -466,7 +468,8 @@ def test_detect_and_map_columns_handles_full_or_first_last():
             "Order #": ["9002"],
         }
     )
-    mapped_split, mapping_split, missing_split = processing_tab._detect_and_map_columns(df_split)
+    mapped_split, mapping_split, missing_split = processing_tab._detect_and_map_columns(
+        df_split
+    )
     assert mapped_split["Full Name (Shipping)"].iloc[0] == "Sabbir Hossain"
     assert "Full Name (Shipping)" not in missing_split
-

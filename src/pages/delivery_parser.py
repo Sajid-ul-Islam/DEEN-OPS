@@ -51,7 +51,9 @@ def render_visual_report(df: pd.DataFrame):
 
     # ── KPI metrics ──────────────────────────────────────────────────────────
     total = len(df)
-    payment_col = df["Payment Status"] if "Payment Status" in df.columns else pd.Series(dtype=str)
+    payment_col = (
+        df["Payment Status"] if "Payment Status" in df.columns else pd.Series(dtype=str)
+    )
     paid_count = (payment_col.astype(str).str.lower() == "paid").sum()
     unpaid_count = total - paid_count
     total_cod = (
@@ -85,7 +87,9 @@ def render_visual_report(df: pd.DataFrame):
     # ── Payment status pie ────────────────────────────────────────────────────
     if "Payment Status" in df.columns and not df["Payment Status"].dropna().empty:
         with col_left:
-            payment_counts = df["Payment Status"].fillna("Unknown").value_counts().reset_index()
+            payment_counts = (
+                df["Payment Status"].fillna("Unknown").value_counts().reset_index()
+            )
             payment_counts.columns = ["Status", "Count"]
             fig_pay = px.pie(
                 payment_counts,
@@ -103,7 +107,11 @@ def render_visual_report(df: pd.DataFrame):
     if "Delivery Status" in df.columns and not df["Delivery Status"].dropna().empty:
         with col_right:
             status_counts = (
-                df["Delivery Status"].replace("", "Unknown").fillna("Unknown").value_counts().reset_index()
+                df["Delivery Status"]
+                .replace("", "Unknown")
+                .fillna("Unknown")
+                .value_counts()
+                .reset_index()
             )
             status_counts.columns = ["Delivery Status", "Count"]
             fig_status = px.bar(
@@ -126,7 +134,13 @@ def render_visual_report(df: pd.DataFrame):
 
     # ── Store breakdown (only if multiple stores present) ────────────────────
     if "Store" in df.columns and df["Store"].nunique() > 1:
-        store_counts = df["Store"].replace("", "Unknown").fillna("Unknown").value_counts().reset_index()
+        store_counts = (
+            df["Store"]
+            .replace("", "Unknown")
+            .fillna("Unknown")
+            .value_counts()
+            .reset_index()
+        )
         store_counts.columns = ["Store", "Parcels"]
         fig_store = px.bar(
             store_counts,
@@ -258,4 +272,3 @@ def render_fuzzy_parser_tab():
             use_container_width=True,
             type="primary",
         )
-

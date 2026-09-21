@@ -333,7 +333,9 @@ def classify_customer(
     """
     from src.processing.completed_analytics import is_walkin_customer
 
-    full_name = f"{billing.get('first_name', '')} {billing.get('last_name', '')}".strip()
+    full_name = (
+        f"{billing.get('first_name', '')} {billing.get('last_name', '')}".strip()
+    )
     phone_str = str(billing.get("phone") or "").strip()
     if (
         is_walkin_customer(full_name)

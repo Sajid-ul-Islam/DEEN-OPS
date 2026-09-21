@@ -174,16 +174,13 @@ def process_order_item_outlets(
                     or item_data.get("outlet_name")
                     or item_data.get("name")
                 )
-                item_outlets.append(
-                    normalize_outlet_name(slug, canonical=canonical)
-                )
+                item_outlets.append(normalize_outlet_name(slug, canonical=canonical))
             else:
                 # If more rows than JSON entries, fallback to last known outlet or default
                 if parsed_items:
-                    last_slug = (
-                        parsed_items[-1].get("outlet_slug")
-                        or parsed_items[-1].get("outlet_name")
-                    )
+                    last_slug = parsed_items[-1].get("outlet_slug") or parsed_items[
+                        -1
+                    ].get("outlet_name")
                     item_outlets.append(
                         normalize_outlet_name(last_slug, canonical=canonical)
                     )
@@ -341,7 +338,15 @@ def get_fulfillment_group(outlet_name: Any) -> Tuple[str, str, str]:
         Tuple of (group_name, suffix, warehouse_outlet_label).
     """
     out = str(outlet_name).strip().lower()
-    if out in ("warehouse", "mirpur", "mirpur-12", "mirpur 12", "ecom", "wh", "default"):
+    if out in (
+        "warehouse",
+        "mirpur",
+        "mirpur-12",
+        "mirpur 12",
+        "ecom",
+        "wh",
+        "default",
+    ):
         return "Warehouse", "", "Warehouse"
     elif "cumilla" in out or "comilla" in out:
         return "Cumilla", " c", "Cumilla Outlet"
@@ -429,34 +434,61 @@ def generate_pathao_bulk_consignments(
     else:
         processed_df = df.copy()
 
-    actual_order_col = order_col if order_col in processed_df.columns else processed_df.columns[0]
+    actual_order_col = (
+        order_col if order_col in processed_df.columns else processed_df.columns[0]
+    )
     consignments: List[Dict[str, Any]] = []
 
     # Detect address and city columns
-    name_col = "Full Name (Shipping)" if "Full Name (Shipping)" in processed_df.columns else "Name"
-    phone_col = "Phone (Shipping)" if "Phone (Shipping)" in processed_df.columns else "Phone"
-    addr_col = "Address 1&2 (Shipping)" if "Address 1&2 (Shipping)" in processed_df.columns else "Address"
-    city_col = "City (Shipping)" if "City (Shipping)" in processed_df.columns else "City"
+    name_col = (
+        "Full Name (Shipping)"
+        if "Full Name (Shipping)" in processed_df.columns
+        else "Name"
+    )
+    phone_col = (
+        "Phone (Shipping)" if "Phone (Shipping)" in processed_df.columns else "Phone"
+    )
+    addr_col = (
+        "Address 1&2 (Shipping)"
+        if "Address 1&2 (Shipping)" in processed_df.columns
+        else "Address"
+    )
+    city_col = (
+        "City (Shipping)" if "City (Shipping)" in processed_df.columns else "City"
+    )
     cost_col = "Item Cost" if "Item Cost" in processed_df.columns else None
     qty_col = "Quantity" if "Quantity" in processed_df.columns else None
-    item_col = "Item Name" if "Item Name" in processed_df.columns else processed_df.columns[1]
+    item_col = (
+        "Item Name" if "Item Name" in processed_df.columns else processed_df.columns[1]
+    )
 
     for order_id, order_group in processed_df.groupby(actual_order_col, sort=False):
         first_row = order_group.iloc[0]
 
-        recipient_name = str(first_row.get(name_col, "")).strip() if name_col in first_row else ""
+        recipient_name = (
+            str(first_row.get(name_col, "")).strip() if name_col in first_row else ""
+        )
         recipient_phone = normalize_phone_number(first_row.get(phone_col, ""))
-        address_val = str(first_row.get(addr_col, "")).strip() if addr_col in first_row else ""
-        city_val = str(first_row.get(city_col, "")).strip() if city_col in first_row else ""
+        address_val = (
+            str(first_row.get(addr_col, "")).strip() if addr_col in first_row else ""
+        )
+        city_val = (
+            str(first_row.get(city_col, "")).strip() if city_col in first_row else ""
+        )
         if city_val.lower() == "nan":
             city_val = ""
 
         # Payment & COD check
         payment_method = str(first_row.get("Payment Method Title", "")).lower()
-        is_paid = any(kw in payment_method for kw in ["online", "ssl", "bkash", "card", "prepaid", "paid"])
+        is_paid = any(
+            kw in payment_method
+            for kw in ["online", "ssl", "bkash", "card", "prepaid", "paid"]
+        )
 
         # Delivery fee calculation
-        total_order_amount = pd.to_numeric(first_row.get("Order Total Amount", 0), errors="coerce") or 0
+        total_order_amount = (
+            pd.to_numeric(first_row.get("Order Total Amount", 0), errors="coerce") or 0
+        )
         items_cost_sum = (
             pd.to_numeric(order_group[cost_col], errors="coerce").fillna(0).sum()
             if cost_col
@@ -523,8 +555,7 @@ def generate_pathao_bulk_consignments(
             # Build Item Description
             if qty_col and item_col:
                 item_desc_list = [
-                    f"{r[item_col]} x {r[qty_col]}"
-                    for _, r in grp_items.iterrows()
+                    f"{r[item_col]} x {r[qty_col]}" for _, r in grp_items.iterrows()
                 ]
                 item_desc = ", ".join(item_desc_list)
                 total_qty = int(
@@ -570,4 +601,3 @@ def generate_pathao_bulk_consignments(
             out_df[col] = ""
 
     return out_df[PATHAO_COLUMNS]
-
