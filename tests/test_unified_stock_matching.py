@@ -35,17 +35,21 @@ class TestUnifiedStockMatching(unittest.TestCase):
         df_unified = pd.read_csv(io.StringIO(SAMPLE_UNIFIED_CSV))
         self.assertTrue(inv_core.is_unified_stock_file(df_unified))
 
-        df_orders = pd.DataFrame({
-            "Order Number": ["1001"],
-            "Item Name": ["Shirt"],
-            "Quantity": [1],
-            "Phone": ["01711111111"],
-        })
+        df_orders = pd.DataFrame(
+            {
+                "Order Number": ["1001"],
+                "Item Name": ["Shirt"],
+                "Quantity": [1],
+                "Phone": ["01711111111"],
+            }
+        )
         self.assertFalse(inv_core.is_unified_stock_file(df_orders))
 
     def test_load_inventory_from_unified_stock_file(self):
         inv_map, warnings, enriched_dfs, sku_map, pivoted_df = (
-            inv_core.load_inventory_from_unified_stock_file(io.StringIO(SAMPLE_UNIFIED_CSV))
+            inv_core.load_inventory_from_unified_stock_file(
+                io.StringIO(SAMPLE_UNIFIED_CSV)
+            )
         )
         self.assertFalse(warnings)
         self.assertFalse(pivoted_df.empty)
@@ -65,30 +69,32 @@ class TestUnifiedStockMatching(unittest.TestCase):
         self.assertEqual(inv_map[sku_sz_key]["Cumilla"], 4)
 
     def test_order_to_stock_matching_allocates_correct_outlet(self):
-        inv_map, _, _, sku_map, _ = (
-            inv_core.load_inventory_from_unified_stock_file(io.StringIO(SAMPLE_UNIFIED_CSV))
+        inv_map, _, _, sku_map, _ = inv_core.load_inventory_from_unified_stock_file(
+            io.StringIO(SAMPLE_UNIFIED_CSV)
         )
 
-        orders_df = pd.DataFrame([
-            {
-                "Order Number": "ORD-1",
-                "Item Name": "Springfield Polo Shirt - 2XL",
-                "SKU": "103-0100-119",
-                "Quantity": 1,
-            },
-            {
-                "Order Number": "ORD-2",
-                "Item Name": "DEEN High-End Raw Washed Jeans - Slim Fit - 30",
-                "SKU": "101-0100-149",
-                "Quantity": 1,
-            },
-            {
-                "Order Number": "ORD-3",
-                "Item Name": "DEEN Non-Existent Item - M",
-                "SKU": "999-9999-999",
-                "Quantity": 1,
-            },
-        ])
+        orders_df = pd.DataFrame(
+            [
+                {
+                    "Order Number": "ORD-1",
+                    "Item Name": "Springfield Polo Shirt - 2XL",
+                    "SKU": "103-0100-119",
+                    "Quantity": 1,
+                },
+                {
+                    "Order Number": "ORD-2",
+                    "Item Name": "DEEN High-End Raw Washed Jeans - Slim Fit - 30",
+                    "SKU": "101-0100-149",
+                    "Quantity": 1,
+                },
+                {
+                    "Order Number": "ORD-3",
+                    "Item Name": "DEEN Non-Existent Item - M",
+                    "SKU": "999-9999-999",
+                    "Quantity": 1,
+                },
+            ]
+        )
 
         target_locations = ["Warehouse", "Mirpur 12", "Wari", "Cumilla", "Sylhet"]
         result_df, matched_count = inv_core.add_stock_columns_from_inventory(

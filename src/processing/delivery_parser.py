@@ -124,7 +124,10 @@ def parse_records(raw: str):
             i += 1
         rec["Action"] = ", ".join(action_lines)
 
-        if re.search(r"^(?:D|EX)\s*-\s*\d", rec["Recipient Name"], re.IGNORECASE) and not rec["Order ID"]:
+        if (
+            re.search(r"^(?:D|EX)\s*-\s*\d", rec["Recipient Name"], re.IGNORECASE)
+            and not rec["Order ID"]
+        ):
             rec["Order ID"] = rec["Recipient Name"]
             rec["Recipient Name"] = ""
             rec["Type"] = "Exchange"

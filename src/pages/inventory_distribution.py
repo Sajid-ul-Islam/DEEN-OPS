@@ -189,9 +189,7 @@ def render_distribution_tab(search_q):
                 m_cols[i + 2].metric(loc, f"{loc_sum:,}")
 
         # Quick Search & Lookup
-        with st.expander(
-            "🔎 Quick Stock Lookup & Full Outlet Matrix", expanded=False
-        ):
+        with st.expander("🔎 Quick Stock Lookup & Full Outlet Matrix", expanded=False):
             stock_search = st.text_input(
                 "Filter by SKU or Product Name",
                 key="unified_stock_search_input",
@@ -199,15 +197,9 @@ def render_distribution_tab(search_q):
             )
             display_stock_df = outlet_df
             if stock_search:
-                match_mask = display_stock_df["Product"].astype(
-                    str
-                ).str.contains(
+                match_mask = display_stock_df["Product"].astype(str).str.contains(
                     stock_search, case=False, na=False
-                ) | display_stock_df[
-                    "SKU"
-                ].astype(
-                    str
-                ).str.contains(
+                ) | display_stock_df["SKU"].astype(str).str.contains(
                     stock_search, case=False, na=False
                 )
                 display_stock_df = display_stock_df[match_mask]
@@ -215,9 +207,7 @@ def render_distribution_tab(search_q):
 
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                outlet_df.to_excel(
-                    writer, sheet_name="Outlet Stock", index=False
-                )
+                outlet_df.to_excel(writer, sheet_name="Outlet Stock", index=False)
             excel_data = output.getvalue()
 
             st.download_button(
@@ -295,9 +285,7 @@ def render_distribution_tab(search_q):
                 if uploaded:
                     loc_files[loc] = uploaded
                 elif loc in default_files:
-                    default_path = os.path.join(
-                        "src", "inventory", default_files[loc]
-                    )
+                    default_path = os.path.join("src", "inventory", default_files[loc])
                     if os.path.exists(default_path):
                         with open(default_path, "rb") as f:
                             file_bytes = f.read()
@@ -435,7 +423,11 @@ def render_distribution_tab(search_q):
             "Consolidated stock levels across outlets (Mirpur, Wari, Cumilla, Sylhet, Ecom) "
             "with category breakdown and SKU verification are available in **Current Stock Analytics**."
         )
-        if st.button("📊 Open Current Stock Analytics", use_container_width=True, key="inv_dist_open_analytics_btn"):
+        if st.button(
+            "📊 Open Current Stock Analytics",
+            use_container_width=True,
+            key="inv_dist_open_analytics_btn",
+        ):
             st.session_state.inventory_sub_feature = "Current Stock Analytics"
             st.rerun()
 
@@ -580,10 +572,7 @@ def render_distribution_tab(search_q):
                                 "⚠️ WooCommerce sync failed. Analysis will proceed using other locations."
                             )
 
-                if (
-                    st.session_state.get("inv_unified_inventory_map")
-                    is not None
-                ):
+                if st.session_state.get("inv_unified_inventory_map") is not None:
                     inventory_map = st.session_state.inv_unified_inventory_map
                     sku_map = st.session_state.inv_unified_sku_map
                     target_locations = st.session_state.get(
@@ -605,9 +594,7 @@ def render_distribution_tab(search_q):
                     target_locations,
                     sku_col,
                     sku_map,
-                    priority_locations=st.session_state.get(
-                        "inv_priority_order"
-                    ),
+                    priority_locations=st.session_state.get("inv_priority_order"),
                 )
 
                 st.session_state.inv_active_l = target_locations

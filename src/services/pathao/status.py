@@ -286,9 +286,7 @@ def fetch_pending_pathao_orders(
     return pending_list, None
 
 
-def fetch_wc_pending_in_pathao(
-    wc_df, force_refresh: bool = False
-) -> list[dict]:
+def fetch_wc_pending_in_pathao(wc_df, force_refresh: bool = False) -> list[dict]:
     """Filter WooCommerce orders with Pathao tracking IDs whose Pathao status is pending/in-transit."""
     import pandas as pd
 
@@ -376,4 +374,3 @@ def fetch_wc_pending_in_pathao(
         )
 
     return results
-

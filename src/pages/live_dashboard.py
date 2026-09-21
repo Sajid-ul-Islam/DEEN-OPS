@@ -123,7 +123,11 @@ def _get_comparison_frame(
                     except Exception:
                         pass
             # If still no comparison frame, apply date-based filtering directly to wc_full_df
-            if (_cmp_raw is None or _cmp_raw.empty) and full_raw is not None and not full_raw.empty:
+            if (
+                (_cmp_raw is None or _cmp_raw.empty)
+                and full_raw is not None
+                and not full_raw.empty
+            ):
                 prev_work_d = get_previous_working_day(bd_today())
                 _cmp_raw = filter_live_dashboard_view(
                     full_raw, "All Orders", reference_date=prev_work_d
@@ -786,7 +790,9 @@ def _render_dispatch_export(selected_view: str | None = None):
                 else:
                     start_date = today_bd
                     end_date = today_bd
-                    st.caption(f"🗓️ Active Day: **{today_bd.strftime('%Y-%m-%d (%A)')}**")
+                    st.caption(
+                        f"🗓️ Active Day: **{today_bd.strftime('%Y-%m-%d (%A)')}**"
+                    )
             elif date_preset == prev_label:
                 start_date = prev_work_bd
                 end_date = prev_work_bd
@@ -804,7 +810,9 @@ def _render_dispatch_export(selected_view: str | None = None):
                     if len(custom_range) > 0:
                         start_date = custom_range[0]
                         end_date = (
-                            custom_range[-1] if len(custom_range) > 1 else custom_range[0]
+                            custom_range[-1]
+                            if len(custom_range) > 1
+                            else custom_range[0]
                         )
                     else:
                         start_date = today_bd

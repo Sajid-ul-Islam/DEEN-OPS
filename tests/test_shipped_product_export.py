@@ -208,7 +208,10 @@ def test_classify_order_source_checkout_vs_pos():
         {"Full Name (Billing)": "Walk-in Customer", "Payment Method Title": "Ecom"}
     )
     walkin_row2 = pd.Series(
-        {"Customer Name": "Walk In Customer", "Payment Method Title": "Cash on delivery"}
+        {
+            "Customer Name": "Walk In Customer",
+            "Payment Method Title": "Cash on delivery",
+        }
     )
     walkin_row3 = pd.Series({"Customer": "walk-in", "Created via": "checkout"})
     walkin_row4 = pd.Series({"Full Name": "Walkin", "Payment Method Title": "bKash"})
@@ -420,7 +423,9 @@ def test_saturday_kpi_card_matches_product_wise_export_with_friday():
     )
 
     # 1. KPI View path on Saturday includes Friday + Saturday
-    df_kpi_view = filter_live_dashboard_view(df, "Today Shipped", reference_date=saturday)
+    df_kpi_view = filter_live_dashboard_view(
+        df, "Today Shipped", reference_date=saturday
+    )
     mapping = {
         "name": "Product Name",
         "cost": "Item Cost",
@@ -690,8 +695,7 @@ def test_has_blank_address_detection():
         is False
     )
     assert (
-        has_blank_address({"Address 1&2 (Shipping)": "GEC Circle, Chittagong"})
-        is False
+        has_blank_address({"Address 1&2 (Shipping)": "GEC Circle, Chittagong"}) is False
     )
     assert (
         has_blank_address({"RecipientAddress(*)": "House 1, Block A, Uttara"}) is False
@@ -798,4 +802,3 @@ def test_orders_without_address_excluded_from_customer_mix():
     new_cnt, ret_cnt = compute_new_vs_returning_counts(orders_df, orders_df)
     # Only Alice should be counted; Bob has no address (outlet) and must be excluded
     assert new_cnt + ret_cnt == 1
-

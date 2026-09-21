@@ -483,7 +483,9 @@ def render_operational_metrics(
                             d_uniq = d_grp.drop_duplicates(subset=[order_id_col])
                             name_c = pick_column(d_uniq, NAME_COL_CANDIDATES)
                             if name_c and name_c in d_uniq.columns:
-                                d_uniq = d_uniq[~d_uniq[name_c].apply(is_walkin_customer)]
+                                d_uniq = d_uniq[
+                                    ~d_uniq[name_c].apply(is_walkin_customer)
+                                ]
                             d_uniq = d_uniq[~d_uniq.apply(has_blank_phone, axis=1)]
                             day_map_total[d_key] = len(d_uniq)
 
@@ -638,7 +640,11 @@ def render_operational_metrics(
                     if co_new_cnt > 0
                     else (100.0 if m_new_cnt > 0 else 0.0)
                 )
-                cmp_cust_suffix = f" vs {cmp_badge_label}" if "cmp_badge_label" in locals() and cmp_badge_label else " vs Prev"
+                cmp_cust_suffix = (
+                    f" vs {cmp_badge_label}"
+                    if "cmp_badge_label" in locals() and cmp_badge_label
+                    else " vs Prev"
+                )
                 html_dcust = format_delta(
                     f"{d_new:+d} New{cmp_cust_suffix}",
                     prev_val_str=f"{co_new_cnt}N / {co_ret_cnt}R",

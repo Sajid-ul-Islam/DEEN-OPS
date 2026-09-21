@@ -1231,4 +1231,3 @@ def render_woocommerce_orders_tab():
 
     with tab_updater:
         _render_bulk_updater_tab()
-

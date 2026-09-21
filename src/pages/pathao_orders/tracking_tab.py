@@ -331,9 +331,7 @@ def _render_single_and_search_view():
                 else:
                     st.toast("✅ Status retrieved successfully!")
                     data_obj = status_data.get("data", {})
-                    status_val = str(
-                        data_obj.get("order_status", "N/A")
-                    ).capitalize()
+                    status_val = str(data_obj.get("order_status", "N/A")).capitalize()
                     payment_val = str(
                         data_obj.get("payment_status", "N/A")
                     ).capitalize()
@@ -480,9 +478,7 @@ def _render_recent_orders_view():
                     elif not orders:
                         st.info("No recent orders found.")
                     else:
-                        st.toast(
-                            f"✅ Successfully retrieved {len(orders)} orders."
-                        )
+                        st.toast(f"✅ Successfully retrieved {len(orders)} orders.")
                         history_data = []
                         for o in orders:
                             amount_str = (
@@ -515,7 +511,9 @@ def _render_recent_orders_view():
                 st.error(f"Error fetching recent orders: {e}")
 
 
-def _render_bulk_tracking_view(track_filter: str = "All Orders", auto_update_wc: str = "Disabled"):
+def _render_bulk_tracking_view(
+    track_filter: str = "All Orders", auto_update_wc: str = "Disabled"
+):
     st.subheader("Bulk Status Check")
     st.write(
         "Upload an Excel/CSV file containing Consignment IDs to bulk-check their current status."
@@ -574,9 +572,7 @@ def _render_bulk_tracking_view(track_filter: str = "All Orders", auto_update_wc:
                     )
 
                     progress_bar = st.progress(0)
-                    status_dict = bulk_get_pathao_order_statuses(
-                        cids, max_workers=10
-                    )
+                    status_dict = bulk_get_pathao_order_statuses(cids, max_workers=10)
                     progress_bar.progress(1.0)
 
                     bulk_df["Live Status"] = bulk_df[id_col].apply(
@@ -697,9 +693,7 @@ def _render_bulk_tracking_view(track_filter: str = "All Orders", auto_update_wc:
                     mask = (
                         filtered_display_df.astype(str)
                         .apply(
-                            lambda x: x.str.contains(
-                                search_term, case=False, na=False
-                            )
+                            lambda x: x.str.contains(search_term, case=False, na=False)
                         )
                         .any(axis=1)
                     )
@@ -792,7 +786,9 @@ def _render_status_tracking_tab():
         _render_recent_orders_view()
 
     with tab_bulk:
-        _render_bulk_tracking_view(track_filter=track_filter, auto_update_wc=auto_update_wc)
+        _render_bulk_tracking_view(
+            track_filter=track_filter, auto_update_wc=auto_update_wc
+        )
 
     # Single order tracking input (moved outside tabs for global access)
     c_id, c_btn = st.columns([3, 1])

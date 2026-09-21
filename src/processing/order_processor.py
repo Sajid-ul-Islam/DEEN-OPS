@@ -139,16 +139,13 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = _apply_column_fallbacks(df)
 
     # Resolve recipient name: accept full name or first + last
-    has_full_name = (
-        "Full Name (Shipping)" in df.columns
-        and (
-            df["Full Name (Shipping)"]
-            .astype(str)
-            .str.strip()
-            .replace(["nan", "None", ""], pd.NA)
-            .notna()
-            .any()
-        )
+    has_full_name = "Full Name (Shipping)" in df.columns and (
+        df["Full Name (Shipping)"]
+        .astype(str)
+        .str.strip()
+        .replace(["nan", "None", ""], pd.NA)
+        .notna()
+        .any()
     )
 
     first_col = next(
@@ -189,11 +186,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             else pd.Series("", index=df.index)
         )
         last_series = (
-            df[last_col]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-            .replace(["nan", "None"], "")
+            df[last_col].fillna("").astype(str).str.strip().replace(["nan", "None"], "")
             if last_col
             else pd.Series("", index=df.index)
         )
@@ -264,8 +257,13 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     elif "Order ID" in df.columns and "Order Number" not in df.columns:
         df["Order Number"] = df["Order ID"]
     elif "Order Number" in df.columns and "Order ID" in df.columns:
-        num_has = (df["Order Number"].notna() & df["Order Number"].astype(str).str.strip().ne("")).any()
-        id_has = (df["Order ID"].notna() & df["Order ID"].astype(str).str.strip().ne("")).any()
+        num_has = (
+            df["Order Number"].notna()
+            & df["Order Number"].astype(str).str.strip().ne("")
+        ).any()
+        id_has = (
+            df["Order ID"].notna() & df["Order ID"].astype(str).str.strip().ne("")
+        ).any()
         if num_has and not id_has:
             df["Order ID"] = df["Order Number"]
         elif id_has and not num_has:
@@ -299,9 +297,20 @@ def identify_columns(df: pd.DataFrame) -> Dict[str, Any]:
 
     # Order Number Column (Order ID and Order Number are interchangeable)
     cols["order_col"] = "Order Number"
-    if "Order Number" in df.columns and (df["Order Number"].notna() & df["Order Number"].astype(str).str.strip().ne("")).any():
+    if (
+        "Order Number" in df.columns
+        and (
+            df["Order Number"].notna()
+            & df["Order Number"].astype(str).str.strip().ne("")
+        ).any()
+    ):
         cols["order_col"] = "Order Number"
-    elif "Order ID" in df.columns and (df["Order ID"].notna() & df["Order ID"].astype(str).str.strip().ne("")).any():
+    elif (
+        "Order ID" in df.columns
+        and (
+            df["Order ID"].notna() & df["Order ID"].astype(str).str.strip().ne("")
+        ).any()
+    ):
         cols["order_col"] = "Order ID"
     else:
         for c in df.columns:
@@ -1052,7 +1061,12 @@ def process_single_order_group(
         combined_merchant_id = _build_combined_merchant_id(df_sub, order_col)
 
         recipient_name = str(first_row.get(data_cols["name_col"], "")).strip().title()
-        if not recipient_name or recipient_name.lower() in ("nan", "none", "customer", ""):
+        if not recipient_name or recipient_name.lower() in (
+            "nan",
+            "none",
+            "customer",
+            "",
+        ):
             full_val = str(first_row.get("Full Name (Shipping)", "")).strip().title()
             if full_val and full_val.lower() not in ("nan", "none", ""):
                 recipient_name = full_val

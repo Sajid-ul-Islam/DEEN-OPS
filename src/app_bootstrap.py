@@ -465,7 +465,9 @@ def _route_page(selected_nav: str) -> None:
             sub_feature = st.radio(
                 "Choose a feature:",
                 inventory_sub_options,
-                index=inventory_sub_options.index(st.session_state.inventory_sub_feature),
+                index=inventory_sub_options.index(
+                    st.session_state.inventory_sub_feature
+                ),
                 label_visibility="collapsed",
                 horizontal=True,
             )
@@ -491,7 +493,11 @@ def _route_page(selected_nav: str) -> None:
 
     # === 📊 Analytics & Insights (Consolidated) ===
     elif selected_nav == "📊 Analytics & Insights":
-        analytics_sub_options = ["Sales Data Ingestion", "Return Analytics", "Return Orders Extractor"]
+        analytics_sub_options = [
+            "Sales Data Ingestion",
+            "Return Analytics",
+            "Return Orders Extractor",
+        ]
         if (
             "analytics_sub_feature" not in st.session_state
             or st.session_state.analytics_sub_feature not in analytics_sub_options
@@ -526,7 +532,9 @@ def _route_page(selected_nav: str) -> None:
                 fallback_msg="Return Analytics unavailable.",
             )
         elif st.session_state.analytics_sub_feature == "Return Orders Extractor":
-            from src.pages.return_order_extractor import render_return_order_extractor_tab
+            from src.pages.return_order_extractor import (
+                render_return_order_extractor_tab,
+            )
 
             safe_render(
                 render_return_order_extractor_tab,
