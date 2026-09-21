@@ -16,7 +16,6 @@ from src.services.pathao import status as status_module
 from src.services.pathao.client import PathaoClient
 from src.services.pathao.orders import PathaoOrderError, build_order_payload
 from src.services.pathao.status import (
-    TERMINAL_PATHAO_STATUSES,
     fetch_pending_pathao_orders,
     fetch_wc_pending_in_pathao,
 )

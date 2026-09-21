@@ -656,7 +656,7 @@ def main():
             store_name=args.store_name,
             default_weight=args.default_weight,
         )
-        print(f"[SUCCESS] Converted successfully!")
+        print("[SUCCESS] Converted successfully!")
         print(f"Output saved to: {out_file}")
     except Exception as e:
         print(f"[ERROR] Conversion failed: {e}", file=sys.stderr)

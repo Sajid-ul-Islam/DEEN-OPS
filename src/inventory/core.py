@@ -501,7 +501,7 @@ def load_inventory_from_unified_stock_file(
         # Helper to defensively register stock to canonical names
         def _add_to_inv(k: str, target_loc: str, amount: int):
             if k not in inventory:
-                inventory[k] = {l: 0 for l in all_locations}
+                inventory[k] = {loc: 0 for loc in all_locations}
             inventory[k][target_loc] = inventory[k].get(target_loc, 0) + amount
             # Mirror Warehouse <-> Ecom
             if target_loc == "Warehouse" and "Ecom" in all_locations:

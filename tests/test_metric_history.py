@@ -70,7 +70,7 @@ def test_distinct_saves_append_but_overwrite_totals(monkeypatch, tmp_path):
 
 def test_load_snapshot_history_uses_overwritten_totals(monkeypatch, tmp_path):
     """The trend-chart loader must see single-counted totals after a re-save."""
-    d = _snapshot_dir(monkeypatch, tmp_path)
+    _snapshot_dir(monkeypatch, tmp_path)
 
     mh.save_shift_snapshot(revenue=100.0, orders=2, qty=3, aov=50.0)
     mh.save_shift_snapshot(revenue=120.0, orders=3, qty=4, aov=40.0)

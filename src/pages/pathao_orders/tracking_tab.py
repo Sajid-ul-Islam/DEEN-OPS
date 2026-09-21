@@ -794,6 +794,14 @@ def _render_status_tracking_tab():
     with tab_bulk:
         _render_bulk_tracking_view(track_filter=track_filter, auto_update_wc=auto_update_wc)
 
+    # Single order tracking input (moved outside tabs for global access)
+    c_id, c_btn = st.columns([3, 1])
+    with c_id:
+        consignment_id = st.text_input(
+            "Consignment ID or Order ID",
+            placeholder="e.g., DD0000000 or 199697",
+            key="pathao_global_track",
+        )
     with c_btn:
         st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
         check_clicked = st.button(

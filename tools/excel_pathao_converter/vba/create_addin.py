@@ -5,7 +5,6 @@ or macro-enabled template (.xlsm) using Excel COM automation.
 """
 
 import os
-import sys
 
 def build_excel_addin():
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +35,7 @@ def build_excel_addin():
     try:
         wb = excel.Workbooks.Add()
         try:
-            vb_comp = wb.VBProject.VBComponents.Import(bas_file)
+            wb.VBProject.VBComponents.Import(bas_file)
             print("[+] Successfully imported VBA module into workbook.")
         except Exception as e:
             print(f"[WARN] Access to VBA project object model is disabled in Excel Trust Center: {e}")

@@ -101,11 +101,13 @@ def _get_comparison_frame(
     if selected_view in {"Today Shipped", "Today"}:
         _cmp_f = filter_live_dashboard_view(_dash_src, "Last Day Shipped")
     elif selected_view == "All Orders":
+        # First try to get previous day's data from dashboard source using date-based filtering
         if _dash_src is not None and not _dash_src.empty:
             prev_work_d = get_previous_working_day(bd_today())
             _cmp_f = filter_live_dashboard_view(
                 _dash_src, "All Orders", reference_date=prev_work_d
             )
+        # Fallback: use wc_prev_df from session state
         if _cmp_f is None or _cmp_f.empty:
             _cmp_raw = st.session_state.get("wc_prev_df")
             if _cmp_raw is None or _cmp_raw.empty:
@@ -120,6 +122,12 @@ def _get_comparison_frame(
                         _cmp_raw = df_prev_ext
                     except Exception:
                         pass
+            # If still no comparison frame, apply date-based filtering directly to wc_full_df
+            if (_cmp_raw is None or _cmp_raw.empty) and full_raw is not None and not full_raw.empty:
+                prev_work_d = get_previous_working_day(bd_today())
+                _cmp_raw = filter_live_dashboard_view(
+                    full_raw, "All Orders", reference_date=prev_work_d
+                )
             if _cmp_raw is not None and not _cmp_raw.empty:
                 _cmp_raw = filter_online_orders(_cmp_raw)
                 _cmp_f = apply_order_view_comparison(

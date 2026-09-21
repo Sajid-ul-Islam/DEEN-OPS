@@ -260,7 +260,6 @@ def test_pathao_processor_order_id_order_number_equivalence():
     assert "Order Number" not in missing3
 
     # 4. order_processor identify_columns resilience
-    from src.processing.order_processor import clean_dataframe
     cleaned = clean_dataframe(df_id_only.copy())
     assert "Order Number" in cleaned.columns
     cols = identify_columns(cleaned)

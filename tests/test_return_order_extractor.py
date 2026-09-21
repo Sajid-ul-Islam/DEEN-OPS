@@ -11,12 +11,10 @@ All tests use synthetic data only; no real API calls are made.
 from __future__ import annotations
 
 import json
-import time
-from datetime import date, datetime
-from unittest.mock import MagicMock, Mock, patch
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 from requests import Response
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

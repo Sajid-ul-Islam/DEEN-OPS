@@ -97,7 +97,10 @@ def main() -> int:
         except Exception as exc:
             print(f"{name:<18}ERROR: {exc}")
             continue
-        fmt = lambda d: f"{d['daily_revenue']}/{d['daily_orders']}/{d['daily_qty']}"
+
+        def fmt(d):
+            return f"{d['daily_revenue']}/{d['daily_orders']}/{d['daily_qty']}"
+
         print(f"{name:<18}{status:<32}{fmt(before):<28}{fmt(after)}")
         if status in ("REPAIRED", "WOULD REPAIR"):
             repaired += 1

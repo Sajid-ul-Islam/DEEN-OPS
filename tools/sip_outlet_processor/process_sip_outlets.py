@@ -9,7 +9,6 @@ the 'Item Outlet' column.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 import pandas as pd
@@ -31,7 +30,7 @@ try:
 except ImportError:
     # Fallback to embedded logic if run completely decoupled
     import json
-    from typing import Any, Dict, List, Optional
+    from typing import Any, Dict, List
 
     OUTLET_CANONICAL_NAMES = {
         "warehouse": "Warehouse",
