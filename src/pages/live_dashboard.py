@@ -51,7 +51,6 @@ def _get_dashboard_source(fallback=None, online_only: bool = True):
             st.session_state.get("wc_curr_df"),
             st.session_state.get("wc_prev_df"),
             st.session_state.get("wc_backlog_df"),
-            st.session_state.get("wc_full_df"),
         )
         if frame is not None and not frame.empty
     ]
