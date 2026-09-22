@@ -1,7 +1,7 @@
 .PHONY: run test format audit docker-up docker-down docker-build
 
 run:
-	streamlit run app.py
+	.venv/Scripts/python.exe -m streamlit run app.py 2>/dev/null || python3 -m streamlit run app.py
 
 test:
 	python -m pytest tests/ -q
