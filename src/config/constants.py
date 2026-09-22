@@ -132,6 +132,9 @@ COMMON_CATS = [
     "  \u21b3 Cotton Terry Sweatshirt",
     "  \u21b3 French Terry Sweatshirt",
     "  \u21b3 Sweatshirt",
+    "Hoodie",
+    "Jacket",
+    "  \u21b3 Denim Jacket",
     "Polo Shirt",
     "Turtle-Neck",
     "Twill",
@@ -156,6 +159,7 @@ COMMON_CATS = [
     "Belt",
     "Mask",
     "Water Bottle",
+    "Mug",
     "Bundles",
     "Others",
 ]

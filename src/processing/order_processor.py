@@ -478,6 +478,8 @@ def get_short_sub_category(item_name: str) -> str:
         return "Sweater"
     if "hoodie" in name_lower:
         return "Hoodie"
+    if "mug" in name_lower:
+        return "Mug"
     if "jacket" in name_lower:
         return "Jacket"
     if "polo" in name_lower:

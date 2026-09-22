@@ -32,6 +32,12 @@ def get_short_category_label(name: str) -> str:
         return "Formal"
     if "sweatshirt" in lower_n or "sweat shirt" in lower_n:
         return "Sweatshirt"
+    if "hoodie" in lower_n:
+        return "Hoodie"
+    if "jacket" in lower_n:
+        return "Jacket"
+    if "mug" in lower_n:
+        return "Mug"
     if "jeans" in lower_n:
         return "Jeans"
     if "pajama" in lower_n or "payjama" in lower_n:

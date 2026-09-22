@@ -16,6 +16,11 @@ _MAPPING_RULES = {
     "turtle": "Turtleneck",
     "polo": "Polo Shirt",
     "cuban": "Cuban Shirt",
+    # Jacket rules must precede 'denim' so a Denim Jacket is not mistaken
+    # for a Denim Shirt.
+    "denim jacket": "Jacket",
+    "jacket": "Jacket",
+    "outerwear": "Jacket",
     "denim": "Denim Shirt",
     "flannel": "Flannel Shirt",
     "oxford": "Formal Shirt",
@@ -31,7 +36,8 @@ _MAPPING_RULES = {
     "panjabi": "Panjabi",
     "punjabi": "Panjabi",
     "sweatshirt": "Sweatshirt",
-    "hoodie": "Sweatshirt",
+    "hoodie": "Hoodie",
+    "mug": "Mug",
     "boxer": "Boxers",
     "belt": "Belt",
     "wallet": "Wallet",

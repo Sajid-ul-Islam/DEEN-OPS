@@ -74,6 +74,25 @@ def test_stock_categorization(product_name, expected_stock_cat):
 
 
 @pytest.mark.parametrize(
+    ("product_name", "expected_cat", "expected_subcat"),
+    [
+        # New WooCommerce store categories: Mug, Hoodie, Denim Jacket
+        ("DEEN 1% Better Every Day Mug", "Mug", "Mug"),
+        ("Mug - White", "Mug", "Mug"),
+        ("Allen Solly Hoodie", "Hoodie", "Hoodie"),
+        ("DEEN Fleece Hoodie - XL", "Hoodie", "Hoodie"),
+        ("Sorbino Denim Jacket", "Jacket", "Denim Jacket"),
+        ("DEEN Bomber Jacket - M", "Jacket", "Jacket"),
+    ],
+)
+def test_new_store_categories(product_name, expected_cat, expected_subcat):
+    cat = get_category_for_sales(product_name)
+    assert cat == expected_cat
+    subcat = get_sub_category_for_sales(product_name, cat)
+    assert subcat == expected_subcat
+
+
+@pytest.mark.parametrize(
     ("product_name", "expected_type"),
     [
         ("Formal Panjabi", "Panjabi"),
@@ -95,3 +114,16 @@ def test_stock_categorization(product_name, expected_stock_cat):
 def test_order_processor_get_short_sub_category(product_name, expected_type):
     item_type = get_short_sub_category(product_name)
     assert item_type == expected_type
+
+
+@pytest.mark.parametrize(
+    ("product_name", "expected_stock_cat"),
+    [
+        ("DEEN 1% Better Every Day Mug", "Mug"),
+        ("Allen Solly Hoodie", "Hoodie"),
+        ("Sorbino Denim Jacket", "Jacket"),
+    ],
+)
+def test_new_store_categories_stock(product_name, expected_stock_cat):
+    """Stock categorization maps new store categories instead of 'Others'/'Sweatshirt'."""
+    assert map_to_csv_category(product_name) == expected_stock_cat

@@ -25,8 +25,16 @@ def get_category_for_sales(name) -> str:
     # 1. HIGH PRIORITY SPECIAL CATEGORIES
     if _has_any(["panjabi", "punjabi"], name_str):
         return "Panjabi"
-    if _has_any(["sweatshirt", "hoodie", "pullover"], name_str):
+    if _has_any(["sweatshirt", "pullover"], name_str):
         return "Sweatshirt"
+    # Hoodie is its own store category (WooCommerce 'hoodie'); check before
+    # generic jacket rules would swallow it.
+    if "hoodie" in name_str:
+        return "Hoodie"
+    if _has_any(["jacket", "outerwear", "coat"], name_str):
+        return "Jacket"
+    if _has_any(["mug"], name_str):
+        return "Mug"
     if "polo" in name_str:
         return "Polo Shirt"
     if _has_any(["turtleneck", "turtle-neck", "mock neck"], name_str):
@@ -92,7 +100,6 @@ def get_category_for_sales(name) -> str:
         "Water Bottle": ["water bottle", "bottle"],
         "Wallet": ["wallet", "card holder", "passport holder"],
         "Belt": ["belt"],
-        "Jacket": ["jacket", "outerwear", "coat"],
         "Sweater": ["sweater", "cardigan", "knitwear"],
         "Cap": ["cap"],
     }
@@ -176,6 +183,17 @@ def get_sub_category_for_sales(name, category) -> str:
         if "french terry" in name_str:
             return "French Terry Sweatshirt"
         return "Sweatshirt"
+
+    elif category == "Hoodie":
+        return "Hoodie"
+
+    elif category == "Jacket":
+        if "denim" in name_str:
+            return "Denim Jacket"
+        return "Jacket"
+
+    elif category == "Mug":
+        return "Mug"
 
     elif category == "Twill":
         if "joggers" in name_str:
