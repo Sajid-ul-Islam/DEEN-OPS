@@ -330,6 +330,55 @@ def fetch_outlet_stock_from_custom_endpoint(
         return None
 
 
+SIP_STOCK_ENDPOINT = "/wp-json/wc/v3/sip/outlet-stock"
+# Canonical ordering for SIP outlet columns in the pivoted DataFrame
+_SIP_OUTLET_ORDER = ["Ecom", "Mirpur", "Wari", "Cumilla", "Sylhet", "Warehouse"]
+
+
+def fetch_sip_outlet_stock(endpoint_url: Optional[str] = None) -> Optional[pd.DataFrame]:
+    """Fetch live SIP outlet stock from the Smart Inventory with POS plugin.
+
+    Expects the plugin's Current Stock Report shape — either flat tabular rows
+    ``{product, size, sku, outlet, stock_qty, price, last_updated}`` (pivoted
+    here into one row per SKU/Size) or an already-pivoted list. Delegates the
+    parsing/pivoting to ``fetch_outlet_stock_from_custom_endpoint`` so all
+    legacy response formats keep working.
+
+    Returns a DataFrame with columns ``[SKU, Product, Size?, <Outlet>...]`` or
+    None when the endpoint is unavailable (e.g. not yet deployed).
+    """
+    auth, base_url = _get_auth_and_url()
+    if not auth or not base_url:
+        return None
+
+    if endpoint_url:
+        url = endpoint_url
+    else:
+        url = f"{base_url}{SIP_STOCK_ENDPOINT}"
+
+    df = fetch_outlet_stock_from_custom_endpoint(url)
+    if df is None or df.empty:
+        return None
+
+    # Ensure Size column survives even when the API omits it
+    if "Size" not in df.columns:
+        df = df.copy()
+        df["Size"] = ""
+
+    # Normalise outlet column values to numeric, missing outlets to 0
+    outlet_cols = [
+        c for c in df.columns if c not in ("SKU", "Product", "Size", "Price", "Last Updated")
+    ]
+    for col in outlet_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+
+    # Stable outlet column ordering: canonical outlets first, extras after
+    ordered = [c for c in _SIP_OUTLET_ORDER if c in outlet_cols]
+    ordered += sorted(c for c in outlet_cols if c not in ordered)
+    base_cols = [c for c in ["SKU", "Product", "Size"] if c in df.columns]
+    return df[base_cols + ordered]
+
+
 def fetch_outlet_stock_from_attributes() -> Optional[pd.DataFrame]:
     """
     Fetch outlet stock stored as product attributes.
@@ -443,3 +492,13 @@ def fetch_live_outlet_stock() -> Optional[pd.DataFrame]:
         return df
 
     return None
+
+
+@cache_data(ttl=300, show_spinner="Fetching SIP outlet stock...")
+def fetch_live_sip_stock() -> Optional[pd.DataFrame]:
+    """Cached SIP stock fetch for UI use (5-minute TTL).
+
+    Returns None when SIP credentials are missing or the endpoint is not
+    deployed yet — callers should show a friendly 'not live yet' state.
+    """
+    return fetch_sip_outlet_stock()

@@ -26,7 +26,6 @@ LEGACY_NAV_MAPPING = {
     "🧩 Delivery Data Parser": "🛒 Orders & Fulfillment",
     # Section: Inventory & Stock
     "📦 Current Stock Analytics": "📦 Inventory & Stock",
-    "📊 Inventory Distribution": "📦 Inventory & Stock",
     # Section: Analytics & Insights
     "📥 Sales Data Ingestion": "📊 Analytics & Insights",
     "📉 Return Analytics": "📊 Analytics & Insights",
@@ -45,7 +44,6 @@ LEGACY_SUBFEATURE_MAPPING = {
     "📦 Pathao Processor": ("orders_sub_feature", "Pathao Processor"),
     "🧩 Delivery Data Parser": ("orders_sub_feature", "Delivery Data Parser"),
     "📦 Current Stock Analytics": ("inventory_sub_feature", "Current Stock Analytics"),
-    "📊 Inventory Distribution": ("inventory_sub_feature", "Inventory Distribution"),
     "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),
     "📉 Return Analytics": ("analytics_sub_feature", "Return Analytics"),
     "🔎 Return Orders Extractor": ("analytics_sub_feature", "Return Orders Extractor"),

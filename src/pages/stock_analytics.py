@@ -14,13 +14,72 @@ from src.processing.categorization import (
     get_category_for_sales,
     get_sub_category_for_sales,
 )
+from src.processing.sip_outlet_processor import (
+    parse_stock_report,
+    pivot_stock_report,
+)
 from src.processing.stock_categorization import map_to_csv_category
 from src.services.exports.excel_exporter import export_to_styled_excel
 from src.services.woocommerce.stock import fetch_woocommerce_stock
 from src.utils.display import truncate_label
 from src.utils.product import get_base_product_name, get_size_from_name
 from src.utils.safe_ops import safe_filter, safe_render
-from src.utils.snapshots import load_stock_snapshot
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+
+def _normalize_stock_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Coerce Stock / Price to clean numerics in place (returns same frame)."""
+    if "Stock" in df.columns:
+        df["Stock"] = pd.to_numeric(
+            df["Stock"].astype(str).str.replace(r"[^\d.-]", "", regex=True),
+            errors="coerce",
+        ).astype(float)
+    if "Price" in df.columns:
+        df["Price"] = (
+            pd.to_numeric(
+                df["Price"].astype(str).str.replace(r"[^\d.]", "", regex=True),
+                errors="coerce",
+            )
+            .fillna(0)
+            .astype(float)
+        )
+    return df
+
+
+def _render_kpi_strip(metrics: list) -> None:
+    """Render a row of premium metric cards via the shared component."""
+    from src.components.ui.ui_components import render_metric_grid
+
+    render_metric_grid(metrics)
+
+
+def _load_wc_stock() -> pd.DataFrame | None:
+    """Load WooCommerce stock from session, snapshot, or live API."""
+    df = st.session_state.get("wc_stock_df")
+    if df is not None:
+        return df
+    df = load_snapshot_quiet()
+    if df is not None:
+        st.session_state.wc_stock_df = df
+    return df
+
+
+def load_snapshot_quiet() -> pd.DataFrame | None:
+    """Snapshot loader guarded so a missing file never raises."""
+    from src.utils.snapshots import load_stock_snapshot
+
+    try:
+        return load_stock_snapshot()
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Tab 1: WooCommerce Stock
+# ---------------------------------------------------------------------------
 
 
 def render_bundle_inventory_intelligence(sales_df, stock_df):
@@ -28,7 +87,6 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
     st.divider()
     st.markdown("#### 🤖 Bundle-Aware Inventory Intelligence")
 
-    # 1. Identify Top Bundles (Frequent Pairs)
     order_col = (
         "Order ID"
         if "Order ID" in sales_df.columns
@@ -53,19 +111,16 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
         )
         return
 
-    # Extract Top Pairs
     all_pairs = []
     for products in basket_df[name_col]:
         all_pairs.extend(list(combinations(set(products), 2)))
 
     top_pairs = Counter(all_pairs).most_common(5)
 
-    # 2. Calculate Bundle Fulfillment Rate
     full_count = 0
     total_bundles = len(top_pairs)
     orphan_skus = []
 
-    # Use best available Name column for inventory matching
     inv_name_col = None
     if "Base_Product" in stock_df.columns:
         inv_name_col = "Base_Product"
@@ -104,14 +159,12 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
         else 0
     )
 
-    # Compute product dependency score: ratio of paired items that co-occur in >1 order
     dependency_score = (
         (len([p for p, c in top_pairs if c > 1]) / total_bundles)
         if total_bundles > 0
         else 0.0
     )
 
-    # Compact HTML
     bundle_html = (
         '<div class="metric-container">'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Bundle Fulfillment</div><div class="metric-value">{fulfillment_rate:.0f}%</div></div><div class="metric-icon">🚀</div></div>'
@@ -134,32 +187,8 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
             )
 
 
-def render_woocommerce_stock_tab():
-    df_raw = st.session_state.get("wc_stock_df")
-
-    if df_raw is None:
-        df_raw = load_stock_snapshot()
-        if df_raw is not None:
-            st.session_state.wc_stock_df = df_raw
-            st.toast("⚡ Loaded from local snapshot")
-            st.rerun()
-
-    if df_raw is None:
-        with st.status("🚀 Initial API sync...", expanded=True) as sync_status:
-            st.write("📡 Fetching products from WooCommerce...")
-            df_raw = fetch_woocommerce_stock()
-            if df_raw is not None:
-                st.session_state.wc_stock_df = df_raw
-                st.session_state.stock_sync_time = bd_now()
-                sync_status.update(
-                    label="Inventory Sync Complete", state="complete", expanded=False
-                )
-                st.toast("✅ Inventory data loaded!", icon="🎉")
-            else:
-                sync_status.update(label="Sync Failed", state="error", expanded=False)
-                st.warning("No inventory data found. Check WooCommerce connection.")
-                return
-
+def _wc_stock_sync_row(df_raw) -> None:
+    """Sync / upload controls for the WooCommerce stock tab."""
     st.markdown("#### 🔄 Data Sync & Upload")
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -177,7 +206,6 @@ def render_woocommerce_stock_tab():
                 if df_fresh is not None:
                     st.session_state.wc_stock_df = df_fresh
                     st.session_state.stock_sync_time = bd_now()
-                    df_raw = df_fresh
                     sync_status.update(
                         label="Database Updated", state="complete", expanded=False
                     )
@@ -228,22 +256,34 @@ def render_woocommerce_stock_tab():
             except Exception as e:
                 st.error(f"Failed to read file: {e}")
 
+
+def render_woocommerce_stock_tab():
+    """WooCommerce web stock: sync, scenario simulator, category breakdown."""
+    df_raw = _load_wc_stock()
+
+    if df_raw is None:
+        with st.status("🚀 Initial API sync...", expanded=True) as sync_status:
+            st.write("📡 Fetching products from WooCommerce...")
+            df_raw = fetch_woocommerce_stock()
+            if df_raw is not None:
+                st.session_state.wc_stock_df = df_raw
+                st.session_state.stock_sync_time = bd_now()
+                sync_status.update(
+                    label="Inventory Sync Complete", state="complete", expanded=False
+                )
+                st.toast("✅ Inventory data loaded!", icon="🎉")
+            else:
+                sync_status.update(label="Sync Failed", state="error", expanded=False)
+                st.warning("No inventory data found. Check WooCommerce connection.")
+                return
+
+    _wc_stock_sync_row(df_raw)
+
     if df_raw is None or df_raw.empty:
         st.info("📬 No inventory data found in snapshots. Try syncing or uploading.")
         return
 
-    df_raw["Stock"] = pd.to_numeric(
-        df_raw["Stock"].astype(str).str.replace(r"[^\d.-]", "", regex=True),
-        errors="coerce",
-    ).astype(float)
-    df_raw["Price"] = (
-        pd.to_numeric(
-            df_raw["Price"].astype(str).str.replace(r"[^\d.]", "", regex=True),
-            errors="coerce",
-        )
-        .fillna(0)
-        .astype(float)
-    )
+    _normalize_stock_columns(df_raw)
 
     if "Sub-Category" not in df_raw.columns or "Clean_Product" not in df_raw.columns:
         if "Product" not in df_raw.columns:
@@ -328,222 +368,214 @@ def render_woocommerce_stock_tab():
                 else df_base
             )
 
-    if not df.empty:
-        df["Stock"] = pd.to_numeric(
-            df["Stock"].astype(str).str.replace(r"[^\d.-]", "", regex=True),
-            errors="coerce",
-        ).astype(float)
-        df["Price"] = (
-            pd.to_numeric(
-                df["Price"].astype(str).str.replace(r"[^\d.]", "", regex=True),
-                errors="coerce",
-            )
-            .fillna(0)
-            .astype(float)
-        )
-    else:
+    if df.empty:
         st.info("📬 No inventory data matches your current filters.")
         return
 
-    def _render_stock_body():
-        st.divider()
-        st.subheader("🧮 Live Scenario Simulator")
-        st.markdown(
-            "Adjust the sliders below to simulate stock and price changes. Metrics, charts, and table highlights will update in real-time."
+    df = _normalize_stock_columns(df.copy())
+    _render_stock_body(df)
+
+
+def _render_stock_body(df: pd.DataFrame) -> None:
+    """Scenario simulator + charts + table + export for filtered WC stock."""
+    st.divider()
+    st.subheader("🧮 Live Scenario Simulator")
+    st.markdown(
+        "Adjust the sliders below to simulate stock and price changes. Metrics, charts, and table highlights will update in real-time."
+    )
+    sc1, sc2, sc3 = st.columns(3)
+    with sc1:
+        sim_stock_adj = st.slider(
+            "Simulate Stock Adjustment (%)",
+            -100,
+            100,
+            0,
+            step=5,
+            help="Simulate a percentage change in available warehouse units.",
         )
-        sc1, sc2, sc3 = st.columns(3)
-        with sc1:
-            sim_stock_adj = st.slider(
-                "Simulate Stock Adjustment (%)",
-                -100,
-                100,
-                0,
-                step=5,
-                help="Simulate a percentage change in available warehouse units.",
-            )
-        with sc2:
-            sim_price_adj = st.slider(
-                "Simulate Price Adjustment (%)",
-                -50,
-                100,
-                0,
-                step=5,
-                help="Simulate a percentage markup or discount on inventory value.",
-            )
-        with sc3:
-            low_thresh = st.number_input(
-                "Low Stock Highlight Threshold",
-                min_value=1,
-                max_value=500,
-                value=10,
-                step=1,
-                help="Highlight items with stock below this number.",
-            )
-
-        df_sim = df.copy()
-        df_sim["Stock"] = pd.to_numeric(df_sim["Stock"], errors="coerce").fillna(
-            0
-        ).astype(float) * (1 + (sim_stock_adj / 100.0))
-        df_sim["Price"] = pd.to_numeric(df_sim["Price"], errors="coerce").fillna(
-            0
-        ).astype(float) * (1 + (sim_price_adj / 100.0))
-
-        st.divider()
-        current_stocks = df_sim["Stock"]
-        total_qty = current_stocks.sum()
-        low_stock = (current_stocks < low_thresh).sum()
-        val_stock = (current_stocks * df_sim["Price"]).sum()
-
-        # Apply glowing effect if low stock items exceed 20% of the selection
-        glow_class = "critical-glow" if (low_stock / len(df_sim) > 0.2) else ""
-
-        # Compact HTML
-        stock_html = (
-            '<div class="metric-container">'
-            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Warehouse Units</div><div class="metric-value">{total_qty:,.0f}</div></div><div class="metric-icon">🏠</div></div>'
-            f'<div class="metric-card {glow_class}"><div class="metric-content"><div class="metric-label">Low Stock (<{low_thresh})</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
-            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Inventory Value</div><div class="metric-value">৳ {val_stock:,.0f}</div></div><div class="metric-icon">💰</div></div>'
-            "</div>"
+    with sc2:
+        sim_price_adj = st.slider(
+            "Simulate Price Adjustment (%)",
+            -50,
+            100,
+            0,
+            step=5,
+            help="Simulate a percentage markup or discount on inventory value.",
         )
-        st.markdown(stock_html, unsafe_allow_html=True)
+    with sc3:
+        low_thresh = st.number_input(
+            "Low Stock Highlight Threshold",
+            min_value=1,
+            max_value=500,
+            value=10,
+            step=1,
+            help="Highlight items with stock below this number.",
+        )
 
-        sales_df = st.session_state.get("wc_curr_df")
-        if sales_df is not None and not sales_df.empty:
-            safe_render(
-                lambda: render_bundle_inventory_intelligence(sales_df, df_sim),
-                fallback_msg="Bundle intelligence section unavailable.",
+    df_sim = df.copy()
+    df_sim["Stock"] = pd.to_numeric(df_sim["Stock"], errors="coerce").fillna(
+        0
+    ).astype(float) * (1 + (sim_stock_adj / 100.0))
+    df_sim["Price"] = pd.to_numeric(df_sim["Price"], errors="coerce").fillna(
+        0
+    ).astype(float) * (1 + (sim_price_adj / 100.0))
+
+    st.divider()
+    current_stocks = df_sim["Stock"]
+    total_qty = current_stocks.sum()
+    low_stock = (current_stocks < low_thresh).sum()
+    val_stock = (current_stocks * df_sim["Price"]).sum()
+    out_of_stock = (current_stocks <= 0).sum()
+    sku_count = len(df_sim)
+
+    glow_class = "critical-glow" if (low_stock / len(df_sim) > 0.2) else ""
+
+    stock_html = (
+        '<div class="metric-container">'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Warehouse Units</div><div class="metric-value">{total_qty:,.0f}</div></div><div class="metric-icon">🏠</div></div>'
+        f'<div class="metric-card {glow_class}"><div class="metric-content"><div class="metric-label">Low Stock (<{low_thresh})</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Out of Stock</div><div class="metric-value">{out_of_stock}</div></div><div class="metric-icon">🚫</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Inventory Value</div><div class="metric-value">৳ {val_stock:,.0f}</div></div><div class="metric-icon">💰</div></div>'
+        "</div>"
+    )
+    st.markdown(stock_html, unsafe_allow_html=True)
+
+    sales_df = st.session_state.get("wc_curr_df")
+    if sales_df is not None and not sales_df.empty:
+        safe_render(
+            lambda: render_bundle_inventory_intelligence(sales_df, df_sim),
+            fallback_msg="Bundle intelligence section unavailable.",
+        )
+
+    # ── Multi-Location Stock Alerts ─────────────────────────────────────────
+    from src.config.ui_config import INVENTORY_LOCATIONS
+
+    loc_cols = [
+        c
+        for c in df_sim.columns
+        if any(loc_name.lower() in c.lower() for loc_name in INVENTORY_LOCATIONS)
+    ]
+
+    if loc_cols:
+        st.divider()
+        st.markdown("#### 🏪 Multi-Location Stock Alerts")
+        st.caption("Monitoring SKU thresholds across all active branch locations.")
+
+        low_loc_alerts = []
+        for _, row in df_sim.iterrows():
+            for loc in loc_cols:
+                loc_val = pd.to_numeric(row.get(loc, 0), errors="coerce")
+                if pd.notna(loc_val) and loc_val > 0 and loc_val < low_thresh:
+                    low_loc_alerts.append(
+                        {
+                            "Product": row.get("Product", "Unknown"),
+                            "Location": loc,
+                            "Qty": loc_val,
+                        }
+                    )
+
+        if low_loc_alerts:
+            st.error(
+                f"⚠️ **{len(low_loc_alerts)} Location-Specific Low Stock Alerts Detected!**"
             )
+            with st.expander("View Branch Alerts", expanded=True):
+                alert_df = pd.DataFrame(low_loc_alerts)
+                st.dataframe(alert_df, use_container_width=True, hide_index=True)
+        else:
+            st.success(
+                "✅ All branches have healthy stock levels above the threshold."
+            )
+    # ────────────────────────────────────────────────────────────────────────
 
-        # ── Feature #6: Multi-Location Stock Alerts ─────────────────────────────
-        from src.config.ui_config import INVENTORY_LOCATIONS
+    st.divider()
+    display_label = "Sub-Category"
 
-        loc_cols = [
-            c
-            for c in df_sim.columns
-            if any(loc_name.lower() in c.lower() for loc_name in INVENTORY_LOCATIONS)
+    st.subheader(f"Inventory by {display_label}")
+    cat_summ = df_sim.groupby(display_label)["Stock"].sum().reset_index()
+    cat_summ = cat_summ.sort_values("Stock", ascending=False)
+
+    v1, v2 = st.columns([2, 3])
+    with v1:
+        st.dataframe(cat_summ, use_container_width=True, hide_index=True)
+    with v2:
+        fig_data = cat_summ.head(15).sort_values("Stock", ascending=True).copy()
+        fig_data["Short_Label"] = fig_data[display_label].apply(truncate_label)
+        fig = px.bar(
+            fig_data,
+            x="Stock",
+            y="Short_Label",
+            orientation="h",
+            title=f"Top Volume: {display_label}",
+            color="Stock",
+            color_continuous_scale="Plasma",
+        )
+        fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            showlegend=False,
+            coloraxis_showscale=False,
+            yaxis_title="",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.subheader("Granular Stock Details")
+    search = (
+        st.text_input("🔍 Filter by Product Name, SKU, or Category", "")
+        .strip()
+        .lower()
+    )
+
+    filtered_df = df_sim.copy()
+    if search:
+        filtered_df = filtered_df[
+            filtered_df["Product"].astype(str).str.lower().str.contains(search)
+            | filtered_df["SKU"].astype(str).str.lower().str.contains(search)
+            | filtered_df["Category"].astype(str).str.lower().str.contains(search)
         ]
 
-        if loc_cols:
-            st.divider()
-            st.markdown("#### 🏪 Multi-Location Stock Alerts")
-            st.caption("Monitoring SKU thresholds across all active branch locations.")
+    def highlight_low_stock(row):
+        qty = pd.to_numeric(row.get("Stock", 0), errors="coerce")
+        if pd.notna(qty) and qty < low_thresh:
+            return [
+                "background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: bold;"
+            ] * len(row)
+        return [""] * len(row)
 
-            # Find SKUs that are low in ANY specific location
-            low_loc_alerts = []
-            for _, row in df_sim.iterrows():
-                for loc in loc_cols:
-                    loc_val = pd.to_numeric(row.get(loc, 0), errors="coerce")
-                    if pd.notna(loc_val) and loc_val > 0 and loc_val < low_thresh:
-                        low_loc_alerts.append(
-                            {
-                                "Product": row.get("Product", "Unknown"),
-                                "Location": loc,
-                                "Qty": loc_val,
-                            }
-                        )
-
-            if low_loc_alerts:
-                st.error(
-                    f"⚠️ **{len(low_loc_alerts)} Location-Specific Low Stock Alerts Detected!**"
-                )
-                with st.expander("View Branch Alerts", expanded=True):
-                    alert_df = pd.DataFrame(low_loc_alerts)
-                    st.dataframe(alert_df, use_container_width=True, hide_index=True)
-            else:
-                st.success(
-                    "✅ All branches have healthy stock levels above the threshold."
-                )
-        # ────────────────────────────────────────────────────────────────────────
-
-        st.divider()
-        display_label = "Sub-Category"
-
-        st.subheader(f"Inventory by {display_label}")
-        cat_summ = df_sim.groupby(display_label)["Stock"].sum().reset_index()
-        cat_summ = cat_summ.sort_values("Stock", ascending=False)
-
-        v1, v2 = st.columns([2, 3])
-        with v1:
-            st.dataframe(cat_summ, use_container_width=True, hide_index=True)
-        with v2:
-            fig_data = cat_summ.head(15).sort_values("Stock", ascending=True).copy()
-            fig_data["Short_Label"] = fig_data[display_label].apply(truncate_label)
-            fig = px.bar(
-                fig_data,
-                x="Stock",
-                y="Short_Label",
-                orientation="h",
-                title=f"Top Volume: {display_label}",
-                color="Stock",
-                color_continuous_scale="Plasma",
-            )
-            fig.update_layout(
-                margin=dict(l=0, r=0, t=30, b=0),
-                showlegend=False,
-                coloraxis_showscale=False,
-                yaxis_title="",
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
-        st.subheader("Granular Stock Details")
-        search = (
-            st.text_input("🔍 Filter by Product Name, SKU, or Category", "")
-            .strip()
-            .lower()
-        )
-
-        filtered_df = df_sim.copy()
-        if search:
-            filtered_df = filtered_df[
-                filtered_df["Product"].astype(str).str.lower().str.contains(search)
-                | filtered_df["SKU"].astype(str).str.lower().str.contains(search)
-                | filtered_df["Category"].astype(str).str.lower().str.contains(search)
-            ]
-
-        def highlight_low_stock(row):
-            qty = pd.to_numeric(row.get("Stock", 0), errors="coerce")
-            if pd.notna(qty) and qty < low_thresh:
-                return [
-                    "background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: bold;"
-                ] * len(row)
-            return [""] * len(row)
-
-        styled_df = filtered_df.style.apply(highlight_low_stock, axis=1).format(
-            {"Stock": "{:.0f}", "Price": "{:.2f}"}
-        )
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
-
-        st.divider()
-
-        stock_metrics = pd.DataFrame(
-            [
-                {"Metric": "Total Warehouse Units", "Value": total_qty},
-                {"Metric": f"Low Stock SKUs (<{low_thresh})", "Value": low_stock},
-                {"Metric": "Total Inventory Value (TK)", "Value": val_stock},
-            ]
-        )
-
-        export_data = {
-            "Stock Metrics": stock_metrics,
-            "Category Summary": cat_summ,
-            "Granular Stock Details": filtered_df,
-        }
-        excel_bytes = export_to_styled_excel(export_data)
-
-        st.download_button(
-            label="💾 Download Comprehensive Stock Report (Excel)",
-            data=excel_bytes,
-            file_name=f"DEEN_Stock_Report_{bd_today().strftime('%Y%m%d')}.xlsx",
-            type="primary",
-            use_container_width=True,
-            key="wc_stock_report_download",
-        )
-
-    safe_render(_render_stock_body, fallback_msg="Stock analytics rendering failed.")
-    st.caption(
-        f"Database last refreshed: {st.session_state.get('stock_sync_time', bd_now()).strftime('%I:%M %p')}"
+    styled_df = filtered_df.style.apply(highlight_low_stock, axis=1).format(
+        {"Stock": "{:.0f}", "Price": "{:.2f}"}
     )
+    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    stock_metrics = pd.DataFrame(
+        [
+            {"Metric": "Total Warehouse Units", "Value": total_qty},
+            {"Metric": f"Low Stock SKUs (<{low_thresh})", "Value": low_stock},
+            {"Metric": "Total Inventory Value (TK)", "Value": val_stock},
+        ]
+    )
+
+    export_data = {
+        "Stock Metrics": stock_metrics,
+        "Category Summary": cat_summ,
+        "Granular Stock Details": filtered_df,
+    }
+    excel_bytes = export_to_styled_excel(export_data)
+
+    st.download_button(
+        label="💾 Download Comprehensive Stock Report (Excel)",
+        data=excel_bytes,
+        file_name=f"DEEN_Stock_Report_{bd_today().strftime('%Y%m%d')}.xlsx",
+        type="primary",
+        use_container_width=True,
+        key="wc_stock_report_download",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tab 2: Outlet Stock Compiler
+# ---------------------------------------------------------------------------
 
 
 def compile_outlet_stock(loc_files):
@@ -552,12 +584,10 @@ def compile_outlet_stock(loc_files):
             inv_core.load_inventory_from_uploads(loc_files)
         )
 
-        # Show any warnings from inv_core
         if warnings:
             for warning in warnings:
                 st.warning(warning)
 
-        # Build Title-Size to SKU lookup from enriched dataframes
         title_size_to_sku = {}
         for _, df in enriched_dfs.items():
             _, _, _, sku_col = inv_core.identify_columns(df)
@@ -568,11 +598,10 @@ def compile_outlet_stock(loc_files):
                     if ts_val and sku_val and sku_val not in ["nan", "0", "N/A", "N/A"]:
                         title_size_to_sku[ts_val] = sku_val
 
-        # Build WooCommerce SKU -> Product Name map
         wc_sku_to_name = {}
         wc_stock = st.session_state.get("wc_stock_df")
         if wc_stock is None:
-            wc_stock = load_stock_snapshot()
+            wc_stock = load_snapshot_quiet()
         if (
             wc_stock is not None
             and "SKU" in wc_stock.columns
@@ -585,7 +614,6 @@ def compile_outlet_stock(loc_files):
                 if sku_val and sku_val != "0" and prod_name:
                     wc_sku_to_name[sku_val] = prod_name
 
-        # Determine active locations dynamically based on uploaded/passed files
         all_ordered = ["Ecom", "Mirpur", "Wari", "Cumilla", "Sylhet"]
         active_locs = [loc for loc in all_ordered if loc in loc_files]
 
@@ -596,7 +624,6 @@ def compile_outlet_stock(loc_files):
                 continue
             if k in sku_to_title_size:
                 continue
-            # Skip promotional offers (combo/bundle/buy any)
             if any(kw in str(k).lower() for kw in OFFER_KEYWORDS):
                 continue
 
@@ -607,7 +634,6 @@ def compile_outlet_stock(loc_files):
                 norm_sku = inv_core.normalize_sku(raw_sku)
                 wc_name = wc_sku_to_name.get(norm_sku)
                 if wc_name:
-                    # Also skip if WooCommerce name is an offer
                     if any(kw in wc_name.lower() for kw in OFFER_KEYWORDS):
                         continue
                     display_cat = map_to_csv_category(wc_name)
@@ -659,7 +685,6 @@ def compile_outlet_stock(loc_files):
                 row["Stock Difference (Outlet - Ecom)"] = outlet_sum - counts["Ecom"]
             rows.append(row)
 
-        # Build SKU verification report
         verification_rows = []
         verified_skus = set()
         for k, _ in inv_map.items():
@@ -740,6 +765,18 @@ def compile_outlet_stock(loc_files):
         return False
 
 
+def _outlet_default_file(loc: str, default_files: dict) -> io.BytesIO | None:
+    """Load the default outlet file for a location, if present."""
+    default_path = os.path.join("src", "inventory", default_files[loc])
+    if not os.path.exists(default_path):
+        return None
+    with open(default_path, "rb") as f:
+        file_bytes = f.read()
+    obj = io.BytesIO(file_bytes)
+    obj.name = default_files[loc]
+    return obj
+
+
 def render_outlet_stock_analysis_tab():
     st.markdown("### 🏪 Outlet Stock Compiler")
     st.write(
@@ -760,41 +797,34 @@ def render_outlet_stock_analysis_tab():
         help="Turn on to automatically fetch/pull WooCommerce web stock and include it in Ecom location.",
     )
 
-    # Track toggle changes in session state
     if "prev_include_ecom" not in st.session_state:
-        st.session_state.prev_include_ecom = True  # default
+        st.session_state.prev_include_ecom = True
 
     if include_ecom != st.session_state.prev_include_ecom:
         st.session_state.prev_include_ecom = include_ecom
-        st.session_state.outlet_stock_summary_df = None  # Force recompilation
+        st.session_state.outlet_stock_summary_df = None
         st.session_state.outlet_stock_cleared = False
         st.rerun()
 
-    # Auto-compile on load using defaults if summary doesn't exist and wasn't explicitly cleared
     if st.session_state.get(
         "outlet_stock_summary_df"
     ) is None and not st.session_state.get("outlet_stock_cleared", False):
         init_loc_files = {}
         for loc in ["Mirpur", "Wari", "Cumilla", "Sylhet"]:
-            default_path = os.path.join("src", "inventory", default_files[loc])
-            if os.path.exists(default_path):
-                with open(default_path, "rb") as f:
-                    file_bytes = f.read()
-                default_obj = io.BytesIO(file_bytes)
-                default_obj.name = default_files[loc]
-                init_loc_files[loc] = default_obj
+            obj = _outlet_default_file(loc, default_files)
+            if obj is not None:
+                init_loc_files[loc] = obj
 
         if include_ecom:
             ecom_df = st.session_state.get("wc_stock_df")
             if ecom_df is None:
-                ecom_df = load_stock_snapshot()
+                ecom_df = load_snapshot_quiet()
             if ecom_df is not None:
                 init_loc_files["Ecom"] = ecom_df
 
         if init_loc_files:
             compile_outlet_stock(init_loc_files)
 
-    # Show 4 file uploaders
     st.markdown("#### 📤 Upload Outlet Stock Lists")
     cols = st.columns(4)
     loc_files = {}
@@ -806,14 +836,10 @@ def render_outlet_stock_analysis_tab():
             )
             if uploaded:
                 loc_files[loc] = uploaded
-            elif loc in default_files:
-                default_path = os.path.join("src", "inventory", default_files[loc])
-                if os.path.exists(default_path):
-                    with open(default_path, "rb") as f:
-                        file_bytes = f.read()
-                    default_obj = io.BytesIO(file_bytes)
-                    default_obj.name = default_files[loc]
-                    loc_files[loc] = default_obj
+            else:
+                obj = _outlet_default_file(loc, default_files)
+                if obj is not None:
+                    loc_files[loc] = obj
                     st.caption(f"✅ Default: {default_files[loc]}")
                 else:
                     st.caption("ℹ️ No default file found")
@@ -840,7 +866,7 @@ def render_outlet_stock_analysis_tab():
             with st.spinner("Fetching Live Ecom Stock..."):
                 ecom_df = st.session_state.get("wc_stock_df")
                 if ecom_df is None:
-                    ecom_df = load_stock_snapshot()
+                    ecom_df = load_snapshot_quiet()
                     if ecom_df is None:
                         ecom_df = fetch_woocommerce_stock()
                         if ecom_df is not None:
@@ -856,7 +882,6 @@ def render_outlet_stock_analysis_tab():
             if compile_outlet_stock(loc_files):
                 st.toast("✅ Report generated successfully!", icon="🎉")
 
-    # Display compiled results if they exist
     out_df = st.session_state.get("outlet_stock_summary_df")
     excel_data = st.session_state.get("outlet_stock_report_excel")
     mapping_df = st.session_state.get("outlet_stock_mapping_df")
@@ -864,17 +889,14 @@ def render_outlet_stock_analysis_tab():
     if out_df is not None and not out_df.empty:
         st.divider()
 
-        # Display high level metrics
         total_units = out_df["Total Outlet Stock"].sum()
         total_categories = len(out_df)
 
-        # Premium Metric layout
-        st.markdown(
-            '<div class="metric-container">'
-            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Outlet Units</div><div class="metric-value">{total_units:,.0f}</div></div><div class="metric-icon">🏪</div></div>'
-            f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Product Categories</div><div class="metric-value">{total_categories}</div></div><div class="metric-icon">🏷️</div></div>'
-            "</div>",
-            unsafe_allow_html=True,
+        _render_kpi_strip(
+            [
+                {"label": "Total Outlet Units", "value": f"{total_units:,.0f}", "icon": "🏪"},
+                {"label": "Product Categories", "value": str(total_categories), "icon": "🏷️"},
+            ]
         )
 
         st.divider()
@@ -887,7 +909,6 @@ def render_outlet_stock_analysis_tab():
         with v2:
             st.markdown("#### 📊 Stock Distribution by Category")
 
-            # Find available outlet columns
             available_outlets = [
                 col
                 for col in ["Mirpur", "Wari", "Cumilla", "Sylhet", "Ecom"]
@@ -935,7 +956,6 @@ def render_outlet_stock_analysis_tab():
 
         st.divider()
 
-        # Download Button
         st.download_button(
             "📥 Download Consolidated Outlet Stock Excel",
             data=excel_data,
@@ -945,7 +965,6 @@ def render_outlet_stock_analysis_tab():
             type="primary",
         )
 
-        # Mapping Details & SKU Verification Report
         c_map, c_ver = st.columns(2)
         with c_map:
             with st.expander("🔍 Show Product-to-Category Mapping Detail"):
@@ -979,8 +998,348 @@ def render_outlet_stock_analysis_tab():
                     )
 
 
+# ---------------------------------------------------------------------------
+# Tab 3: SIP Live Stock (Smart Inventory with POS)
+# ---------------------------------------------------------------------------
+
+
+def _sip_outlet_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate SIP stock per product across outlets."""
+    outlet_cols = [
+        c
+        for c in df.columns
+        if c not in ("SKU", "Product", "Size", "Price", "Last Updated", "Total")
+    ]
+    if not outlet_cols:
+        return pd.DataFrame()
+
+    group_cols = [c for c in ["Product", "Size"] if c in df.columns]
+    agg = df.groupby(group_cols, dropna=False)[outlet_cols].sum().reset_index()
+    agg["Total"] = agg[outlet_cols].sum(axis=1)
+    return agg.sort_values("Total", ascending=False)
+
+
+def _sip_kpi_strip(pivot_df: pd.DataFrame, source_label: str) -> None:
+    """KPI cards for the SIP tab from a pivoted stock frame."""
+    total_units = int(pivot_df["Total"].sum())
+    wh_units = int(pivot_df["Warehouse"].sum()) if "Warehouse" in pivot_df.columns else 0
+    outlet_units = total_units - wh_units
+    total_skus = len(pivot_df)
+    zero_skus = int((pivot_df["Total"] <= 0).sum())
+
+    _render_kpi_strip(
+        [
+            {"label": "Total Units", "value": f"{total_units:,}", "icon": "\U0001F4E6"},
+            {"label": "Warehouse Units", "value": f"{wh_units:,}", "icon": "\U0001F3E0"},
+            {"label": "Outlet Units", "value": f"{outlet_units:,}", "icon": "\U0001F3EA"},
+            {"label": "Unique SKUs", "value": f"{total_skus:,}", "icon": "\U0001F522"},
+            {"label": "Zero-Stock SKUs", "value": f"{zero_skus:,}", "icon": "\U0001F6AB"},
+            {"label": "Source", "value": source_label, "icon": "\U0001F552"},
+        ]
+    )
+
+
+def _sip_warehouse_view(pivot_df: pd.DataFrame) -> None:
+    """Warehouse lens: central stock health and transfer candidates."""
+    if "Warehouse" not in pivot_df.columns:
+        st.info("No Warehouse rows in this stock report.")
+        return
+
+    wh = pivot_df[pivot_df["Warehouse"] > 0].sort_values("Warehouse", ascending=False)
+    wh_units = int(pivot_df["Warehouse"].sum())
+    only_outlet = int(((pivot_df["Warehouse"] <= 0) & (pivot_df["Total"] > 0)).sum())
+
+    _render_kpi_strip(
+        [
+            {"label": "Warehouse Units", "value": f"{wh_units:,}", "icon": "\U0001F3E0"},
+            {"label": "SKUs In Stock", "value": f"{len(wh):,}", "icon": "\u2705"},
+            {"label": "SKUs Only At Outlets", "value": f"{only_outlet:,}", "icon": "\U0001F3EC"},
+        ]
+    )
+
+    c1, c2 = st.columns([2, 3])
+    with c1:
+        st.markdown("#### \U0001F3E0 Top Warehouse Stock")
+        if wh.empty:
+            st.info("Warehouse has no stock in this report.")
+        else:
+            top = wh.head(20).copy()
+            top["Label"] = top["Product"].astype(str)
+            if "Size" in top.columns:
+                top["Label"] = top["Product"].astype(str) + " - " + top["Size"].astype(str)
+            fig = px.bar(
+                top.sort_values("Warehouse", ascending=True),
+                x="Warehouse",
+                y="Label",
+                orientation="h",
+                color="Warehouse",
+                color_continuous_scale="Tealgrn",
+                labels={"Warehouse": "Units", "Label": ""},
+            )
+            fig.update_layout(
+                margin=dict(l=0, r=0, t=10, b=0),
+                showlegend=False,
+                coloraxis_showscale=False,
+                height=520,
+                yaxis_title="",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    with c2:
+        st.markdown("#### \u26A0\uFE0F Zero-Warehouse (Stock Only At Outlets)")
+        st.caption(
+            "Web orders ship only after a transfer back to the warehouse - review these for transfer or de-listing."
+        )
+        zero_wh = pivot_df[(pivot_df["Warehouse"] <= 0) & (pivot_df["Total"] > 0)].sort_values(
+            "Total", ascending=False
+        )
+        st.dataframe(
+            zero_wh[["Product", "Size", "SKU", "Total"]]
+            if not zero_wh.empty
+            else pd.DataFrame(columns=["Product", "Size", "SKU", "Total"]),
+            use_container_width=True,
+            hide_index=True,
+            height=520,
+        )
+
+
+def _sip_outlet_view(pivot_df: pd.DataFrame, outlets: list) -> None:
+    """Outlet lens: distribution across branches with a compare chart."""
+    outlet_cols = [c for c in outlets if c != "Warehouse"]
+    if not outlet_cols:
+        st.info("No outlet (non-warehouse) columns in this stock report.")
+        return
+
+    outlet_totals = (
+        pivot_df[outlet_cols].sum().sort_values(ascending=False).reset_index()
+    )
+    outlet_totals.columns = ["Outlet", "Units"]
+    active = outlet_totals[outlet_totals["Units"] > 0]
+
+    c1, c2 = st.columns([2, 3])
+    with c1:
+        st.markdown("#### \U0001F3EA Units by Outlet")
+        if active.empty:
+            st.info("No units recorded in any outlet.")
+        else:
+            fig = px.pie(
+                active,
+                names="Outlet",
+                values="Units",
+                hole=0.55,
+                color_discrete_sequence=px.colors.qualitative.Plotly,
+            )
+            fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=340)
+            st.plotly_chart(fig, use_container_width=True)
+        st.dataframe(outlet_totals, use_container_width=True, hide_index=True)
+
+    with c2:
+        st.markdown("#### \U0001F7EA Outlet Comparison")
+        selected = st.pills(
+            "Compare outlets",
+            options=outlet_cols,
+            default=outlet_cols[:4],
+            selection_mode="multi",
+            key="sip_outlet_compare",
+        )
+        if not selected:
+            st.info("Select outlets to compare.")
+        else:
+            comp = pivot_df.groupby("Product")[selected].sum().reset_index()
+            comp = comp[comp[selected].sum(axis=1) > 0]
+            comp["Total"] = comp[selected].sum(axis=1)
+            comp = comp.sort_values("Total", ascending=False).head(15)
+            if comp.empty:
+                st.info("No stock in the selected outlets.")
+            else:
+                fig = px.bar(
+                    comp,
+                    x="Total",
+                    y="Product",
+                    color_discrete_sequence=["#6366f1"],
+                    orientation="h",
+                    labels={"Total": "Units (selected outlets)", "Product": ""},
+                )
+                fig.update_layout(
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    showlegend=False,
+                    height=460,
+                    yaxis=dict(autorange="reversed"),
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption("Top 15 products by units across the selected outlets.")
+
+
+def render_sip_live_stock_tab():
+    """SIP Stock tab: upload the plugin's Current Stock Report (CSV/Excel)
+    or, once deployed, pull the same data live from the REST endpoint."""
+    from src.services.woocommerce.outlet_stock import (
+        SIP_STOCK_ENDPOINT,
+        fetch_live_sip_stock,
+    )
+
+    st.markdown("### \U0001F4E1 SIP Stock - Smart Inventory with POS")
+    st.caption(
+        "Upload the plugin's **Current Stock Report** export, or pull the same data "
+        f"live from `{SIP_STOCK_ENDPOINT}` once the endpoint is deployed."
+    )
+
+    uploaded = st.file_uploader(
+        "\U0001F4E4 Upload Current Stock Report (.csv / .xlsx)",
+        type=["csv", "xlsx"],
+        key="sip_stock_report_upload",
+    )
+
+    report_df = None
+    source_label = ""
+    if uploaded is not None:
+        try:
+            raw = (
+                pd.read_csv(uploaded)
+                if uploaded.name.lower().endswith(".csv")
+                else pd.read_excel(uploaded)
+            )
+            report_df = parse_stock_report(raw)
+            source_label = uploaded.name
+            st.session_state["sip_report_df"] = report_df
+            st.session_state["sip_report_source"] = source_label
+            st.success(
+                f"Loaded {len(report_df):,} stock rows across "
+                f"{report_df['Outlet'].nunique()} outlets from {uploaded.name}."
+            )
+        except Exception as e:
+            st.error(f"Failed to parse stock report: {e}")
+            return
+    else:
+        cached = st.session_state.get("sip_report_df")
+        if cached is not None and not cached.empty:
+            report_df = cached
+            source_label = st.session_state.get("sip_report_source", "previous upload")
+        else:
+            try:
+                live_df = fetch_live_sip_stock()
+            except Exception:
+                live_df = None
+            if live_df is not None and not live_df.empty:
+                # Live endpoint returns a pivoted frame; melt back to long form
+                id_cols = [c for c in ["SKU", "Product", "Size"] if c in live_df.columns]
+                outlet_cols = [c for c in live_df.columns if c not in id_cols]
+                report_df = live_df.melt(
+                    id_vars=id_cols,
+                    value_vars=outlet_cols,
+                    var_name="Outlet",
+                    value_name="Stock Qty",
+                )
+                source_label = "live REST endpoint"
+            else:
+                st.info(
+                    "**No stock report uploaded and the SIP endpoint is not live yet.**\n\n"
+                    "Export the **Current Stock Report** from Smart Inventory with POS "
+                    "and upload it above - expected columns:\n\n"
+                    "`Product, Size, SKU, Outlet, Stock Qty, Price, Last Updated`\n\n"
+                    "Once `GET /wp-json/wc/v3/sip/outlet-stock` is deployed, this tab "
+                    "also fills automatically."
+                )
+                return
+
+    if report_df is None or report_df.empty:
+        st.warning("The stock report contains no usable rows.")
+        return
+
+    pivot_df = pivot_stock_report(report_df)
+    outlets = [
+        c
+        for c in pivot_df.columns
+        if c not in ("Product", "Size", "SKU", "Total")
+    ]
+
+    _sip_kpi_strip(pivot_df, source_label)
+
+    st.divider()
+    view_warehouse, view_outlets, view_grid = st.tabs(
+        [
+            ":material/warehouse: Warehouse View",
+            ":material/storefront: Outlets View",
+            ":material/table_rows: Stock Grid",
+        ]
+    )
+
+    with view_warehouse:
+        _sip_warehouse_view(pivot_df)
+
+    with view_outlets:
+        _sip_outlet_view(pivot_df, outlets)
+
+    with view_grid:
+        st.markdown("#### \U0001F50D Granular SIP Stock Grid")
+        lc, sc = st.columns([1, 3])
+        with lc:
+            sel_outlet = st.multiselect(
+                "Filter by Outlet",
+                outlets,
+                placeholder="All Outlets",
+                key="sip_grid_outlet_filter",
+            )
+        with sc:
+            search = st.text_input(
+                "Search Product or SKU", "", key="sip_grid_search"
+            )
+
+        grid_df = pivot_df.copy()
+        if sel_outlet:
+            keep = ["Product", "Size", "SKU"] + sel_outlet + ["Total"]
+            grid_df = grid_df[[c for c in keep if c in grid_df.columns]]
+        if search:
+            q = search.lower()
+            mask = grid_df["Product"].astype(str).str.lower().str.contains(q)
+            if "SKU" in grid_df.columns:
+                mask = mask | grid_df["SKU"].astype(str).str.lower().str.contains(q)
+            grid_df = grid_df[mask]
+
+        if grid_df.empty:
+            st.info("No SIP stock rows match the current filters.")
+            return
+
+        num_cols = [c for c in grid_df.columns if c not in ("Product", "Size", "SKU")]
+        styled = grid_df.style.format(
+            {c: "{:,.0f}" for c in num_cols if c in grid_df.columns}
+        )
+        st.dataframe(styled, use_container_width=True, hide_index=True, height=420)
+
+    st.divider()
+    export_data = {
+        "SIP Pivot": pivot_df,
+        "SIP Report (deduped)": report_df,
+    }
+    try:
+        excel_bytes = export_to_styled_excel(export_data)
+    except Exception:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            export_data["SIP Pivot"].to_excel(
+                writer, sheet_name="SIP Pivot", index=False
+            )
+            export_data["SIP Report (deduped)"].to_excel(
+                writer, sheet_name="SIP Report (deduped)", index=False
+            )
+        excel_bytes = output.getvalue()
+
+    st.download_button(
+        label="\U0001F4BE Download SIP Stock Report (Excel)",
+        data=excel_bytes,
+        file_name=f"DEEN_SIP_Stock_{bd_today().strftime('%Y%m%d')}.xlsx",
+        type="primary",
+        use_container_width=True,
+        key="sip_stock_report_download",
+    )
+
+
+# Main entry
+# ---------------------------------------------------------------------------
+
+
 def render_stock_analytics_tab():
-    """Renders the category-wise stock monitoring interface."""
+    """Renders the redesigned Current Stock Analytics interface."""
     # Initialize session state for outlet stock report
     if "outlet_stock_report_excel" not in st.session_state:
         st.session_state.outlet_stock_report_excel = None
@@ -997,16 +1356,28 @@ def render_stock_analytics_tab():
         "📦",
     )
 
-    # Define tabs
-    tab_web, tab_outlet = st.tabs(
+    tab_web, tab_outlet, tab_sip = st.tabs(
         [
             ":material/database: WooCommerce Stock",
             ":material/storefront: Outlet Stock Analysis",
+            ":material/satellite_alt: SIP Live Stock",
         ]
     )
 
     with tab_web:
-        render_woocommerce_stock_tab()
+        safe_render(
+            render_woocommerce_stock_tab,
+            fallback_msg="WooCommerce stock tab unavailable.",
+        )
 
     with tab_outlet:
-        render_outlet_stock_analysis_tab()
+        safe_render(
+            render_outlet_stock_analysis_tab,
+            fallback_msg="Outlet stock tab unavailable.",
+        )
+
+    with tab_sip:
+        safe_render(
+            render_sip_live_stock_tab,
+            fallback_msg="SIP live stock tab unavailable.",
+        )

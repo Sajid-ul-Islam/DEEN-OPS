@@ -51,7 +51,6 @@ MODULES = [
     "src.pages.sales_ingestion",
     "src.pages.stock_analytics",
     "src.pages.pathao_orders",
-    "src.pages.inventory_distribution",
     "src.pages.delivery_parser",
     "src.pages.return_analytics",
     "src.pages.woocommerce_orders",

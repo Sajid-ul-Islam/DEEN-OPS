@@ -14,8 +14,242 @@ from src.processing.sip_outlet_processor import (
     normalize_recipient_address,
     normalize_recipient_name,
     parse_sip_field,
+    parse_stock_report,
+    pivot_stock_report,
     process_order_item_outlets,
 )
+
+
+# ── Current Stock Report parsing (SIP stock tab uploads) ─────────────────────
+
+
+def _stock_report_df(rows):
+    """Build a raw Current Stock Report frame from (product, size, sku, outlet, qty, updated) tuples."""
+    return pd.DataFrame(
+        rows,
+        columns=["Product", "Size", "SKU", "Outlet", "Stock Qty", "Price", "Last Updated"],
+    )
+
+
+class TestParseStockReport:
+    def test_size_prefix_stripped(self):
+        df = _stock_report_df(
+            [
+                ("Polo A", "Size: 3XL", "102-1", "Warehouse", 10, "0.00", "2026-09-22 08:11:29"),
+                ("Panjabi B", "Size: 44", "106-1", "Wari", 3, "0.00", "2026-09-22 07:42:18"),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        assert sorted(parsed["Size"]) == ["3XL", "44"]
+
+    def test_size_prefix_case_insensitive_and_spaced(self):
+        df = _stock_report_df(
+            [("Polo A", " size : M ", "102-1", "Warehouse", 1, "0.00", "2026-09-22 08:00:00")]
+        )
+        parsed = parse_stock_report(df)
+        assert parsed["Size"].iloc[0] == "M"
+
+    def test_blank_size_becomes_empty_string_not_nan(self):
+        df = _stock_report_df(
+            [
+                ("Wallet", None, "109-1", "Warehouse", 5, "0.00", "2026-09-22 08:00:00"),
+                ("Belt", "", "109-2", "Warehouse", 2, "0.00", "2026-09-22 08:00:00"),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        assert parsed["Size"].isna().sum() == 0
+        assert (parsed["Size"] == "").sum() == 2
+
+    def test_dedupe_keeps_latest_timestamp_per_outlet(self):
+        """The export re-emits rows on every sync; latest Last Updated must win,
+        not a naive sum (which would inflate stock)."""
+        df = _stock_report_df(
+            [
+                ("Export Shirt", "", "EXPORT-SHIRT-01", "Warehouse", 2, "0.00", "2026-09-20 11:49:11"),
+                ("Export Shirt", "", "EXPORT-SHIRT-01", "Warehouse", 2, "0.00", "2026-09-20 11:49:12"),
+                ("Export Shirt", "", "EXPORT-SHIRT-01", "Warehouse", 0, "0.00", "2026-09-20 12:01:40"),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        assert len(parsed) == 1
+        assert int(parsed["Stock Qty"].iloc[0]) == 0
+
+    def test_dedupe_groups_by_size_and_outlet(self):
+        """Rows differing in Size or Outlet are distinct keys — no cross-dropping."""
+        df = _stock_report_df(
+            [
+                ("Jeans", "32", "101-1", "Warehouse", 9, "0.00", "2026-09-21 10:00:00"),
+                ("Jeans", "34", "101-1", "Warehouse", 4, "0.00", "2026-09-21 10:00:00"),
+                ("Jeans", "32", "101-1", "Wari", 1, "0.00", "2026-09-21 10:00:00"),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        assert len(parsed) == 3
+
+    def test_dedupe_tie_prefers_higher_qty_row(self):
+        """Two rows with identical timestamps: the higher Stock Qty row wins,
+        mirroring sort_values([_ts, 'Stock Qty']) + keep='last'."""
+        df = _stock_report_df(
+            [
+                ("Tee", "M", "105-1", "Cumilla", 3, "0.00", "2026-09-22 06:51:10"),
+                ("Tee", "M", "105-1", "Cumilla", 5, "0.00", "2026-09-22 06:51:10"),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        assert len(parsed) == 1
+        assert int(parsed["Stock Qty"].iloc[0]) == 5
+
+    def test_dedupe_without_timestamps_falls_back_to_qty(self):
+        """Missing Last Updated -> NaT for all rows; the qty sort key still
+        disambiguates instead of picking arbitrarily."""
+        df = _stock_report_df(
+            [
+                ("Tee", "M", "105-1", "Sylhet", 2, "0.00", ""),
+                ("Tee", "M", "105-1", "Sylhet", 7, "0.00", ""),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        assert len(parsed) == 1
+        assert int(parsed["Stock Qty"].iloc[0]) == 7
+
+    def test_mirpur_12_space_spelling_canonicalized(self):
+        """CSV exports use 'Mirpur 12' (space) where the canonical map has 'mirpur-12'."""
+        df = _stock_report_df(
+            [("Tee", "M", "105-1", "Mirpur 12", 2, "0.00", "2026-09-22 07:07:27")]
+        )
+        parsed = parse_stock_report(df)
+        assert (parsed["Outlet"] == "Mirpur").all()
+
+    def test_unknown_outlet_preserved_as_own_name(self):
+        df = _stock_report_df(
+            [("Tee", "M", "105-1", "Waterfall Outlet", 1, "0.00", "2026-09-20 03:40:51")]
+        )
+        parsed = parse_stock_report(df)
+        assert (parsed["Outlet"] == "Waterfall Outlet").all()
+
+    def test_outlet_aliases_and_case_folding(self):
+        df = _stock_report_df(
+            [
+                ("A", "M", "S1", "WAREHOUSE", 1, "0.00", "2026-09-22 08:00:00"),
+                ("B", "M", "S2", "comilla", 2, "0.00", "2026-09-22 08:00:00"),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        assert sorted(parsed["Outlet"]) == ["Cumilla", "Warehouse"]
+
+    def test_empty_and_missing_sku_dropped(self):
+        df = _stock_report_df(
+            [
+                ("A", "M", "", "Warehouse", 1, "0.00", "2026-09-22 08:00:00"),
+                ("B", "M", "nan", "Warehouse", 1, "0.00", "2026-09-22 08:00:00"),
+                ("C", "M", "KEEP-1", "Warehouse", 1, "0.00", "2026-09-22 08:00:00"),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        assert parsed["SKU"].tolist() == ["KEEP-1"]
+
+    def test_junk_numeric_values_coerced_to_zero(self):
+        df = _stock_report_df(
+            [
+                ("A", "M", "S1", "Warehouse", "3 pcs", "0.00", "2026-09-22 08:00:00"),
+                ("B", "M", "S2", "Wari", "abc", "0.00", "2026-09-22 08:00:00"),
+            ]
+        )
+        parsed = parse_stock_report(df)
+        qty = parsed.set_index("SKU")["Stock Qty"]
+        assert int(qty["S1"]) == 3
+        assert int(qty["S2"]) == 0
+
+    def test_price_strips_currency_noise(self):
+        df = _stock_report_df(
+            [("A", "M", "S1", "Warehouse", 1, "৳ 1,250.50", "2026-09-22 08:00:00")]
+        )
+        parsed = parse_stock_report(df)
+        assert float(parsed["Price"].iloc[0]) == 1250.50
+
+    def test_empty_frame_returns_typed_columns(self):
+        parsed = parse_stock_report(pd.DataFrame())
+        assert parsed.empty
+        assert list(parsed.columns) == [
+            "Product", "Size", "SKU", "Outlet", "Stock Qty", "Price", "Last Updated",
+        ]
+
+    def test_malformed_frame_raises_valueerror(self):
+        with pytest.raises(ValueError, match="Missing required column"):
+            parse_stock_report(pd.DataFrame({"Foo": [1]}))
+
+    def test_header_aliases_accepted(self):
+        raw = pd.DataFrame(
+            {
+                "Product Name": ["Polo A"],
+                "Size": ["M"],
+                "SKU": ["S1"],
+                "Outlet Name": ["Warehouse"],
+                "Qty": [4],
+                "Price": ["0.00"],
+                "Updated": ["2026-09-22 08:00:00"],
+            }
+        )
+        parsed = parse_stock_report(raw)
+        assert len(parsed) == 1
+        assert int(parsed["Stock Qty"].iloc[0]) == 4
+        assert parsed["Outlet"].iloc[0] == "Warehouse"
+
+
+class TestPivotStockReport:
+    def test_pivot_one_row_per_sku_with_outlet_columns(self):
+        report = parse_stock_report(
+            _stock_report_df(
+                [
+                    ("Polo A", "M", "101-M", "Warehouse", 5, "0.00", "2026-09-22 08:00:00"),
+                    ("Polo A", "M", "101-M", "Mirpur 12", 2, "0.00", "2026-09-22 08:00:00"),
+                    ("Polo A", "L", "101-L", "Cumilla", 3, "0.00", "2026-09-22 08:00:00"),
+                ]
+            )
+        )
+        pivot = pivot_stock_report(report)
+        assert len(pivot) == 2
+        # All canonical outlets are guaranteed as columns (0-filled), then extras
+        assert list(pivot.columns) == [
+            "Product", "Size", "SKU", "Warehouse", "Mirpur", "Wari", "Cumilla",
+            "Sylhet", "Total",
+        ]
+        m_row = pivot[pivot["SKU"] == "101-M"].iloc[0]
+        assert int(m_row["Warehouse"]) == 5
+        assert int(m_row["Mirpur"]) == 2
+        assert int(m_row["Total"]) == 7
+
+    def test_pivot_orders_canonical_outlets_before_extras(self):
+        report = parse_stock_report(
+            _stock_report_df(
+                [
+                    ("A", "M", "S1", "Wari", 1, "0.00", "2026-09-22 08:00:00"),
+                    ("A", "M", "S1", "Zeta Outlet", 2, "0.00", "2026-09-22 08:00:00"),
+                    ("A", "M", "S1", "Warehouse", 3, "0.00", "2026-09-22 08:00:00"),
+                ]
+            )
+        )
+        pivot = pivot_stock_report(report)
+        # Canonical outlets come first (0-filled when absent), extras after
+        assert list(pivot.columns) == [
+            "Product", "Size", "SKU", "Warehouse", "Mirpur", "Wari", "Cumilla",
+            "Sylhet", "Zeta Outlet", "Total",
+        ]
+
+    def test_pivot_missing_outlets_filled_with_zero(self):
+        report = parse_stock_report(
+            _stock_report_df(
+                [("A", "M", "S1", "Sylhet", 4, "0.00", "2026-09-22 08:00:00")]
+            )
+        )
+        pivot = pivot_stock_report(report)
+        assert int(pivot["Warehouse"].iloc[0]) == 0
+        assert int(pivot["Total"].iloc[0]) == 4
+
+    def test_pivot_empty_report_returns_empty_frame(self):
+        pivot = pivot_stock_report(pd.DataFrame(columns=["Product", "Size", "SKU", "Outlet", "Stock Qty"]))
+        assert pivot.empty
+        assert list(pivot.columns) == ["Product", "Size", "SKU"]
 
 
 def test_normalize_outlet_name():
@@ -24,6 +258,7 @@ def test_normalize_outlet_name():
     assert normalize_outlet_name("ecom") == "Warehouse"
     assert normalize_outlet_name("mirpur-12") == "Mirpur"
     assert normalize_outlet_name("mirpur") == "Mirpur"
+    assert normalize_outlet_name("mirpur 12") == "Mirpur"
     assert normalize_outlet_name("mirpur-12", canonical=False) == "Mirpur-12"
     assert normalize_outlet_name("cumilla") == "Cumilla"
     assert normalize_outlet_name("comilla") == "Cumilla"

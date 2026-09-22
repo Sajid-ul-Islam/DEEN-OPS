@@ -368,7 +368,7 @@ DEEN-OPS/
 │   ├── pages/                  # Routed feature page modules
 │   │   ├── live_dashboard.py   # Shift tracking (Today / Prev / Backlog)
 │   │   ├── pathao_orders/      # Package: processing, dispatch, tracking, health
-│   │   ├── inventory_distribution.py # Multi-outlet stock balancing
+│   │   ├── stock_analytics.py   # Stock analytics (WooCommerce, Outlet, SIP upload)
 │   │   ├── whatsapp_messaging.py     # Bulk customer order confirmations
 │   │   ├── return_analytics.py       # Return reconciliation engine
 │   │   └── data_pilot.py             # Multi-LLM AI operations assistant
@@ -428,7 +428,7 @@ When assigned a specific domain, scope your file reading strictly to the relevan
 | **KPI & Dashboard** | `src/components/dashboard/`, `src/pages/live_dashboard.py` | `src/processing/data_processing.py` |
 | **Pathao Logistics** | `src/pages/pathao_orders/`, `src/services/pathao/` | `src/processing/order_processor.py` |
 | **WhatsApp Messages**| `src/pages/whatsapp_messaging.py`, `src/processing/whatsapp_processor.py` | `src/utils/text.py` |
-| **Inventory Matrix** | `src/pages/inventory_distribution.py`, `src/inventory/` | `src/utils/file_io.py` |
+| **Stock Analytics** | `src/pages/stock_analytics.py`, `src/inventory/` | `src/utils/file_io.py` |
 | **Data Pilot AI**    | `src/pages/data_pilot.py`, `src/services/llm/` | `src/processing/hybrid_data_loader.py` |
 | **DevOps / Deploy**  | `Dockerfile`, `deploy/`, `.streamlit/config.toml` | `scripts/healthcheck.py` |
 
@@ -468,7 +468,6 @@ The project follows a layered structure. Avoid circular imports. Pages should or
   - `live_dashboard.py`
   - `sales_ingestion.py`
   - `stock_analytics.py`
-  - `inventory_distribution.py`
   - `return_analytics.py`
   - `pathao_orders/` (package: processing, tracking, dispatch, health tabs)
   - `data_pilot.py`
@@ -530,10 +529,12 @@ Common prefixes:
   Data Pilot state.
 - `pathao_*`
   Pathao processor state.
-- `inv_*`
-  Inventory distribution state.
 - `wc_*`
   WooCommerce sync, slots, and navigation state.
+
+SIP stock state currently used:
+- `sip_report_df` (Parsed Current Stock Report from the SIP tab upload)
+- `sip_report_source` (Upload filename or "live REST endpoint")
 
 Pathao-specific state currently used:
 - `pathao_preview_df`
@@ -543,7 +544,6 @@ Pathao-specific state currently used:
 - `pathao_auto_process`
 - `pathao_manual_items_df`
 - `pathao_manual_desc`
-- `inv_pathao_df` (Used when pushing allocations directly to Pathao from Inventory Distribution)
 - `pilot_pathao_tracking_df` (Stores bulk-synced Pathao tracking data for the AI agent)
 
 ## 7. Operational Dashboard Rules
@@ -663,7 +663,7 @@ The Data Pilot (`data_pilot.py`) is a conversational AI workspace.
 - Prevented manual empty SKUs (filled with "0") from clustering entirely unrelated products together in inventory matching.
 - Eliminated ghost UI previews by actively clearing `inv_*` session state variables on new uploads/URL fetches.
 - Appended transaction IDs directly to Pathao `SpecialInstruction` and `ItemDesc` for 100% Prepaid (SSL/Bkash) orders.
-- Integrated Pathao bulk-sheet generation directly into the Inventory Distribution page.
+- Integrated Pathao bulk-sheet generation directly into the order workflow.
 - **Mobile UI Fix (Apr 21, 2026):** Restored the cover photo (app banner image) visibility in mobile views by removing `display: none` from the `@media` query in `header.py`.
 - **Pandas Type Safety:** Fixed `AttributeError: Can only use .dt accessor with datetimelike values` by ensuring explicit `pd.to_datetime` conversion and handling empty DataFrames in `src/processing/` and `src/state/insights.py`.
 - **Stock Analytics Recovery:** Fixed `raw_qty` undefined error by replacing it with `total_qty` in recovery mode.
@@ -804,7 +804,7 @@ def render_page():
 ├─────────────────────────────────────────────────┤
 │                  src/pages/                       │
 │   live_dashboard  sales_ingestion  pathao_orders │
-│   stock_analytics  inventory_distribution        │
+│   stock_analytics  whatsapp_messaging              │
 │   whatsapp_messaging  delivery_parser  data_pilot│
 │   return_analytics  woocommerce_orders  excel_   │
 │   merger                                         │
@@ -882,7 +882,7 @@ process_orders_dataframe()       [processing/order_processor.py]
 PathaoClient.create_order()      [services/pathao/client.py]
 ```
 
-### Inventory Distribution
+### Stock Analytics
 
 ```
 Excel Upload or WooCommerce Stock Fetch
@@ -898,7 +898,7 @@ inv_core.add_stock_columns()     [inventory/core.py]
   └── Exact name matching
     │
     ▼
-render_distribution_tab()        [pages/inventory_distribution.py]
+render_stock_analytics_tab()     [pages/stock_analytics.py]
 ```
 
 ## Session State
@@ -911,9 +911,8 @@ All `st.session_state` keys are preserved from the original codebase. Key groups
 | `manual_*` | Sales ingestion state | `manual_df_raw`, `manual_date_range` |
 | `pathao_*` | Pathao orders state | `pathao_df`, `pathao_token` |
 | `wp_*` | WhatsApp state | `wp_df`, `wp_messages` |
-| `inv_*` | Inventory state | `inv_matrix_data` |
-| `parser_*` | Delivery parser state | `parser_df`, `parser_results` |
 | `stock_*` | Stock analytics state | `stock_snapshot_df` |
+| `sip_*` | SIP stock upload state | `sip_report_df` |
 | `pilot_*` | Data Pilot state | `pilot_messages`, `pilot_context` |
 
 ## Caching Strategy
@@ -1048,8 +1047,8 @@ Data Pilot is powered by the `DynamicLLMController` (`src/services/llm/manager.p
 ### 1. WhatsApp Message Generation
 Data Pilot uses contextual prompts to generate gender-aware, polite WhatsApp messages in Bengali/English for order confirmations, delays, and address verification.
 
-### 2. Inventory Distribution Intelligence
-By analyzing the `inventory_matrix`, Data Pilot can recommend optimal dispatch locations (e.g., "Ecom-Mirpur" vs "Wari") to minimize split shipments and stockouts.
+### 2. Inventory & Stock Intelligence
+By analyzing the outlet stock data (Warehouse, Mirpur, Wari, Cumilla, Sylhet), Data Pilot can recommend optimal dispatch locations (e.g., "Ecom-Mirpur" vs "Wari") to minimize split shipments and stockouts.
 
 ### 3. Sales & Revenue Explanations
 Instead of just visualizing data, Data Pilot explains anomalies in the `live_dashboard` (e.g., sudden drops in AOV or spikes in specific product categories).
@@ -1704,7 +1703,6 @@ PRIMARY_NAV = [
     "📉 Return Analytics",
     "📦 Current Stock Analytics",
     "📦 Pathao Processor",
-    "📊 Inventory Distribution",
     "💬 WhatsApp Messaging",
     "🧩 Delivery Data Parser",
     "🚀 Data Pilot",
@@ -1739,7 +1737,6 @@ LEGACY_NAV_MAPPING = {
     
     # Inventory & Stock (consolidated)
     "📦 Current Stock Analytics": "📦 Inventory & Stock",
-    "📊 Inventory Distribution": "📦 Inventory & Stock",
     
     # Analytics & Insights (consolidated)
     "📥 Sales Data Ingestion": "📊 Analytics & Insights",
@@ -1874,7 +1871,6 @@ python -c "import src.app_bootstrap; import src.config.ui_config; print('✓')"
 ## Next Steps (Week 3-4)
 
 1. **Function Size Refactoring**: Address oversized functions identified in audit
-   - 995-line function breakdown
    - 694-line function breakdown
    - 617-line function breakdown
 
@@ -2444,7 +2440,6 @@ PRIMARY_NAV = [
     "📉 Return Analytics",
     "📦 Current Stock Analytics",
     "📦 Pathao Processor",
-    "📊 Inventory Distribution",
     "💬 WhatsApp Messaging",
     "🧩 Delivery Data Parser",
     "🚀 Data Pilot"           # ✗ No Profile tab on far right - VIOLATION
@@ -2516,7 +2511,6 @@ from src.utils.metric_history import save_shift_snapshot
 
 | File | Function | Lines | Severity |
 |------|----------|-------|----------|
-| `src/pages/inventory_distribution.py` | `render_distribution_tab` | 995 | 🔴 CRITICAL |
 | `src/pages/woocommerce_orders.py` | `_render_live_orders_view` | 694 | 🔴 CRITICAL |
 | `src/pages/live_dashboard.py` | `render_live_tab` | 617 | 🔴 CRITICAL |
 | `src/pages/sales_ingestion.py` | `render_manual_tab` | 369 | 🟠 HIGH |
@@ -2566,9 +2560,7 @@ Multiple fragments use similar session state keys without namespace isolation:
 **Risk:** Cross-page contamination if user switches tabs during async refresh.
 
 ### 4. Missing Error Boundaries
-**File:** `src/pages/inventory_distribution.py` (995-line function)
-
-No try-catch around critical operations. Single failure crashes entire tab.
+Several pages render critical operations without try-catch protection. Single failures crash entire tabs.
 
 ---
 
@@ -2579,7 +2571,6 @@ No try-catch around critical operations. Single failure crashes entire tab.
 | **P0** | Fix CRITICAL hidden primary action | Low | High |
 | **P0** | Reduce navigation from 11→5 tabs | Medium | High |
 | **P1** | Remove 7 unused imports | Low | Medium |
-| **P1** | Break up 995-line inventory function | High | High |
 | **P1** | Implement progressive disclosure for 9 advanced options | Medium | Medium |
 | **P2** | Fix nav duplication bug | Low | Medium |
 | **P2** | Add Profile tab with Settings migration | Medium | High |
@@ -2605,7 +2596,6 @@ No try-catch around critical operations. Single failure crashes entire tab.
 - [ ] Implement standard gestures (back/refresh)
 
 ### Phase 3: Code Health (Week 3-4)
-- [ ] Extract methods from 995-line function
 - [ ] Break down 694-line order view
 - [ ] Add error boundaries
 - [ ] Implement state namespacing
@@ -2620,7 +2610,7 @@ No try-catch around critical operations. Single failure crashes entire tab.
 
 ## Conclusion
 
-The DEEN OPS Terminal has strong foundational design (modern KPI cards excel) but suffers from **feature creep** (11 tabs, 995-line functions) that violates both Hick's Law (user choice overload) and software engineering best practices (single responsibility).
+The DEEN OPS Terminal has strong foundational design (modern KPI cards excel) but suffers from **feature creep** (11 tabs, oversized functions) that violates both Hick's Law (user choice overload) and software engineering best practices (single responsibility).
 
 **Key Insight:** The app tries to show users everything it can do at once, making it feel complicated despite powerful capabilities underneath.
 
@@ -2668,7 +2658,6 @@ Each of the following pages previously contained a "Load from Google Sheet" butt
 | Sales Data Ingestion | `src/pages/sales_ingestion.py` | GSheet URL input + load button in the data source section |
 | Bulk Order Processer | `src/pages/pathao_orders.py` | GSheet import option in the order source selector |
 | WhatsApp Messaging | `src/pages/whatsapp_messaging.py` | GSheet URL input for loading order data |
-| Inventory Distribution | `src/pages/inventory_distribution.py` | GSheet URL input for loading inventory data |
 
 Replacement: Pages now use file upload and/or WooCommerce API sync. For URL-based loading, the generic `fetch_dataframe_from_url()` is available.
 
@@ -2810,7 +2799,7 @@ Full-codebase sweep (ruff F401/F541/F811/F841 + import-graph analysis + test run
 - ~40 unused imports removed via `ruff check --fix` (including `plotly.express`, unused `ui_components` helpers, `BytesIO`, `typing` names, `requests`, `kaleido`, etc.).
 - ~25 unused local variables removed (e.g. `is_confirmed`/`now_bd` in `woocommerce/client.py`, `range_sub` block in `dashboard_metrics.py` — computed but only referenced by a commented-out `st.caption`, `styled_df` in `pathao_orders.py`, `edited_df` in `woocommerce_orders.py`, `is_holiday_merge`/`p_20b` in `layout/header.py`, `success`/`now` in `llm/manager.py`).
 - 2 f-strings without placeholders converted to plain strings (`F541`).
-- 2 shadowing redefinitions fixed: `np` in `data_pilot.py` (local import kept), `io` in `inventory_distribution.py` (top-level import kept, redundant function-local `import io` removed).
+- 2 shadowing redefinitions fixed: `np` in `data_pilot.py` (local import kept), `io` in `stock_analytics.py` (top-level import kept, redundant function-local `import io` removed).
 
 ### Follow-up Sweep (guarded by `tests/test_no_unused_imports.py`)
 - 9 unused imports removed from `src/pages/data_pilot.py` (`os`, `typing.Dict`/`List`, `DATA_DIR`, `load_secrets_schema`, `TfidfVectorizer`, `cosine_similarity`, `NeuralBrain`, `PredictiveIntelligence`) — caught by the new F401 guard test.
@@ -2958,7 +2947,6 @@ Proposed Nav (5 tabs): ✓ COMPLIANT
 
 ### P1 - High Priority (Not Yet Fixed)
 - ❌ 9 instances of premature advanced options
-- ❌ 995-line `render_distribution_tab()` function
 - ❌ 694-line `_render_live_orders_view()` function
 - ❌ 617-line `render_live_tab()` function
 
@@ -3021,8 +3009,7 @@ All fixes tested and verified:
 3. ⏳ Implement standard gestures
 
 ### Medium-term (Week 3-4)
-1. ⏳ Refactor 995-line function
-2. ⏳ Add error boundaries
+1. ⏳ Add error boundaries
 3. ⏳ Implement state namespacing
 
 ---
@@ -3061,7 +3048,6 @@ The foundation is now in place for systematic UX improvements following Hick's L
 | 4 | Delivery Parser | `src.pages.delivery_parser` | `render_fuzzy_parser_tab()` | ✅ PASS |
 | 5 | Product Listing | `src.pages.product_listing` | `render_product_listing_tab()` | ✅ PASS |
 | 6 | Stock Analytics | `src.pages.stock_analytics` | `render_stock_analytics_tab()` | ✅ PASS |
-| 7 | Inventory Distribution | `src.pages.inventory_distribution` | `render_distribution_tab()` | ✅ PASS |
 | 8 | Sales Ingestion | `src.pages.sales_ingestion` | `render_manual_tab()` | ✅ PASS |
 | 9 | Return Analytics | `src.pages.return_analytics` | `render_return_analytics_tab()` | ✅ PASS |
 | 10 | WhatsApp Messaging | `src.pages.whatsapp_messaging` | `render_wp_tab()` | ✅ PASS |
@@ -3073,7 +3059,7 @@ The foundation is now in place for systematic UX improvements following Hick's L
 ```
 📈 Live Dashboard          → render_live_tab()
 🛒 Orders & Fulfillment    → 4 sub-features (Order Tracking, Product Listing, Pathao, Delivery Parser)
-📦 Inventory & Stock       → 2 sub-features (Stock Analytics, Distribution)
+📦 Inventory & Stock       → 1 sub-feature (Stock Analytics: WooCommerce, Outlet, SIP tabs)
 📊 Analytics & Insights    → 2 sub-features (Sales Ingestion, Return Analytics)
 🤖 Automation Tools        → 2 sub-features (WhatsApp Messaging, Data Pilot)
 ```
@@ -3198,7 +3184,6 @@ All features preserved. All session state keys unchanged.
 | `app_modules/wp_tab.py` | `src/pages/whatsapp_messaging.py` |
 | `app_modules/pathao_tab.py` | `src/pages/pathao_orders.py` |
 | `app_modules/pathao_client.py` | `src/services/pathao/client.py` |
-| `app_modules/distribution_tab.py` | `src/pages/inventory_distribution.py` |
 | `app_modules/fuzzy_parser_tab.py` | `src/pages/delivery_parser.py` + `src/processing/delivery_parser.py` |
 | `app_modules/ai_pilot.py` | `src/pages/data_pilot.py` |
 | `app_modules/llm_manager.py` | `src/services/llm/manager.py` |

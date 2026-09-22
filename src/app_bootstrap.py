@@ -85,7 +85,6 @@ def _format_nav_item(item: str) -> str:
         "📋 Product Listing": ":material/receipt_long: Product Listing",
         "📦 Pathao Processor": ":material/local_shipping: Pathao Processor",
         "💬 WhatsApp Messaging": ":material/chat: WhatsApp Messaging",
-        "📊 Inventory Distribution": ":material/inventory_2: Inventory Distribution",
         "📦 Current Stock Analytics": ":material/analytics: Stock Analytics",
         "🧩 Delivery Data Parser": ":material/data_object: Delivery Parser",
         "📥 Sales Data Ingestion": ":material/cloud_download: Sales Ingestion",
@@ -453,7 +452,6 @@ def _route_page(selected_nav: str) -> None:
     elif selected_nav == "📦 Inventory & Stock":
         inventory_sub_options = [
             "Current Stock Analytics",
-            "Inventory Distribution",
         ]
         if (
             "inventory_sub_feature" not in st.session_state
@@ -480,15 +478,6 @@ def _route_page(selected_nav: str) -> None:
 
             safe_render(
                 render_stock_analytics_tab, fallback_msg="Stock Analytics unavailable."
-            )
-        elif st.session_state.inventory_sub_feature == "Inventory Distribution":
-            from src.pages.inventory_distribution import render_distribution_tab
-
-            safe_render(
-                lambda: render_distribution_tab(
-                    search_q=st.session_state.get("inv_matrix_search", "")
-                ),
-                fallback_msg="Inventory Distribution unavailable.",
             )
 
     # === 📊 Analytics & Insights (Consolidated) ===

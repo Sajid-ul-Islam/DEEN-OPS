@@ -13,9 +13,6 @@ def save_state():
     """Saves relevant session state keys to a local file."""
     state_to_save = {}
     keys_to_persist = [
-        "inv_res_data",
-        "inv_active_l",
-        "inv_t_col",
         "pathao_res_df",
     ]
 

@@ -2,8 +2,8 @@
 Shared stock categorization logic for the Outlet Stock Compiler.
 
 This module provides map_to_csv_category(), which maps product names to display
-categories used in the outlet stock summary reports. It is used by both
-stock_analytics.py and inventory_distribution.py.
+categories used in the outlet stock summary reports. It is used by
+stock_analytics.py.
 """
 
 from functools import lru_cache

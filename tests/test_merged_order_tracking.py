@@ -95,9 +95,10 @@ def test_stock_analytics_does_not_set_nav_override():
         del st.session_state["_nav_override"]
 
     with (
-        patch("streamlit.tabs", return_value=[MagicMock(), MagicMock()]),
+        patch("streamlit.tabs", return_value=[MagicMock(), MagicMock(), MagicMock()]),
         patch("src.pages.stock_analytics.render_woocommerce_stock_tab"),
         patch("src.pages.stock_analytics.render_outlet_stock_analysis_tab"),
+        patch("src.pages.stock_analytics.render_sip_live_stock_tab"),
     ):
         render_stock_analytics_tab()
         assert "_nav_override" not in st.session_state

@@ -39,6 +39,7 @@ OUTLET_CANONICAL_NAMES: Dict[str, str] = {
     "wh": "Warehouse",
     "ecom": "Warehouse",
     "mirpur-12": "Mirpur",
+    "mirpur 12": "Mirpur",
     "mirpur": "Mirpur",
     "cumilla": "Cumilla",
     "comilla": "Cumilla",
@@ -1067,3 +1068,166 @@ def convert_sip_to_smart_inventory(
     return agg[
         ["Product", "Size", "SKU", "Outlet", "Stock Qty", "Price", "Last Updated"]
     ]
+
+
+# ── Current Stock Report (CSV upload) support ─────────────────────────────
+
+STOCK_REPORT_COLUMNS = [
+    "Product",
+    "Size",
+    "SKU",
+    "Outlet",
+    "Stock Qty",
+    "Price",
+    "Last Updated",
+]
+
+
+def parse_stock_report(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize a Smart Inventory 'Current Stock Report' export.
+
+    Accepts the plugin's CSV/Excel export with columns Product, Size, SKU,
+    Outlet, Stock Qty, Price, Last Updated (header naming is tolerant to
+    case and aliases like 'Outlet Name' / 'Qty'). Steps:
+
+    1. Strip the 'Size: ' prefix many exports carry ("Size: 3XL" -> "3XL").
+    2. Normalize outlet slugs to canonical names ("Mirpur 12" -> "Mirpur").
+    3. Deduplicate repeated rows by keeping the latest 'Last Updated' per
+       Product/Size/SKU/Outlet — the export re-emits unchanged rows on every
+       sync, so naive grouping would double-count stock.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame(columns=STOCK_REPORT_COLUMNS)
+
+    work = df.copy()
+    work.columns = [str(c).strip() for c in work.columns]
+
+    aliases = {
+        "Product Name": "Product",
+        "Item Name": "Product",
+        "Outlet Name": "Outlet",
+        "Outlet Slug": "Outlet",
+        "Qty": "Stock Qty",
+        "Quantity": "Stock Qty",
+        "Stock": "Stock Qty",
+        "Updated": "Last Updated",
+        "Last Update": "Last Updated",
+    }
+    work = work.rename(columns={k: v for k, v in aliases.items() if k in work.columns})
+
+    missing = [c for c in ("Product", "Outlet", "Stock Qty") if c not in work.columns]
+    if missing:
+        raise ValueError(
+            "Missing required column(s): " + ", ".join(missing) + ". "
+            "Expected the Smart Inventory 'Current Stock Report' layout."
+        )
+
+    if "SKU" not in work.columns:
+        work["SKU"] = "—"
+    if "Size" not in work.columns:
+        work["Size"] = ""
+    if "Price" not in work.columns:
+        work["Price"] = 0.0
+    if "Last Updated" not in work.columns:
+        work["Last Updated"] = ""
+
+    work["Product"] = work["Product"].fillna("").astype(str).str.strip()
+    work["Size"] = (
+        work["Size"]
+        .fillna("")
+        .astype(str)
+        .str.replace(r"^\s*size\s*:\s*", "", regex=True, case=False)
+        .str.strip()
+    )
+    # Blank Size cells arrive as NaN or the literal string "nan" depending on
+    # the source; normalize both to empty string so dedupe keys stay stable.
+    work.loc[work["Size"].str.lower().isin(["nan", "none"]), "Size"] = ""
+    work["SKU"] = work["SKU"].fillna("").astype(str).str.strip()
+    work["Outlet"] = work["Outlet"].apply(normalize_outlet_name)
+    # Quantities may carry unit noise ("3 pcs", "1,250"); extract the numeric
+    # core so legitimate values survive and pure junk falls back to 0.
+    qty_numeric = (
+        work["Stock Qty"]
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.extract(r"(-?\d+\.?\d*)")[0]
+    )
+    work["Stock Qty"] = pd.to_numeric(qty_numeric, errors="coerce").fillna(0)
+    work["Price"] = pd.to_numeric(
+        work["Price"].astype(str).str.replace(r"[^\d.]", "", regex=True),
+        errors="coerce",
+    ).fillna(0.0)
+
+    # Drop fully-empty rows (no product AND no SKU)
+    work = work[
+        (work["Product"] != "")
+        & (~work["Product"].str.lower().isin(["nan", "none"]))
+        & (work["SKU"] != "")
+        & (~work["SKU"].str.lower().isin(["nan", "none"]))
+    ]
+    if work.empty:
+        return pd.DataFrame(columns=STOCK_REPORT_COLUMNS)
+
+    parsed_ts = pd.to_datetime(work["Last Updated"], errors="coerce")
+    work["Last Updated"] = parsed_ts.dt.strftime("%Y-%m-%d %H:%M:%S").fillna("")
+    work["_ts"] = parsed_ts
+
+    # Latest observation wins per (Product, Size, SKU, Outlet)
+    sort_keys = ["_ts", "Stock Qty"]
+    work = work.sort_values(sort_keys, na_position="first")
+    deduped = work.drop_duplicates(
+        subset=["Product", "Size", "SKU", "Outlet"], keep="last"
+    )
+
+    deduped["Stock Qty"] = deduped["Stock Qty"].astype(int)
+    return deduped[STOCK_REPORT_COLUMNS].reset_index(drop=True)
+
+
+def pivot_stock_report(
+    report_df: pd.DataFrame,
+    outlet_order: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    """Pivot a parsed stock report into one row per Product/Size/SKU.
+
+    Each outlet becomes a column (0 where the outlet has no stock recorded).
+    Columns are ordered canonically (Warehouse first, then known outlets,
+    then extras alphabetically) so the UI always renders a stable layout.
+    Every canonical outlet is guaranteed a column even when absent from the
+    data, keeping the pivot shape stable across reports.
+    """
+    if report_df is None or report_df.empty:
+        return pd.DataFrame(columns=["Product", "Size", "SKU"])
+
+    work = report_df.copy()
+    work["Outlet"] = work["Outlet"].astype(str)
+
+    index_cols = ["Product", "Size", "SKU"]
+    pivot = work.pivot_table(
+        index=index_cols,
+        columns="Outlet",
+        values="Stock Qty",
+        aggfunc="sum",
+        fill_value=0,
+    ).reset_index()
+    pivot.columns.name = None
+
+    # Guarantee canonical columns exist even with no rows for them
+    default_order = ["Warehouse", "Mirpur", "Wari", "Cumilla", "Sylhet"]
+    canonical = outlet_order or default_order
+    for candidate in canonical:
+        if candidate not in pivot.columns:
+            pivot[candidate] = 0
+
+    outlet_cols = [c for c in pivot.columns if c not in index_cols]
+    ordered: List[str] = []
+    for candidate in canonical:
+        for o in outlet_cols:
+            if o.lower() == candidate.lower() and o not in ordered:
+                ordered.append(o)
+    ordered += sorted(o for o in outlet_cols if o not in ordered)
+
+    for col in ordered:
+        pivot[col] = pd.to_numeric(pivot[col], errors="coerce").fillna(0).astype(int)
+    pivot["Total"] = pivot[ordered].sum(axis=1)
+
+    return pivot[index_cols + ordered + ["Total"]]
