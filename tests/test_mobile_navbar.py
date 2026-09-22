@@ -184,9 +184,14 @@ def test_legacy_subfeature_override():
         "Product Listing",
     )
     assert LEGACY_NAV_MAPPING["📋 Product Listing"] == "🛒 Orders & Fulfillment"
+    # Removed features map to the SIP Outlet Mapper sub-feature (the only one left).
     assert LEGACY_SUBFEATURE_MAPPING[":material/rocket_launch: Data Pilot"] == (
         "automation_sub_feature",
-        "Data Pilot",
+        "SIP Outlet Mapper",
+    )
+    assert LEGACY_SUBFEATURE_MAPPING["💬 WhatsApp Messaging"] == (
+        "automation_sub_feature",
+        "SIP Outlet Mapper",
     )
 
 

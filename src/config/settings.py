@@ -43,7 +43,7 @@ LLM_PROVIDER_SOURCES = {
         "env": "HF_API_KEY",
         "legacy_secret": "HF_KEYS",
     },
-}
+}  # DEPRECATED: LLM features removed; kept only so stale secrets don't error.
 
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 

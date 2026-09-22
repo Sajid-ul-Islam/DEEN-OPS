@@ -543,11 +543,7 @@ def _route_page(selected_nav: str) -> None:
 
     # === 🤖 Automation Tools (Consolidated) ===
     elif selected_nav == "🤖 Automation Tools":
-        automation_sub_options = [
-            "WhatsApp Messaging",
-            "Data Pilot",
-            "SIP Outlet Mapper",
-        ]
+        automation_sub_options = ["SIP Outlet Mapper"]
         if (
             "automation_sub_feature" not in st.session_state
             or st.session_state.automation_sub_feature not in automation_sub_options
@@ -568,20 +564,17 @@ def _route_page(selected_nav: str) -> None:
                 st.session_state.automation_sub_feature = sub_feature
                 st.rerun()
 
-        if st.session_state.automation_sub_feature == "WhatsApp Messaging":
-            from src.pages.whatsapp_messaging import render_wp_tab
-
-            safe_render(render_wp_tab, fallback_msg="WhatsApp Messaging unavailable.")
-        elif st.session_state.automation_sub_feature == "Data Pilot":
-            from src.pages.data_pilot import render_ai_pilot_page
-
-            safe_render(render_ai_pilot_page, fallback_msg="Data Pilot unavailable.")
-        elif st.session_state.automation_sub_feature == "SIP Outlet Mapper":
+        # Route to the SIP Outlet Mapper tool
+        if st.session_state.automation_sub_feature == "SIP Outlet Mapper":
             from src.pages.sip_outlet_mapper import render_sip_outlet_tab
 
             safe_render(
                 render_sip_outlet_tab, fallback_msg="SIP Outlet Mapper unavailable."
             )
+        else:
+            # Legacy feature removed; snap back to the only remaining tool.
+            st.session_state.automation_sub_feature = "SIP Outlet Mapper"
+            st.rerun()
 
 
 # ── Public entry point ──────────────────────────────────────────────────────
@@ -659,7 +652,7 @@ def run_app() -> None:
     if "analytics_sub_feature" not in st.session_state:
         st.session_state["analytics_sub_feature"] = "Sales Data Ingestion"
     if "automation_sub_feature" not in st.session_state:
-        st.session_state["automation_sub_feature"] = "WhatsApp Messaging"
+        st.session_state["automation_sub_feature"] = "SIP Outlet Mapper"
 
     # ── Sidebar & Mobile Navigation State ───────────────────────────────────
     default_nav = (

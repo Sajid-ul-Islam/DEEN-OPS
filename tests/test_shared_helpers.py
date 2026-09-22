@@ -4,7 +4,6 @@ Covers the consolidated implementations so future edits to the shared functions
 cannot silently drift from the behavior they replaced:
 - `src/utils/text.normalize_phone_number` (canonical BD phone form)
 - `src/utils/customer_registry.normalize_phone_key` (registry wrapper)
-- `src/processing/whatsapp_processor.WhatsAppOrderProcessor.clean_phone_number`
 - `src/config/constants.bd_now` / `bd_today` / `BD_TZ`
 - `src/processing/column_detection.pick_column`
 - `src/utils/file_io.read_uploaded`
@@ -16,7 +15,6 @@ import pytest
 from src.config.constants import BD_TZ, bd_now, bd_today
 from src.config.settings import is_unauthenticated_access_allowed
 from src.processing.column_detection import pick_column
-from src.processing.whatsapp_processor import WhatsAppOrderProcessor
 from src.utils.customer_registry import normalize_phone_key
 from src.utils.file_io import read_uploaded
 from src.utils.text import normalize_phone_number
@@ -54,20 +52,9 @@ def test_normalize_phone_number_passthrough_emails(email):
 
 
 def test_phone_normalizers_agree_across_consumers():
-    """Registry + WhatsApp must produce the same canonical form."""
-    wp = WhatsAppOrderProcessor()
+    """Registry and text helpers must produce the same canonical form."""
     for raw in ["01712345678", "1712345678", "+8801712345678", "8801712345678"]:
         assert normalize_phone_key(raw) == normalize_phone_number(raw)
-        assert wp.clean_phone_number(raw) == normalize_phone_number(raw)
-
-
-def test_whatsapp_link_never_double_88():
-    """wa.me links must not get a doubled country code for 88/880-prefixed inputs."""
-    wp = WhatsAppOrderProcessor()
-    for raw in ["01712345678", "+8801712345678", "8801712345678", "1712345678"]:
-        phone = wp.clean_phone_number(raw)
-        link = f"https://wa.me/+88{phone}"
-        assert link == "https://wa.me/+8801712345678"
 
 
 # ── BD time ───────────────────────────────────────────────────────────────────

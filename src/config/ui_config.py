@@ -31,9 +31,9 @@ LEGACY_NAV_MAPPING = {
     "📥 Sales Data Ingestion": "📊 Analytics & Insights",
     "📉 Return Analytics": "📊 Analytics & Insights",
     # Section: Automation Tools
-    "💬 WhatsApp Messaging": "🤖 Automation Tools",
-    "🚀 Data Pilot": "🤖 Automation Tools",
-    ":material/rocket_launch: Data Pilot": "🤖 Automation Tools",
+    "💬 WhatsApp Messaging": "🤖 Automation Tools",  # feature removed; maps to section
+    "🚀 Data Pilot": "🤖 Automation Tools",  # feature removed; maps to section
+    ":material/rocket_launch: Data Pilot": "🤖 Automation Tools",  # removed
     "🏬 SIP Outlet Mapper": "🤖 Automation Tools",
     "SIP Outlet Mapper": "🤖 Automation Tools",
 }
@@ -49,9 +49,9 @@ LEGACY_SUBFEATURE_MAPPING = {
     "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),
     "📉 Return Analytics": ("analytics_sub_feature", "Return Analytics"),
     "🔎 Return Orders Extractor": ("analytics_sub_feature", "Return Orders Extractor"),
-    "💬 WhatsApp Messaging": ("automation_sub_feature", "WhatsApp Messaging"),
-    "🚀 Data Pilot": ("automation_sub_feature", "Data Pilot"),
-    ":material/rocket_launch: Data Pilot": ("automation_sub_feature", "Data Pilot"),
+    "💬 WhatsApp Messaging": ("automation_sub_feature", "SIP Outlet Mapper"),
+    "🚀 Data Pilot": ("automation_sub_feature", "SIP Outlet Mapper"),
+    ":material/rocket_launch: Data Pilot": ("automation_sub_feature", "SIP Outlet Mapper"),
     "🏬 SIP Outlet Mapper": ("automation_sub_feature", "SIP Outlet Mapper"),
     "SIP Outlet Mapper": ("automation_sub_feature", "SIP Outlet Mapper"),
 }

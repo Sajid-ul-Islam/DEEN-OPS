@@ -4,12 +4,15 @@ import pytest
 
 from src.processing.sip_outlet_processor import (
     compute_sip_stats,
+    convert_sip_to_smart_inventory,
     generate_outlet_product_listing,
     generate_pathao_bulk_consignments,
     get_fulfillment_group,
     is_inside_dhaka,
     normalize_outlet_name,
     normalize_phone_number,
+    normalize_recipient_address,
+    normalize_recipient_name,
     parse_sip_field,
     process_order_item_outlets,
 )
@@ -251,6 +254,75 @@ def test_normalize_phone_number():
     assert normalize_phone_number("1712345678.0") == "01712345678"
 
 
+def test_normalize_recipient_name():
+    assert normalize_recipient_name("  mD.   rAKIB hassan ") == "Md. Rakib Hassan"
+    assert normalize_recipient_name(None) == ""
+    assert normalize_recipient_name(float("nan")) == ""
+    assert normalize_recipient_name("") == ""
+    assert normalize_recipient_name("nan") == ""
+    assert normalize_recipient_name("N/A") == ""
+    assert normalize_recipient_name(123) == "123"
+
+
+def test_normalize_recipient_name_dedupes_redundant_words():
+    """Duplicate/redundant words are filtered from recipient names."""
+    assert normalize_recipient_name("Sakib SAKIB") == "Sakib"
+    assert normalize_recipient_name("Rakib Rakib") == "Rakib"
+    assert normalize_recipient_name("Md. Rakib Md. Rakib") == "Md. Rakib"
+    assert normalize_recipient_name("Jahid Hasan Jahid") == "Jahid Hasan"
+    # Distinct words are preserved in order
+    assert normalize_recipient_name("Rakib Hassan") == "Rakib Hassan"
+
+
+def test_normalize_recipient_name_dot_spacing_and_bangla():
+    """Missing space after '.' is inserted; Bangla names pass through safely."""
+    assert normalize_recipient_name("Md.Kefayoth Ullah Mustakin") == (
+        "Md. Kefayoth Ullah Mustakin"
+    )
+    assert normalize_recipient_name("N.M Shakil") == "N. M Shakil"
+    # Decimals and ellipses stay untouched
+    assert normalize_recipient_name("Version 3.5 Test") == "Version 3.5 Test"
+    assert normalize_recipient_name("Wait... What") == "Wait... What"
+    # Bangla: title-casing is a no-op, duplicate words still filtered
+    assert normalize_recipient_name("রুবেল রুবেল") == "রুবেল"
+    assert normalize_recipient_name("রুবেল খান") == "রুবেল খান"
+    assert normalize_recipient_name("মো. রাকিব হাসান") == "মো. রাকিব হাসান"
+    # Bangla with missing space after dot (including combining vowel sign)
+    assert normalize_recipient_name("মো.রাকিব") == "মো. রাকিব"
+    assert normalize_recipient_name("কি.খা") == "কি. খা"
+
+
+def test_normalize_recipient_address():
+    assert (
+        normalize_recipient_address("  house 12 ,  , road 3;   block b ")
+        == "House 12, Road 3, Block B"
+    )
+    assert normalize_recipient_address("Mirpur-10, Dhaka,,") == "Mirpur-10, Dhaka"
+    assert normalize_recipient_address(",,  ,Dhaka") == "Dhaka"
+    assert normalize_recipient_address(None) == ""
+    assert normalize_recipient_address("nan") == ""
+    assert normalize_recipient_address("") == ""
+    # Mixed separators all normalize to comma-separated parts
+    assert (
+        normalize_recipient_address("Road 5|Dhanmondi;Dhaka")
+        == "Road 5, Dhanmondi, Dhaka"
+    )
+    # Missing space after '.' between letters is inserted
+    assert (
+        normalize_recipient_address("Shah-Mostofa Rh.Dorga Moulvibazar")
+        == "Shah-Mostofa Rh. Dorga Moulvibazar"
+    )
+    # Decimals stay untouched
+    assert normalize_recipient_address("Plot 3.5, Road 2") == "Plot 3.5, Road 2"
+    # Bangla danda acts as a separator
+    assert (
+        normalize_recipient_address("গ্রাম। উত্তর নবীনগর। নারায়ণগঞ্জ")
+        == "গ্রাম, উত্তর নবীনগর, নারায়ণগঞ্জ"
+    )
+    # Bangla with missing space after dot
+    assert normalize_recipient_address("পো.এনায়েতনগর") == "পো. এনায়েতনগর"
+
+
 def test_generate_pathao_bulk_sample_file():
     sample_file = "Product listing Sample input.xlsx"
     if not os.path.exists(sample_file):
@@ -288,3 +360,294 @@ def test_generate_pathao_bulk_sample_file():
     assert order_14967.iloc[0]["MerchantOrderId"] == "14967"
     assert order_14967.iloc[0]["WarehouseOutlet"] == "Warehouse"
     assert order_14967.iloc[0]["ItemQuantity"] == 4
+
+
+def test_generate_pathao_bulk_name_address_sku():
+    """Recipient name/address are normalized and ItemDesc carries per-item SKU."""
+    df = pd.DataFrame(
+        [
+            {
+                "Order Number": 301,
+                "Item Name": "Oxford Shirt",
+                "SKU": "OX-001",
+                "Quantity": 2,
+                "Item Cost": 1500,
+                "Full Name (Shipping)": "  mD.   rAKIB hassan ",
+                "Phone (Shipping)": "01712345678",
+                "Address 1&2 (Shipping)": "  house 12 , , road 3;  block b ",
+                "City (Shipping)": "dhaka",
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+            {
+                "Order Number": 302,
+                "Item Name": "Polo Shirt",
+                "SKU": "0",  # junk SKU must be omitted
+                "Quantity": 1,
+                "Item Cost": 800,
+                "Full Name (Shipping)": "N/A",
+                "Phone (Shipping)": "01712345679",
+                "Address 1&2 (Shipping)": "nan",
+                "City (Shipping)": None,
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+        ]
+    )
+
+    pathao_df = generate_pathao_bulk_consignments(df)
+    assert len(pathao_df) == 2
+
+    row_301 = pathao_df[pathao_df["MerchantOrderId"] == "301"].iloc[0]
+    assert row_301["RecipientName(*)"] == "Md. Rakib Hassan"
+    assert row_301["RecipientAddress(*)"] == "House 12, Road 3, Block B"
+    assert row_301["RecipientCity(*)"] == "Dhaka"
+    assert row_301["ItemDesc"] == "Oxford Shirt x2 - OX-001;"
+
+    row_302 = pathao_df[pathao_df["MerchantOrderId"] == "302"].iloc[0]
+    assert row_302["RecipientName(*)"] == ""
+    assert row_302["RecipientAddress(*)"] == ""
+    assert row_302["ItemDesc"] == "Polo Shirt x1;"  # junk '0' SKU omitted
+
+
+def test_generate_pathao_bulk_item_desc_merge_and_count_tag():
+    """Duplicate line items merge into one entry; >2 distinct items get '(n items)'."""
+    df = pd.DataFrame(
+        [
+            # 2 lines, same item+SKU -> merged into one entry, no tag
+            {
+                "Order Number": 601,
+                "Item Name": "Oxford Shirt",
+                "SKU": "OX-001",
+                "Quantity": 2,
+                "Full Name (Shipping)": "Test Customer",
+                "Phone (Shipping)": "01712345678",
+                "Address 1&2 (Shipping)": "Road 1, Dhaka",
+                "City (Shipping)": "Dhaka",
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+            {
+                "Order Number": 601,
+                "Item Name": "Oxford Shirt",
+                "SKU": "OX-001",
+                "Quantity": 1,
+                "Full Name (Shipping)": "Test Customer",
+                "Phone (Shipping)": "01712345678",
+                "Address 1&2 (Shipping)": "Road 1, Dhaka",
+                "City (Shipping)": "Dhaka",
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+            # 3 distinct items -> '(3 items)' tag
+            {
+                "Order Number": 602,
+                "Item Name": "Polo Shirt",
+                "SKU": "PL-002",
+                "Quantity": 1,
+                "Full Name (Shipping)": "Test Customer",
+                "Phone (Shipping)": "01712345678",
+                "Address 1&2 (Shipping)": "Road 1, Dhaka",
+                "City (Shipping)": "Dhaka",
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+            {
+                "Order Number": 602,
+                "Item Name": "Polo Shirt",
+                "SKU": "PL-002",
+                "Quantity": 2,
+                "Full Name (Shipping)": "Test Customer",
+                "Phone (Shipping)": "01712345678",
+                "Address 1&2 (Shipping)": "Road 1, Dhaka",
+                "City (Shipping)": "Dhaka",
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+            {
+                "Order Number": 602,
+                "Item Name": "Denim Jeans",
+                "SKU": "DJ-003",
+                "Quantity": 1,
+                "Full Name (Shipping)": "Test Customer",
+                "Phone (Shipping)": "01712345678",
+                "Address 1&2 (Shipping)": "Road 1, Dhaka",
+                "City (Shipping)": "Dhaka",
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+            {
+                "Order Number": 602,
+                "Item Name": "Panjabi",
+                "SKU": "PJ-004",
+                "Quantity": 1,
+                "Full Name (Shipping)": "Test Customer",
+                "Phone (Shipping)": "01712345678",
+                "Address 1&2 (Shipping)": "Road 1, Dhaka",
+                "City (Shipping)": "Dhaka",
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+        ]
+    )
+
+    pathao_df = generate_pathao_bulk_consignments(df)
+    assert len(pathao_df) == 2
+
+    row_601 = pathao_df[pathao_df["MerchantOrderId"] == "601"].iloc[0]
+    assert row_601["ItemDesc"] == "Oxford Shirt x3 - OX-001;"  # merged, no tag
+    assert row_601["ItemQuantity"] == 3
+
+    row_602 = pathao_df[pathao_df["MerchantOrderId"] == "602"].iloc[0]
+    assert (
+        row_602["ItemDesc"]
+        == "Polo Shirt x3 - PL-002; Denim Jeans x1 - DJ-003; Panjabi x1 - PJ-004; (3 items)"
+    )
+    assert row_602["ItemQuantity"] == 5
+
+
+def test_generate_pathao_bulk_sku_column_fallback_detection():
+    """Without explicit sku_col, a known SKU-named column is still picked up."""
+    df = pd.DataFrame(
+        [
+            {
+                "Order Number": 401,
+                "Item Name": "Panjabi",
+                "Item SKU": "PJ-777",
+                "Quantity": 1,
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+                "Name": "test customer",
+                "Phone": "01712345678",
+                "Address": "uttara sector 4",
+                "City": "Dhaka",
+            }
+        ]
+    )
+
+    pathao_df = generate_pathao_bulk_consignments(df, sku_col=None)
+    assert len(pathao_df) == 1
+    row = pathao_df.iloc[0]
+    assert row["RecipientName(*)"] == "Test Customer"
+    assert row["RecipientAddress(*)"] == "Uttara Sector 4"
+    assert row["ItemDesc"] == "Panjabi x1 - PJ-777;"
+
+
+def test_convert_sip_to_smart_inventory_basic():
+    """Line items aggregate per Product/Size/SKU/Outlet with sizes parsed from names."""
+    df = pd.DataFrame(
+        [
+            {
+                "Order Number": 501,
+                "Item Name": "Oxford Shirt - L",
+                "SKU": "OX-001",
+                "Quantity": 2,
+                "Item Cost": 1500,
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+            {
+                "Order Number": 502,
+                "Item Name": "Oxford Shirt - L",
+                "SKU": "OX-001",
+                "Quantity": 1,
+                "Item Cost": 1500,
+                "SIP": '[{"outlet_slug":"warehouse"}]',
+            },
+            {
+                "Order Number": 503,
+                "Item Name": "Panjabi - XL",
+                "SKU": "PJ-777",
+                "Quantity": 1,
+                "Item Cost": 2200,
+                "SIP": '[{"outlet_slug":"cumilla"}]',
+            },
+        ]
+    )
+
+    result = convert_sip_to_smart_inventory(df)
+
+    assert list(result.columns) == [
+        "Product",
+        "Size",
+        "SKU",
+        "Outlet",
+        "Stock Qty",
+        "Price",
+        "Last Updated",
+    ]
+
+    # Aggregation: same product/size/sku/outlet merges
+    wh = result[
+        (result["Product"] == "Oxford Shirt - L")
+        & (result["Outlet"] == "Warehouse")
+    ]
+    assert len(wh) == 1
+    assert wh.iloc[0]["Stock Qty"] == 3  # 2 + 1
+    assert wh.iloc[0]["Size"] == "L"
+    assert wh.iloc[0]["SKU"] == "OX-001"
+    assert wh.iloc[0]["Price"] == 1500
+
+    cu = result[result["Outlet"] == "Cumilla"]
+    assert len(cu) == 1
+    assert cu.iloc[0]["Stock Qty"] == 1
+    assert cu.iloc[0]["Size"] == "XL"
+
+
+def test_convert_sip_to_smart_inventory_size_column_wins():
+    """An explicit size column overrides the name-parsed size."""
+    df = pd.DataFrame(
+        [
+            {
+                "Order Number": 601,
+                "Item Name": "Polo Shirt",
+                "Size": "2XL",
+                "SKU": "PL-9",
+                "Quantity": 1,
+                "SIP": '[{"outlet_slug":"sylhet"}]',
+            }
+        ]
+    )
+
+    result = convert_sip_to_smart_inventory(df, size_col="Size")
+    assert result.iloc[0]["Size"] == "2XL"
+
+
+def test_convert_sip_to_smart_inventory_no_sku_and_junk():
+    """Missing SKU column reports '-' and junk SKU values are dropped."""
+    df = pd.DataFrame(
+        [
+            {
+                "Order Number": 701,
+                "Item Name": "Jeans - 38",
+                "Quantity": 1,
+                "SIP": '[{"outlet_slug":"wari"}]',
+            },
+            {
+                "Order Number": 702,
+                "Item Name": "Belt",
+                "SKU": "0",  # junk — must not appear
+                "Quantity": 2,
+                "SIP": '[{"outlet_slug":"wari"}]',
+            },
+        ]
+    )
+
+    result = convert_sip_to_smart_inventory(df)
+    jeans = result[result["Product"] == "Jeans - 38"].iloc[0]
+    assert jeans["SKU"] == "—"
+
+    belt = result[result["Product"] == "Belt"].iloc[0]
+    assert belt["SKU"] == "—"
+    assert belt["Stock Qty"] == 2
+
+
+def test_convert_sip_to_smart_inventory_empty_and_missing_cols():
+    """Empty input and missing item column both yield the empty standard frame."""
+    expected_cols = [
+        "Product",
+        "Size",
+        "SKU",
+        "Outlet",
+        "Stock Qty",
+        "Price",
+        "Last Updated",
+    ]
+
+    empty = convert_sip_to_smart_inventory(pd.DataFrame())
+    assert list(empty.columns) == expected_cols
+    assert len(empty) == 0
+
+    missing = convert_sip_to_smart_inventory(pd.DataFrame({"Other": [1, 2]}))
+    assert list(missing.columns) == expected_cols
+    assert len(missing) == 0

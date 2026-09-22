@@ -4,13 +4,12 @@ DEEN-OPS Daily Insights Report Generator
 
 This script extracts the active operational shift data from the WooCommerce API
 using DEEN-OPS internal services, generates a predictive forecast and top products
-summary, and sends an executive narrative via WhatsApp.
+summary, and exports an executive narrative report.
 
 Usage:
     python scripts/executive_daily_report.py
 """
 
-import asyncio
 import os
 import sys
 from datetime import timedelta
@@ -173,13 +172,8 @@ def generate_report_data():
         df_live, df_full_raw, wc_raw_mapping
     )
 
-    # AI-powered narrative generation
-    print("🧠 Generating AI Executive Narrative...")
-    context_data = {
-        "sales_summary": summ,
-        "top_products": top,
-        "raw_sales_data": df_live,
-    }
+    # Narrative generation (deterministic briefing; AI features removed)
+    print("🧠 Generating Executive Narrative...")
 
     _adf = df_live if (df_live is not None and not df_live.empty) else None
     net_rev = (
@@ -194,61 +188,23 @@ def generate_report_data():
     )
     gross_aov = (gross_rev / today_orders) if today_orders > 0 else today_aov
 
-    prompt = f"""
-    Generate a high-impact executive briefing for today's e-commerce operations.
+    from src.processing.data_processing import generate_executive_briefing
 
-    *Core Metrics:*
-    - Today Gross Revenue: ৳{gross_rev:,.0f} ({today_orders} orders, {today_qty} items).
-    - Basket Size (AOV): ৳{gross_aov:,.0f}.
-    - Customer Breakdown: {new_customers} New Customers | {returning_customers} Returning Customers.
-    - Yesterday Gross Revenue: ৳{prev_rev:,.0f} revenue, {prev_orders} orders.
-    - Logistics & Shipped Status: {dm.get("dispatched", 0)} Dispatched ({dm.get("dispatch_rate", 0.0):.1f}% fulfillment rate), {dm.get("pending", 0)} Pending. ({dm.get("pathao_count", 0)} Pathao, {dm.get("other_count", 0)} Other).
-    - Prediction: {forecast_str}
-
-    *Contextual Data (sales_summary, top_products):*
-    - Use this to identify growth categories or specific product surges.
-
-    *Instructions:*
-    Write a structured, professional narrative optimized for WhatsApp.
-    1. 📊 *Performance Snapshot*: Highlight Gross Revenue as the key headline figure and include New and Returning customer counts/ratio.
-    2. 🏆 *Top Movers*: Highlight categories or SKUs driving today's volume.
-    3. 🚚 *Logistics Status*: Detail the actual shipped status counts (total dispatched orders, Pathao vs. other courier breakdown, pending fulfillment status, and dispatch rate).
-    4. 💡 *Strategic Outlook*: A concise, actionable tactical note for tomorrow based on metrics and forecasts.
-
-    Use emojis appropriately and keep it readable. Use *bold* for emphasis.
-    """
-
-    try:
-        from src.pages.data_pilot import AIDataAgent
-
-        agent = AIDataAgent(context_dfs=context_data)
-
-        async def get_narrative():
-            full_response = ""
-            async for chunk in agent.get_response_stream(prompt, history=[]):
-                full_response += chunk
-            return full_response
-
-        report_text = asyncio.run(get_narrative())
-    except Exception as e:
-        print(f"❌ AI narrative generation failed: {e}. Falling back to template.")
-        from src.processing.data_processing import generate_executive_briefing
-
-        report_text = generate_executive_briefing(
-            gross_rev,
-            today_qty,
-            today_orders,
-            gross_aov,
-            dm,
-            top,
-            prev_rev=prev_rev,
-            prev_orders=prev_orders,
-            forecast_str=forecast_str,
-            gross_rev=gross_rev,
-            cashback_disc=0.0,
-            new_customers=new_customers,
-            returning_customers=returning_customers,
-        )
+    report_text = generate_executive_briefing(
+        gross_rev,
+        today_qty,
+        today_orders,
+        gross_aov,
+        dm,
+        top,
+        prev_rev=prev_rev,
+        prev_orders=prev_orders,
+        forecast_str=forecast_str,
+        gross_rev=gross_rev,
+        cashback_disc=0.0,
+        new_customers=new_customers,
+        returning_customers=returning_customers,
+    )
 
     return report_text, df_live, summ, top
 

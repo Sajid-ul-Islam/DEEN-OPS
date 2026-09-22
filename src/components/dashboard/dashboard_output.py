@@ -367,148 +367,6 @@ def _build_export_data(
     return export_data
 
 
-def _stream_ai_briefing(
-    summ,
-    top,
-    active_df,
-    today_rev,
-    today_qty,
-    today_orders,
-    today_aov,
-    dm,
-    current_data_fingerprint,
-    new_customers=None,
-    returning_customers=None,
-):
-    """Stream an AI-generated briefing via the Data Pilot agent."""
-    import asyncio
-    import queue
-    import threading
-    import time
-
-    if new_customers is None or returning_customers is None:
-        from src.utils.customer_registry import compute_new_vs_returning_counts
-
-        full_df_for_cust = st.session_state.get("wc_curr_df")
-        new_customers, returning_customers = compute_new_vs_returning_counts(
-            active_df, full_df_for_cust
-        )
-
-    context_data = {
-        "sales_summary": summ,
-        "top_products": top,
-        "raw_sales_data": active_df,
-    }
-
-    top_spotlight_str = ""
-    if top is not None and not top.empty:
-        top_5 = top.sort_values("Total Amount", ascending=False).head(5)
-        top_list = [
-            f"{row.get('Product Name', 'Unknown')} ({row.get('Total Qty', 0)} units, ৳{row.get('Total Amount', 0):,.0f})"
-            for _, row in top_5.iterrows()
-        ]
-        top_spotlight_str = (
-            "\nProduct Spotlight (Top 5 Revenue Generators):\n"
-            + "\n".join([f"- {item}" for item in top_list])
-        )
-
-    gross_rev = (
-        active_df["Gross Amount"].sum()
-        if (active_df is not None and "Gross Amount" in active_df.columns)
-        else today_rev
-    )
-    gross_aov = (gross_rev / today_orders) if today_orders > 0 else today_aov
-
-    prompt = (
-        f"Generate an executive briefing for today's e-commerce operations.\n"
-        f"Today's key metrics:\n"
-        f"- Gross Revenue: ৳{gross_rev:,.0f}\n"
-        f"- Basket Size (AOV): ৳{gross_aov:,.0f}\n"
-        f"- Shift Orders: {today_orders}\n"
-        f"- Items Sold: {today_qty}\n"
-        f"- Customer Breakdown: {new_customers or 0} New Customers | {returning_customers or 0} Returning Customers\n\n"
-        f"Dispatch & Fulfillment Status (Actual Counts):\n"
-        f"- Total Dispatched / Shipped Orders: {dm.get('dispatched', 0)} ({dm.get('dispatch_rate', 0.0):.1f}% fulfillment rate)\n"
-        f"- Shipped via Pathao: {dm.get('pathao_count', 0)}\n"
-        f"- Shipped via Other / Self-Handover: {dm.get('other_count', 0)}\n"
-        f"- Pending / Processing Orders: {dm.get('pending', 0)}\n"
-        f"- Ecom Orders: {dm.get('ecom_dispatch', 0)} | Outlet: {dm.get('outlet_dispatch', 0)} | Exchange: {dm.get('exchange_dispatch', 0)}\n"
-        f"{top_spotlight_str}\n\n"
-        f"Based on the provided context data (sales_summary, top_products), write a concise, professional, and insightful narrative.\n"
-        f'Highlight Gross Revenue as the primary headline figure, explicitly analyze actual shipped status counts (total dispatched orders, Pathao vs other courier breakdown, pending fulfillment status, and dispatch rate), analyze customer acquisition mix (New vs Returning customer count and ratio), summarize the "Product Spotlight" to point out what is driving revenue, and provide a concluding remark on the day\'s performance.\n'
-        f"The entire response should be a single block of text formatted for WhatsApp (using markdown like *bold* and _italic_)."
-    )
-
-    try:
-        from src.pages.data_pilot import AIDataAgent
-
-        agent = AIDataAgent(context_dfs=context_data)
-        placeholder = st.empty()
-        full_response = ""
-        q = queue.Queue()
-
-        async def fetch_stream():
-            try:
-                async for chunk in agent.get_response_stream(prompt, history=[]):
-                    q.put({"chunk": chunk})
-            except Exception as e:
-                q.put({"error": e})
-            finally:
-                q.put({"done": True})
-
-        def thread_run():
-            new_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(new_loop)
-            new_loop.run_until_complete(fetch_stream())
-            new_loop.close()
-
-        t = threading.Thread(target=thread_run)
-        t.start()
-
-        while True:
-            try:
-                msg = q.get(timeout=0.1)
-            except queue.Empty:
-                if not t.is_alive():
-                    break
-                continue
-
-            if "done" in msg:
-                break
-            if "error" in msg:
-                st.error(f"AI Streaming Error: {msg['error']}")
-                break
-            full_response += msg["chunk"]
-
-            done_flag = False
-            while not q.empty():
-                try:
-                    next_msg = q.get_nowait()
-                    if "done" in next_msg:
-                        done_flag = True
-                        break
-                    if "error" in next_msg:
-                        st.error(f"AI Streaming Error: {next_msg['error']}")
-                        done_flag = True
-                        break
-                    full_response += next_msg["chunk"]
-                except queue.Empty:
-                    break
-
-            placeholder.info(full_response + "▌")
-            if done_flag:
-                break
-            time.sleep(0.05)
-
-        t.join()
-        placeholder.info(full_response)
-        st.session_state.ai_report_text = full_response
-        st.session_state.last_ai_data_fingerprint = current_data_fingerprint
-        st.rerun()
-    except Exception as e:
-        st.error(f"AI generation failed: {e}")
-
-
 def _render_ai_briefing_section(
     is_operational,
     summ,
@@ -524,56 +382,24 @@ def _render_ai_briefing_section(
     new_customers=None,
     returning_customers=None,
 ):
-    """Render the AI executive briefing expander with auto-generation and streaming."""
+    """Render the executive briefing expander (deterministic narrative only).
+
+    The former LLM-streamed briefing (Data Pilot) has been removed; this now
+    renders the deterministic briefing generated by generate_executive_briefing.
+    """
     if not is_operational:
         return
 
     with st.expander("📋 View/Copy Executive Briefing", expanded=False):
         from src.components.ui.clipboard import render_copy_button
 
-        c1, c2, c3 = st.columns([2, 1, 1])
+        c1, c2 = st.columns([2, 1])
         with c1:
-            st.markdown("##### 🤖 AI Executive Narrative")
+            st.markdown("##### 📊 Executive Narrative")
         with c2:
-            auto_gen = st.toggle(
-                "🤖 Auto-Generate AI",
-                value=st.session_state.get("auto_gen_ai_dash", False),
-                key="auto_gen_ai_dash",
-            )
-            gen_clicked = st.button(
-                "✨ Generate Now", key="gen_ai_narrative_dash", use_container_width=True
-            )
-            data_changed = current_data_fingerprint != st.session_state.get(
-                "last_ai_data_fingerprint", ""
-            )
-
-            if gen_clicked or (auto_gen and data_changed):
-                with st.spinner("🧠 AI Pilot is analyzing today's performance..."):
-                    _stream_ai_briefing(
-                        summ,
-                        top,
-                        active_df,
-                        today_rev,
-                        today_qty,
-                        today_orders,
-                        today_aov,
-                        dm,
-                        current_data_fingerprint,
-                        new_customers=new_customers,
-                        returning_customers=returning_customers,
-                    )
-
-        with c3:
             render_copy_button(final_report_text, label="📋 Copy Briefing")
 
         st.info(final_report_text)
-
-        if hasattr(st, "feedback"):
-            st.markdown(
-                "<div style='margin-top: 10px; margin-bottom: -10px; font-size: 0.85rem; color: #94a3b8; font-weight: 600;'>Rate this AI Narrative:</div>",
-                unsafe_allow_html=True,
-            )
-            st.feedback("stars", key=f"ai_briefing_feedback_{current_data_fingerprint}")
 
 
 def _render_bottom_tabs(active_df, top, today_rev, today_qty, today_orders, today_aov):
@@ -957,13 +783,7 @@ def render_dashboard_output(
 
         current_data_fingerprint = f"{gross_rev}_{today_orders}_{dm.get('pathao_count', 0)}_{dm.get('other_count', 0)}_{new_cust_cnt}_{ret_cust_cnt}"
 
-        if (
-            st.session_state.get("last_ai_data_fingerprint", "")
-            != current_data_fingerprint
-        ):
-            st.session_state.pop("ai_report_text", None)
-
-        final_report_text = st.session_state.get("ai_report_text", report_text)
+        final_report_text = report_text
 
         _render_ai_briefing_section(
             is_operational,

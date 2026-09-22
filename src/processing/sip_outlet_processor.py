@@ -12,6 +12,9 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
+from src.config.constants import bd_today
+from src.utils.product import get_size_from_name
+
 PATHAO_COLUMNS: List[str] = [
     "ItemType",
     "StoreName",
@@ -44,6 +47,168 @@ OUTLET_CANONICAL_NAMES: Dict[str, str] = {
     "uttara": "Uttara",
     "chittagong": "Chittagong",
 }
+
+# ── Semantic column auto-mapping ────────────────────────────────────────────
+# Logical role -> candidate column names, ordered by match priority. Used by
+# auto_map_columns() to pre-fill the SIP mapper's column-selection UI so the
+# user only needs to adjust a wrong guess, not map everything by hand.
+SIP_COLUMN_CANDIDATES: Dict[str, List[str]] = {
+    "order": [
+        "Order Number",
+        "Order ID",
+        "Order #",
+        "order_id",
+        "Order_ID",
+        "Invoice Number",
+        "ID",
+        "order_number",
+    ],
+    "sip": [
+        "SIP",
+        "sip",
+        "SIP Stock",
+        "Outlet SIP",
+        "Outlet Stock",
+        "SIP Outlet",
+        "Routing",
+        "Outlet Routing",
+    ],
+    "item": [
+        "Item Name",
+        "Product Name",
+        "Product",
+        "Item",
+        "Title",
+        "item_name",
+        "product_name",
+        "description",
+        "name",
+    ],
+    "sku": [
+        "SKU",
+        "Item SKU",
+        "Product SKU",
+        "SKU Code",
+        "sku",
+        "Item_SKU",
+        "Product_SKU",
+        "Barcode",
+    ],
+    "qty": [
+        "Quantity",
+        "Qty",
+        "Item Quantity",
+        "Total Quantity",
+        "quantity",
+        "qty",
+        "Units",
+        "Count",
+    ],
+    "name": [
+        "Full Name (Shipping)",
+        "Full Name (Billing)",
+        "Shipping Name",
+        "Customer Name",
+        "Full Name",
+        "Name",
+        "name",
+    ],
+    "phone": [
+        "Phone (Shipping)",
+        "Phone (Billing)",
+        "Shipping Phone",
+        "Billing Phone",
+        "Phone",
+        "Mobile",
+        "phone",
+    ],
+    "address": [
+        "Address 1&2 (Shipping)",
+        "Shipping Address 1",
+        "Address 1",
+        "Shipping Address",
+        "Billing Address 1",
+        "Address",
+        "address",
+    ],
+    "city": [
+        "City (Shipping)",
+        "Shipping City",
+        "Billing City",
+        "City",
+        "city",
+        "District",
+    ],
+    "cost": [
+        "Item Cost",
+        "Item Price",
+        "Unit Price",
+        "Price",
+        "item_cost",
+        "cost",
+        "rate",
+    ],
+}
+
+
+def _norm_header(s: Any) -> str:
+    """Alphanumeric-only lowercase key for tolerant header comparison."""
+    return "".join(ch for ch in str(s).lower() if ch.isalnum())
+
+
+def auto_map_columns(df: pd.DataFrame) -> Dict[str, Optional[str]]:
+    """Detect the best column for each logical role in the SIP mapper.
+
+    Strategy per role: exact header match, then normalized alphanumeric match
+    (ignoring case/spaces/underscores/hyphens), then substring containment.
+    Returns a dict mapping every role in SIP_COLUMN_CANDIDATES to the detected
+    column name, or None when nothing plausible exists in the DataFrame.
+    """
+    detected: Dict[str, Optional[str]] = {}
+    if df is None or len(df.columns) == 0:
+        return {role: None for role in SIP_COLUMN_CANDIDATES}
+
+    cols = list(df.columns)
+    exact_map = {str(c).strip().lower(): c for c in cols}
+    norm_map: Dict[str, str] = {}
+    for c in cols:
+        norm_map.setdefault(_norm_header(c), c)
+
+    used: set = set()  # one physical column cannot serve two roles
+    for role, candidates in SIP_COLUMN_CANDIDATES.items():
+        found: Optional[str] = None
+        # 1. Exact (case/whitespace-insensitive)
+        for cand in candidates:
+            col = exact_map.get(str(cand).strip().lower())
+            if col is not None and col not in used:
+                found = col
+                break
+        # 2. Normalized alphanumeric match
+        if found is None:
+            for cand in candidates:
+                col = norm_map.get(_norm_header(cand))
+                if col is not None and col not in used:
+                    found = col
+                    break
+        # 3. Substring containment (candidate in header or header in candidate)
+        if found is None:
+            for cand in candidates:
+                c_norm = _norm_header(cand)
+                if len(c_norm) < 3:
+                    continue
+                for col in cols:
+                    if col in used:
+                        continue
+                    h_norm = _norm_header(col)
+                    if c_norm in h_norm or (len(h_norm) >= 3 and h_norm in c_norm):
+                        found = col
+                        break
+                if found is not None:
+                    break
+        if found is not None:
+            used.add(found)
+        detected[role] = found
+    return detected
 
 
 def normalize_outlet_name(slug: Any, canonical: bool = True) -> str:
@@ -282,7 +447,7 @@ def generate_outlet_product_listing(
     Returns:
         Aggregated DataFrame with Item Name, SKU (if present), and total Quantity.
     """
-    if df.empty or item_col not in df.columns or qty_col not in df.columns:
+    if df.empty or item_col not in df.columns:
         return pd.DataFrame()
 
     filtered_df = df.copy()
@@ -296,11 +461,16 @@ def generate_outlet_product_listing(
     if filtered_df.empty:
         return pd.DataFrame()
 
-    # Clean numeric quantity
-    filtered_df[qty_col] = pd.to_numeric(
-        filtered_df[qty_col].astype(str).str.replace(r"[^\d.-]", "", regex=True),
-        errors="coerce",
-    ).fillna(1)
+    # Quantity column is optional; when missing, treat every line as 1 unit.
+    has_qty = qty_col in filtered_df.columns
+    if has_qty:
+        filtered_df[qty_col] = pd.to_numeric(
+            filtered_df[qty_col].astype(str).str.replace(r"[^\d.-]", "", regex=True),
+            errors="coerce",
+        ).fillna(1)
+    else:
+        qty_col = "__qty_placeholder__"
+        filtered_df[qty_col] = 1
 
     group_cols = [item_col]
     use_sku = bool(sku_col and sku_col != "None" and sku_col in filtered_df.columns)
@@ -388,6 +558,81 @@ def is_inside_dhaka(city: Any, address: Any, order_total_diff: float = 0.0) -> b
     return any(k in combined for k in dhaka_keywords)
 
 
+def _ensure_space_after_dots(text: str) -> str:
+    """Insert a missing space after '.' when it sits between two letters.
+
+    'Md.Kefayoth' -> 'Md. Kefayoth' and 'Rh.Dorga' -> 'Rh. Dorga'. Unicode
+    aware, so it also applies to Bangla including combining vowel signs
+    ('কি.খা' -> 'কি. খা'). Dots adjacent to digits (decimals like '3.5' or
+    Bangla '১.৫') and separator runs ('...') are left untouched.
+    """
+    return re.sub(r"(?<=[^\s.,;|\u0964\d])\.(?=[^\s.,;|\u0964\d])", ". ", text)
+
+
+def normalize_recipient_name(raw_name: Any) -> str:
+    """Normalize a recipient name for Pathao consignments.
+
+    Strips whitespace, drops NaN/placeholder junk values, collapses runs of
+    whitespace, inserts a missing space after '.' between letters
+    ('Md.Kefayoth' -> 'Md. Kefayoth'), title-cases so courier labels are
+    consistent (e.g. '  mD. rAKIB   hassan ' -> 'Md. Rakib Hassan'), and
+    removes duplicated or redundant words so 'Sakib SAKIB' -> 'Sakib' and
+    'Md. Rakib Md. Rakib' -> 'Md. Rakib'. Bangla names pass through safely:
+    title-casing is a no-op on Bangla (uncased) script and duplicate words in
+    Bangla are filtered the same way. Returns '' when nothing usable remains.
+    """
+    if raw_name is None:
+        return ""
+    try:
+        if pd.isna(raw_name):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    name = " ".join(str(raw_name).split())
+    if not name or name.lower() in ("nan", "none", "null", "n/a", "-"):
+        return ""
+    name = _ensure_space_after_dots(name)
+    name = name.title()
+    # Drop repeated (duplicate/redundant) words while preserving order
+    deduped: List[str] = []
+    for word in name.split():
+        if word not in deduped:
+            deduped.append(word)
+    return " ".join(deduped)
+
+
+def normalize_recipient_address(raw_address: Any) -> str:
+    """Normalize a recipient address for Pathao consignments.
+
+    Collapses all whitespace runs to single spaces, converts every separator
+    (comma/semicolon/pipe and the Bangla danda '\u0964') into a single ', ' so
+    the address reads as clean comma-separated parts (e.g. 'Road Name, City
+    Name, District Name'), inserts a missing space after '.' between letters,
+    strips leading/trailing separators, and title-cases for courier
+    readability. Bangla addresses pass through safely (title-casing is a
+    no-op on the uncased Bangla script). Returns '' when nothing usable
+    remains.
+    """
+    if raw_address is None:
+        return ""
+    try:
+        if pd.isna(raw_address):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    addr = " ".join(str(raw_address).split())
+    if not addr or addr.lower() in ("nan", "none", "null", "n/a", "-"):
+        return ""
+    addr = _ensure_space_after_dots(addr)
+    # Each run of separators (comma/semicolon/pipe/Bangla danda, whitespace
+    # between them allowed) becomes a single ', '
+    addr = re.sub(r"\s*[,;|\u0964]+(?:\s*[,;|\u0964]+)*", ", ", addr)
+    addr = re.sub(r"\s*,\s*$", "", addr)  # trailing separator
+    addr = re.sub(r"^\s*,\s*", "", addr)  # leading separator
+    addr = " ".join(addr.split())
+    return addr.title()
+
+
 def normalize_phone_number(raw_phone: Any) -> str:
     """Extract and format standard 11-digit Bangladesh phone number."""
     if raw_phone is None or pd.isna(raw_phone):
@@ -409,6 +654,7 @@ def generate_pathao_bulk_consignments(
     order_col: str = "Order Number",
     sip_col: str = "SIP",
     target_col: str = "Item Outlet",
+    sku_col: Optional[str] = "SKU",
 ) -> pd.DataFrame:
     """Generate Pathao Bulk Upload format from orders with SIP item-wise outlets.
 
@@ -419,6 +665,12 @@ def generate_pathao_bulk_consignments(
     - Items from Wari receive suffix ' w'.
     - The first dispatch includes the delivery fee (50 inside Dhaka, 90 outside Dhaka).
     - Subsequent dispatches for the same order only include their respective item costs.
+
+    Recipient names are normalized with duplicate/redundant words removed,
+    addresses are normalized into comma-separated parts, and each ItemDesc
+    entry follows the 'Item Name x{qty} - SKU;' style (duplicate line items
+    merged, joined by '; ' when a SKU column is available). Consignments with
+    more than 2 distinct items get an '(n items)' suffix.
     """
     if df.empty:
         return pd.DataFrame(columns=PATHAO_COLUMNS)
@@ -466,17 +718,33 @@ def generate_pathao_bulk_consignments(
         first_row = order_group.iloc[0]
 
         recipient_name = (
-            str(first_row.get(name_col, "")).strip() if name_col in first_row else ""
+            normalize_recipient_name(first_row.get(name_col, ""))
+            if name_col in first_row
+            else ""
         )
         recipient_phone = normalize_phone_number(first_row.get(phone_col, ""))
         address_val = (
-            str(first_row.get(addr_col, "")).strip() if addr_col in first_row else ""
+            normalize_recipient_address(first_row.get(addr_col, ""))
+            if addr_col in first_row
+            else ""
         )
         city_val = (
             str(first_row.get(city_col, "")).strip() if city_col in first_row else ""
         )
-        if city_val.lower() == "nan":
+        if city_val.lower() in ("", "nan"):
             city_val = ""
+        else:
+            city_val = city_val.title()
+
+        # Resolve the effective SKU column for ItemDesc annotation
+        eff_sku_col: Optional[str] = None
+        if sku_col and sku_col != "None" and sku_col in processed_df.columns:
+            eff_sku_col = sku_col
+        else:
+            for cand in SIP_COLUMN_CANDIDATES["sku"]:
+                if cand in processed_df.columns:
+                    eff_sku_col = cand
+                    break
 
         # Payment & COD check
         payment_method = str(first_row.get("Payment Method Title", "")).lower()
@@ -552,12 +820,37 @@ def generate_pathao_bulk_consignments(
                 else:
                     amount_to_collect = int(round(grp_cost))
 
-            # Build Item Description
+            # Build Item Description — deduped "Item x{qty} - SKU;" entries
+            # joined by '; ', with an '(n items)' tag when more than 2
+            # distinct items are present.
             if qty_col and item_col:
-                item_desc_list = [
-                    f"{r[item_col]} x {r[qty_col]}" for _, r in grp_items.iterrows()
-                ]
-                item_desc = ", ".join(item_desc_list)
+                merged_items: Dict[Tuple[str, str], int] = {}
+                item_order: List[Tuple[str, str]] = []
+                for _, r in grp_items.iterrows():
+                    item_name = " ".join(str(r[item_col]).split())
+                    sku_val = ""
+                    if eff_sku_col:
+                        sku_val = str(r.get(eff_sku_col, "")).strip()
+                        if sku_val.lower() in ("nan", "none", "null", "n/a", "0"):
+                            sku_val = ""
+                    key = (item_name, sku_val)
+                    if key not in merged_items:
+                        merged_items[key] = 0
+                        item_order.append(key)
+                    qty_num = pd.to_numeric(r[qty_col], errors="coerce")
+                    qty_int = int(qty_num) if pd.notna(qty_num) and qty_num > 0 else 1
+                    merged_items[key] += qty_int
+                item_desc_list = []
+                for item_name, sku_val in item_order:
+                    entry = f"{item_name} x{merged_items[(item_name, sku_val)]}"
+                    if sku_val:
+                        entry += f" - {sku_val}"
+                    item_desc_list.append(entry)
+                item_desc = "; ".join(item_desc_list)
+                if item_desc:
+                    item_desc += ";"
+                    if len(item_desc_list) > 2:
+                        item_desc += f" ({len(item_desc_list)} items)"
                 total_qty = int(
                     pd.to_numeric(grp_items[qty_col], errors="coerce").fillna(1).sum()
                 )
@@ -601,3 +894,176 @@ def generate_pathao_bulk_consignments(
             out_df[col] = ""
 
     return out_df[PATHAO_COLUMNS]
+
+
+def convert_sip_to_smart_inventory(
+    df: pd.DataFrame,
+    order_col: str = "Order Number",
+    sip_col: str = "SIP",
+    target_col: str = "Item Outlet",
+    item_col: str = "Item Name",
+    sku_col: Optional[str] = "SKU",
+    qty_col: str = "Quantity",
+    price_col: Optional[str] = "Item Cost",
+    size_col: Optional[str] = None,
+) -> pd.DataFrame:
+    """Convert SIP-mapped order line items into the Smart Inventory CSV format.
+
+    Takes an order export with item-wise outlet routing (SIP JSON ->
+    'Item Outlet' column) and aggregates the required units per
+    Product/Size/SKU/Outlet combination, emitting the unified Smart Inventory
+    'Current Stock Report' structure:
+
+        Product, Size, SKU, Outlet, Stock Qty, Price, Last Updated
+
+    The Stock Qty column carries the aggregated units required by open orders
+    per outlet (i.e. a demand sheet in stock-report shape), so the output can
+    be compared against live outlet stock or fed back into any tooling that
+    consumes the Smart Inventory CSV layout.
+
+    Args:
+        df: Order export DataFrame (SIP column optional if target_col exists).
+        order_col: Column identifying the order.
+        sip_col: Column containing the SIP JSON routing data.
+        target_col: Outlet-assignment column (created from SIP when missing).
+        item_col: Column containing the product/item name.
+        sku_col: Optional SKU column; None disables SKU output (reported as '-').
+        qty_col: Column containing per-line quantity (each row counts as 1 when missing).
+        price_col: Optional per-unit price column for the Price column.
+        size_col: Optional explicit size column. Falls back to parsing
+            "Product - Size" from the item name.
+
+    Returns:
+        DataFrame with Product, Size, SKU, Outlet, Stock Qty, Price, Last Updated.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame(
+            columns=[
+                "Product",
+                "Size",
+                "SKU",
+                "Outlet",
+                "Stock Qty",
+                "Price",
+                "Last Updated",
+            ]
+        )
+
+    work = df.copy()
+
+    # Ensure outlet assignment exists — derive from SIP when absent
+    if target_col not in work.columns:
+        work = process_order_item_outlets(
+            df=work,
+            order_col=order_col,
+            sip_col=sip_col,
+            target_col=target_col,
+        )
+
+    if item_col not in work.columns or target_col not in work.columns:
+        return pd.DataFrame(
+            columns=[
+                "Product",
+                "Size",
+                "SKU",
+                "Outlet",
+                "Stock Qty",
+                "Price",
+                "Last Updated",
+            ]
+        )
+
+    today = bd_today().strftime("%Y-%m-%d")
+    records: List[Dict[str, Any]] = []
+
+    for _, r in work.iterrows():
+        product = str(r.get(item_col, "")).strip()
+        if not product or product.lower() in ("nan", "none"):
+            continue
+
+        outlet = str(r.get(target_col, "")).strip()
+        if not outlet:
+            outlet = "Warehouse"
+
+        # Size: explicit column first, else parse "Product - Size" from name
+        size = ""
+        if size_col and size_col in work.columns:
+            raw_size = r.get(size_col, "")
+            if pd.notna(raw_size) and str(raw_size).strip():
+                size = str(raw_size).strip()
+        if not size:
+            parsed_size = get_size_from_name(product)
+            size = parsed_size if parsed_size and parsed_size != "N/A" else ""
+
+        # Quantity: numeric parse, default 1 per line
+        qty = 1
+        if qty_col in work.columns:
+            try:
+                val = r.get(qty_col)
+                if pd.notna(val):
+                    if isinstance(val, str):
+                        val = val.replace(",", "").strip()
+                    if val != "":
+                        qty = max(1, int(float(val)))
+            except Exception:
+                qty = 1
+
+        # SKU: keep raw value; junk becomes '-'
+        sku = "—"
+        if sku_col and sku_col != "None" and sku_col in work.columns:
+            raw_sku = r.get(sku_col, "")
+            if pd.notna(raw_sku) and str(raw_sku).strip():
+                candidate = str(raw_sku).strip()
+                if candidate.lower() not in ("nan", "none", "null", "n/a", "0"):
+                    sku = candidate
+
+        # Price: per-unit price if available
+        price = ""
+        if price_col and price_col in work.columns:
+            try:
+                val = r.get(price_col)
+                if pd.notna(val) and str(val).strip():
+                    price = float(str(val).replace(",", "").strip())
+            except Exception:
+                price = ""
+
+        records.append(
+            {
+                "Product": product,
+                "Size": size if size else "—",
+                "SKU": sku,
+                "Outlet": outlet,
+                "Stock Qty": qty,
+                "Price": price,
+                "Last Updated": today,
+            }
+        )
+
+    out = pd.DataFrame(records)
+    if out.empty:
+        return pd.DataFrame(
+            columns=[
+                "Product",
+                "Size",
+                "SKU",
+                "Outlet",
+                "Stock Qty",
+                "Price",
+                "Last Updated",
+            ]
+        )
+
+    # Aggregate required units per Product/Size/SKU/Outlet
+    agg = (
+        out.groupby(["Product", "Size", "SKU", "Outlet"], as_index=False)
+        .agg({"Stock Qty": "sum", "Price": "first", "Last Updated": "first"})
+    )
+    agg["Stock Qty"] = agg["Stock Qty"].astype(int)
+    agg = agg.sort_values(
+        ["Product", "Size", "SKU", "Outlet"],
+        key=lambda col: col.astype(str).str.lower(),
+    ).reset_index(drop=True)
+
+    return agg[
+        ["Product", "Size", "SKU", "Outlet", "Stock Qty", "Price", "Last Updated"]
+    ]
