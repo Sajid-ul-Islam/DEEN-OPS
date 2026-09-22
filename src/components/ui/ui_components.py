@@ -31,16 +31,17 @@ def generate_metric_card(label: str, value: str, icon: str = "") -> str:
     """
     Generates a single premium metric card HTML block.
     Expects to be wrapped in a <div class="metric-container">.
+
+    Emitted as a single line with no leading indentation: st.markdown parses
+    CommonMark, and any HTML line indented 4+ spaces becomes an indented code
+    block, which would render the raw HTML as literal text instead of cards.
     """
-    return f"""
-    <div class="metric-card">
-        <div>
-            <div class="metric-label">{label.upper()}</div>
-            <div class="metric-value">{value}</div>
-        </div>
-        <div class="metric-icon">{icon}</div>
-    </div>
-    """
+    return (
+        f'<div class="metric-card"><div>'
+        f'<div class="metric-label">{label.upper()}</div>'
+        f'<div class="metric-value">{value}</div>'
+        f'</div><div class="metric-icon">{icon}</div></div>'
+    )
 
 
 def render_metric_grid(metrics: list):
