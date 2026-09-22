@@ -64,13 +64,11 @@ MODULES = [
     "src.inventory.core",
     "src.processing.categorization",
     "src.processing.stock_categorization",
-    "src.processing.hybrid_data_loader",
     "src.services.exports.excel_exporter",
     "src.services.woocommerce.orders",
     "src.utils.customer_registry",
     "src.utils.http",
     "src.utils.metric_history",
-    "src.utils.ml_brain",
     "src.processing.sip_outlet_processor",
     "src.pages.sip_outlet_mapper",
 ]

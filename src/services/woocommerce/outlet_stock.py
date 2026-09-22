@@ -462,37 +462,6 @@ def fetch_outlet_stock_from_attributes() -> Optional[pd.DataFrame]:
         return None
 
 
-@cache_data(ttl=300, show_spinner="Fetching live outlet stock...")
-def fetch_live_outlet_stock() -> Optional[pd.DataFrame]:
-    """
-    Auto-detect and fetch outlet stock from WooCommerce.
-    Tries multiple methods in order:
-    1. Custom REST API endpoint
-    2. Product meta fields (known patterns)
-    3. Product attributes
-    Returns DataFrame with outlet stock or None if no method works.
-    """
-    # Method 1: Try custom endpoints
-    custom_endpoint = discover_custom_endpoints()
-    if custom_endpoint:
-        df = fetch_outlet_stock_from_custom_endpoint(custom_endpoint)
-        if df is not None and not df.empty:
-            return df
-
-    # Method 2: Try product meta fields
-    meta_keys = discover_outlet_meta_keys()
-    if meta_keys:
-        df = fetch_outlet_stock_from_meta(meta_keys)
-        if df is not None and not df.empty:
-            return df
-
-    # Method 3: Try product attributes
-    df = fetch_outlet_stock_from_attributes()
-    if df is not None and not df.empty:
-        return df
-
-    return None
-
 
 @cache_data(ttl=300, show_spinner="Fetching SIP outlet stock...")
 def fetch_live_sip_stock() -> Optional[pd.DataFrame]:

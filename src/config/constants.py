@@ -80,16 +80,6 @@ HOLD_WAITING_STATUSES = {
     "wc-waiting",
 }
 
-# Non-shipped statuses (active / held / terminal unfulfilled)
-NON_SHIPPED_STATUSES = set(ACTIVE_STATUSES) | {
-    "cancelled",
-    "refunded",
-    "failed",
-    "wc-cancelled",
-    "wc-refunded",
-    "wc-failed",
-}
-
 # Promotional offer keywords — items containing these are NOT actual stock
 OFFER_KEYWORDS = ["combo", "bundle", "buy any"]
 

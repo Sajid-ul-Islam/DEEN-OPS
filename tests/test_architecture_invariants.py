@@ -116,6 +116,9 @@ def test_kubernetes_ingress_backend_has_service_manifest():
 
 
 def test_completed_orders_widgets_render_once():
+    """Both dead functions and their widget keys must be absent from the codebase
+    after the dead-code removal pass that deleted _render_completed_orders_section
+    and _render_completed_kpis_display from live_components.py."""
     source = (ROOT / "src/pages/live_dashboard.py").read_text(encoding="utf-8")
     assert "_render_completed_orders_section()" not in source
     assert "_render_completed_kpis_display(" not in source
@@ -129,12 +132,14 @@ def test_completed_orders_widgets_render_once():
     component_source = (ROOT / "src/components/dashboard/live_components.py").read_text(
         encoding="utf-8"
     )
+    assert "_render_completed_orders_section" not in component_source
+    assert "_render_completed_kpis_display" not in component_source
     for widget_key in (
         'key="completed_date_picker"',
         'key="completed_source_filter"',
         'key="show_completed_kpis"',
     ):
-        assert component_source.count(widget_key) == 1
+        assert component_source.count(widget_key) == 0
 
 
 def test_dashboard_autosync_does_not_force_duplicate_fetch():

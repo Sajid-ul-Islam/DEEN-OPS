@@ -379,8 +379,6 @@ def _render_ai_briefing_section(
     dm,
     current_data_fingerprint,
     final_report_text,
-    new_customers=None,
-    returning_customers=None,
 ):
     """Render the executive briefing expander (deterministic narrative only).
 
@@ -777,8 +775,6 @@ def render_dashboard_output(
             top,
             gross_rev=gross_rev,
             cashback_disc=0.0,
-            new_customers=new_cust_cnt,
-            returning_customers=ret_cust_cnt,
         )
 
         current_data_fingerprint = f"{gross_rev}_{today_orders}_{dm.get('pathao_count', 0)}_{dm.get('other_count', 0)}_{new_cust_cnt}_{ret_cust_cnt}"
@@ -797,8 +793,6 @@ def render_dashboard_output(
             dm,
             current_data_fingerprint,
             final_report_text,
-            new_customers=new_cust_cnt,
-            returning_customers=ret_cust_cnt,
         )
 
     # ── Export Preparation ──

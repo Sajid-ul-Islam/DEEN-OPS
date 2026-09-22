@@ -154,7 +154,7 @@ def normalize_city_name(city_name):
 
 
 @lru_cache(maxsize=4096)
-def peek_zone_from_address(address: str, current_city: str = "") -> str:
+def peek_zone_from_address(address: str) -> str:
     """
     Scans the address string for common Thanas/Zones to avoid duplication.
     """

@@ -38,8 +38,6 @@ def render_operational_metrics(
     nav_mode: str,
     dummy_mapping: dict,
     wc_raw_mapping: dict,
-    forecast_val: float = 0,
-    avg_proc_time: float = 0,
 ):
     """Render the operational KPI cards and return updated aggregates."""
     if m_df is None:
@@ -125,7 +123,6 @@ def render_operational_metrics(
             if "Gross Amount" in c_df.columns
             else co_item_r
         )
-        co_net_r = max(0.0, co_gross - co_cb)
         co_b = (co_gross / co_o) if co_o > 0 else 0.0
 
         dashboard_view = st.session_state.get("live_dashboard_view")
@@ -553,8 +550,6 @@ def render_operational_metrics(
     else:
         _cb_ord_cnt = 0
         _total_ord = max(1, int(m_ord))
-    m_cb_orders_pct = (_cb_ord_cnt / _total_ord * 100) if _cb_ord_cnt > 0 else 0.0
-
     order_view_mode = st.session_state.get("live_order_filter", "Shipped")
     dashboard_view = st.session_state.get("live_dashboard_view")
 

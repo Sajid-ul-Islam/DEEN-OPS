@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import time
-from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, Callable
 
-import aiohttp
 import requests
 
 DEFAULT_MAX_ATTEMPTS = int(os.getenv("API_RETRY_MAX_ATTEMPTS", "4"))
@@ -132,67 +129,3 @@ def request_with_backoff(
         raise last_exc
     raise RuntimeError(f"Request loop exited unexpectedly for {method.upper()} {url}")
 
-
-@asynccontextmanager
-async def async_request_with_backoff(
-    method: str,
-    url: str,
-    *,
-    max_attempts: int = DEFAULT_MAX_ATTEMPTS,
-    backoff_factor: float = DEFAULT_BACKOFF_FACTOR,
-    max_backoff: float = DEFAULT_MAX_BACKOFF,
-    retryable_status_codes: set[int] | frozenset[int] = RETRYABLE_STATUS_CODES,
-    timeout: float = 30,
-    sleep_func: Callable[[float], Any] = asyncio.sleep,
-    **kwargs: Any,
-):
-    """Yield an aiohttp response with the same bounded retry policy as sync HTTP."""
-    if max_attempts < 1:
-        raise ValueError("max_attempts must be at least 1.")
-
-    session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout))
-    try:
-        for attempt in range(1, max_attempts + 1):
-            try:
-                response = await session.request(method, url, **kwargs)
-            except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
-                if attempt >= max_attempts:
-                    raise
-                wait_seconds = _compute_backoff_seconds(
-                    attempt,
-                    None,
-                    backoff_factor=backoff_factor,
-                    max_backoff=max_backoff,
-                )
-                LOGGER.warning(
-                    "Retrying %s %s after attempt %s/%s in %.2fs: %s",
-                    method.upper(),
-                    url,
-                    attempt,
-                    max_attempts,
-                    wait_seconds,
-                    exc,
-                )
-                await sleep_func(wait_seconds)
-                continue
-
-            if response.status in retryable_status_codes and attempt < max_attempts:
-                wait_seconds = _compute_backoff_seconds(
-                    attempt,
-                    response.headers.get("Retry-After"),
-                    backoff_factor=backoff_factor,
-                    max_backoff=max_backoff,
-                )
-                await response.read()
-                response.release()
-                await sleep_func(wait_seconds)
-                continue
-
-            response.raise_for_status()
-            try:
-                yield response
-            finally:
-                response.release()
-            return
-    finally:
-        await session.close()

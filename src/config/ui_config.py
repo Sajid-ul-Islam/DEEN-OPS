@@ -1,6 +1,3 @@
-APP_TITLE = "DEEN OPS Terminal"
-APP_VERSION = "v10.0"
-
 # Jakob's Law Compliant Navigation (max 5 tabs)
 # Rule 1: Home on far left
 # Rule 2: Profile/Settings on far right (moved to sidebar per best practices)
@@ -58,13 +55,6 @@ CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"
 
 
 INVENTORY_LOCATIONS = ["Ecom", "Mirpur", "Wari", "Cumilla", "Sylhet"]
-
-STATUS_COLORS = {
-    "success": "#15803d",
-    "warning": "#b45309",
-    "error": "#b91c1c",
-    "info": "#1d4ed8",
-}
 
 CHART_THEMES = {
     "✨ Emerald Cyberpunk": {

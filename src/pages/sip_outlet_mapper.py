@@ -40,20 +40,6 @@ _ROLE_LABELS = {
 }
 
 
-def _detect_col(df: pd.DataFrame, candidates: list[str], default_idx: int = 0) -> int:
-    """Legacy single-role detector kept for fallbacks; prefer auto_map_columns."""
-    cols = df.columns.tolist()
-    for cand in candidates:
-        for i, col in enumerate(cols):
-            if str(col).strip().lower() == cand.lower():
-                return i
-    for cand in candidates:
-        for i, col in enumerate(cols):
-            if cand.lower() in str(col).strip().lower():
-                return i
-    return default_idx if 0 <= default_idx < len(cols) else 0
-
-
 def _render_column_mapping_ui(df: pd.DataFrame) -> dict[str, Optional[str]]:
     """Auto-detect columns, render an editable mapping UI, return the mapping.
 

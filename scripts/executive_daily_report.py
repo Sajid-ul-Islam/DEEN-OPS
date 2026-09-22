@@ -197,13 +197,8 @@ def generate_report_data():
         gross_aov,
         dm,
         top,
-        prev_rev=prev_rev,
-        prev_orders=prev_orders,
-        forecast_str=forecast_str,
         gross_rev=gross_rev,
         cashback_disc=0.0,
-        new_customers=new_customers,
-        returning_customers=returning_customers,
     )
 
     return report_text, df_live, summ, top

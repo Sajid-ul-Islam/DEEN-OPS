@@ -1,4 +1,3 @@
-import pandas as pd
 import streamlit as st
 
 
@@ -12,31 +11,6 @@ def section_card(title: str, help_text: str = ""):
         """,
         unsafe_allow_html=True,
     )
-
-
-def render_file_summary(
-    uploaded_file, df: pd.DataFrame | None, required_columns: list[str]
-):
-    if not uploaded_file:
-        st.info("No file uploaded yet.")
-        return False
-
-    st.caption(f"File: {uploaded_file.name}")
-    if df is None:
-        st.warning("Could not read this file.")
-        return False
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Rows", len(df))
-    c2.metric("Columns", len(df.columns))
-    c3.metric("Required", len(required_columns))
-
-    missing = [col for col in required_columns if col not in df.columns]
-    if missing:
-        st.error(f"Missing required columns: {', '.join(missing)}")
-        return False
-    st.success("Required columns check passed.")
-    return True
 
 
 def render_action_bar(

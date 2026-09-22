@@ -33,8 +33,6 @@ def render_modern_kpi_cards(
     nav_mode: str,
     dummy_mapping: dict,
     wc_raw_mapping: dict,
-    forecast_val: float = 0,
-    avg_proc_time: float = 0,
 ):
     """Render modern KPI cards with flat design, clear hierarchy, and meaningful data."""
     if m_df is None:

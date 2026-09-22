@@ -1288,13 +1288,8 @@ def generate_executive_briefing(
     today_aov,
     dm,
     top,
-    prev_rev=None,
-    prev_orders=None,
-    forecast_str="",
     gross_rev=None,
     cashback_disc=None,
-    new_customers=None,
-    returning_customers=None,
 ):
     """Generates the single source of truth narrative for the Executive Briefing."""
 

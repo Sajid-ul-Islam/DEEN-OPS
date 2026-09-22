@@ -224,8 +224,6 @@ def _refresh_core_metrics():
         nav_mode,
         dummy_mapping,
         wc_raw_mapping,
-        forecast_val=0,
-        avg_proc_time=0,
     )
 
 

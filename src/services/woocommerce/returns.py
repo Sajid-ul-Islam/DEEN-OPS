@@ -200,7 +200,6 @@ def fetch_wc_return_orders(
     before_dt: datetime,
     order_numbers: list[str] | None = None,
     statuses: list[str] | None = None,
-    include_pathao_statuses: bool = True,
 ) -> tuple[list[dict], str | None]:
     """Fetch WooCommerce return / cancellation orders in a given time range.
 
@@ -214,8 +213,6 @@ def fetch_wc_return_orders(
         Optional list of WC order numbers to filter to (case-insensitive).
     statuses : list[str] | None
         WC status list override. Defaults to DEFAULT_RETURN_STATUSES.
-    include_pathao_statuses : bool
-        If True, the consignment_id column is populated for Pathao enrichment.
 
     Returns
     -------

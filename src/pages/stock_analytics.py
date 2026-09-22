@@ -1003,22 +1003,6 @@ def render_outlet_stock_analysis_tab():
 # ---------------------------------------------------------------------------
 
 
-def _sip_outlet_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate SIP stock per product across outlets."""
-    outlet_cols = [
-        c
-        for c in df.columns
-        if c not in ("SKU", "Product", "Size", "Price", "Last Updated", "Total")
-    ]
-    if not outlet_cols:
-        return pd.DataFrame()
-
-    group_cols = [c for c in ["Product", "Size"] if c in df.columns]
-    agg = df.groupby(group_cols, dropna=False)[outlet_cols].sum().reset_index()
-    agg["Total"] = agg[outlet_cols].sum(axis=1)
-    return agg.sort_values("Total", ascending=False)
-
-
 def _sip_kpi_strip(pivot_df: pd.DataFrame, source_label: str) -> None:
     """KPI cards for the SIP tab from a pivoted stock frame."""
     total_units = int(pivot_df["Total"].sum())

@@ -92,20 +92,6 @@ def _build_date_defaults(preset: str) -> tuple[date, date]:
         return today, today
 
 
-def _status_badge(status: str) -> str:
-    """Return a coloured emoji prefix for well-known statuses."""
-    sl = status.lower()
-    if any(k in sl for k in ("refund",)):
-        return "💸 " + status
-    elif any(k in sl for k in ("cancel",)):
-        return "❌ " + status
-    elif any(k in sl for k in ("return",)):
-        return "🔁 " + status
-    elif any(k in sl for k in ("fail",)):
-        return "⚠️ " + status
-    return status
-
-
 def _compute_summary_metrics(df: pd.DataFrame) -> dict:
     """Derive KPI metrics from the results DataFrame."""
     total_rows = len(df)
