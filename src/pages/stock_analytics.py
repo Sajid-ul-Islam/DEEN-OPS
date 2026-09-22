@@ -1340,28 +1340,25 @@ def render_stock_analytics_tab():
         "📦",
     )
 
-    tab_web, tab_outlet, tab_sip = st.tabs(
-        [
-            ":material/database: WooCommerce Stock",
-            ":material/storefront: Outlet Stock Analysis",
-            ":material/satellite_alt: SIP Live Stock",
-        ]
+    # ── Section 1: WooCommerce Stock ────────────────────────────────────────
+    st.markdown("## 🗄️ WooCommerce Stock")
+    safe_render(
+        render_woocommerce_stock_tab,
+        fallback_msg="WooCommerce stock tab unavailable.",
     )
 
-    with tab_web:
-        safe_render(
-            render_woocommerce_stock_tab,
-            fallback_msg="WooCommerce stock tab unavailable.",
-        )
+    # ── Section 2: Outlet Stock Analysis ───────────────────────────────────
+    st.divider()
+    st.markdown("## 🏪 Outlet Stock Analysis")
+    safe_render(
+        render_outlet_stock_analysis_tab,
+        fallback_msg="Outlet stock tab unavailable.",
+    )
 
-    with tab_outlet:
-        safe_render(
-            render_outlet_stock_analysis_tab,
-            fallback_msg="Outlet stock tab unavailable.",
-        )
-
-    with tab_sip:
-        safe_render(
-            render_sip_live_stock_tab,
-            fallback_msg="SIP live stock tab unavailable.",
-        )
+    # ── Section 3: SIP Live Stock ───────────────────────────────────────────
+    st.divider()
+    st.markdown("## 📡 SIP Live Stock")
+    safe_render(
+        render_sip_live_stock_tab,
+        fallback_msg="SIP live stock tab unavailable.",
+    )

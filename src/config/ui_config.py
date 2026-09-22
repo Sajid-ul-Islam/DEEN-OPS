@@ -8,7 +8,6 @@ PRIMARY_NAV = [
     "🛒 Orders & Fulfillment",  # Core action 1
     "📦 Inventory & Stock",  # Core action 2
     "📊 Analytics & Insights",  # Core action 3
-    "🤖 Automation Tools",  # Create/Automation - center-right position
 ]
 
 # Legacy nav items mapped to new consolidated structure
@@ -26,12 +25,12 @@ LEGACY_NAV_MAPPING = {
     # Section: Analytics & Insights
     "📥 Sales Data Ingestion": "📊 Analytics & Insights",
     "📉 Return Analytics": "📊 Analytics & Insights",
-    # Section: Automation Tools
-    "💬 WhatsApp Messaging": "🤖 Automation Tools",  # feature removed; maps to section
-    "🚀 Data Pilot": "🤖 Automation Tools",  # feature removed; maps to section
-    ":material/rocket_launch: Data Pilot": "🤖 Automation Tools",  # removed
-    "🏬 SIP Outlet Mapper": "🤖 Automation Tools",
-    "SIP Outlet Mapper": "🤖 Automation Tools",
+    # Section: SIP Outlet Mapper (moved to Orders & Fulfillment)
+    "💬 WhatsApp Messaging": "🛒 Orders & Fulfillment",  # redirected to Orders
+    "🚀 Data Pilot": "🛒 Orders & Fulfillment",  # redirected to Orders
+    ":material/rocket_launch: Data Pilot": "🛒 Orders & Fulfillment",  # redirected to Orders
+    "🏬 SIP Outlet Mapper": "🛒 Orders & Fulfillment",
+    "SIP Outlet Mapper": "🛒 Orders & Fulfillment",
 }
 
 LEGACY_SUBFEATURE_MAPPING = {
@@ -42,13 +41,13 @@ LEGACY_SUBFEATURE_MAPPING = {
     "🧩 Delivery Data Parser": ("orders_sub_feature", "Delivery Data Parser"),
     "📦 Current Stock Analytics": ("inventory_sub_feature", "Current Stock Analytics"),
     "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),
-    "📉 Return Analytics": ("analytics_sub_feature", "Return Analytics"),
-    "🔎 Return Orders Extractor": ("analytics_sub_feature", "Return Orders Extractor"),
-    "💬 WhatsApp Messaging": ("automation_sub_feature", "SIP Outlet Mapper"),
-    "🚀 Data Pilot": ("automation_sub_feature", "SIP Outlet Mapper"),
-    ":material/rocket_launch: Data Pilot": ("automation_sub_feature", "SIP Outlet Mapper"),
-    "🏬 SIP Outlet Mapper": ("automation_sub_feature", "SIP Outlet Mapper"),
-    "SIP Outlet Mapper": ("automation_sub_feature", "SIP Outlet Mapper"),
+    "📉 Return Analytics": ("analytics_sub_feature", "Returns"),
+    "🔎 Return Orders Extractor": ("analytics_sub_feature", "Returns"),
+    "💬 WhatsApp Messaging": ("orders_sub_feature", "SIP Outlet Mapper"),
+    "🚀 Data Pilot": ("orders_sub_feature", "SIP Outlet Mapper"),
+    ":material/rocket_launch: Data Pilot": ("orders_sub_feature", "SIP Outlet Mapper"),
+    "🏬 SIP Outlet Mapper": ("orders_sub_feature", "SIP Outlet Mapper"),
+    "SIP Outlet Mapper": ("orders_sub_feature", "SIP Outlet Mapper"),
 }
 
 CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"

@@ -29,9 +29,9 @@ def _compute_reconciliation_fields(df: pd.DataFrame) -> pd.DataFrame:
             "wc-cancelled",
             "wc-returned",
         ]:
-            rec_status = "✅ Verified (WC Refunded/Cancelled)"
+            rec_status = "â Verified (WC Refunded/Cancelled)"
         elif "delivered" in p_st:
-            rec_status = "🚨 Courier Discrepancy (Pathao Delivered)"
+            rec_status = "ð¨ Courier Discrepancy (Pathao Delivered)"
         elif wc_st in [
             "processing",
             "shipped",
@@ -40,9 +40,9 @@ def _compute_reconciliation_fields(df: pd.DataFrame) -> pd.DataFrame:
             "wc-shipped",
             "wc-completed",
         ]:
-            rec_status = "⚠️ WC Status Mismatch (Action Needed)"
+            rec_status = "â ï¸ WC Status Mismatch (Action Needed)"
         else:
-            rec_status = "🟡 Pending Verification"
+            rec_status = "ð¡ Pending Verification"
 
         # 2. Payment Refund Risk
         is_prepaid = any(
@@ -62,17 +62,17 @@ def _compute_reconciliation_fields(df: pd.DataFrame) -> pd.DataFrame:
             and not any(kw in pmt for kw in ["cod", "cash on delivery", "cash"])
         )
         pmt_flag = (
-            "💳 Prepaid (Refund Verification Required)"
+            "ð'³ Prepaid (Refund Verification Required)"
             if is_prepaid
-            else "💵 Cash on Delivery (COD)"
+            else "ð'µ Cash on Delivery (COD)"
         )
 
         # 3. Action Recommendation
-        if rec_status == "⚠️ WC Status Mismatch (Action Needed)":
+        if rec_status == "â ï¸ WC Status Mismatch (Action Needed)":
             action = "Update WC Order Status to Cancelled / Refunded"
-        elif rec_status == "🚨 Courier Discrepancy (Pathao Delivered)":
+        elif rec_status == "ð¨ Courier Discrepancy (Pathao Delivered)":
             action = "Audit physically before issuing refund"
-        elif is_prepaid and rec_status != "✅ Verified (WC Refunded/Cancelled)":
+        elif is_prepaid and rec_status != "â Verified (WC Refunded/Cancelled)":
             action = "Verify customer bKash/Bank refund transfer"
         else:
             action = "No Action Required"
@@ -88,7 +88,7 @@ def _compute_reconciliation_fields(df: pd.DataFrame) -> pd.DataFrame:
 
 def _render_direct_wc_audit_tab():
     """Render direct WooCommerce live refund & return audit without needing Google Sheets."""
-    st.markdown("#### 🌐 Direct Live WooCommerce Return & Refund Audit")
+    st.markdown("#### ð Direct Live WooCommerce Return & Refund Audit")
     st.caption(
         "Fetch recent orders marked as Refunded, Cancelled, or Failed directly from WooCommerce to verify fulfillment and tracking statuses."
     )
@@ -100,7 +100,7 @@ def _render_direct_wc_audit_tab():
         )
     with c2:
         fetch_direct = st.button(
-            "🔄 Audit Live WC Returns",
+            "ð" Audit Live WC Returns",
             type="primary",
             use_container_width=True,
             key="btn_direct_wc_audit",
@@ -109,7 +109,7 @@ def _render_direct_wc_audit_tab():
     if fetch_direct or "direct_wc_returns_df" in st.session_state:
         if fetch_direct:
             with st.status(
-                "📡 Fetching WooCommerce refund & cancellation data...", expanded=True
+                "ð"¡ Fetching WooCommerce refund & cancellation data...", expanded=True
             ) as status_box:
                 try:
                     from src.services.woocommerce.client import (
@@ -139,7 +139,7 @@ def _render_direct_wc_audit_tab():
                     }
 
                     status_box.update(
-                        label="📡 Requesting refunded/cancelled orders from WooCommerce..."
+                        label="ð"¡ Requesting refunded/cancelled orders from WooCommerce..."
                     )
                     res = request_with_backoff(
                         "GET", endpoint, params=params, auth=auth, timeout=15
@@ -156,7 +156,7 @@ def _render_direct_wc_audit_tab():
                     df_wc_returns = pd.DataFrame(rows)
                     if df_wc_returns.empty:
                         status_box.update(
-                            label="ℹ️ No refunded or cancelled orders found in recent records.",
+                            label="â¹ï¸ No refunded or cancelled orders found in recent records.",
                             state="complete",
                         )
                         st.info(
@@ -167,13 +167,13 @@ def _render_direct_wc_audit_tab():
                     df_wc_returns = _compute_reconciliation_fields(df_wc_returns)
                     st.session_state["direct_wc_returns_df"] = df_wc_returns
                     status_box.update(
-                        label=f"✅ Loaded {len(df_wc_returns)} returned/cancelled items from WooCommerce",
+                        label=f"â Loaded {len(df_wc_returns)} returned/cancelled items from WooCommerce",
                         state="complete",
                     )
 
                 except Exception as e:
                     status_box.update(
-                        label="❌ Failed to fetch WooCommerce orders", state="error"
+                        label="â Failed to fetch WooCommerce orders", state="error"
                     )
                     st.error(f"Failed to fetch WooCommerce direct audit data: {e}")
 
@@ -202,9 +202,9 @@ def _render_direct_wc_audit_tab():
                 tot_val = pd.to_numeric(
                     df_direct.get("Item Cost", 0), errors="coerce"
                 ).sum()
-                st.metric("Refunded Value", f"৳ {tot_val:,.0f}")
+                st.metric("Refunded Value", f"à§³ {tot_val:,.0f}")
 
-            st.markdown("##### 📋 Live WooCommerce Refund Audit Records")
+            st.markdown("##### ð" Live WooCommerce Refund Audit Records")
             st.dataframe(
                 df_direct[
                     [
@@ -230,7 +230,7 @@ def _render_direct_wc_audit_tab():
                 hide_index=True,
                 column_config={
                     "Item Cost": st.column_config.NumberColumn(
-                        "Item Cost", format="৳ %d"
+                        "Item Cost", format="à§³ %d"
                     ),
                     "Order ID": st.column_config.NumberColumn("Order ID", format="%d"),
                 },
@@ -241,24 +241,24 @@ def render_return_analytics_tab():
     render_premium_header(
         "Return Analytics",
         "Track, analyze, and reconcile order returns with WooCommerce & Pathao data",
-        "📉",
+        "ð"",
     )
 
     sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4j3i94IWVlVYI5gErxzfmmaYNiirGqnrncRKrDCbHvmLYpzH9l4_etjYmfCoDj_Gv-_mps2gnufXE/pub?output=csv&gid=0&single=true"
 
     with st.status(
-        "📥 Fetching return data from Google Sheets...", expanded=True
+        "ð"¥ Fetching return data from Google Sheets...", expanded=True
     ) as fetch_status:
         try:
             from src.utils.http import request_with_backoff
 
-            fetch_status.update(label="🔗 Connecting to Google Sheets...")
+            fetch_status.update(label="ð"- Connecting to Google Sheets...")
             r = request_with_backoff("GET", sheet_url, timeout=15)
             r.raise_for_status()
-            fetch_status.update(label="📄 Parsing returned data...")
+            fetch_status.update(label="ð" Parsing returned data...")
             df = pd.read_csv(io.StringIO(r.text))
             fetch_status.update(
-                label=f"✅ {len(df)} return records loaded", state="complete"
+                label=f"â {len(df)} return records loaded", state="complete"
             )
 
             if "Date" in df.columns:
@@ -275,7 +275,7 @@ def render_return_analytics_tab():
                         if "full_enriched_returns" in st.session_state:
                             del st.session_state["full_enriched_returns"]
 
-                    st.markdown("### 📅 Filter Returns by Date")
+                    st.markdown("### ð" Filter Returns by Date")
                     col1, col2 = st.columns([1.5, 1])
 
                     with col1:
@@ -335,7 +335,7 @@ def render_return_analytics_tab():
 
             st.markdown(
                 '<div class="metric-container">'
-                f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Filtered Returns</div><div class="metric-value">{total_returns}</div></div><div class="metric-icon">📦</div></div>'
+                f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Filtered Returns</div><div class="metric-value">{total_returns}</div></div><div class="metric-icon">ð"¦</div></div>'
                 "</div>",
                 unsafe_allow_html=True,
             )
@@ -344,15 +344,15 @@ def render_return_analytics_tab():
 
             tab_enrich, tab_recon, tab_direct_wc, tab_raw = st.tabs(
                 [
-                    "🚀 Enriched Matches & Analytics",
-                    "⚖️ WooCommerce Reconciliation Matrix",
-                    "🌐 Direct WooCommerce Refund Audit",
-                    "📄 Raw Google Sheet Data",
+                    "ð Enriched Matches & Analytics",
+                    "â-ï¸ WooCommerce Reconciliation Matrix",
+                    "ð Direct WooCommerce Refund Audit",
+                    "ð" Raw Google Sheet Data",
                 ]
             )
 
             with tab_raw:
-                st.markdown("#### 📋 Loaded Google Sheet Data")
+                st.markdown("#### ð" Loaded Google Sheet Data")
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
             with tab_direct_wc:
@@ -364,7 +364,7 @@ def render_return_analytics_tab():
 
             with tab_enrich:
                 st.markdown(
-                    "#### 🔄 Real-Time Return Tracking & WooCommerce Cross-Verification"
+                    "#### ð" Real-Time Return Tracking & WooCommerce Cross-Verification"
                 )
 
                 enable_pathao = st.toggle(
@@ -380,7 +380,7 @@ def render_return_analytics_tab():
                     )
                 with col2:
                     if st.button(
-                        "⚡ Fetch & Enrich Data",
+                        "â¡ Fetch & Enrich Data",
                         use_container_width=True,
                         type="primary",
                     ):
@@ -395,7 +395,7 @@ def render_return_analytics_tab():
                             df_to_match["Order ID"].astype(int).unique().tolist()
                         )
                         with st.status(
-                            "🔗 Enriching return data with WooCommerce & Pathao...",
+                            "ð"- Enriching return data with WooCommerce & Pathao...",
                             expanded=True,
                         ) as enrich_status:
                             from src.services.woocommerce.client import (
@@ -404,7 +404,7 @@ def render_return_analytics_tab():
 
                             try:
                                 enrich_status.update(
-                                    label="📡 Fetching WooCommerce order details..."
+                                    label="ð"¡ Fetching WooCommerce order details..."
                                 )
                                 wc_orders = fetch_specific_woocommerce_orders(
                                     order_ids_to_fetch
@@ -423,7 +423,7 @@ def render_return_analytics_tab():
                                         .tolist()
                                     )
                                     enrich_status.update(
-                                        label=f"🔄 Fetching Pathao statuses (disk-cached) for {len(courier_ids)} orders..."
+                                        label=f"ð" Fetching Pathao statuses (disk-cached) for {len(courier_ids)} orders..."
                                     )
                                     from src.services.pathao.status import (
                                         batch_get_pathao_order_statuses,
@@ -444,7 +444,7 @@ def render_return_analytics_tab():
 
                                 if not wc_df.empty and "Order Number" in wc_df.columns:
                                     enrich_status.update(
-                                        label="🔄 Merging return data with WooCommerce orders..."
+                                        label="ð" Merging return data with WooCommerce orders..."
                                     )
                                     wc_df["Order Number_Num"] = pd.to_numeric(
                                         wc_df["Order Number"], errors="coerce"
@@ -460,7 +460,7 @@ def render_return_analytics_tab():
 
                                     if merged_df.empty:
                                         enrich_status.update(
-                                            label="⚠️ No matching WooCommerce orders found",
+                                            label="â ï¸ No matching WooCommerce orders found",
                                             state="error",
                                         )
                                         st.warning(
@@ -507,12 +507,12 @@ def render_return_analytics_tab():
                                             merged_df.copy()
                                         )
                                         enrich_status.update(
-                                            label=f"✅ Enriched {len(merged_df)} return records",
+                                            label=f"â Enriched {len(merged_df)} return records",
                                             state="complete",
                                         )
                                 else:
                                     enrich_status.update(
-                                        label="⚠️ WooCommerce returned no data",
+                                        label="â ï¸ WooCommerce returned no data",
                                         state="error",
                                     )
                                     st.warning(
@@ -521,7 +521,7 @@ def render_return_analytics_tab():
 
                             except Exception as match_err:
                                 enrich_status.update(
-                                    label="❌ Enrichment failed", state="error"
+                                    label="â Enrichment failed", state="error"
                                 )
                                 st.error(f"Failed to load external data: {match_err}")
 
@@ -649,12 +649,12 @@ def render_return_analytics_tab():
                         '<div class="metric-container">', unsafe_allow_html=True
                     )
                     st.markdown(
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Shipped</div><div class="metric-value">{total_shipped}</div></div><div class="metric-icon">📦</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Matched Returns</div><div class="metric-value">{total_matches}</div></div><div class="metric-icon">🔁</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Return Rate</div><div class="metric-value">{return_rate:.1f}%</div></div><div class="metric-icon">📉</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">WC Status Mismatches</div><div class="metric-value">{wc_mismatches}</div></div><div class="metric-icon">⚠️</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Prepaid Refund Risks</div><div class="metric-value">{prepaid_refunds}</div></div><div class="metric-icon">💳</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Financial Impact</div><div class="metric-value">৳ {financial_impact:,.0f}</div></div><div class="metric-icon">💰</div></div>',
+                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Shipped</div><div class="metric-value">{total_shipped}</div></div><div class="metric-icon">ð"¦</div></div>'
+                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Matched Returns</div><div class="metric-value">{total_matches}</div></div><div class="metric-icon">ð"</div></div>'
+                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Return Rate</div><div class="metric-value">{return_rate:.1f}%</div></div><div class="metric-icon">ð"</div></div>'
+                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">WC Status Mismatches</div><div class="metric-value">{wc_mismatches}</div></div><div class="metric-icon">â ï¸</div></div>'
+                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Prepaid Refund Risks</div><div class="metric-value">{prepaid_refunds}</div></div><div class="metric-icon">ð'³</div></div>'
+                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Financial Impact</div><div class="metric-value">à§³ {financial_impact:,.0f}</div></div><div class="metric-icon">ð'°</div></div>',
                         unsafe_allow_html=True,
                     )
                     st.markdown("</div>", unsafe_allow_html=True)
@@ -666,7 +666,7 @@ def render_return_analytics_tab():
                     col_chart1, col_chart2 = st.columns(2)
 
                     with col_chart1:
-                        st.markdown("##### 🍩 Return Reasons Breakdown")
+                        st.markdown("##### ð© Return Reasons Breakdown")
                         if (
                             "Delivery Issue" in enriched_df.columns
                             and not enriched_df["Delivery Issue"].isna().all()
@@ -699,7 +699,7 @@ def render_return_analytics_tab():
                             st.info("No Return Reason data available.")
 
                     with col_chart2:
-                        st.markdown("##### 📈 Return Volume over Time")
+                        st.markdown("##### ð" Return Volume over Time")
                         if "Order Date" in enriched_df.columns:
                             try:
                                 df_dates = enriched_df.copy()
@@ -739,7 +739,7 @@ def render_return_analytics_tab():
                             st.info("No Order Date data available.")
 
                     st.divider()
-                    st.markdown("##### 📋 Matched Records & Status Overview")
+                    st.markdown("##### ð" Matched Records & Status Overview")
                     st.dataframe(
                         enriched_df,
                         use_container_width=True,
@@ -751,13 +751,13 @@ def render_return_analytics_tab():
                             ),
                             "Item Cost": st.column_config.NumberColumn(
                                 "Item Cost",
-                                format="৳ %d",
+                                format="à§³ %d",
                             ),
                         },
                     )
 
             with tab_recon:
-                st.markdown("#### ⚖️ WooCommerce Status Reconciliation & Action Audit")
+                st.markdown("#### â-ï¸ WooCommerce Status Reconciliation & Action Audit")
                 st.caption(
                     "Audit returned orders against live WooCommerce order statuses and Pathao delivery logs to catch order status mismatches and prepaid refund risks."
                 )
@@ -768,10 +768,10 @@ def render_return_analytics_tab():
 
                     filter_opts = [
                         "All Returns",
-                        "⚠️ WC Status Mismatches Only",
-                        "💳 Prepaid Refund Risks",
-                        "🚨 Courier Discrepancies",
-                        "✅ Verified Returns",
+                        "â ï¸ WC Status Mismatches Only",
+                        "ð'³ Prepaid Refund Risks",
+                        "ð¨ Courier Discrepancies",
+                        "â Verified Returns",
                     ]
                     if hasattr(st, "pills"):
                         sel_filter = st.pills(
@@ -790,25 +790,25 @@ def render_return_analytics_tab():
                         )
 
                     display_recon = rec_df.copy()
-                    if sel_filter == "⚠️ WC Status Mismatches Only":
+                    if sel_filter == "â ï¸ WC Status Mismatches Only":
                         display_recon = display_recon[
                             display_recon["Reconciliation Status"]
                             .astype(str)
                             .str.contains("WC Status Mismatch", case=False, na=False)
                         ]
-                    elif sel_filter == "💳 Prepaid Refund Risks":
+                    elif sel_filter == "ð'³ Prepaid Refund Risks":
                         display_recon = display_recon[
                             display_recon["Payment Type"]
                             .astype(str)
                             .str.contains("Prepaid", case=False, na=False)
                         ]
-                    elif sel_filter == "🚨 Courier Discrepancies":
+                    elif sel_filter == "ð¨ Courier Discrepancies":
                         display_recon = display_recon[
                             display_recon["Reconciliation Status"]
                             .astype(str)
                             .str.contains("Courier Discrepancy", case=False, na=False)
                         ]
-                    elif sel_filter == "✅ Verified Returns":
+                    elif sel_filter == "â Verified Returns":
                         display_recon = display_recon[
                             display_recon["Reconciliation Status"]
                             .astype(str)
@@ -816,7 +816,7 @@ def render_return_analytics_tab():
                         ]
 
                     search_q = st.text_input(
-                        "🔍 Search by Order ID, Phone, or Product Name",
+                        "ð" Search by Order ID, Phone, or Product Name",
                         key="search_recon_matrix",
                     ).strip()
                     if search_q:
@@ -874,7 +874,7 @@ def render_return_analytics_tab():
                                 "Recommended Action"
                             ),
                             "Item Cost": st.column_config.NumberColumn(
-                                "Item Value", format="৳ %d"
+                                "Item Value", format="à§³ %d"
                             ),
                         },
                     )
@@ -914,7 +914,7 @@ def render_return_analytics_tab():
                     excel_data = output.getvalue()
 
                     st.download_button(
-                        label="📥 Download Reconciliation & Action Audit Report (Multi-Sheet Excel)",
+                        label="ð"¥ Download Reconciliation & Action Audit Report (Multi-Sheet Excel)",
                         data=excel_data,
                         file_name="woocommerce_return_reconciliation_report.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -924,10 +924,29 @@ def render_return_analytics_tab():
                     )
                 else:
                     st.info(
-                        "ℹ️ Click **⚡ Fetch & Enrich Data** in the *Enriched Matches* tab to generate the WooCommerce Reconciliation Matrix."
+                        "â¹ï¸ Click **â¡ Fetch & Enrich Data** in the *Enriched Matches* tab to generate the WooCommerce Reconciliation Matrix."
                     )
 
         except Exception as e:
             st.error(
                 f"Failed to fetch or parse Return Analytics data from the provided URL. Error: {e}"
             )
+
+
+# ---------------------------------------------------------------------------
+# Combined entry point - Return Analytics + Return Orders Extractor
+# ---------------------------------------------------------------------------
+
+
+def render_combined_returns_tab():
+    """Unified Returns page: stacks Return Analytics and Return Orders Extractor."""
+    from src.utils.safe_ops import safe_render
+
+    st.markdown("## ?? Return Analytics")
+    safe_render(render_return_analytics_tab, fallback_msg="Return Analytics unavailable.")
+
+    st.divider()
+
+    st.markdown("## ?? Return Orders Extractor")
+    from src.pages.return_order_extractor import render_return_order_extractor_tab
+    safe_render(render_return_order_extractor_tab, fallback_msg="Return Orders Extractor unavailable.")

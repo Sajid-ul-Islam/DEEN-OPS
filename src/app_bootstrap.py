@@ -401,6 +401,7 @@ def _route_page(selected_nav: str) -> None:
             "Product Listing",
             "Pathao Processor",
             "Delivery Data Parser",
+            "SIP Outlet Mapper",
         ]
         if (
             "orders_sub_feature" not in st.session_state
@@ -448,6 +449,13 @@ def _route_page(selected_nav: str) -> None:
                 fallback_msg="Delivery Data Parser unavailable.",
             )
 
+        elif active_sub == "SIP Outlet Mapper":
+            from src.pages.sip_outlet_mapper import render_sip_outlet_tab
+
+            safe_render(
+                render_sip_outlet_tab, fallback_msg="SIP Outlet Mapper unavailable."
+            )
+
     # === 📦 Inventory & Stock (Consolidated) ===
     elif selected_nav == "📦 Inventory & Stock":
         inventory_sub_options = [
@@ -484,8 +492,7 @@ def _route_page(selected_nav: str) -> None:
     elif selected_nav == "📊 Analytics & Insights":
         analytics_sub_options = [
             "Sales Data Ingestion",
-            "Return Analytics",
-            "Return Orders Extractor",
+            "Returns",
         ]
         if (
             "analytics_sub_feature" not in st.session_state
@@ -513,57 +520,12 @@ def _route_page(selected_nav: str) -> None:
             safe_render(
                 render_manual_tab, fallback_msg="Sales Data Ingestion unavailable."
             )
-        elif st.session_state.analytics_sub_feature == "Return Analytics":
-            from src.pages.return_analytics import render_return_analytics_tab
+        elif st.session_state.analytics_sub_feature == "Returns":
+            from src.pages.return_analytics import render_combined_returns_tab
 
             safe_render(
-                render_return_analytics_tab,
-                fallback_msg="Return Analytics unavailable.",
+                render_combined_returns_tab, fallback_msg="Returns unavailable."
             )
-        elif st.session_state.analytics_sub_feature == "Return Orders Extractor":
-            from src.pages.return_order_extractor import (
-                render_return_order_extractor_tab,
-            )
-
-            safe_render(
-                render_return_order_extractor_tab,
-                fallback_msg="Return Orders Extractor unavailable.",
-            )
-
-    # === 🤖 Automation Tools (Consolidated) ===
-    elif selected_nav == "🤖 Automation Tools":
-        automation_sub_options = ["SIP Outlet Mapper"]
-        if (
-            "automation_sub_feature" not in st.session_state
-            or st.session_state.automation_sub_feature not in automation_sub_options
-        ):
-            st.session_state.automation_sub_feature = "WhatsApp Messaging"
-
-        with st.expander("📂 Select Feature", expanded=False):
-            sub_feature = st.radio(
-                "Choose a feature:",
-                automation_sub_options,
-                index=automation_sub_options.index(
-                    st.session_state.automation_sub_feature
-                ),
-                label_visibility="collapsed",
-                horizontal=True,
-            )
-            if sub_feature != st.session_state.automation_sub_feature:
-                st.session_state.automation_sub_feature = sub_feature
-                st.rerun()
-
-        # Route to the SIP Outlet Mapper tool
-        if st.session_state.automation_sub_feature == "SIP Outlet Mapper":
-            from src.pages.sip_outlet_mapper import render_sip_outlet_tab
-
-            safe_render(
-                render_sip_outlet_tab, fallback_msg="SIP Outlet Mapper unavailable."
-            )
-        else:
-            # Legacy feature removed; snap back to the only remaining tool.
-            st.session_state.automation_sub_feature = "SIP Outlet Mapper"
-            st.rerun()
 
 
 # ── Public entry point ──────────────────────────────────────────────────────
@@ -640,8 +602,6 @@ def run_app() -> None:
         st.session_state["inventory_sub_feature"] = "Current Stock Analytics"
     if "analytics_sub_feature" not in st.session_state:
         st.session_state["analytics_sub_feature"] = "Sales Data Ingestion"
-    if "automation_sub_feature" not in st.session_state:
-        st.session_state["automation_sub_feature"] = "SIP Outlet Mapper"
 
     # ── Sidebar & Mobile Navigation State ───────────────────────────────────
     default_nav = (

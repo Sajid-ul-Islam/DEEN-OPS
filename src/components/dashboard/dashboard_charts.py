@@ -16,6 +16,10 @@ def get_short_category_label(name: str) -> str:
     name_str = name.strip()
     lower_n = name_str.lower()
 
+    if "denim jacket" in lower_n:
+        return "Denim Jacket"
+    if "denim shirt" in lower_n:
+        return "Denim Shirt"
     if "denim" in lower_n:
         return "Denim"
     if "flannel" in lower_n:
@@ -624,3 +628,4 @@ def render_spotlight(
     fig_top.update_yaxes(automargin=True)
     fig_top.update_xaxes(automargin=True)
     st.plotly_chart(fig_top, use_container_width=True, config={"displayModeBar": False})
+

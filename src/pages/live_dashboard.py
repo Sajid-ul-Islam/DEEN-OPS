@@ -101,6 +101,8 @@ def _get_comparison_frame(
     if selected_view in {"Today Shipped", "Today"}:
         _cmp_f = filter_live_dashboard_view(_dash_src, "Last Day Shipped")
     elif selected_view == "All Orders":
+        # Always resolve full_raw up front so later references never raise NameError
+        full_raw = st.session_state.get("wc_full_df")
         # First try to get previous day's data from dashboard source using date-based filtering
         if _dash_src is not None and not _dash_src.empty:
             prev_work_d = get_previous_working_day(bd_today())
@@ -111,7 +113,6 @@ def _get_comparison_frame(
         if _cmp_f is None or _cmp_f.empty:
             _cmp_raw = st.session_state.get("wc_prev_df")
             if _cmp_raw is None or _cmp_raw.empty:
-                full_raw = st.session_state.get("wc_full_df")
                 if full_raw is not None and not full_raw.empty:
                     try:
                         from src.services.woocommerce.client import (
