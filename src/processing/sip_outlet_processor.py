@@ -509,14 +509,18 @@ def get_fulfillment_group(outlet_name: Any) -> Tuple[str, str, str]:
         Tuple of (group_name, suffix, warehouse_outlet_label).
     """
     out = str(outlet_name).strip().lower()
-    if out in (
-        "warehouse",
-        "mirpur",
-        "mirpur-12",
-        "mirpur 12",
-        "ecom",
-        "wh",
-        "default",
+    if (
+        out in (
+            "warehouse",
+            "mirpur",
+            "mirpur-12",
+            "mirpur 12",
+            "ecom",
+            "wh",
+            "default",
+        )
+        or "ecom-mirpur" in out
+        or "ecom mirpur" in out
     ):
         return "Warehouse", "", "Warehouse"
     elif "cumilla" in out or "comilla" in out:

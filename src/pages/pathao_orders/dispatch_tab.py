@@ -30,7 +30,10 @@ def _prepare_dispatch(result_df, stores, account_scope, **settings):
     for position, (_, row) in enumerate(result_df.iterrows(), start=1):
         outlet = _warehouse(row)
         try:
-            payload = build_order_payload(row, stores.get(outlet), **settings)
+            store_id = stores.get(outlet)
+            if store_id is None and outlet in ("Warehouse", "Ecom Mirpur"):
+                store_id = stores.get("Ecom Mirpur") or stores.get("Warehouse")
+            payload = build_order_payload(row, store_id, **settings)
             key = ledger_key(account_scope, payload["merchant_order_id"], outlet)
             if key in seen:
                 raise ValueError(

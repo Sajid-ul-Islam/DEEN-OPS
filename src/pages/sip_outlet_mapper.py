@@ -108,7 +108,6 @@ def render_sip_outlet_tab() -> None:
         "Select Data Source:",
         [
             "📁 Upload Order File (Excel/CSV)",
-            "📋 Load Sample Input File",
             "⚡ Live WooCommerce Data",
         ],
         horizontal=True,
@@ -116,18 +115,8 @@ def render_sip_outlet_tab() -> None:
     )
 
     df: Optional[pd.DataFrame] = None
-    sample_path = "Product listing Sample input.xlsx"
 
-    if source_opt == "📋 Load Sample Input File":
-        if os.path.exists(sample_path):
-            try:
-                df = pd.read_excel(sample_path)
-                st.success(f"Loaded **{len(df):,}** rows from sample file (`{sample_path}`).")
-            except Exception as e:
-                st.error(f"Error loading sample file: {e}")
-        else:
-            st.warning(f"Sample input file `{sample_path}` not found in root directory.")
-    elif source_opt == "⚡ Live WooCommerce Data":
+    if source_opt == "⚡ Live WooCommerce Data":
         wc_df = st.session_state.get("wc_full_df")
         if wc_df is None or wc_df.empty:
             wc_df = st.session_state.get("wc_curr_df")
@@ -153,7 +142,7 @@ def render_sip_outlet_tab() -> None:
 
     if df is None or df.empty:
         st.info(
-            "💡 Upload an order file, load the sample file, or sync live WooCommerce data to extract item-wise outlets."
+            "💡 Upload an order file or sync live WooCommerce data to extract item-wise outlets."
         )
         return
 

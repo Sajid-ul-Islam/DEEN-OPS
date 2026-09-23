@@ -51,6 +51,10 @@ STANDARD_COLUMNS = [
     "Item Cost",
     "Order Total Amount",
     "Payment Method Title",
+    "SIP",
+    "Item Outlet",
+    "SKU",
+    "Dispatch Suggestion",
 ]
 
 ORDER_ID_ALIASES = [
@@ -159,6 +163,41 @@ COLUMN_ALIASES: Dict[str, List[str]] = {
         "Order Amount",
     ],
     "Payment Method Title": ["Payment Method", "Payment", "Payment Method Title"],
+    "SIP": [
+        "SIP",
+        "sip",
+        "SIP Stock",
+        "Outlet SIP",
+        "Outlet Stock",
+        "SIP Outlet",
+        "Routing",
+        "Outlet Routing",
+    ],
+    "Item Outlet": [
+        "Item Outlet",
+        "item_outlet",
+        "Outlet",
+        "outlet",
+        "Dispatch Outlet",
+        "Fulfillment Outlet",
+        "Branch",
+        "Store",
+    ],
+    "SKU": [
+        "SKU",
+        "Item SKU",
+        "Product SKU",
+        "SKU Code",
+        "sku",
+        "Item_SKU",
+        "Product_SKU",
+    ],
+    "Dispatch Suggestion": [
+        "Dispatch Suggestion",
+        "Dispatch",
+        "Location",
+        "Outlet Location",
+    ],
 }
 
 
@@ -170,6 +209,17 @@ REQUIRED_UPLOAD_COLUMNS = [
     "Item Cost",
     "Order Total Amount",
 ]
+
+OPTIONAL_UPLOAD_COLUMNS = {
+    "SIP",
+    "Item Outlet",
+    "SKU",
+    "Dispatch Suggestion",
+    "Payment Method Title",
+    "Last Name (Shipping)",
+    "City (Shipping)",
+    "State Code (Shipping)",
+}
 
 
 def _invalidate_processing_result():
@@ -346,6 +396,10 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
         undetected_cols = [
             k for k in undetected_cols if k not in ("Order ID", "Order Number")
         ]
+    # Exclude optional columns (SIP, Item Outlet, SKU, etc.) from undetected prompt
+    undetected_cols = [
+        k for k in undetected_cols if k not in OPTIONAL_UPLOAD_COLUMNS
+    ]
 
     if detected_cols:
         st.success(f"✅ Detected {len(detected_cols)} columns automatically")
@@ -449,6 +503,9 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
                 undetected_cols = [
                     k for k in undetected_cols if k not in ("Order ID", "Order Number")
                 ]
+            undetected_cols = [
+                k for k in undetected_cols if k not in OPTIONAL_UPLOAD_COLUMNS
+            ]
 
     def has_values(column):
         return (
@@ -660,6 +717,12 @@ def _render_processing_tab():
         valid_file = len(phone_cols_present) > 0 and not preview_df.empty
 
     if preview_df is not None:
+        if "SIP" in preview_df.columns or "Item Outlet" in preview_df.columns:
+            st.info(
+                "🏭 **Outlet-Wise Routing Active**: SIP JSON or Item Outlet data detected. "
+                "Multi-outlet orders will automatically split into designated consignments "
+                "(Warehouse primary, branch suffixes, and delivery fee allocated to parcel 1)."
+            )
         with st.expander("Preview source data", expanded=False):
             preview_search = render_dataframe_search(
                 preview_df, "pathao_preview", height=400
@@ -713,7 +776,7 @@ def _render_processing_tab():
                 use_container_width=True,
             )
 
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         with c1:
             pathao_excel_bytes = export_to_styled_excel(
                 {"Pathao": result_df}, group_by_col="MerchantOrderId"
@@ -729,6 +792,17 @@ def _render_processing_tab():
             )
 
         with c2:
+            pathao_csv_bytes = result_df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "Download Pathao Bulk (.csv)",
+                pathao_csv_bytes,
+                "Pathao_Bulk.csv",
+                mime="text/csv",
+                type="secondary",
+                use_container_width=True,
+            )
+
+        with c3:
             if st.button(
                 "Generate Verification Links",
                 type="secondary",

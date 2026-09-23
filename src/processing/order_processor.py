@@ -8,6 +8,12 @@ from src.utils.streamlit_runtime import cache_data
 from rapidfuzz import process
 
 from src.config.constants import RESOURCES_DIR
+from src.processing.sip_outlet_processor import (
+    get_fulfillment_group,
+    is_inside_dhaka,
+    normalize_recipient_address,
+    normalize_recipient_name,
+)
 from src.utils.text import normalize_city_name, peek_zone_from_address
 
 # Column aliases for fallback when files use different header names
@@ -68,6 +74,35 @@ _COLUMN_ALIASES: Dict[str, List[str]] = {
     ],
     "City (Shipping)": ["Shipping City", "City"],
     "State Code (Shipping)": ["Shipping State", "State", "State Code"],
+    "SIP": [
+        "SIP",
+        "sip",
+        "SIP Stock",
+        "Outlet SIP",
+        "Outlet Stock",
+        "SIP Outlet",
+        "Routing",
+        "Outlet Routing",
+    ],
+    "Item Outlet": [
+        "Item Outlet",
+        "item_outlet",
+        "Outlet",
+        "outlet",
+        "Dispatch Outlet",
+        "Fulfillment Outlet",
+        "Branch",
+        "Store",
+    ],
+    "SKU": [
+        "SKU",
+        "Item SKU",
+        "Product SKU",
+        "SKU Code",
+        "sku",
+        "Item_SKU",
+        "Product_SKU",
+    ],
 }
 
 
@@ -268,6 +303,25 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             df["Order ID"] = df["Order Number"]
         elif id_has and not num_has:
             df["Order Number"] = df["Order ID"]
+
+    # Resolve Item Outlet from SIP JSON routing if SIP is present and Item Outlet is not
+    if "SIP" in df.columns and "Item Outlet" not in df.columns:
+        from src.processing.sip_outlet_processor import process_order_item_outlets
+
+        order_col = next(
+            (
+                c
+                for c in ["Order Number", "Order ID", "order_id", "ID"]
+                if c in df.columns
+            ),
+            df.columns[0] if not df.empty else "Order Number",
+        )
+        try:
+            df = process_order_item_outlets(
+                df, order_col=order_col, sip_col="SIP", target_col="Item Outlet"
+            )
+        except Exception:
+            pass
 
     return df
 
@@ -678,25 +732,42 @@ def _get_dispatch_warehouse(dispatch_loc: str) -> str:
     """
     Map a dispatch location string to a warehouse/outlet label.
     Uses the same routing logic as _get_dispatch_group but returns
-    a canonical warehouse name for the new WarehouseOutlet column.
+    a canonical warehouse name for the WarehouseOutlet column.
     """
     loc_lower = str(dispatch_loc).lower()
-    if "cumilla" in loc_lower:
+    if "cumilla" in loc_lower or "comilla" in loc_lower:
         return "Cumilla Outlet"
     if "wari" in loc_lower:
         return "Wari Outlet"
     if "sylhet" in loc_lower:
         return "Sylhet Outlet"
-    if "mirpur" in loc_lower or "ecom" in loc_lower:
+    if any(w in loc_lower for w in ("mirpur", "ecom", "warehouse", "wh")):
         return "Ecom Mirpur"
-    return "Ecom-Mirpur"
+    clean = str(dispatch_loc).strip().title()
+    return f"{clean} Outlet" if not clean.endswith(" Outlet") else clean
 
 
 def _get_dispatch_group(row: pd.Series, order_col: str) -> str:
-    """Determine the dispatch location for a given row."""
+    """Determine the dispatch location for a given row.
+    Follows Outlet-Wise Extractor fulfillment rules:
+    1. Direct 'Item Outlet' (from SIP extraction or column)
+    2. 'Dispatch Suggestion'
+    3. Order number suffix (' c', ' w', ' s', etc.)
+    4. Fallback to primary dispatch 'Warehouse'
+    """
+    # 1. Direct Item Outlet (from SIP extraction or column)
+    item_outlet = str(row.get("Item Outlet", "")).strip()
+    if item_outlet and item_outlet.lower() not in ("nan", "none", ""):
+        grp_name, _, _ = get_fulfillment_group(item_outlet)
+        return grp_name
+
+    # 2. Dispatch Suggestion
     sugg = str(row.get("Dispatch Suggestion", "")).strip()
     if sugg and sugg.lower() != "nan" and sugg != "Multiple / Split":
-        return sugg
+        grp_name, _, _ = get_fulfillment_group(sugg)
+        return grp_name
+
+    # 3. Order number suffix
     val = str(row.get(order_col, "")).lower()
     if val.endswith(" c"):
         return "Cumilla"
@@ -704,7 +775,7 @@ def _get_dispatch_group(row: pd.Series, order_col: str) -> str:
         return "Wari"
     if val.endswith(" s"):
         return "Sylhet"
-    return "Ecom-Mirpur"
+    return "Warehouse"
 
 
 def _extract_payment_info(
@@ -831,7 +902,9 @@ def _resolve_address(
     if not combined_address:
         combined_address = str(first_row.get("State Name (Billing)", "")).strip()
 
-    address_val = " ".join(combined_address.split()).title()
+    address_val = normalize_recipient_address(combined_address)
+    if not address_val:
+        address_val = " ".join(combined_address.split()).title()
 
     extracted_zone = raw_city.title()
     if extracted_zone.lower() == "nan":
@@ -880,26 +953,28 @@ def _lookup_pathao_geocoding(
 
 
 def _build_combined_merchant_id(df_sub: pd.DataFrame, order_col: str) -> str:
-    """Combine merchant order IDs with dispatch suffixes."""
+    """Combine merchant order IDs with dispatch suffixes matching Outlet-Wise Extractor rules."""
     if order_col not in df_sub.columns:
         return "N/A"
 
+    dispatch_loc = df_sub.iloc[0].get("_dispatch_loc", "")
+    _, grp_suffix, _ = get_fulfillment_group(dispatch_loc)
+
     order_ids = []
     for _, r in df_sub.iterrows():
-        val = str(r[order_col])
-        if val.lower() == "nan":
+        val = str(r[order_col]).strip()
+        if val.lower() in ("nan", "none", ""):
             continue
         if val.endswith(".0"):
             val = val[:-2]
 
-        sugg = str(r.get("Dispatch Suggestion", "")).strip()
-        suffix = ""
-        if sugg == "Cumilla":
-            suffix = " c"
-        elif sugg == "Wari":
-            suffix = " w"
-        elif sugg == "Sylhet":
-            suffix = " s"
+        suffix = grp_suffix
+        if not suffix:
+            sugg = str(r.get("Dispatch Suggestion", "")).strip()
+            if sugg:
+                _, sugg_suffix, _ = get_fulfillment_group(sugg)
+                if sugg_suffix:
+                    suffix = sugg_suffix
 
         if suffix and not val.endswith(suffix):
             val += suffix
@@ -907,7 +982,7 @@ def _build_combined_merchant_id(df_sub: pd.DataFrame, order_col: str) -> str:
         if val not in order_ids:
             order_ids.append(val)
 
-    return ", ".join(order_ids)
+    return ", ".join(order_ids) if order_ids else "N/A"
 
 
 def _validate_city_zone(
@@ -951,28 +1026,34 @@ def _distribute_amount_to_collect(
     parcel_records: List[Dict[str, Any]],
     parcel_base_values: List[float],
     recipient_city: str,
+    recipient_address: str = "",
 ) -> None:
-    """Distribute the total amount to collect across parcels with partial order detection."""
+    """Distribute the total amount to collect across parcels.
+    Follows Outlet-Wise Extractor / Pathao Bulk rules:
+    - Primary dispatch (parcel 0) includes delivery fee.
+    - Subsequent split parcels collect only their respective item costs.
+    - Prepaid orders collect 0 on all parcels.
+    """
+    if total_to_collect <= 0:
+        for rec in parcel_records:
+            rec["AmountToCollect(*)"] = 0
+        return
+
+    # If total_to_collect was 0 but base > 0 (COD without explicit total amount)
     if total_to_collect == 0 and total_base > 0:
-        city_lower = str(recipient_city).lower()
         delivery_fee = (
-            60
-            if any(d in city_lower for d in ["dhaka", "savar", "keraniganj"])
-            else 120
+            50
+            if is_inside_dhaka(recipient_city, recipient_address)
+            else 90
         )
         total_to_collect = total_base + delivery_fee
 
-    if total_to_collect <= 0:
-        return
-
     diff = total_to_collect - total_base
-
     if diff > 250:
-        city_lower = str(recipient_city).lower()
         delivery_fee = (
-            60
-            if any(d in city_lower for d in ["dhaka", "savar", "keraniganj"])
-            else 120
+            50
+            if is_inside_dhaka(recipient_city, recipient_address)
+            else 90
         )
         total_to_collect = total_base + delivery_fee
 
@@ -985,16 +1066,14 @@ def _distribute_amount_to_collect(
             )
 
     if len(parcel_records) == 1:
-        parcel_records[0]["AmountToCollect(*)"] = int(total_to_collect)
+        parcel_records[0]["AmountToCollect(*)"] = int(round(total_to_collect))
     else:
-        max_idx = parcel_base_values.index(max(parcel_base_values))
-        sum_others = sum(v for i, v in enumerate(parcel_base_values) if i != max_idx)
-        for i, rec in enumerate(parcel_records):
-            rec["AmountToCollect(*)"] = int(
-                max(0, total_to_collect - sum_others)
-                if i == max_idx
-                else parcel_base_values[i]
-            )
+        sum_others = sum(parcel_base_values[1:])
+        parcel_records[0]["AmountToCollect(*)"] = int(
+            round(max(0, total_to_collect - sum_others))
+        )
+        for i in range(1, len(parcel_records)):
+            parcel_records[i]["AmountToCollect(*)"] = int(round(parcel_base_values[i]))
 
 
 def process_single_order_group(
@@ -1017,6 +1096,15 @@ def process_single_order_group(
         lambda r: _get_dispatch_group(r, order_col), axis=1
     )
     subgroups = [df_sub for _, df_sub in group.groupby("_dispatch_loc")]
+    # Ensure primary dispatch (Warehouse / Mirpur / Ecom) is always parcel 0
+    subgroups.sort(
+        key=lambda s: 0
+        if any(
+            w in str(s["_dispatch_loc"].iloc[0]).lower()
+            for w in ("warehouse", "mirpur", "ecom", "wh")
+        )
+        else 1
+    )
 
     total_to_collect, trx_info = _extract_payment_info(group, order_col, trx_col)
 
@@ -1034,7 +1122,7 @@ def process_single_order_group(
     parcel_records = []
     parcel_base_values = []
 
-    for df_sub in subgroups:
+    for subgroup_idx, df_sub in enumerate(subgroups):
         first_row = df_sub.iloc[0]
         from src.utils.product import is_bundle_or_combo
 
@@ -1062,18 +1150,13 @@ def process_single_order_group(
 
         combined_merchant_id = _build_combined_merchant_id(df_sub, order_col)
 
-        recipient_name = str(first_row.get(data_cols["name_col"], "")).strip().title()
-        if not recipient_name or recipient_name.lower() in (
-            "nan",
-            "none",
-            "customer",
-            "",
-        ):
-            full_val = str(first_row.get("Full Name (Shipping)", "")).strip().title()
-            if full_val and full_val.lower() not in ("nan", "none", ""):
-                recipient_name = full_val
-            else:
-                recipient_name = "Customer"
+        raw_name = first_row.get(data_cols["name_col"], "")
+        recipient_name = normalize_recipient_name(raw_name)
+        if not recipient_name:
+            full_val = first_row.get("Full Name (Shipping)", "")
+            recipient_name = normalize_recipient_name(full_val)
+        if not recipient_name:
+            recipient_name = "Customer"
 
         recipient_city, extracted_zone = _validate_city_zone(
             recipient_city, extracted_zone, address_val
@@ -1083,26 +1166,24 @@ def process_single_order_group(
         dispatch_loc = _get_dispatch_group(df_sub.iloc[0], order_col)
         warehouse_outlet = _get_dispatch_warehouse(dispatch_loc)
 
-        special_instruction = (
-            "⚠️ SPLIT PARCEL - This is part of a multi-parcel order."
-            if len(subgroups) > 1
-            else ""
-        )
-        if trx_info:
-            special_instruction = (
-                f"{special_instruction} | {trx_info}"
-                if special_instruction
-                else trx_info
+        is_split = len(subgroups) > 1
+        inst_parts = []
+        if is_split:
+            inst_parts.append(
+                f"Split Part {subgroup_idx + 1}/{len(subgroups)} [{dispatch_loc}]"
             )
 
-        # Append issue flags to SpecialInstruction
+        customer_note = str(first_row.get("Customer Note", "")).strip()
+        if customer_note and customer_note.lower() != "nan":
+            inst_parts.append(customer_note)
+
+        if trx_info:
+            inst_parts.append(trx_info)
+
         if group_flags:
-            flag_str = " | ".join(group_flags)
-            special_instruction = (
-                f"{special_instruction} | {flag_str}"
-                if special_instruction
-                else flag_str
-            )
+            inst_parts.append(" | ".join(group_flags))
+
+        special_instruction = " | ".join(inst_parts)
 
         record = {
             "ItemType": "Parcel",
@@ -1129,7 +1210,12 @@ def process_single_order_group(
 
     total_base = sum(parcel_base_values)
     _distribute_amount_to_collect(
-        total_to_collect, total_base, parcel_records, parcel_base_values, recipient_city
+        total_to_collect,
+        total_base,
+        parcel_records,
+        parcel_base_values,
+        recipient_city,
+        recipient_address=address_val,
     )
 
     return parcel_records
