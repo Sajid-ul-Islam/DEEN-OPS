@@ -526,9 +526,27 @@ def _render_bottom_tabs(active_df, top, today_rev, today_qty, today_orders, toda
         if st.session_state.get("shift_handover_text"):
             from src.components.ui.clipboard import render_copy_button
 
-            render_copy_button(
-                st.session_state["shift_handover_text"], label="📋 Copy Handover"
-            )
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                render_copy_button(
+                    st.session_state["shift_handover_text"], label="📋 Copy Handover"
+                )
+            with col_c2:
+                if st.button(
+                    "📲 Broadcast to Telegram",
+                    key="broadcast_shift_tg",
+                    use_container_width=True,
+                ):
+                    from src.utils.notifications import send_shift_report_notification
+
+                    if send_shift_report_notification(
+                        st.session_state["shift_handover_text"]
+                    ):
+                        st.toast("✅ Shift report broadcasted to Telegram!")
+                    else:
+                        st.info(
+                            "ℹ️ Telegram/Webhook not configured. Configure [telegram] in secrets.toml or TELEGRAM_BOT_TOKEN in env."
+                        )
             st.code(st.session_state["shift_handover_text"], language="text")
 
 

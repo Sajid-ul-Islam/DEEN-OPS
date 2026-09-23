@@ -46,6 +46,15 @@ def normalize_phone_key(cust_id: str | None) -> str:
 
 def load_customer_registry() -> dict[str, str]:
     """Load the customer registry mapping (customer_key -> ISO earliest_date_str)."""
+    try:
+        from src.utils.customer_db import get_phone_registry_dict
+
+        db_map = get_phone_registry_dict()
+        if db_map:
+            return db_map
+    except Exception:
+        pass
+
     if os.path.exists(CUSTOMER_REGISTRY_PATH):
         try:
             with open(CUSTOMER_REGISTRY_PATH, "r", encoding="utf-8") as f:
@@ -146,6 +155,12 @@ def update_customer_registry(
                 if cust_key.startswith("0"):
                     registry[cust_key[1:]] = dt_str
                 updated_cnt += 1
+                try:
+                    from src.utils.customer_db import upsert_customer
+
+                    upsert_customer(phone=cust_key, first_seen=dt_str)
+                except Exception:
+                    pass
 
         if updated_cnt > 0:
             os.makedirs(RESOURCES_DIR, exist_ok=True)

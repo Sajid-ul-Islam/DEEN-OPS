@@ -617,11 +617,33 @@ def _render_live_orders_view():
 
         display_df = display_df[cols]
 
-    styled_df = display_df.style
+    @st.fragment
+    def _render_paginated_table(table_df):
+        PAGE_SIZE = 50
+        total_orders = len(table_df)
+        total_pages = max(1, (total_orders + PAGE_SIZE - 1) // PAGE_SIZE)
 
-    if "Pathao Status" in display_df.columns:
+        col_p1, col_p2 = st.columns([3, 1])
+        with col_p1:
+            st.caption(
+                f"📊 Displaying **{total_orders:,}** orders across **{total_pages}** pages (50 per page)"
+            )
+        with col_p2:
+            page_num = st.number_input(
+                "Page",
+                min_value=1,
+                max_value=total_pages,
+                value=1,
+                step=1,
+                key="wc_orders_page_select",
+                label_visibility="collapsed",
+            )
 
-        def highlight_pathao_status(col):
+        start_idx = (page_num - 1) * PAGE_SIZE
+        end_idx = min(start_idx + PAGE_SIZE, total_orders)
+        page_df = table_df.iloc[start_idx:end_idx].copy()
+
+        def _highlight_pathao(col):
             return [
                 (
                     "background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;"
@@ -643,11 +665,7 @@ def _render_live_orders_view():
                 for v in col
             ]
 
-        styled_df = styled_df.apply(highlight_pathao_status, subset=["Pathao Status"])
-
-    if status_col and status_col in display_df.columns:
-
-        def highlight_wc_status(col):
+        def _highlight_wc(col):
             return [
                 (
                     "background-color: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 600;"
@@ -669,15 +687,21 @@ def _render_live_orders_view():
                 for v in col
             ]
 
-        styled_df = styled_df.apply(highlight_wc_status, subset=[status_col])
+        styled = page_df.style
+        if "Pathao Status" in page_df.columns:
+            styled = styled.apply(_highlight_pathao, subset=["Pathao Status"])
+        if status_col and status_col in page_df.columns:
+            styled = styled.apply(_highlight_wc, subset=[status_col])
 
-    st.dataframe(
-        styled_df,
-        use_container_width=False,
-        height=600,
-        column_config=column_configuration,
-        hide_index=True,
-    )
+        st.dataframe(
+            styled,
+            use_container_width=True,
+            height=550,
+            column_config=column_configuration,
+            hide_index=True,
+        )
+
+    _render_paginated_table(display_df)
 
 
 def _render_customer_profiles_view():

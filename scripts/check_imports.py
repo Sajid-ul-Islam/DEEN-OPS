@@ -71,6 +71,12 @@ MODULES = [
     "src.utils.metric_history",
     "src.processing.sip_outlet_processor",
     "src.pages.sip_outlet_mapper",
+    "src.utils.customer_db",
+    "src.services.courier.base",
+    "src.services.courier.steadfast",
+    "src.services.courier",
+    "src.processing.return_processor",
+    "src.utils.notifications",
 ]
 
 

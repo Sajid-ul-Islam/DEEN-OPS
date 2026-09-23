@@ -45,4 +45,8 @@ resources/pathao_status_cache.json
 data/
 resources/metric_snapshots/
 resources/sales_snapshot.csv
+resources/customer_registry.db
+*.db
+*.sqlite
+*.sqlite3
 *.local-backup

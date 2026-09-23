@@ -7,83 +7,9 @@ import streamlit as st
 from src.components.ui.ui_components import render_premium_header
 
 
-def _compute_reconciliation_fields(df: pd.DataFrame) -> pd.DataFrame:
-    """Classify returned orders against WooCommerce & Pathao live statuses."""
-    if df.empty:
-        return df
-
-    df = df.copy()
-
-    def _classify_row(row):
-        wc_st = str(row.get("Order Status", "")).lower().strip()
-        p_st = str(row.get("Live Pathao Status", "")).lower().strip()
-        pmt = str(row.get("Payment Method Title", "")).lower().strip()
-
-        # 1. Reconciliation Status
-        if wc_st in [
-            "refunded",
-            "cancelled",
-            "failed",
-            "returned",
-            "wc-refunded",
-            "wc-cancelled",
-            "wc-returned",
-        ]:
-            rec_status = "✅ Verified (WC Refunded/Cancelled)"
-        elif "delivered" in p_st:
-            rec_status = "🚨 Courier Discrepancy (Pathao Delivered)"
-        elif wc_st in [
-            "processing",
-            "shipped",
-            "completed",
-            "confirmed",
-            "wc-shipped",
-            "wc-completed",
-        ]:
-            rec_status = "⚠️ WC Status Mismatch (Action Needed)"
-        else:
-            rec_status = "🟡 Pending Verification"
-
-        # 2. Payment Refund Risk
-        is_prepaid = any(
-            kw in pmt
-            for kw in [
-                "bkash",
-                "nagad",
-                "rocket",
-                "card",
-                "online",
-                "ssl",
-                "amarpay",
-                "bank",
-            ]
-        ) or (
-            pmt != ""
-            and not any(kw in pmt for kw in ["cod", "cash on delivery", "cash"])
-        )
-        pmt_flag = (
-            "💳 Prepaid (Refund Verification Required)"
-            if is_prepaid
-            else "💵 Cash on Delivery (COD)"
-        )
-
-        # 3. Action Recommendation
-        if rec_status == "⚠️ WC Status Mismatch (Action Needed)":
-            action = "Update WC Order Status to Cancelled / Refunded"
-        elif rec_status == "🚨 Courier Discrepancy (Pathao Delivered)":
-            action = "Audit physically before issuing refund"
-        elif is_prepaid and rec_status != "✅ Verified (WC Refunded/Cancelled)":
-            action = "Verify customer bKash/Bank refund transfer"
-        else:
-            action = "No Action Required"
-
-        return pd.Series([rec_status, pmt_flag, action])
-
-    classified = df.apply(_classify_row, axis=1)
-    df["Reconciliation Status"] = classified[0]
-    df["Payment Type"] = classified[1]
-    df["Recommended Action"] = classified[2]
-    return df
+from src.processing.return_processor import (
+    compute_reconciliation_fields as _compute_reconciliation_fields,
+)
 
 
 def _render_direct_wc_audit_tab():
