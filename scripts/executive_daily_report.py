@@ -145,17 +145,17 @@ def generate_report_data():
     )
 
     # Process yesterday's context for delta comparison
-    prev_rev, prev_orders = 0, 0
+    _prev_rev, _prev_orders = 0, 0
     if df_prev_raw is not None and not df_prev_raw.empty:
         df_prev, _ = prepare_granular_data(df_prev_raw, wc_raw_mapping)
         _, summ_prev, _, basket_prev = aggregate_data(df_prev, wc_raw_mapping)
-        prev_rev = summ_prev["Total Amount"].sum() if summ_prev is not None else 0
-        prev_orders = basket_prev.get("total_orders", 0) if basket_prev else 0
+        _prev_rev = summ_prev["Total Amount"].sum() if summ_prev is not None else 0
+        _prev_orders = basket_prev.get("total_orders", 0) if basket_prev else 0
 
     dm = get_dispatch_metrics(df_live, today_orders)
 
     # Predictive Intelligence (Forecast next day)
-    forecast_str = ""
+    _forecast_str = ""
     if df_full_raw is not None and not df_full_raw.empty:
         df_full, _ = prepare_granular_data(df_full_raw, wc_raw_mapping)
         df_full["Day"] = pd.to_datetime(df_full["Date"]).dt.date
@@ -164,11 +164,11 @@ def generate_report_data():
             fc_res, _ = PredictiveIntelligence.forecast(daily_rev, steps=1)
             if fc_res:
                 next_day_pred = fc_res[0]["forecast"][0]
-                forecast_str = f"🔮 *ML Forecast (Tomorrow):* ৳{next_day_pred:,.0f}"
+                _forecast_str = f"🔮 *ML Forecast (Tomorrow):* ৳{next_day_pred:,.0f}"
 
     from src.utils.customer_registry import compute_new_vs_returning_counts
 
-    new_customers, returning_customers = compute_new_vs_returning_counts(
+    _new_customers, _returning_customers = compute_new_vs_returning_counts(
         df_live, df_full_raw, wc_raw_mapping
     )
 

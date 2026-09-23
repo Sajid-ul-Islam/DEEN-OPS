@@ -57,7 +57,9 @@ def test_no_line_is_indented_4_or_more_spaces():
     """Any line with 4+ leading spaces would render as a markdown code block."""
     html = _build_grid_html([{"label": "X", "value": "1", "icon": "📦"}])
     for line in html.splitlines():
-        assert not line.startswith("    "), f"indented line would break rendering: {line!r}"
+        assert not line.startswith("    "), (
+            f"indented line would break rendering: {line!r}"
+        )
 
 
 def test_render_metric_grid_returns_none():

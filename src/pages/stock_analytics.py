@@ -413,12 +413,12 @@ def _render_stock_body(df: pd.DataFrame) -> None:
         )
 
     df_sim = df.copy()
-    df_sim["Stock"] = pd.to_numeric(df_sim["Stock"], errors="coerce").fillna(
-        0
-    ).astype(float) * (1 + (sim_stock_adj / 100.0))
-    df_sim["Price"] = pd.to_numeric(df_sim["Price"], errors="coerce").fillna(
-        0
-    ).astype(float) * (1 + (sim_price_adj / 100.0))
+    df_sim["Stock"] = pd.to_numeric(df_sim["Stock"], errors="coerce").fillna(0).astype(
+        float
+    ) * (1 + (sim_stock_adj / 100.0))
+    df_sim["Price"] = pd.to_numeric(df_sim["Price"], errors="coerce").fillna(0).astype(
+        float
+    ) * (1 + (sim_price_adj / 100.0))
 
     st.divider()
     current_stocks = df_sim["Stock"]
@@ -426,7 +426,6 @@ def _render_stock_body(df: pd.DataFrame) -> None:
     low_stock = (current_stocks < low_thresh).sum()
     val_stock = (current_stocks * df_sim["Price"]).sum()
     out_of_stock = (current_stocks <= 0).sum()
-    sku_count = len(df_sim)
 
     glow_class = "critical-glow" if (low_stock / len(df_sim) > 0.2) else ""
 
@@ -482,9 +481,7 @@ def _render_stock_body(df: pd.DataFrame) -> None:
                 alert_df = pd.DataFrame(low_loc_alerts)
                 st.dataframe(alert_df, use_container_width=True, hide_index=True)
         else:
-            st.success(
-                "✅ All branches have healthy stock levels above the threshold."
-            )
+            st.success("✅ All branches have healthy stock levels above the threshold.")
     # ────────────────────────────────────────────────────────────────────────
 
     st.divider()
@@ -520,9 +517,7 @@ def _render_stock_body(df: pd.DataFrame) -> None:
     st.divider()
     st.subheader("Granular Stock Details")
     search = (
-        st.text_input("🔍 Filter by Product Name, SKU, or Category", "")
-        .strip()
-        .lower()
+        st.text_input("🔍 Filter by Product Name, SKU, or Category", "").strip().lower()
     )
 
     filtered_df = df_sim.copy()
@@ -912,8 +907,16 @@ def render_outlet_stock_analysis_tab():
 
         _render_kpi_strip(
             [
-                {"label": "Total Outlet Units", "value": f"{total_units:,.0f}", "icon": "🏪"},
-                {"label": "Product Categories", "value": str(total_categories), "icon": "🏷️"},
+                {
+                    "label": "Total Outlet Units",
+                    "value": f"{total_units:,.0f}",
+                    "icon": "🏪",
+                },
+                {
+                    "label": "Product Categories",
+                    "value": str(total_categories),
+                    "icon": "🏷️",
+                },
             ]
         )
 
@@ -1024,19 +1027,33 @@ def render_outlet_stock_analysis_tab():
 def _sip_kpi_strip(pivot_df: pd.DataFrame, source_label: str) -> None:
     """KPI cards for the SIP tab from a pivoted stock frame."""
     total_units = int(pivot_df["Total"].sum())
-    wh_units = int(pivot_df["Warehouse"].sum()) if "Warehouse" in pivot_df.columns else 0
+    wh_units = (
+        int(pivot_df["Warehouse"].sum()) if "Warehouse" in pivot_df.columns else 0
+    )
     outlet_units = total_units - wh_units
     total_skus = len(pivot_df)
     zero_skus = int((pivot_df["Total"] <= 0).sum())
 
     _render_kpi_strip(
         [
-            {"label": "Total Units", "value": f"{total_units:,}", "icon": "\U0001F4E6"},
-            {"label": "Warehouse Units", "value": f"{wh_units:,}", "icon": "\U0001F3E0"},
-            {"label": "Outlet Units", "value": f"{outlet_units:,}", "icon": "\U0001F3EA"},
-            {"label": "Unique SKUs", "value": f"{total_skus:,}", "icon": "\U0001F522"},
-            {"label": "Zero-Stock SKUs", "value": f"{zero_skus:,}", "icon": "\U0001F6AB"},
-            {"label": "Source", "value": source_label, "icon": "\U0001F552"},
+            {"label": "Total Units", "value": f"{total_units:,}", "icon": "\U0001f4e6"},
+            {
+                "label": "Warehouse Units",
+                "value": f"{wh_units:,}",
+                "icon": "\U0001f3e0",
+            },
+            {
+                "label": "Outlet Units",
+                "value": f"{outlet_units:,}",
+                "icon": "\U0001f3ea",
+            },
+            {"label": "Unique SKUs", "value": f"{total_skus:,}", "icon": "\U0001f522"},
+            {
+                "label": "Zero-Stock SKUs",
+                "value": f"{zero_skus:,}",
+                "icon": "\U0001f6ab",
+            },
+            {"label": "Source", "value": source_label, "icon": "\U0001f552"},
         ]
     )
 
@@ -1053,22 +1070,32 @@ def _sip_warehouse_view(pivot_df: pd.DataFrame) -> None:
 
     _render_kpi_strip(
         [
-            {"label": "Warehouse Units", "value": f"{wh_units:,}", "icon": "\U0001F3E0"},
+            {
+                "label": "Warehouse Units",
+                "value": f"{wh_units:,}",
+                "icon": "\U0001f3e0",
+            },
             {"label": "SKUs In Stock", "value": f"{len(wh):,}", "icon": "\u2705"},
-            {"label": "SKUs Only At Outlets", "value": f"{only_outlet:,}", "icon": "\U0001F3EC"},
+            {
+                "label": "SKUs Only At Outlets",
+                "value": f"{only_outlet:,}",
+                "icon": "\U0001f3ec",
+            },
         ]
     )
 
     c1, c2 = st.columns([2, 3])
     with c1:
-        st.markdown("#### \U0001F3E0 Top Warehouse Stock")
+        st.markdown("#### \U0001f3e0 Top Warehouse Stock")
         if wh.empty:
             st.info("Warehouse has no stock in this report.")
         else:
             top = wh.head(20).copy()
             top["Label"] = top["Product"].astype(str)
             if "Size" in top.columns:
-                top["Label"] = top["Product"].astype(str) + " - " + top["Size"].astype(str)
+                top["Label"] = (
+                    top["Product"].astype(str) + " - " + top["Size"].astype(str)
+                )
             fig = px.bar(
                 top.sort_values("Warehouse", ascending=True),
                 x="Warehouse",
@@ -1088,13 +1115,13 @@ def _sip_warehouse_view(pivot_df: pd.DataFrame) -> None:
             st.plotly_chart(fig, use_container_width=True)
 
     with c2:
-        st.markdown("#### \u26A0\uFE0F Zero-Warehouse (Stock Only At Outlets)")
+        st.markdown("#### \u26a0\ufe0f Zero-Warehouse (Stock Only At Outlets)")
         st.caption(
             "Web orders ship only after a transfer back to the warehouse - review these for transfer or de-listing."
         )
-        zero_wh = pivot_df[(pivot_df["Warehouse"] <= 0) & (pivot_df["Total"] > 0)].sort_values(
-            "Total", ascending=False
-        )
+        zero_wh = pivot_df[
+            (pivot_df["Warehouse"] <= 0) & (pivot_df["Total"] > 0)
+        ].sort_values("Total", ascending=False)
         st.dataframe(
             zero_wh[["Product", "Size", "SKU", "Total"]]
             if not zero_wh.empty
@@ -1120,7 +1147,7 @@ def _sip_outlet_view(pivot_df: pd.DataFrame, outlets: list) -> None:
 
     c1, c2 = st.columns([2, 3])
     with c1:
-        st.markdown("#### \U0001F3EA Units by Outlet")
+        st.markdown("#### \U0001f3ea Units by Outlet")
         if active.empty:
             st.info("No units recorded in any outlet.")
         else:
@@ -1136,7 +1163,7 @@ def _sip_outlet_view(pivot_df: pd.DataFrame, outlets: list) -> None:
         st.dataframe(outlet_totals, use_container_width=True, hide_index=True)
 
     with c2:
-        st.markdown("#### \U0001F7EA Outlet Comparison")
+        st.markdown("#### \U0001f7ea Outlet Comparison")
         selected = st.pills(
             "Compare outlets",
             options=outlet_cols,
@@ -1180,14 +1207,14 @@ def render_sip_live_stock_tab():
         fetch_live_sip_stock,
     )
 
-    st.markdown("### \U0001F4E1 SIP Stock - Smart Inventory with POS")
+    st.markdown("### \U0001f4e1 SIP Stock - Smart Inventory with POS")
     st.caption(
         "Upload the plugin's **Current Stock Report** export, or pull the same data "
         f"live from `{SIP_STOCK_ENDPOINT}` once the endpoint is deployed."
     )
 
     uploaded = st.file_uploader(
-        "\U0001F4E4 Upload Current Stock Report (.csv / .xlsx)",
+        "\U0001f4e4 Upload Current Stock Report (.csv / .xlsx)",
         type=["csv", "xlsx"],
         key="sip_stock_report_upload",
     )
@@ -1224,7 +1251,9 @@ def render_sip_live_stock_tab():
                 live_df = None
             if live_df is not None and not live_df.empty:
                 # Live endpoint returns a pivoted frame; melt back to long form
-                id_cols = [c for c in ["SKU", "Product", "Size"] if c in live_df.columns]
+                id_cols = [
+                    c for c in ["SKU", "Product", "Size"] if c in live_df.columns
+                ]
                 outlet_cols = [c for c in live_df.columns if c not in id_cols]
                 report_df = live_df.melt(
                     id_vars=id_cols,
@@ -1250,9 +1279,7 @@ def render_sip_live_stock_tab():
 
     pivot_df = pivot_stock_report(report_df)
     outlets = [
-        c
-        for c in pivot_df.columns
-        if c not in ("Product", "Size", "SKU", "Total")
+        c for c in pivot_df.columns if c not in ("Product", "Size", "SKU", "Total")
     ]
 
     _sip_kpi_strip(pivot_df, source_label)
@@ -1273,7 +1300,7 @@ def render_sip_live_stock_tab():
         _sip_outlet_view(pivot_df, outlets)
 
     with view_grid:
-        st.markdown("#### \U0001F50D Granular SIP Stock Grid")
+        st.markdown("#### \U0001f50d Granular SIP Stock Grid")
         lc, sc = st.columns([1, 3])
         with lc:
             sel_outlet = st.multiselect(
@@ -1283,9 +1310,7 @@ def render_sip_live_stock_tab():
                 key="sip_grid_outlet_filter",
             )
         with sc:
-            search = st.text_input(
-                "Search Product or SKU", "", key="sip_grid_search"
-            )
+            search = st.text_input("Search Product or SKU", "", key="sip_grid_search")
 
         grid_df = pivot_df.copy()
         if sel_outlet:
@@ -1327,7 +1352,7 @@ def render_sip_live_stock_tab():
         excel_bytes = output.getvalue()
 
     st.download_button(
-        label="\U0001F4BE Download SIP Stock Report (Excel)",
+        label="\U0001f4be Download SIP Stock Report (Excel)",
         data=excel_bytes,
         file_name=f"DEEN_SIP_Stock_{bd_today().strftime('%Y%m%d')}.xlsx",
         type="primary",
@@ -1352,4 +1377,3 @@ def render_stock_analytics_tab():
         render_sip_live_stock_tab,
         fallback_msg="SIP live stock tab unavailable.",
     )
-

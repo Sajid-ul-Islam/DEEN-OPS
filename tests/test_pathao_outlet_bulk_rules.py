@@ -2,14 +2,8 @@
 
 import json
 import pandas as pd
-import pytest
 
-from src.processing.order_processor import (
-    clean_dataframe,
-    process_orders_dataframe,
-    _get_dispatch_group,
-    _get_dispatch_warehouse,
-)
+from src.processing.order_processor import process_orders_dataframe
 from src.processing.sip_outlet_processor import get_fulfillment_group
 
 
@@ -45,7 +39,9 @@ def test_sip_json_multi_outlet_split_and_cod_allocation():
             "Item Cost": 1500,
             "Order Total Amount": 2550,  # 1500 + 1000 items + 50 delivery
             "Payment Method Title": "Cash on delivery",
-            "SIP": json.dumps([{"outlet_slug": "warehouse"}, {"outlet_slug": "cumilla"}]),
+            "SIP": json.dumps(
+                [{"outlet_slug": "warehouse"}, {"outlet_slug": "cumilla"}]
+            ),
         },
         {
             "Order ID": "9001",
@@ -60,7 +56,9 @@ def test_sip_json_multi_outlet_split_and_cod_allocation():
             "Item Cost": 1000,
             "Order Total Amount": 2550,
             "Payment Method Title": "Cash on delivery",
-            "SIP": json.dumps([{"outlet_slug": "warehouse"}, {"outlet_slug": "cumilla"}]),
+            "SIP": json.dumps(
+                [{"outlet_slug": "warehouse"}, {"outlet_slug": "cumilla"}]
+            ),
         },
     ]
 
@@ -73,15 +71,21 @@ def test_sip_json_multi_outlet_split_and_cod_allocation():
     p0 = result.iloc[0]
     assert p0["MerchantOrderId"] == "9001", "Primary dispatch should have base Order ID"
     assert p0["WarehouseOutlet"] == "Ecom Mirpur"
-    assert p0["AmountToCollect(*)"] == 1550, "Primary parcel collects item cost (1500) + delivery (50)"
-    assert p0["RecipientName(*)"] == "Md. Kefayoth Sakib", "Name should be normalized and deduplicated"
+    assert p0["AmountToCollect(*)"] == 1550, (
+        "Primary parcel collects item cost (1500) + delivery (50)"
+    )
+    assert p0["RecipientName(*)"] == "Md. Kefayoth Sakib", (
+        "Name should be normalized and deduplicated"
+    )
     assert "Split Part 1/2 [Warehouse]" in p0["SpecialInstruction"]
 
     # Secondary consignment (Cumilla)
     p1 = result.iloc[1]
     assert p1["MerchantOrderId"] == "9001 c", "Cumilla dispatch should have ' c' suffix"
     assert p1["WarehouseOutlet"] == "Cumilla Outlet"
-    assert p1["AmountToCollect(*)"] == 1000, "Secondary parcel collects only its item cost"
+    assert p1["AmountToCollect(*)"] == 1000, (
+        "Secondary parcel collects only its item cost"
+    )
     assert "Split Part 2/2 [Cumilla]" in p1["SpecialInstruction"]
 
     # Total collected across both consignments matches total
@@ -172,7 +176,10 @@ def test_prepaid_orders_collect_zero_across_splits():
 
     assert len(result) == 2
     assert all(row["AmountToCollect(*)"] == 0 for _, row in result.iterrows())
-    assert any("Paid by Bkash" in str(row["SpecialInstruction"]) for _, row in result.iterrows())
+    assert any(
+        "Paid by Bkash" in str(row["SpecialInstruction"])
+        for _, row in result.iterrows()
+    )
 
 
 def test_recipient_address_normalization():

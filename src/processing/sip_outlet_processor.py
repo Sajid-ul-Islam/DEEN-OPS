@@ -510,7 +510,8 @@ def get_fulfillment_group(outlet_name: Any) -> Tuple[str, str, str]:
     """
     out = str(outlet_name).strip().lower()
     if (
-        out in (
+        out
+        in (
             "warehouse",
             "mirpur",
             "mirpur-12",
@@ -1059,9 +1060,8 @@ def convert_sip_to_smart_inventory(
         )
 
     # Aggregate required units per Product/Size/SKU/Outlet
-    agg = (
-        out.groupby(["Product", "Size", "SKU", "Outlet"], as_index=False)
-        .agg({"Stock Qty": "sum", "Price": "first", "Last Updated": "first"})
+    agg = out.groupby(["Product", "Size", "SKU", "Outlet"], as_index=False).agg(
+        {"Stock Qty": "sum", "Price": "first", "Last Updated": "first"}
     )
     agg["Stock Qty"] = agg["Stock Qty"].astype(int)
     agg = agg.sort_values(

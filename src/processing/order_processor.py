@@ -1041,20 +1041,12 @@ def _distribute_amount_to_collect(
 
     # If total_to_collect was 0 but base > 0 (COD without explicit total amount)
     if total_to_collect == 0 and total_base > 0:
-        delivery_fee = (
-            50
-            if is_inside_dhaka(recipient_city, recipient_address)
-            else 90
-        )
+        delivery_fee = 50 if is_inside_dhaka(recipient_city, recipient_address) else 90
         total_to_collect = total_base + delivery_fee
 
     diff = total_to_collect - total_base
     if diff > 250:
-        delivery_fee = (
-            50
-            if is_inside_dhaka(recipient_city, recipient_address)
-            else 90
-        )
+        delivery_fee = 50 if is_inside_dhaka(recipient_city, recipient_address) else 90
         total_to_collect = total_base + delivery_fee
 
         for rec in parcel_records:
@@ -1098,12 +1090,14 @@ def process_single_order_group(
     subgroups = [df_sub for _, df_sub in group.groupby("_dispatch_loc")]
     # Ensure primary dispatch (Warehouse / Mirpur / Ecom) is always parcel 0
     subgroups.sort(
-        key=lambda s: 0
-        if any(
-            w in str(s["_dispatch_loc"].iloc[0]).lower()
-            for w in ("warehouse", "mirpur", "ecom", "wh")
+        key=lambda s: (
+            0
+            if any(
+                w in str(s["_dispatch_loc"].iloc[0]).lower()
+                for w in ("warehouse", "mirpur", "ecom", "wh")
+            )
+            else 1
         )
-        else 1
     )
 
     total_to_collect, trx_info = _extract_payment_info(group, order_col, trx_col)

@@ -442,6 +442,7 @@ def _render_bottom_tabs(active_df, top, today_rev, today_qty, today_orders, toda
                 )
             )
             fig_hist.update_layout(
+                xaxis=dict(type="category"),
                 yaxis=dict(
                     title="Revenue (৳)",
                     showgrid=True,

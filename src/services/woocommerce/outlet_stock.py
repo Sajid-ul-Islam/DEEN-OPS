@@ -335,7 +335,9 @@ SIP_STOCK_ENDPOINT = "/wp-json/wc/v3/sip/outlet-stock"
 _SIP_OUTLET_ORDER = ["Ecom", "Mirpur", "Wari", "Cumilla", "Sylhet", "Warehouse"]
 
 
-def fetch_sip_outlet_stock(endpoint_url: Optional[str] = None) -> Optional[pd.DataFrame]:
+def fetch_sip_outlet_stock(
+    endpoint_url: Optional[str] = None,
+) -> Optional[pd.DataFrame]:
     """Fetch live SIP outlet stock from the Smart Inventory with POS plugin.
 
     Expects the plugin's Current Stock Report shape — either flat tabular rows
@@ -367,7 +369,9 @@ def fetch_sip_outlet_stock(endpoint_url: Optional[str] = None) -> Optional[pd.Da
 
     # Normalise outlet column values to numeric, missing outlets to 0
     outlet_cols = [
-        c for c in df.columns if c not in ("SKU", "Product", "Size", "Price", "Last Updated")
+        c
+        for c in df.columns
+        if c not in ("SKU", "Product", "Size", "Price", "Last Updated")
     ]
     for col in outlet_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
@@ -460,7 +464,6 @@ def fetch_outlet_stock_from_attributes() -> Optional[pd.DataFrame]:
     except Exception as e:
         log_system_event("OUTLET_ATTR_FETCH_ERROR", str(e))
         return None
-
 
 
 @cache_data(ttl=300, show_spinner="Fetching SIP outlet stock...")

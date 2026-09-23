@@ -50,9 +50,7 @@ class TestGetPinnedStreamlitVersion:
 
     def test_ignores_via_streamlit_comment_lines(self, tmp_path, monkeypatch):
         req = tmp_path / "requirements.lock"
-        req.write_text(
-            "# via streamlit\nsomepkg==1.0\n", encoding="utf-8"
-        )
+        req.write_text("# via streamlit\nsomepkg==1.0\n", encoding="utf-8")
         monkeypatch.setattr(vc, "LOCK_FILE", req)
         monkeypatch.setattr(vc, "REQ_FILE", tmp_path / "missing.txt")
         assert vc.get_pinned_streamlit_version() is None

@@ -421,20 +421,13 @@ def _route_page(selected_nav: str) -> None:
             st.session_state["orders_sub_feature"] = legacy_orders_sub[
                 st.session_state["orders_sub_feature"]
             ]
-        if (
-            "orders_sub_feature" not in st.session_state
-            or (
-                st.session_state["orders_sub_feature"] not in orders_sub_options
-                and st.session_state["orders_sub_feature"] != "Product Listing"
-            )
+        if "orders_sub_feature" not in st.session_state or (
+            st.session_state["orders_sub_feature"] not in orders_sub_options
+            and st.session_state["orders_sub_feature"] != "Product Listing"
         ):
             st.session_state["orders_sub_feature"] = "Order Tracking"
         curr_sub = st.session_state["orders_sub_feature"]
-        pill_default = (
-            curr_sub
-            if curr_sub in orders_sub_options
-            else "Data Parser"
-        )
+        pill_default = curr_sub if curr_sub in orders_sub_options else "Data Parser"
 
         # Prominently render sub-feature selector directly so all features are visible
         if hasattr(st, "pills"):
@@ -514,12 +507,9 @@ def _route_page(selected_nav: str) -> None:
             st.session_state["inventory_sub_feature"] = legacy_inv_sub[
                 st.session_state["inventory_sub_feature"]
             ]
-        if (
-            "inventory_sub_feature" not in st.session_state
-            or (
-                st.session_state.inventory_sub_feature not in inventory_sub_options
-                and st.session_state.inventory_sub_feature != "Current Stock Analytics"
-            )
+        if "inventory_sub_feature" not in st.session_state or (
+            st.session_state.inventory_sub_feature not in inventory_sub_options
+            and st.session_state.inventory_sub_feature != "Current Stock Analytics"
         ):
             st.session_state.inventory_sub_feature = (
                 "SIP Stock - Smart Inventory with POS"

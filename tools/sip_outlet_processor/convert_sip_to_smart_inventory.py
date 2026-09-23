@@ -29,7 +29,7 @@ project_root = current_dir.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.processing.sip_outlet_processor import (
+from src.processing.sip_outlet_processor import (  # noqa: E402
     compute_sip_stats,
     convert_sip_to_smart_inventory,
     process_order_item_outlets,

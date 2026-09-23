@@ -8,5 +8,3 @@ def render_pathao_tab():
     from src.pages.pathao_orders.processing_tab import _render_item_description_tab
 
     _render_item_description_tab()
-
-

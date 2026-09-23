@@ -231,4 +231,3 @@ with patch("src.pages.stock_analytics.render_stock_analytics_tab"):
         "SIP Stock - Smart Inventory with POS",
         "Current Stock Analytics",
     )
-

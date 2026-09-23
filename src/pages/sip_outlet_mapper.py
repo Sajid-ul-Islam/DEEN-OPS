@@ -54,7 +54,9 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> dict[str, Optional[str]]:
     choices = ["(not found)"] + cols
 
     mapping: dict[str, Optional[str]] = {}
-    with st.expander("⚙️ Column Mapping (auto-detected — adjust if wrong)", expanded=True):
+    with st.expander(
+        "⚙️ Column Mapping (auto-detected — adjust if wrong)", expanded=True
+    ):
         st.caption(
             "Standard columns are detected automatically from your file headers. "
             "Only the Order Identifier is required; everything else is optional — "
@@ -95,7 +97,9 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> dict[str, Optional[str]]:
     return mapping
 
 
-def _apply_pastel_colors(data_df: pd.DataFrame, color_col: Optional[str] = None) -> pd.DataFrame:
+def _apply_pastel_colors(
+    data_df: pd.DataFrame, color_col: Optional[str] = None
+) -> pd.DataFrame:
     """Apply soft pastel color distinction to rows grouped by item/SKU with summary row emphasis."""
     styles = pd.DataFrame("", index=data_df.index, columns=data_df.columns)
     if not color_col or color_col not in data_df.columns:
@@ -448,7 +452,10 @@ def render_sip_outlet_tab() -> None:
 
                 last_order_display = (
                     f"#{last_order_num}"
-                    if (last_order_num != "—" and not str(last_order_num).startswith("#"))
+                    if (
+                        last_order_num != "—"
+                        and not str(last_order_num).startswith("#")
+                    )
                     else str(last_order_num)
                 )
 
@@ -505,7 +512,8 @@ def render_sip_outlet_tab() -> None:
                 }
                 st.dataframe(
                     display_df.style.apply(
-                        lambda d: _apply_pastel_colors(d, color_col=export_col), axis=None
+                        lambda d: _apply_pastel_colors(d, color_col=export_col),
+                        axis=None,
                     ),
                     use_container_width=True,
                     height=min(600, max(300, len(display_df) * 35 + 40)),
@@ -565,8 +573,12 @@ def render_sip_outlet_tab() -> None:
             g_merged_df = aggregate_product_listing(
                 g_raw_df,
                 item_col=g_item_col,
-                qty_col=g_qty_col if g_qty_col and g_qty_col in g_raw_df.columns else None,
-                sku_col=g_sku_col if g_sku_col and g_sku_col in g_raw_df.columns else None,
+                qty_col=g_qty_col
+                if g_qty_col and g_qty_col in g_raw_df.columns
+                else None,
+                sku_col=g_sku_col
+                if g_sku_col and g_sku_col in g_raw_df.columns
+                else None,
             )
 
             if g_merged_df.empty:
@@ -575,10 +587,18 @@ def render_sip_outlet_tab() -> None:
                 effective_qty_col = (
                     g_qty_col
                     if g_qty_col and g_qty_col in g_merged_df.columns
-                    else ("Total Quantity" if "Total Quantity" in g_merged_df.columns else g_merged_df.columns[-1])
+                    else (
+                        "Total Quantity"
+                        if "Total Quantity" in g_merged_df.columns
+                        else g_merged_df.columns[-1]
+                    )
                 )
                 tot_units = (
-                    int(pd.to_numeric(g_merged_df[effective_qty_col], errors="coerce").fillna(0).sum())
+                    int(
+                        pd.to_numeric(g_merged_df[effective_qty_col], errors="coerce")
+                        .fillna(0)
+                        .sum()
+                    )
                     if effective_qty_col in g_merged_df.columns
                     else len(g_merged_df)
                 )
@@ -593,7 +613,9 @@ def render_sip_outlet_tab() -> None:
                 date_val = None
                 for c in ["Order Date", "Date", "date", "created_at"]:
                     if c in g_raw_df.columns:
-                        dt_series = pd.to_datetime(g_raw_df[c], errors="coerce").dropna()
+                        dt_series = pd.to_datetime(
+                            g_raw_df[c], errors="coerce"
+                        ).dropna()
                         if not dt_series.empty:
                             date_val = dt_series.max().strftime("%d %b %Y")
                         else:
@@ -610,7 +632,9 @@ def render_sip_outlet_tab() -> None:
                     valid_orders = g_raw_df.dropna(subset=[order_col])
                     if not valid_orders.empty:
                         try:
-                            num_ids = pd.to_numeric(valid_orders[order_col], errors="coerce")
+                            num_ids = pd.to_numeric(
+                                valid_orders[order_col], errors="coerce"
+                            )
                             if num_ids.notna().any():
                                 last_order_num = str(int(num_ids.max()))
                             else:
@@ -620,7 +644,10 @@ def render_sip_outlet_tab() -> None:
 
                 last_order_display = (
                     f"#{last_order_num}"
-                    if (last_order_num != "—" and not str(last_order_num).startswith("#"))
+                    if (
+                        last_order_num != "—"
+                        and not str(last_order_num).startswith("#")
+                    )
                     else str(last_order_num)
                 )
 
@@ -663,7 +690,11 @@ def render_sip_outlet_tab() -> None:
                 export_col = (
                     g_item_col
                     if g_item_col in g_display_df.columns
-                    else (g_sku_col if g_sku_col and g_sku_col in g_display_df.columns else None)
+                    else (
+                        g_sku_col
+                        if g_sku_col and g_sku_col in g_display_df.columns
+                        else None
+                    )
                 )
 
                 col_cfg = {
@@ -674,7 +705,8 @@ def render_sip_outlet_tab() -> None:
                 }
                 st.dataframe(
                     g_display_df.style.apply(
-                        lambda d: _apply_pastel_colors(d, color_col=export_col), axis=None
+                        lambda d: _apply_pastel_colors(d, color_col=export_col),
+                        axis=None,
                     ),
                     use_container_width=True,
                     height=min(600, max(300, len(g_display_df) * 35 + 40)),
@@ -827,4 +859,3 @@ def render_sip_outlet_tab() -> None:
 def render_outlet_dispatch_product_listing_tab() -> None:
     """Public router entry point for Outlet Dispatch & Product Listing."""
     render_sip_outlet_tab()
-

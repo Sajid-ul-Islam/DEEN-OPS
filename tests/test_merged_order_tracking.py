@@ -52,7 +52,6 @@ def test_pathao_tab_no_longer_has_redundant_order_tracking():
         assert mock_helper.called
 
 
-
 def test_delivery_parser_is_unified_without_split_tabs():
     """Verify delivery parser renders as a unified smart parser without duplicate tabs."""
     from src.pages.delivery_parser import render_fuzzy_parser_tab
@@ -83,8 +82,12 @@ def test_data_parser_has_delivery_and_item_description_features():
 
     with patch.object(st, "tabs", side_effect=mock_tabs):
         with (
-            patch("src.pages.delivery_parser.render_delivery_parser_content") as mock_deliv,
-            patch("src.pages.delivery_parser.render_item_description_content") as mock_item_desc,
+            patch(
+                "src.pages.delivery_parser.render_delivery_parser_content"
+            ) as mock_deliv,
+            patch(
+                "src.pages.delivery_parser.render_item_description_content"
+            ) as mock_item_desc,
         ):
             render_data_parser_tab()
             assert any("Delivery" in label for label in created_tab_labels)
@@ -92,7 +95,6 @@ def test_data_parser_has_delivery_and_item_description_features():
             assert len(created_tab_labels) == 2
             assert mock_deliv.called
             assert mock_item_desc.called
-
 
 
 def test_stock_analytics_does_not_set_nav_override():

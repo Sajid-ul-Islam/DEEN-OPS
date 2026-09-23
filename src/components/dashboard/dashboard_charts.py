@@ -628,4 +628,3 @@ def render_spotlight(
     fig_top.update_yaxes(automargin=True)
     fig_top.update_xaxes(automargin=True)
     st.plotly_chart(fig_top, use_container_width=True, config={"displayModeBar": False})
-

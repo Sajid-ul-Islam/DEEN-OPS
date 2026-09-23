@@ -397,9 +397,7 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> tuple[Optional[pd.DataFrame],
             k for k in undetected_cols if k not in ("Order ID", "Order Number")
         ]
     # Exclude optional columns (SIP, Item Outlet, SKU, etc.) from undetected prompt
-    undetected_cols = [
-        k for k in undetected_cols if k not in OPTIONAL_UPLOAD_COLUMNS
-    ]
+    undetected_cols = [k for k in undetected_cols if k not in OPTIONAL_UPLOAD_COLUMNS]
 
     if detected_cols:
         st.success(f"✅ Detected {len(detected_cols)} columns automatically")

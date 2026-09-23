@@ -308,15 +308,17 @@ def render_item_description_content():
             st.warning("Enter at least one item line.")
         else:
             normalized_items, description = normalize_manual_item_input(raw_items)
-            st.session_state.data_parser_manual_items_df = pd.DataFrame(normalized_items)
+            st.session_state.data_parser_manual_items_df = pd.DataFrame(
+                normalized_items
+            )
             st.session_state.data_parser_manual_desc = description
 
-    normalized_df = st.session_state.get("data_parser_manual_items_df") or st.session_state.get(
-        "pathao_manual_items_df"
-    )
-    manual_desc = st.session_state.get("data_parser_manual_desc") or st.session_state.get(
-        "pathao_manual_desc"
-    )
+    normalized_df = st.session_state.get(
+        "data_parser_manual_items_df"
+    ) or st.session_state.get("pathao_manual_items_df")
+    manual_desc = st.session_state.get(
+        "data_parser_manual_desc"
+    ) or st.session_state.get("pathao_manual_desc")
 
     if normalized_df is not None and not normalized_df.empty:
         display_df = normalized_df.rename(
@@ -359,4 +361,3 @@ def render_data_parser_tab():
 def render_fuzzy_parser_tab():
     """Backward-compatible entry point for Delivery Data Parser feature."""
     render_delivery_parser_content()
-

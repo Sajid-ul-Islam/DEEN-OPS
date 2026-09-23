@@ -128,4 +128,3 @@ def request_with_backoff(
     if last_exc is not None:
         raise last_exc
     raise RuntimeError(f"Request loop exited unexpectedly for {method.upper()} {url}")
-

@@ -943,10 +943,16 @@ def render_combined_returns_tab():
     from src.utils.safe_ops import safe_render
 
     st.markdown("## 📉 Return Analytics")
-    safe_render(render_return_analytics_tab, fallback_msg="Return Analytics unavailable.")
+    safe_render(
+        render_return_analytics_tab, fallback_msg="Return Analytics unavailable."
+    )
 
     st.divider()
 
     st.markdown("## 🔎 Return Orders Extractor")
     from src.pages.return_order_extractor import render_return_order_extractor_tab
-    safe_render(render_return_order_extractor_tab, fallback_msg="Return Orders Extractor unavailable.")
+
+    safe_render(
+        render_return_order_extractor_tab,
+        fallback_msg="Return Orders Extractor unavailable.",
+    )

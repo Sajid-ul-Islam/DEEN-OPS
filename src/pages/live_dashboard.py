@@ -55,7 +55,8 @@ def _get_dashboard_source(fallback=None, online_only: bool = True):
         if frame is not None and not frame.empty
     ]
     if not frames:
-        res = fallback
+        full = st.session_state.get("wc_full_df")
+        res = full if (full is not None and not full.empty) else fallback
     else:
         combined = pd.concat(frames, ignore_index=True)
         try:
@@ -100,6 +101,13 @@ def _get_comparison_frame(
 
     if selected_view in {"Today Shipped", "Today"}:
         _cmp_f = filter_live_dashboard_view(_dash_src, "Last Day Shipped")
+        if _cmp_f is None or _cmp_f.empty:
+            _cmp_raw = st.session_state.get("wc_prev_df")
+            if _cmp_raw is None or _cmp_raw.empty:
+                _cmp_raw = st.session_state.get("wc_full_df")
+            if _cmp_raw is not None and not _cmp_raw.empty:
+                _cmp_raw = filter_online_orders(_cmp_raw)
+                _cmp_f = filter_live_dashboard_view(_cmp_raw, "Last Day Shipped")
     elif selected_view == "All Orders":
         # Always resolve full_raw up front so later references never raise NameError
         full_raw = st.session_state.get("wc_full_df")
@@ -130,10 +138,10 @@ def _get_comparison_frame(
                 and not full_raw.empty
             ):
                 prev_work_d = get_previous_working_day(bd_today())
-                _cmp_raw = filter_live_dashboard_view(
+                _cmp_f = filter_live_dashboard_view(
                     full_raw, "All Orders", reference_date=prev_work_d
                 )
-            if _cmp_raw is not None and not _cmp_raw.empty:
+            elif _cmp_raw is not None and not _cmp_raw.empty:
                 _cmp_raw = filter_online_orders(_cmp_raw)
                 # For All Orders comparison, pass nav_mode="Prev" to include all non-cancelled orders
                 # from the previous period, not just processing orders within today's slot

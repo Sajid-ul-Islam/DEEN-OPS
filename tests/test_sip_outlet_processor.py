@@ -27,7 +27,15 @@ def _stock_report_df(rows):
     """Build a raw Current Stock Report frame from (product, size, sku, outlet, qty, updated) tuples."""
     return pd.DataFrame(
         rows,
-        columns=["Product", "Size", "SKU", "Outlet", "Stock Qty", "Price", "Last Updated"],
+        columns=[
+            "Product",
+            "Size",
+            "SKU",
+            "Outlet",
+            "Stock Qty",
+            "Price",
+            "Last Updated",
+        ],
     )
 
 
@@ -35,8 +43,24 @@ class TestParseStockReport:
     def test_size_prefix_stripped(self):
         df = _stock_report_df(
             [
-                ("Polo A", "Size: 3XL", "102-1", "Warehouse", 10, "0.00", "2026-09-22 08:11:29"),
-                ("Panjabi B", "Size: 44", "106-1", "Wari", 3, "0.00", "2026-09-22 07:42:18"),
+                (
+                    "Polo A",
+                    "Size: 3XL",
+                    "102-1",
+                    "Warehouse",
+                    10,
+                    "0.00",
+                    "2026-09-22 08:11:29",
+                ),
+                (
+                    "Panjabi B",
+                    "Size: 44",
+                    "106-1",
+                    "Wari",
+                    3,
+                    "0.00",
+                    "2026-09-22 07:42:18",
+                ),
             ]
         )
         parsed = parse_stock_report(df)
@@ -44,7 +68,17 @@ class TestParseStockReport:
 
     def test_size_prefix_case_insensitive_and_spaced(self):
         df = _stock_report_df(
-            [("Polo A", " size : M ", "102-1", "Warehouse", 1, "0.00", "2026-09-22 08:00:00")]
+            [
+                (
+                    "Polo A",
+                    " size : M ",
+                    "102-1",
+                    "Warehouse",
+                    1,
+                    "0.00",
+                    "2026-09-22 08:00:00",
+                )
+            ]
         )
         parsed = parse_stock_report(df)
         assert parsed["Size"].iloc[0] == "M"
@@ -52,7 +86,15 @@ class TestParseStockReport:
     def test_blank_size_becomes_empty_string_not_nan(self):
         df = _stock_report_df(
             [
-                ("Wallet", None, "109-1", "Warehouse", 5, "0.00", "2026-09-22 08:00:00"),
+                (
+                    "Wallet",
+                    None,
+                    "109-1",
+                    "Warehouse",
+                    5,
+                    "0.00",
+                    "2026-09-22 08:00:00",
+                ),
                 ("Belt", "", "109-2", "Warehouse", 2, "0.00", "2026-09-22 08:00:00"),
             ]
         )
@@ -65,9 +107,33 @@ class TestParseStockReport:
         not a naive sum (which would inflate stock)."""
         df = _stock_report_df(
             [
-                ("Export Shirt", "", "EXPORT-SHIRT-01", "Warehouse", 2, "0.00", "2026-09-20 11:49:11"),
-                ("Export Shirt", "", "EXPORT-SHIRT-01", "Warehouse", 2, "0.00", "2026-09-20 11:49:12"),
-                ("Export Shirt", "", "EXPORT-SHIRT-01", "Warehouse", 0, "0.00", "2026-09-20 12:01:40"),
+                (
+                    "Export Shirt",
+                    "",
+                    "EXPORT-SHIRT-01",
+                    "Warehouse",
+                    2,
+                    "0.00",
+                    "2026-09-20 11:49:11",
+                ),
+                (
+                    "Export Shirt",
+                    "",
+                    "EXPORT-SHIRT-01",
+                    "Warehouse",
+                    2,
+                    "0.00",
+                    "2026-09-20 11:49:12",
+                ),
+                (
+                    "Export Shirt",
+                    "",
+                    "EXPORT-SHIRT-01",
+                    "Warehouse",
+                    0,
+                    "0.00",
+                    "2026-09-20 12:01:40",
+                ),
             ]
         )
         parsed = parse_stock_report(df)
@@ -122,7 +188,17 @@ class TestParseStockReport:
 
     def test_unknown_outlet_preserved_as_own_name(self):
         df = _stock_report_df(
-            [("Tee", "M", "105-1", "Waterfall Outlet", 1, "0.00", "2026-09-20 03:40:51")]
+            [
+                (
+                    "Tee",
+                    "M",
+                    "105-1",
+                    "Waterfall Outlet",
+                    1,
+                    "0.00",
+                    "2026-09-20 03:40:51",
+                )
+            ]
         )
         parsed = parse_stock_report(df)
         assert (parsed["Outlet"] == "Waterfall Outlet").all()
@@ -171,7 +247,13 @@ class TestParseStockReport:
         parsed = parse_stock_report(pd.DataFrame())
         assert parsed.empty
         assert list(parsed.columns) == [
-            "Product", "Size", "SKU", "Outlet", "Stock Qty", "Price", "Last Updated",
+            "Product",
+            "Size",
+            "SKU",
+            "Outlet",
+            "Stock Qty",
+            "Price",
+            "Last Updated",
         ]
 
     def test_malformed_frame_raises_valueerror(self):
@@ -201,9 +283,33 @@ class TestPivotStockReport:
         report = parse_stock_report(
             _stock_report_df(
                 [
-                    ("Polo A", "M", "101-M", "Warehouse", 5, "0.00", "2026-09-22 08:00:00"),
-                    ("Polo A", "M", "101-M", "Mirpur 12", 2, "0.00", "2026-09-22 08:00:00"),
-                    ("Polo A", "L", "101-L", "Cumilla", 3, "0.00", "2026-09-22 08:00:00"),
+                    (
+                        "Polo A",
+                        "M",
+                        "101-M",
+                        "Warehouse",
+                        5,
+                        "0.00",
+                        "2026-09-22 08:00:00",
+                    ),
+                    (
+                        "Polo A",
+                        "M",
+                        "101-M",
+                        "Mirpur 12",
+                        2,
+                        "0.00",
+                        "2026-09-22 08:00:00",
+                    ),
+                    (
+                        "Polo A",
+                        "L",
+                        "101-L",
+                        "Cumilla",
+                        3,
+                        "0.00",
+                        "2026-09-22 08:00:00",
+                    ),
                 ]
             )
         )
@@ -211,8 +317,15 @@ class TestPivotStockReport:
         assert len(pivot) == 2
         # All canonical outlets are guaranteed as columns (0-filled), then extras
         assert list(pivot.columns) == [
-            "Product", "Size", "SKU", "Warehouse", "Mirpur", "Wari", "Cumilla",
-            "Sylhet", "Total",
+            "Product",
+            "Size",
+            "SKU",
+            "Warehouse",
+            "Mirpur",
+            "Wari",
+            "Cumilla",
+            "Sylhet",
+            "Total",
         ]
         m_row = pivot[pivot["SKU"] == "101-M"].iloc[0]
         assert int(m_row["Warehouse"]) == 5
@@ -232,8 +345,16 @@ class TestPivotStockReport:
         pivot = pivot_stock_report(report)
         # Canonical outlets come first (0-filled when absent), extras after
         assert list(pivot.columns) == [
-            "Product", "Size", "SKU", "Warehouse", "Mirpur", "Wari", "Cumilla",
-            "Sylhet", "Zeta Outlet", "Total",
+            "Product",
+            "Size",
+            "SKU",
+            "Warehouse",
+            "Mirpur",
+            "Wari",
+            "Cumilla",
+            "Sylhet",
+            "Zeta Outlet",
+            "Total",
         ]
 
     def test_pivot_missing_outlets_filled_with_zero(self):
@@ -247,7 +368,9 @@ class TestPivotStockReport:
         assert int(pivot["Total"].iloc[0]) == 4
 
     def test_pivot_empty_report_returns_empty_frame(self):
-        pivot = pivot_stock_report(pd.DataFrame(columns=["Product", "Size", "SKU", "Outlet", "Stock Qty"]))
+        pivot = pivot_stock_report(
+            pd.DataFrame(columns=["Product", "Size", "SKU", "Outlet", "Stock Qty"])
+        )
         assert pivot.empty
         assert list(pivot.columns) == ["Product", "Size", "SKU"]
 
@@ -804,8 +927,7 @@ def test_convert_sip_to_smart_inventory_basic():
 
     # Aggregation: same product/size/sku/outlet merges
     wh = result[
-        (result["Product"] == "Oxford Shirt - L")
-        & (result["Outlet"] == "Warehouse")
+        (result["Product"] == "Oxford Shirt - L") & (result["Outlet"] == "Warehouse")
     ]
     assert len(wh) == 1
     assert wh.iloc[0]["Stock Qty"] == 3  # 2 + 1

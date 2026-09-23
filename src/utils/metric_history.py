@@ -153,12 +153,20 @@ def load_snapshot_history(days: int = 30) -> pd.DataFrame:
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
+                daily_rev = data.get("daily_revenue")
+                daily_ord = data.get("daily_orders")
+                daily_qty = data.get("daily_qty")
+                if daily_rev is None or daily_ord is None:
+                    if rebuild_daily_totals(data):
+                        daily_rev = data.get("daily_revenue", 0)
+                        daily_ord = data.get("daily_orders", 0)
+                        daily_qty = data.get("daily_qty", 0)
                 records.append(
                     {
                         "date": data.get("date", fname.replace(".json", "")),
-                        "revenue": data.get("daily_revenue", 0),
-                        "orders": data.get("daily_orders", 0),
-                        "qty": data.get("daily_qty", 0),
+                        "revenue": float(daily_rev or 0),
+                        "orders": int(daily_ord or 0),
+                        "qty": int(daily_qty or 0),
                     }
                 )
             except Exception:

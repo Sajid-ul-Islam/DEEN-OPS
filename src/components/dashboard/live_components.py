@@ -414,7 +414,6 @@ def _render_dashboard_view_selector():
         st.rerun()
 
 
-
 def _render_manual_upload_override():
     """Collapsible manual file uploader allowing users to override automatic sync with their own CSV/Excel."""
     is_active = st.session_state.get("live_manual_override_df") is not None
