@@ -648,7 +648,9 @@ def run_app() -> None:
     if "orders_sub_feature" not in st.session_state:
         st.session_state["orders_sub_feature"] = "Order Tracking"
     if "inventory_sub_feature" not in st.session_state:
-        st.session_state["inventory_sub_feature"] = "Current Stock Analytics"
+        st.session_state["inventory_sub_feature"] = (
+            "SIP Stock - Smart Inventory with POS"
+        )
     if "analytics_sub_feature" not in st.session_state:
         st.session_state["analytics_sub_feature"] = "Sales Data Ingestion"
 
