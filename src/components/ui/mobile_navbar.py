@@ -11,13 +11,12 @@ from typing import Callable, Optional
 
 import streamlit as st
 
-# Mobile-optimized labels for the 5 consolidated Jakob's Law navigation tabs
+# Mobile-optimized labels for the 4 consolidated Jakob's Law navigation tabs
 MOBILE_NAV_LABELS: dict[str, str] = {
     "📈 Live Dashboard": "📈 Live",
     "🛒 Orders & Fulfillment": "🛒 Orders",
     "📦 Inventory & Stock": "📦 Stock",
     "📊 Analytics & Insights": "📊 Analytics",
-    "🤖 Automation Tools": "🤖 Tools",
 }
 
 

@@ -90,6 +90,9 @@ def _format_nav_item(item: str) -> str:
         "📥 Sales Data Ingestion": ":material/cloud_download: Sales Ingestion",
         "📉 Return Analytics": ":material/keyboard_return: Return Analytics",
         "🚀 Data Pilot": ":material/smart_toy: Data Pilot",
+        "🏬 Outlet Wise Extractor": ":material/storefront: Outlet Wise Extractor",
+        "Outlet Wise Extractor": ":material/storefront: Outlet Wise Extractor",
+        "SIP Outlet Mapper": ":material/storefront: Outlet Wise Extractor",
     }
     return nav_icons.get(item, item)
 
@@ -401,8 +404,10 @@ def _route_page(selected_nav: str) -> None:
             "Product Listing",
             "Pathao Processor",
             "Delivery Data Parser",
-            "SIP Outlet Mapper",
+            "Outlet Wise Extractor",
         ]
+        if st.session_state.get("orders_sub_feature") == "SIP Outlet Mapper":
+            st.session_state["orders_sub_feature"] = "Outlet Wise Extractor"
         if (
             "orders_sub_feature" not in st.session_state
             or st.session_state["orders_sub_feature"] not in orders_sub_options
@@ -410,13 +415,27 @@ def _route_page(selected_nav: str) -> None:
             st.session_state["orders_sub_feature"] = "Order Tracking"
         curr_sub = st.session_state["orders_sub_feature"]
 
-        with st.expander("📂 Select Feature", expanded=False):
+        # Prominently render sub-feature selector directly so all features are visible
+        if hasattr(st, "pills"):
+            chosen_sub = st.pills(
+                "Orders Feature",
+                orders_sub_options,
+                selection_mode="single",
+                default=curr_sub,
+                label_visibility="collapsed",
+                key="orders_sub_pills",
+            )
+            if chosen_sub and chosen_sub != curr_sub:
+                st.session_state["orders_sub_feature"] = chosen_sub
+                st.rerun()
+        else:
             sub_feature = st.radio(
                 "Choose a feature:",
                 orders_sub_options,
                 index=orders_sub_options.index(curr_sub),
                 label_visibility="collapsed",
                 horizontal=True,
+                key="orders_sub_radio",
             )
             if sub_feature != curr_sub:
                 st.session_state["orders_sub_feature"] = sub_feature
@@ -449,11 +468,11 @@ def _route_page(selected_nav: str) -> None:
                 fallback_msg="Delivery Data Parser unavailable.",
             )
 
-        elif active_sub == "SIP Outlet Mapper":
+        elif active_sub in ("Outlet Wise Extractor", "SIP Outlet Mapper"):
             from src.pages.sip_outlet_mapper import render_sip_outlet_tab
 
             safe_render(
-                render_sip_outlet_tab, fallback_msg="SIP Outlet Mapper unavailable."
+                render_sip_outlet_tab, fallback_msg="Outlet Wise Extractor unavailable."
             )
 
     # === 📦 Inventory & Stock (Consolidated) ===

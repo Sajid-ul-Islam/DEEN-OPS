@@ -102,11 +102,11 @@ render_mobile_navbar(
     assert at.session_state["sidebar_nav"] == PRIMARY_NAV[2]
     assert at.session_state["mobile_bottom_nav"] == PRIMARY_NAV[2]
 
-    # Switch via sidebar to "🤖 Automation Tools"
-    at.pills(key="sidebar_nav").set_value(PRIMARY_NAV[4]).run()
-    assert at.session_state["selected_nav"] == PRIMARY_NAV[4]
-    assert at.session_state["sidebar_nav"] == PRIMARY_NAV[4]
-    assert at.session_state["mobile_bottom_nav"] == PRIMARY_NAV[4]
+    # Switch via sidebar to "📊 Analytics & Insights"
+    at.pills(key="sidebar_nav").set_value(PRIMARY_NAV[3]).run()
+    assert at.session_state["selected_nav"] == PRIMARY_NAV[3]
+    assert at.session_state["sidebar_nav"] == PRIMARY_NAV[3]
+    assert at.session_state["mobile_bottom_nav"] == PRIMARY_NAV[3]
 
 
 def test_nav_override_mapping_apptest(tmp_path):
@@ -143,10 +143,10 @@ render_mobile_navbar(
     at.session_state["_nav_override"] = "🚀 Data Pilot"
     at.run()
 
-    # Should map "🚀 Data Pilot" -> "🤖 Automation Tools"
-    assert at.session_state["selected_nav"] == "🤖 Automation Tools"
-    assert at.session_state["sidebar_nav"] == "🤖 Automation Tools"
-    assert at.session_state["mobile_bottom_nav"] == "🤖 Automation Tools"
+    # Should map "🚀 Data Pilot" -> "🛒 Orders & Fulfillment"
+    assert at.session_state["selected_nav"] == "🛒 Orders & Fulfillment"
+    assert at.session_state["sidebar_nav"] == "🛒 Orders & Fulfillment"
+    assert at.session_state["mobile_bottom_nav"] == "🛒 Orders & Fulfillment"
 
 
 def test_orders_sub_feature_initialization_in_route_page(tmp_path):
@@ -184,13 +184,13 @@ def test_legacy_subfeature_override():
         "Product Listing",
     )
     assert LEGACY_NAV_MAPPING["📋 Product Listing"] == "🛒 Orders & Fulfillment"
-    # Removed features map to the SIP Outlet Mapper sub-feature (the only one left).
+    # Removed features redirect to Orders & Fulfillment / SIP Outlet Mapper.
     assert LEGACY_SUBFEATURE_MAPPING[":material/rocket_launch: Data Pilot"] == (
-        "automation_sub_feature",
+        "orders_sub_feature",
         "SIP Outlet Mapper",
     )
     assert LEGACY_SUBFEATURE_MAPPING["💬 WhatsApp Messaging"] == (
-        "automation_sub_feature",
+        "orders_sub_feature",
         "SIP Outlet Mapper",
     )
 

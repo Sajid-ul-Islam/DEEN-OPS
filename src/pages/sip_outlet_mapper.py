@@ -8,6 +8,7 @@ and export an enriched Excel file with the 'Item Outlet' column.
 from __future__ import annotations
 
 import colorsys
+import os
 from typing import Optional
 import pandas as pd
 import streamlit as st
@@ -95,10 +96,10 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> dict[str, Optional[str]]:
 
 
 def render_sip_outlet_tab() -> None:
-    """Render the Outlet Wise Extractor page."""
+    """Render the Outlet Wise Extractor & Manager page."""
     render_premium_header(
-        "Outlet Wise Extractor",
-        "Parse WooCommerce multi-outlet SIP data to map item-specific dispatch locations (Warehouse, Mirpur, Cumilla, Wari, Sylhet)",
+        "Outlet Wise Extractor & Manager",
+        "Parse WooCommerce multi-outlet routing, generate physical outlet picking lists, and build split Pathao Bulk consignments",
         "🏬",
     )
 
@@ -107,6 +108,7 @@ def render_sip_outlet_tab() -> None:
         "Select Data Source:",
         [
             "📁 Upload Order File (Excel/CSV)",
+            "📋 Load Sample Input File",
             "⚡ Live WooCommerce Data",
         ],
         horizontal=True,
@@ -114,8 +116,18 @@ def render_sip_outlet_tab() -> None:
     )
 
     df: Optional[pd.DataFrame] = None
+    sample_path = "Product listing Sample input.xlsx"
 
-    if source_opt == "⚡ Live WooCommerce Data":
+    if source_opt == "📋 Load Sample Input File":
+        if os.path.exists(sample_path):
+            try:
+                df = pd.read_excel(sample_path)
+                st.success(f"Loaded **{len(df):,}** rows from sample file (`{sample_path}`).")
+            except Exception as e:
+                st.error(f"Error loading sample file: {e}")
+        else:
+            st.warning(f"Sample input file `{sample_path}` not found in root directory.")
+    elif source_opt == "⚡ Live WooCommerce Data":
         wc_df = st.session_state.get("wc_full_df")
         if wc_df is None or wc_df.empty:
             wc_df = st.session_state.get("wc_curr_df")
@@ -141,7 +153,7 @@ def render_sip_outlet_tab() -> None:
 
     if df is None or df.empty:
         st.info(
-            "💡 Upload an order file (or sync live WooCommerce data) to extract item-wise outlets."
+            "💡 Upload an order file, load the sample file, or sync live WooCommerce data to extract item-wise outlets."
         )
         return
 
@@ -267,12 +279,12 @@ def render_sip_outlet_tab() -> None:
                 pd.DataFrame(split_rows), use_container_width=True, hide_index=True
             )
 
-    # 7. Multi-View Tabs: Full Orders vs Warehouse Product Listing vs Pathao Bulk
+    # 7. Multi-View Tabs: Outlet Extractor & Manager vs Outlet Product Listing vs Pathao Bulk
     tab_full, tab_wh_listing, tab_pathao = st.tabs(
         [
-            "📋 Full Orders with Outlet Mapping",
-            "🏭 Warehouse Product Listing (Picking List)",
-            "🚚 Pathao Bulk Consignments",
+            "📋 Outlet Extractor & Manager (Full Orders)",
+            "🏭 Outlet-Wise Product Listing (Picking List)",
+            "🚚 Outlet Extractor with Pathao Bulk",
         ]
     )
 

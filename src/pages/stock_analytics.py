@@ -783,6 +783,24 @@ def render_outlet_stock_analysis_tab():
         "Consolidate stock levels across all physical outlet locations (Mirpur, Wari, Cumilla, Sylhet) and optionally include Ecom stock from WooCommerce."
     )
 
+    c_info, c_jump = st.columns([3, 1])
+    with c_info:
+        st.info(
+            "💡 **Looking for customer order outlet fulfillment, picking lists, or Pathao bulk consignments?** "
+            "Go to **Outlet Wise Extractor & Manager** in **🛒 Orders & Fulfillment**."
+        )
+    with c_jump:
+        if st.button(
+            "🏬 Open Outlet Extractor",
+            key="jump_to_outlet_extractor_btn",
+            use_container_width=True,
+            help="Navigate directly to Outlet Wise Extractor (Manager, Picking & Pathao Bulk)",
+        ):
+            st.session_state["selected_nav"] = "🛒 Orders & Fulfillment"
+            st.session_state["sidebar_nav"] = "🛒 Orders & Fulfillment"
+            st.session_state["orders_sub_feature"] = "Outlet Wise Extractor"
+            st.rerun()
+
     default_files = {
         "Mirpur": "Mir.xlsx",
         "Wari": "War.xlsx",

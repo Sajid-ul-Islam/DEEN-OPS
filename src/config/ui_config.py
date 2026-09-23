@@ -25,12 +25,17 @@ LEGACY_NAV_MAPPING = {
     # Section: Analytics & Insights
     "📥 Sales Data Ingestion": "📊 Analytics & Insights",
     "📉 Return Analytics": "📊 Analytics & Insights",
-    # Section: SIP Outlet Mapper (moved to Orders & Fulfillment)
+    # Section: SIP / Outlet Wise Extractor (in Orders & Fulfillment)
     "💬 WhatsApp Messaging": "🛒 Orders & Fulfillment",  # redirected to Orders
     "🚀 Data Pilot": "🛒 Orders & Fulfillment",  # redirected to Orders
     ":material/rocket_launch: Data Pilot": "🛒 Orders & Fulfillment",  # redirected to Orders
     "🏬 SIP Outlet Mapper": "🛒 Orders & Fulfillment",
     "SIP Outlet Mapper": "🛒 Orders & Fulfillment",
+    "🏬 Outlet Wise Extractor": "🛒 Orders & Fulfillment",
+    "Outlet Wise Extractor": "🛒 Orders & Fulfillment",
+    "Outlet Extractor": "🛒 Orders & Fulfillment",
+    "Outlet Manager": "🛒 Orders & Fulfillment",
+    "Outlet Wise Product Listing": "🛒 Orders & Fulfillment",
 }
 
 LEGACY_SUBFEATURE_MAPPING = {
@@ -48,6 +53,11 @@ LEGACY_SUBFEATURE_MAPPING = {
     ":material/rocket_launch: Data Pilot": ("orders_sub_feature", "SIP Outlet Mapper"),
     "🏬 SIP Outlet Mapper": ("orders_sub_feature", "SIP Outlet Mapper"),
     "SIP Outlet Mapper": ("orders_sub_feature", "SIP Outlet Mapper"),
+    "🏬 Outlet Wise Extractor": ("orders_sub_feature", "Outlet Wise Extractor"),
+    "Outlet Wise Extractor": ("orders_sub_feature", "Outlet Wise Extractor"),
+    "Outlet Extractor": ("orders_sub_feature", "Outlet Wise Extractor"),
+    "Outlet Manager": ("orders_sub_feature", "Outlet Wise Extractor"),
+    "Outlet Wise Product Listing": ("orders_sub_feature", "Outlet Wise Extractor"),
 }
 
 CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"
