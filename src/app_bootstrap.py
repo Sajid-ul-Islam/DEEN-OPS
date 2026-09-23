@@ -84,8 +84,9 @@ def _format_nav_item(item: str) -> str:
         "🛒 Order tracking": ":material/shopping_cart: Order Tracking",
         "📋 Product Listing": ":material/receipt_long: Product Listing",
         "📦 Pathao Processor": ":material/local_shipping: Pathao Processor",
-        "💬 WhatsApp Messaging": ":material/chat: WhatsApp Messaging",
         "📦 Current Stock Analytics": ":material/analytics: Stock Analytics",
+        "SIP Stock - Smart Inventory with POS": ":material/inventory_2: SIP Stock",
+        "📦 SIP Stock - Smart Inventory with POS": ":material/inventory_2: SIP Stock",
         "🧩 Delivery Data Parser": ":material/data_object: Delivery Parser",
         "Data Parser": ":material/data_object: Data Parser",
         "🧩 Data Parser": ":material/data_object: Data Parser",
@@ -503,21 +504,32 @@ def _route_page(selected_nav: str) -> None:
     # === 📦 Inventory & Stock (Consolidated) ===
     elif selected_nav == "📦 Inventory & Stock":
         inventory_sub_options = [
-            "Current Stock Analytics",
+            "SIP Stock - Smart Inventory with POS",
         ]
+        legacy_inv_sub = {
+            "Current Stock Analytics": "SIP Stock - Smart Inventory with POS",
+            "📦 Current Stock Analytics": "SIP Stock - Smart Inventory with POS",
+        }
+        if st.session_state.get("inventory_sub_feature") in legacy_inv_sub:
+            st.session_state["inventory_sub_feature"] = legacy_inv_sub[
+                st.session_state["inventory_sub_feature"]
+            ]
         if (
             "inventory_sub_feature" not in st.session_state
-            or st.session_state.inventory_sub_feature not in inventory_sub_options
+            or (
+                st.session_state.inventory_sub_feature not in inventory_sub_options
+                and st.session_state.inventory_sub_feature != "Current Stock Analytics"
+            )
         ):
-            st.session_state.inventory_sub_feature = "Current Stock Analytics"
+            st.session_state.inventory_sub_feature = (
+                "SIP Stock - Smart Inventory with POS"
+            )
 
         with st.expander("📂 Select Feature", expanded=False):
             sub_feature = st.radio(
                 "Choose a feature:",
                 inventory_sub_options,
-                index=inventory_sub_options.index(
-                    st.session_state.inventory_sub_feature
-                ),
+                index=0,
                 label_visibility="collapsed",
                 horizontal=True,
             )
@@ -525,11 +537,14 @@ def _route_page(selected_nav: str) -> None:
                 st.session_state.inventory_sub_feature = sub_feature
                 st.rerun()
 
-        if st.session_state.inventory_sub_feature == "Current Stock Analytics":
+        if st.session_state.inventory_sub_feature in (
+            "SIP Stock - Smart Inventory with POS",
+            "Current Stock Analytics",
+        ):
             from src.pages.stock_analytics import render_stock_analytics_tab
 
             safe_render(
-                render_stock_analytics_tab, fallback_msg="Stock Analytics unavailable."
+                render_stock_analytics_tab, fallback_msg="SIP Stock unavailable."
             )
 
     # === 📊 Analytics & Insights (Consolidated) ===

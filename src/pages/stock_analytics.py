@@ -1341,42 +1341,15 @@ def render_sip_live_stock_tab():
 
 
 def render_stock_analytics_tab():
-    """Renders the redesigned Current Stock Analytics interface."""
-    # Initialize session state for outlet stock report
-    if "outlet_stock_report_excel" not in st.session_state:
-        st.session_state.outlet_stock_report_excel = None
-    if "outlet_stock_mapping_df" not in st.session_state:
-        st.session_state.outlet_stock_mapping_df = None
-    if "outlet_stock_summary_df" not in st.session_state:
-        st.session_state.outlet_stock_summary_df = None
-    if "outlet_sku_verification_df" not in st.session_state:
-        st.session_state.outlet_sku_verification_df = None
-
+    """Renders the SIP Stock - Smart Inventory with POS interface."""
     render_premium_header(
-        "Current Stock Analytics",
-        "Monitor and analyze inventory across all locations and WooCommerce",
+        "SIP Stock - Smart Inventory with POS",
+        "Monitor and analyze live inventory across outlets from Smart Inventory POS",
         "📦",
     )
 
-    # ── Section 1: WooCommerce Stock ────────────────────────────────────────
-    st.markdown("## 🗄️ WooCommerce Stock")
-    safe_render(
-        render_woocommerce_stock_tab,
-        fallback_msg="WooCommerce stock tab unavailable.",
-    )
-
-    # ── Section 2: Outlet Stock Analysis ───────────────────────────────────
-    st.divider()
-    st.markdown("## 🏪 Outlet Stock Analysis")
-    safe_render(
-        render_outlet_stock_analysis_tab,
-        fallback_msg="Outlet stock tab unavailable.",
-    )
-
-    # ── Section 3: SIP Live Stock ───────────────────────────────────────────
-    st.divider()
-    st.markdown("## 📡 SIP Live Stock")
     safe_render(
         render_sip_live_stock_tab,
         fallback_msg="SIP live stock tab unavailable.",
     )
+

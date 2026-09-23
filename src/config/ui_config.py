@@ -25,6 +25,9 @@ LEGACY_NAV_MAPPING = {
     "Data Parser": "🛒 Orders & Fulfillment",
     # Section: Inventory & Stock
     "📦 Current Stock Analytics": "📦 Inventory & Stock",
+    "Current Stock Analytics": "📦 Inventory & Stock",
+    "SIP Stock - Smart Inventory with POS": "📦 Inventory & Stock",
+    "📦 SIP Stock - Smart Inventory with POS": "📦 Inventory & Stock",
     # Section: Analytics & Insights
     "📥 Sales Data Ingestion": "📊 Analytics & Insights",
     "📉 Return Analytics": "📊 Analytics & Insights",
@@ -53,6 +56,18 @@ LEGACY_SUBFEATURE_MAPPING = {
     "🧩 Data Parser": ("orders_sub_feature", "Data Parser"),
     "Data Parser": ("orders_sub_feature", "Data Parser"),
     "📦 Current Stock Analytics": ("inventory_sub_feature", "Current Stock Analytics"),
+    "Current Stock Analytics": (
+        "inventory_sub_feature",
+        "SIP Stock - Smart Inventory with POS",
+    ),
+    "SIP Stock - Smart Inventory with POS": (
+        "inventory_sub_feature",
+        "SIP Stock - Smart Inventory with POS",
+    ),
+    "📦 SIP Stock - Smart Inventory with POS": (
+        "inventory_sub_feature",
+        "SIP Stock - Smart Inventory with POS",
+    ),
     "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),
     "📉 Return Analytics": ("analytics_sub_feature", "Returns"),
     "🔎 Return Orders Extractor": ("analytics_sub_feature", "Returns"),
