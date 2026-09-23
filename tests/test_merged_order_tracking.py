@@ -112,3 +112,25 @@ def test_stock_analytics_does_not_set_nav_override():
     ):
         render_stock_analytics_tab()
         assert "_nav_override" not in st.session_state
+
+
+def test_pathao_tracking_tab_has_no_duplicate_keys():
+    """Regression test ensuring tracking_tab.py has no duplicate Streamlit widget keys."""
+    import collections
+    from pathlib import Path
+    import re
+
+    tracking_file = (
+        Path(__file__).parents[1]
+        / "src"
+        / "pages"
+        / "pathao_orders"
+        / "tracking_tab.py"
+    )
+    content = tracking_file.read_text(encoding="utf-8")
+    keys = re.findall(r"key=[\"\']([^\"\']+)[\"\']", content)
+    counts = collections.Counter(keys)
+    duplicates = {k: c for k, c in counts.items() if c > 1}
+    assert duplicates == {}, (
+        f"Found duplicate widget keys in tracking_tab: {duplicates}"
+    )
