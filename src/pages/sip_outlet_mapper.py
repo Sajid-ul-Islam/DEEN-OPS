@@ -8,13 +8,13 @@ and export an enriched Excel file with the 'Item Outlet' column.
 from __future__ import annotations
 
 import colorsys
-import os
 from typing import Optional
 import pandas as pd
 import streamlit as st
 
 from src.components.ui.ui_components import render_metric_grid, render_premium_header
 from src.config.constants import bd_now, bd_today
+from src.processing.data_processing import aggregate_product_listing
 from src.processing.sip_outlet_processor import (
     auto_map_columns,
     compute_sip_stats,
@@ -95,11 +95,44 @@ def _render_column_mapping_ui(df: pd.DataFrame) -> dict[str, Optional[str]]:
     return mapping
 
 
+def _apply_pastel_colors(data_df: pd.DataFrame, color_col: Optional[str] = None) -> pd.DataFrame:
+    """Apply soft pastel color distinction to rows grouped by item/SKU with summary row emphasis."""
+    styles = pd.DataFrame("", index=data_df.index, columns=data_df.columns)
+    if not color_col or color_col not in data_df.columns:
+        return styles
+    content_df = data_df.iloc[:-1] if len(data_df) > 1 else data_df
+    unique_vals = content_df[color_col].unique()
+
+    color_dict = {}
+    for i, val in enumerate(unique_vals):
+        hue = (i * 0.618033988749895) % 1.0
+        rgb = colorsys.hls_to_rgb(hue, 0.94, 0.45)
+        color_dict[val] = "#%02x%02x%02x" % (
+            int(rgb[0] * 255),
+            int(rgb[1] * 255),
+            int(rgb[2] * 255),
+        )
+
+    for idx, row in content_df.iterrows():
+        val = row.get(color_col)
+        hex_c = color_dict.get(val, "#ffffff")
+        styles.loc[idx, :] = (
+            f"background-color: {hex_c}; color: #0f172a; font-weight: 500;"
+        )
+
+    if len(data_df) > 0:
+        last_idx = data_df.index[-1]
+        styles.loc[last_idx, :] = (
+            "background-color: #e2e8f0; color: #0f172a; font-weight: 800; border-top: 2px solid #475569;"
+        )
+    return styles
+
+
 def render_sip_outlet_tab() -> None:
-    """Render the Outlet Wise Extractor & Manager page."""
+    """Render the Outlet Dispatch & Product Listing page."""
     render_premium_header(
-        "Outlet Wise Extractor & Manager",
-        "Parse WooCommerce multi-outlet routing, generate physical outlet picking lists, and build split Pathao Bulk consignments",
+        "Outlet Dispatch & Product Listing",
+        "Consolidated fulfillment hub: multi-outlet routing, global & outlet picking lists, and split Pathao Bulk dispatch",
         "🏬",
     )
 
@@ -268,12 +301,13 @@ def render_sip_outlet_tab() -> None:
                 pd.DataFrame(split_rows), use_container_width=True, hide_index=True
             )
 
-    # 7. Multi-View Tabs: Outlet Extractor & Manager vs Outlet Product Listing vs Pathao Bulk
-    tab_full, tab_wh_listing, tab_pathao = st.tabs(
+    # 7. Multi-View Tabs: Outlet Extractor & Manager vs Outlet Picking List vs Global Product Listing vs Pathao Bulk
+    tab_full, tab_wh_listing, tab_global_listing, tab_pathao = st.tabs(
         [
             "📋 Outlet Extractor & Manager (Full Orders)",
-            "🏭 Outlet-Wise Product Listing (Picking List)",
-            "🚚 Outlet Extractor with Pathao Bulk",
+            "🏭 Outlet-Wise Picking List",
+            "📦 Global Product Listing & SKU Aggregator",
+            "🚚 Outlet Dispatch with Pathao Bulk",
         ]
     )
 
@@ -454,44 +488,11 @@ def render_sip_outlet_tab() -> None:
                     [outlet_listing_df, pd.DataFrame([summary_row])], ignore_index=True
                 )
 
-                # Style table with pastel group coloring
-                def _apply_pastel_colors(data_df):
-                    styles = pd.DataFrame(
-                        "", index=data_df.index, columns=data_df.columns
-                    )
-                    color_col = (
-                        pl_item_col
-                        if pl_item_col in data_df.columns
-                        else (pl_sku_col if pl_sku_col else None)
-                    )
-                    if not color_col:
-                        return styles
-                    content_df = data_df.iloc[:-1] if len(data_df) > 1 else data_df
-                    unique_vals = content_df[color_col].unique()
-
-                    color_dict = {}
-                    for i, val in enumerate(unique_vals):
-                        hue = (i * 0.618033988749895) % 1.0
-                        rgb = colorsys.hls_to_rgb(hue, 0.94, 0.45)
-                        color_dict[val] = "#%02x%02x%02x" % (
-                            int(rgb[0] * 255),
-                            int(rgb[1] * 255),
-                            int(rgb[2] * 255),
-                        )
-
-                    for idx, row in content_df.iterrows():
-                        val = row[color_col]
-                        hex_c = color_dict.get(val, "#ffffff")
-                        styles.loc[idx, :] = (
-                            f"background-color: {hex_c}; color: #0f172a; font-weight: 500;"
-                        )
-
-                    if len(data_df) > 0:
-                        last_idx = data_df.index[-1]
-                        styles.loc[last_idx, :] = (
-                            "background-color: #e2e8f0; color: #0f172a; font-weight: 800; border-top: 2px solid #475569;"
-                        )
-                    return styles
+                export_col = (
+                    pl_item_col
+                    if pl_item_col in display_df.columns
+                    else (pl_sku_col if pl_sku_col else None)
+                )
 
                 st.markdown(
                     f"### 📋 Aggregated Product Picking List — {selected_listing_outlet}"
@@ -503,18 +504,15 @@ def render_sip_outlet_tab() -> None:
                     pl_item_col: st.column_config.TextColumn("🛍️ Item Name"),
                 }
                 st.dataframe(
-                    display_df.style.apply(_apply_pastel_colors, axis=None),
+                    display_df.style.apply(
+                        lambda d: _apply_pastel_colors(d, color_col=export_col), axis=None
+                    ),
                     use_container_width=True,
                     height=min(600, max(300, len(display_df) * 35 + 40)),
                     column_config=column_cfg,
                 )
 
                 # Export to styled Excel with pastel color grouping
-                export_col = (
-                    pl_item_col
-                    if pl_item_col in display_df.columns
-                    else (pl_sku_col if pl_sku_col else None)
-                )
                 excel_styled_bytes = export_to_styled_excel(
                     {f"{selected_listing_outlet} Picking List": display_df},
                     group_by_col=export_col,
@@ -524,6 +522,175 @@ def render_sip_outlet_tab() -> None:
                     label=f"📥 Download Styled {selected_listing_outlet} Product Listing (Excel)",
                     data=excel_styled_bytes,
                     file_name=f"{selected_listing_outlet.lower().replace(' ', '_')}_picking_list_{bd_now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+    with tab_global_listing:
+        st.markdown("### 📦 Global Product Listing & SKU Aggregator")
+        st.caption(
+            "Consolidated picking list across all orders and outlets. Groups items and SKUs, "
+            "calculates required fulfillment quantities, applies pastel visual grouping, and exports styled Excel."
+        )
+
+        c_g_filter, c_g_info = st.columns([2, 2])
+        with c_g_filter:
+            g_outlet_choices = ["🌐 All Outlets (Global)"] + list(outlet_counts.keys())
+            selected_g_outlet = st.selectbox(
+                "Filter Scope:",
+                g_outlet_choices,
+                index=0,
+                key="sip_g_outlet_scope",
+                help="Choose whether to aggregate all orders globally or scope to a specific outlet.",
+            )
+
+        g_item_col = mapping["item"]
+        g_sku_col = mapping["sku"]
+        g_qty_col = mapping["qty"]
+
+        if g_item_col is None:
+            st.warning(
+                "⚠️ No Item Name column mapped — cannot build the global product listing. "
+                "Set the 'Item Name' mapping in the Column Mapping section above."
+            )
+        else:
+            g_raw_df = (
+                processed_df[processed_df[target_col_name] == selected_g_outlet]
+                if selected_g_outlet != "🌐 All Outlets (Global)"
+                else processed_df
+            )
+
+            # Aggregate using the core aggregation engine
+            g_merged_df = aggregate_product_listing(
+                g_raw_df,
+                item_col=g_item_col,
+                qty_col=g_qty_col if g_qty_col and g_qty_col in g_raw_df.columns else None,
+                sku_col=g_sku_col if g_sku_col and g_sku_col in g_raw_df.columns else None,
+            )
+
+            if g_merged_df.empty:
+                st.warning("No line items found for the selected scope.")
+            else:
+                effective_qty_col = (
+                    g_qty_col
+                    if g_qty_col and g_qty_col in g_merged_df.columns
+                    else ("Total Quantity" if "Total Quantity" in g_merged_df.columns else g_merged_df.columns[-1])
+                )
+                tot_units = (
+                    int(pd.to_numeric(g_merged_df[effective_qty_col], errors="coerce").fillna(0).sum())
+                    if effective_qty_col in g_merged_df.columns
+                    else len(g_merged_df)
+                )
+                tot_skus = len(g_merged_df)
+                unique_orders = (
+                    g_raw_df[order_col].nunique()
+                    if order_col in g_raw_df
+                    else len(g_raw_df)
+                )
+
+                # Resolve Date
+                date_val = None
+                for c in ["Order Date", "Date", "date", "created_at"]:
+                    if c in g_raw_df.columns:
+                        dt_series = pd.to_datetime(g_raw_df[c], errors="coerce").dropna()
+                        if not dt_series.empty:
+                            date_val = dt_series.max().strftime("%d %b %Y")
+                        else:
+                            first_valid = g_raw_df[c].dropna()
+                            if not first_valid.empty:
+                                date_val = str(first_valid.iloc[-1])[:10]
+                        break
+                if not date_val:
+                    date_val = bd_today().strftime("%d %b %Y")
+
+                # Resolve Last Order Number
+                last_order_num = "—"
+                if order_col in g_raw_df.columns:
+                    valid_orders = g_raw_df.dropna(subset=[order_col])
+                    if not valid_orders.empty:
+                        try:
+                            num_ids = pd.to_numeric(valid_orders[order_col], errors="coerce")
+                            if num_ids.notna().any():
+                                last_order_num = str(int(num_ids.max()))
+                            else:
+                                last_order_num = str(valid_orders[order_col].iloc[-1])
+                        except Exception:
+                            last_order_num = str(valid_orders[order_col].iloc[-1])
+
+                last_order_display = (
+                    f"#{last_order_num}"
+                    if (last_order_num != "—" and not str(last_order_num).startswith("#"))
+                    else str(last_order_num)
+                )
+
+                # 4 KPI Metrics
+                gm1, gm2, gm3, gm4 = st.columns(4)
+                gm1.metric("📦 Total Required Units", f"{tot_units:,}")
+                gm2.metric("🏷️ Unique SKUs / Products", f"{tot_skus:,}")
+                gm3.metric(
+                    "🛒 Total Orders",
+                    f"{unique_orders:,}"
+                    if isinstance(unique_orders, (int, float))
+                    else f"{unique_orders}",
+                )
+                gm4.metric("📋 Last Order & Date", f"{last_order_display} · {date_val}")
+
+                st.divider()
+
+                # Construct summary last row
+                orders_label = (
+                    f"{unique_orders:,} Orders"
+                    if isinstance(unique_orders, (int, float))
+                    else f"{unique_orders}"
+                )
+                summary_row = {}
+                if g_sku_col and g_sku_col in g_merged_df.columns:
+                    summary_row[g_item_col] = (
+                        f"TOTAL: {orders_label} | Last Order: {last_order_display}"
+                    )
+                    summary_row[g_sku_col] = f"Date: {date_val}"
+                else:
+                    summary_row[g_item_col] = (
+                        f"TOTAL: {orders_label} | Last Order: {last_order_display} | Date: {date_val}"
+                    )
+                summary_row[effective_qty_col] = tot_units
+
+                g_display_df = pd.concat(
+                    [g_merged_df, pd.DataFrame([summary_row])], ignore_index=True
+                )
+
+                export_col = (
+                    g_item_col
+                    if g_item_col in g_display_df.columns
+                    else (g_sku_col if g_sku_col and g_sku_col in g_display_df.columns else None)
+                )
+
+                col_cfg = {
+                    effective_qty_col: st.column_config.NumberColumn(
+                        "📦 Total Quantity", format="%d"
+                    ),
+                    g_item_col: st.column_config.TextColumn("🛍️ Item Name"),
+                }
+                st.dataframe(
+                    g_display_df.style.apply(
+                        lambda d: _apply_pastel_colors(d, color_col=export_col), axis=None
+                    ),
+                    use_container_width=True,
+                    height=min(600, max(300, len(g_display_df) * 35 + 40)),
+                    column_config=col_cfg,
+                )
+
+                # Export to styled Excel
+                excel_styled_bytes = export_to_styled_excel(
+                    {"Global Product Listing": g_display_df},
+                    group_by_col=export_col,
+                )
+
+                st.download_button(
+                    label="📥 Download Styled Global Product Listing (Excel)",
+                    data=excel_styled_bytes,
+                    file_name=f"global_product_listing_{bd_now().strftime('%Y%m%d_%H%M%S')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     type="primary",
                     use_container_width=True,
@@ -655,3 +822,9 @@ def render_sip_outlet_tab() -> None:
                     mime="text/csv",
                     use_container_width=True,
                 )
+
+
+def render_outlet_dispatch_product_listing_tab() -> None:
+    """Public router entry point for Outlet Dispatch & Product Listing."""
+    render_sip_outlet_tab()
+

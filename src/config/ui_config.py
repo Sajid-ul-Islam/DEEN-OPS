@@ -20,6 +20,9 @@ LEGACY_NAV_MAPPING = {
     "📋 Product Listing": "🛒 Orders & Fulfillment",
     "📦 Pathao Processor": "🛒 Orders & Fulfillment",
     "🧩 Delivery Data Parser": "🛒 Orders & Fulfillment",
+    "Delivery Data Parser": "🛒 Orders & Fulfillment",
+    "🧩 Data Parser": "🛒 Orders & Fulfillment",
+    "Data Parser": "🛒 Orders & Fulfillment",
     # Section: Inventory & Stock
     "📦 Current Stock Analytics": "📦 Inventory & Stock",
     # Section: Analytics & Insights
@@ -29,6 +32,8 @@ LEGACY_NAV_MAPPING = {
     "💬 WhatsApp Messaging": "🛒 Orders & Fulfillment",  # redirected to Orders
     "🚀 Data Pilot": "🛒 Orders & Fulfillment",  # redirected to Orders
     ":material/rocket_launch: Data Pilot": "🛒 Orders & Fulfillment",  # redirected to Orders
+    "🏬 Outlet Dispatch & Product Listing": "🛒 Orders & Fulfillment",
+    "Outlet Dispatch & Product Listing": "🛒 Orders & Fulfillment",
     "🏬 SIP Outlet Mapper": "🛒 Orders & Fulfillment",
     "SIP Outlet Mapper": "🛒 Orders & Fulfillment",
     "🏬 Outlet Wise Extractor": "🛒 Orders & Fulfillment",
@@ -44,6 +49,9 @@ LEGACY_SUBFEATURE_MAPPING = {
     "📋 Product Listing": ("orders_sub_feature", "Product Listing"),
     "📦 Pathao Processor": ("orders_sub_feature", "Pathao Processor"),
     "🧩 Delivery Data Parser": ("orders_sub_feature", "Delivery Data Parser"),
+    "Delivery Data Parser": ("orders_sub_feature", "Data Parser"),
+    "🧩 Data Parser": ("orders_sub_feature", "Data Parser"),
+    "Data Parser": ("orders_sub_feature", "Data Parser"),
     "📦 Current Stock Analytics": ("inventory_sub_feature", "Current Stock Analytics"),
     "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),
     "📉 Return Analytics": ("analytics_sub_feature", "Returns"),
@@ -51,6 +59,14 @@ LEGACY_SUBFEATURE_MAPPING = {
     "💬 WhatsApp Messaging": ("orders_sub_feature", "SIP Outlet Mapper"),
     "🚀 Data Pilot": ("orders_sub_feature", "SIP Outlet Mapper"),
     ":material/rocket_launch: Data Pilot": ("orders_sub_feature", "SIP Outlet Mapper"),
+    "🏬 Outlet Dispatch & Product Listing": (
+        "orders_sub_feature",
+        "Outlet Dispatch & Product Listing",
+    ),
+    "Outlet Dispatch & Product Listing": (
+        "orders_sub_feature",
+        "Outlet Dispatch & Product Listing",
+    ),
     "🏬 SIP Outlet Mapper": ("orders_sub_feature", "SIP Outlet Mapper"),
     "SIP Outlet Mapper": ("orders_sub_feature", "SIP Outlet Mapper"),
     "🏬 Outlet Wise Extractor": ("orders_sub_feature", "Outlet Wise Extractor"),

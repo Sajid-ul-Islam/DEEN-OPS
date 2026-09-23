@@ -3,9 +3,15 @@ import plotly.express as px
 import streamlit as st
 
 from src.components.ui.dataframe_search import render_dataframe_search
-from src.components.ui.widgets import render_action_bar, render_reset_confirm
+from src.components.ui.ui_components import render_premium_header
+from src.components.ui.widgets import (
+    render_action_bar,
+    render_reset_confirm,
+    section_card,
+)
 from src.config.constants import bd_today
 from src.processing.delivery_parser import parse_data_fuzzy, parse_records
+from src.processing.order_processor import normalize_manual_item_input
 from src.state.persistence import clear_state_keys
 from src.utils.file_io import to_excel_bytes
 
@@ -174,7 +180,8 @@ def render_visual_report(df: pd.DataFrame):
             st.plotly_chart(fig_cod, use_container_width=True)
 
 
-def render_fuzzy_parser_tab():
+def render_delivery_parser_content():
+    """Render the Smart Delivery Data Parser feature."""
     render_reset_confirm("Delivery Data Parser", "parser", _reset_parser_state)
 
     st.markdown("### 🧩 Smart Delivery Data Parser")
@@ -272,3 +279,84 @@ def render_fuzzy_parser_tab():
             use_container_width=True,
             type="primary",
         )
+
+
+def render_item_description_content():
+    """Item Description Helper — normalize, sort, and generate standard item descriptions."""
+    section_card(
+        "Item Description Helper",
+        "Paste one item per line to normalize, sort, and generate standard item descriptions for bulk dispatch and order fulfillment.",
+    )
+    st.caption(
+        "Supported formats: `2x Item Name`, `Item Name x2`, `Item Name (2 pcs)`, or `Item Name | SKU123`."
+    )
+
+    raw_items = st.text_area(
+        "Manual item input",
+        key="data_parser_manual_items",
+        height=220,
+        placeholder="2x Oxford Shirt - Navy | SKU123\nPolo Shirt x1\nJeans (2 pcs)",
+    )
+
+    if st.button(
+        "Normalize and sort items",
+        type="primary",
+        use_container_width=True,
+        key="data_parser_manual_normalize",
+    ):
+        if not raw_items.strip():
+            st.warning("Enter at least one item line.")
+        else:
+            normalized_items, description = normalize_manual_item_input(raw_items)
+            st.session_state.data_parser_manual_items_df = pd.DataFrame(normalized_items)
+            st.session_state.data_parser_manual_desc = description
+
+    normalized_df = st.session_state.get("data_parser_manual_items_df") or st.session_state.get(
+        "pathao_manual_items_df"
+    )
+    manual_desc = st.session_state.get("data_parser_manual_desc") or st.session_state.get(
+        "pathao_manual_desc"
+    )
+
+    if normalized_df is not None and not normalized_df.empty:
+        display_df = normalized_df.rename(
+            columns={"category": "Category", "label": "Normalized Item", "qty": "Qty"}
+        )
+        with st.expander("Normalized items", expanded=True):
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+    if manual_desc:
+        from src.components.ui.clipboard import render_copy_button
+
+        c1, c2 = st.columns([4, 1])
+        with c1:
+            st.markdown("#### Generated Item Description")
+        with c2:
+            render_copy_button(manual_desc, label="Copy ItemDesc")
+        st.code(manual_desc)
+
+
+def render_data_parser_tab():
+    """Render unified Data Parser page with Delivery Data Parser and Item Description Helper features."""
+    render_premium_header(
+        "Data Parser",
+        "Extract structured delivery courier records and normalize manual item descriptions for fulfillment",
+        "🧩",
+    )
+
+    tab_delivery, tab_item_desc = st.tabs(
+        [
+            ":material/data_object: Delivery Data Parser",
+            ":material/build: Item Description Helper",
+        ]
+    )
+    with tab_delivery:
+        render_delivery_parser_content()
+    with tab_item_desc:
+        render_item_description_content()
+
+
+def render_fuzzy_parser_tab():
+    """Backward-compatible entry point for Delivery Data Parser feature."""
+    render_delivery_parser_content()
+

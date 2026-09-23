@@ -87,9 +87,12 @@ def _format_nav_item(item: str) -> str:
         "💬 WhatsApp Messaging": ":material/chat: WhatsApp Messaging",
         "📦 Current Stock Analytics": ":material/analytics: Stock Analytics",
         "🧩 Delivery Data Parser": ":material/data_object: Delivery Parser",
+        "Data Parser": ":material/data_object: Data Parser",
+        "🧩 Data Parser": ":material/data_object: Data Parser",
         "📥 Sales Data Ingestion": ":material/cloud_download: Sales Ingestion",
         "📉 Return Analytics": ":material/keyboard_return: Return Analytics",
-        "🚀 Data Pilot": ":material/smart_toy: Data Pilot",
+        "🏬 Outlet Dispatch & Product Listing": ":material/storefront: Outlet Dispatch & Product Listing",
+        "Outlet Dispatch & Product Listing": ":material/storefront: Outlet Dispatch & Product Listing",
         "🏬 Outlet Wise Extractor": ":material/storefront: Outlet Wise Extractor",
         "Outlet Wise Extractor": ":material/storefront: Outlet Wise Extractor",
         "SIP Outlet Mapper": ":material/storefront: Outlet Wise Extractor",
@@ -401,19 +404,36 @@ def _route_page(selected_nav: str) -> None:
     elif selected_nav == "🛒 Orders & Fulfillment":
         orders_sub_options = [
             "Order Tracking",
-            "Product Listing",
-            "Pathao Processor",
-            "Delivery Data Parser",
-            "Outlet Wise Extractor",
+            "Outlet Dispatch & Product Listing",
+            "Data Parser",
         ]
-        if st.session_state.get("orders_sub_feature") == "SIP Outlet Mapper":
-            st.session_state["orders_sub_feature"] = "Outlet Wise Extractor"
+        legacy_orders_sub = {
+            "Delivery Data Parser": "Data Parser",
+            "Pathao Processor": "Data Parser",
+            "Outlet Wise Extractor": "Outlet Dispatch & Product Listing",
+            "SIP Outlet Mapper": "Outlet Dispatch & Product Listing",
+            "Outlet Extractor": "Outlet Dispatch & Product Listing",
+            "Outlet Manager": "Outlet Dispatch & Product Listing",
+            "Outlet Wise Product Listing": "Outlet Dispatch & Product Listing",
+        }
+        if st.session_state.get("orders_sub_feature") in legacy_orders_sub:
+            st.session_state["orders_sub_feature"] = legacy_orders_sub[
+                st.session_state["orders_sub_feature"]
+            ]
         if (
             "orders_sub_feature" not in st.session_state
-            or st.session_state["orders_sub_feature"] not in orders_sub_options
+            or (
+                st.session_state["orders_sub_feature"] not in orders_sub_options
+                and st.session_state["orders_sub_feature"] != "Product Listing"
+            )
         ):
             st.session_state["orders_sub_feature"] = "Order Tracking"
         curr_sub = st.session_state["orders_sub_feature"]
+        pill_default = (
+            curr_sub
+            if curr_sub in orders_sub_options
+            else "Data Parser"
+        )
 
         # Prominently render sub-feature selector directly so all features are visible
         if hasattr(st, "pills"):
@@ -421,23 +441,28 @@ def _route_page(selected_nav: str) -> None:
                 "Orders Feature",
                 orders_sub_options,
                 selection_mode="single",
-                default=curr_sub,
+                default=pill_default,
                 label_visibility="collapsed",
                 key="orders_sub_pills",
             )
-            if chosen_sub and chosen_sub != curr_sub:
+            if chosen_sub and chosen_sub != pill_default:
                 st.session_state["orders_sub_feature"] = chosen_sub
                 st.rerun()
         else:
+            radio_idx = (
+                orders_sub_options.index(curr_sub)
+                if curr_sub in orders_sub_options
+                else 1
+            )
             sub_feature = st.radio(
                 "Choose a feature:",
                 orders_sub_options,
-                index=orders_sub_options.index(curr_sub),
+                index=radio_idx,
                 label_visibility="collapsed",
                 horizontal=True,
                 key="orders_sub_radio",
             )
-            if sub_feature != curr_sub:
+            if sub_feature != orders_sub_options[radio_idx]:
                 st.session_state["orders_sub_feature"] = sub_feature
                 st.rerun()
 
@@ -450,29 +475,29 @@ def _route_page(selected_nav: str) -> None:
                 render_woocommerce_orders_tab,
                 fallback_msg="Order Tracking unavailable.",
             )
+        elif active_sub in (
+            "Outlet Dispatch & Product Listing",
+            "Outlet Wise Extractor",
+            "SIP Outlet Mapper",
+        ):
+            from src.pages.sip_outlet_mapper import render_sip_outlet_tab
+
+            safe_render(
+                render_sip_outlet_tab,
+                fallback_msg="Outlet Dispatch & Product Listing unavailable.",
+            )
         elif active_sub == "Product Listing":
             from src.pages.product_listing import render_product_listing_tab
 
             safe_render(
                 render_product_listing_tab, fallback_msg="Product Listing unavailable."
             )
-        elif active_sub == "Pathao Processor":
-            from src.pages.pathao_orders import render_pathao_tab
-
-            safe_render(render_pathao_tab, fallback_msg="Pathao Processor unavailable.")
-        elif active_sub == "Delivery Data Parser":
-            from src.pages.delivery_parser import render_fuzzy_parser_tab
+        elif active_sub in ("Data Parser", "Delivery Data Parser", "Pathao Processor"):
+            from src.pages.delivery_parser import render_data_parser_tab
 
             safe_render(
-                render_fuzzy_parser_tab,
-                fallback_msg="Delivery Data Parser unavailable.",
-            )
-
-        elif active_sub in ("Outlet Wise Extractor", "SIP Outlet Mapper"):
-            from src.pages.sip_outlet_mapper import render_sip_outlet_tab
-
-            safe_render(
-                render_sip_outlet_tab, fallback_msg="Outlet Wise Extractor unavailable."
+                render_data_parser_tab,
+                fallback_msg="Data Parser unavailable.",
             )
 
     # === 📦 Inventory & Stock (Consolidated) ===

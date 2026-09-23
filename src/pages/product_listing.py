@@ -381,7 +381,11 @@ def _render_product_listing_content() -> None:
 
 
 def render_product_listing_tab() -> None:
-    """Public router entry point for Product Listing page."""
+    """Public router entry point for Product Listing page (now merged into Outlet Dispatch & Product Listing)."""
+    from src.pages.sip_outlet_mapper import render_sip_outlet_tab
+
     safe_render(
-        _render_product_listing_content, fallback_msg="Product Listing unavailable."
+        render_sip_outlet_tab,
+        fallback_msg="Outlet Dispatch & Product Listing unavailable.",
     )
+

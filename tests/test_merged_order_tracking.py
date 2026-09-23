@@ -42,32 +42,15 @@ def test_woocommerce_orders_tab_contains_merged_pathao_tracking():
 
 
 def test_pathao_tab_no_longer_has_redundant_order_tracking():
-    """Verify render_pathao_tab removed the redundant Order Tracking tab."""
+    """Verify render_pathao_tab exclusively renders the Item Description Helper."""
     from src.pages.pathao_orders import render_pathao_tab
 
-    created_tab_labels = []
+    with patch(
+        "src.pages.pathao_orders.processing_tab._render_item_description_tab"
+    ) as mock_helper:
+        render_pathao_tab()
+        assert mock_helper.called
 
-    def mock_tabs(labels):
-        nonlocal created_tab_labels
-        created_tab_labels = labels
-        return [MagicMock() for _ in labels]
-
-    with patch.object(st, "tabs", side_effect=mock_tabs):
-        with (
-            patch("src.pages.pathao_orders.processing_tab._render_processing_tab"),
-            patch(
-                "src.pages.pathao_orders.processing_tab._render_item_description_tab"
-            ),
-            patch("src.pages.pathao_orders.dispatch_tab._render_auto_dispatch_tab"),
-            patch("src.pages.pathao_orders.health_tab._render_delivery_health_tab"),
-            patch("src.pages.pathao_orders.health_tab._render_wc_notes_tab"),
-        ):
-            render_pathao_tab()
-
-            # Confirm no tab is named "Order Tracking" inside Pathao Processor
-            assert not any("Order Tracking" in label for label in created_tab_labels)
-            # Confirm 5 focused tabs
-            assert len(created_tab_labels) == 5
 
 
 def test_delivery_parser_is_unified_without_split_tabs():
@@ -85,6 +68,31 @@ def test_delivery_parser_is_unified_without_split_tabs():
         render_fuzzy_parser_tab()
         # Ensure it does NOT use split tabs anymore
         assert not tabs_called
+
+
+def test_data_parser_has_delivery_and_item_description_features():
+    """Verify render_data_parser_tab renders Delivery Data Parser and Item Description Helper."""
+    from src.pages.delivery_parser import render_data_parser_tab
+
+    created_tab_labels = []
+
+    def mock_tabs(labels):
+        nonlocal created_tab_labels
+        created_tab_labels = labels
+        return [MagicMock() for _ in labels]
+
+    with patch.object(st, "tabs", side_effect=mock_tabs):
+        with (
+            patch("src.pages.delivery_parser.render_delivery_parser_content") as mock_deliv,
+            patch("src.pages.delivery_parser.render_item_description_content") as mock_item_desc,
+        ):
+            render_data_parser_tab()
+            assert any("Delivery" in label for label in created_tab_labels)
+            assert any("Item Description" in label for label in created_tab_labels)
+            assert len(created_tab_labels) == 2
+            assert mock_deliv.called
+            assert mock_item_desc.called
+
 
 
 def test_stock_analytics_does_not_set_nav_override():

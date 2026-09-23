@@ -787,18 +787,18 @@ def render_outlet_stock_analysis_tab():
     with c_info:
         st.info(
             "💡 **Looking for customer order outlet fulfillment, picking lists, or Pathao bulk consignments?** "
-            "Go to **Outlet Wise Extractor & Manager** in **🛒 Orders & Fulfillment**."
+            "Go to **Outlet Dispatch & Product Listing** in **🛒 Orders & Fulfillment**."
         )
     with c_jump:
         if st.button(
-            "🏬 Open Outlet Extractor",
+            "🏬 Open Outlet Dispatch",
             key="jump_to_outlet_extractor_btn",
             use_container_width=True,
-            help="Navigate directly to Outlet Wise Extractor (Manager, Picking & Pathao Bulk)",
+            help="Navigate directly to Outlet Dispatch & Product Listing (Manager, Picking & Pathao Bulk)",
         ):
             st.session_state["selected_nav"] = "🛒 Orders & Fulfillment"
             st.session_state["sidebar_nav"] = "🛒 Orders & Fulfillment"
-            st.session_state["orders_sub_feature"] = "Outlet Wise Extractor"
+            st.session_state["orders_sub_feature"] = "Outlet Dispatch & Product Listing"
             st.rerun()
 
     default_files = {
