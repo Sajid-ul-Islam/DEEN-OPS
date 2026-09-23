@@ -4,6 +4,8 @@ headless = true
 enableCORS = true
 corsAllowedOrigins = [
     "https://ops.deencommerce.com",
+    "https://deen-ops.streamlit.app",
+    "https://deen-business-intel.streamlit.app",
     "https://order-process-automation.streamlit.app",
     "http://localhost:8501",
     "http://192.168.68.103:8501",
@@ -11,6 +13,8 @@ corsAllowedOrigins = [
 ]
 allowedHosts = [
     "ops.deencommerce.com",
+    "deen-ops.streamlit.app",
+    "deen-business-intel.streamlit.app",
     "order-process-automation.streamlit.app",
     "localhost",
     "127.0.0.1",
