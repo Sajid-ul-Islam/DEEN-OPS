@@ -793,25 +793,25 @@ def render_dashboard_output(
             else:
                 gross_rev = today_rev + cashback_disc
 
-    # Unified performance view selector
+    # Category Share charts always render at the top
+    color_map = _render_charts(summ, total_rev=gross_rev, granular_df=active_df)
+
+    # ── Additional analysis view selector (below the charts) ──
+    st.markdown("#### 🔍 Drill-Down Analysis")
     hub_view = st.segmented_control(
         "Performance view",
         [
-            "Category Share",
             "Spotlight",
             "SKU Report",
             "Basket Analysis",
             "DEEN Selects vs Regular",
         ],
-        default=st.session_state.get("dashboard_performance_view", "Category Share"),
+        default=st.session_state.get("dashboard_performance_view", None),
         key="dashboard_performance_view",
         label_visibility="collapsed",
     )
-    color_map = {}
 
-    if hub_view == "Category Share":
-        color_map = _render_charts(summ, total_rev=gross_rev, granular_df=active_df)
-    elif hub_view == "Spotlight":
+    if hub_view == "Spotlight":
         prev_top = None
         if st.session_state.get("wc_sync_mode") == "Operational Cycle":
             nav_mode = st.session_state.get("wc_nav_mode", "Today")

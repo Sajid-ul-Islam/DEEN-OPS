@@ -694,10 +694,6 @@ def render_live_tab():
         _refresh_core_metrics, fallback_msg="Operational KPI Metrics unavailable."
     )
 
-    # ── Operational Pipeline Summary (for All Orders view) ────────────────────
-    if selected_view == "All Orders" and not df_live.empty:
-        _render_order_pipeline_summary(df_live)
-
     # ── Detail & Performance Charts ─────────────────────────────────────────
     if df_filtered.empty:
         if selected_view in {"Today Shipped", "Today"}:
@@ -743,6 +739,10 @@ def render_live_tab():
         ),
         fallback_msg="Dashboard rendering encountered an error.",
     )
+
+    # ── Operational Pipeline Summary (for All Orders view) ────────────────────
+    if selected_view == "All Orders" and not df_live.empty:
+        _render_order_pipeline_summary(df_live)
 
     # ── Product-Wise Shipped & Completed Orders Export ───────────────────
     _render_dispatch_export(selected_view)
