@@ -511,3 +511,108 @@ def render_dashboard_banner(load_live_source):
         _render_refresh_controls(nav_mode, load_live_source)
 
     _render_manual_upload_override()
+
+
+def filter_by_collection(df: pd.DataFrame | None, collection: str) -> pd.DataFrame:
+    """Filter a dataframe by collection line ('DEEN Selects' vs 'DEEN Regular').
+
+    Args:
+        df: Input dataframe with product line items.
+        collection: Selected collection label ('🌐 All Products', '💎 DEEN Selects', '📦 DEEN Regular').
+
+    Returns:
+        Filtered DataFrame.
+    """
+    if df is None or df.empty:
+        return df if df is not None else pd.DataFrame()
+    if not collection or collection in (
+        "🌐 All Products",
+        "All Products",
+        "All Collections",
+    ):
+        return df
+
+    from src.processing.selects_analytics import classify_product_line
+
+    name_col = (
+        "Product Name"
+        if "Product Name" in df.columns
+        else ("Item Name" if "Item Name" in df.columns else None)
+    )
+    if not name_col:
+        return df
+
+    sku_col = "SKU" if "SKU" in df.columns else None
+    cat_col = "Category" if "Category" in df.columns else None
+
+    sku_series = df[sku_col] if sku_col else [""] * len(df)
+    cat_series = df[cat_col] if cat_col else [""] * len(df)
+
+    target_line = "DEEN Selects" if "Selects" in collection else "DEEN Regular"
+
+    mask = [
+        classify_product_line(str(n), str(s), str(c)) == target_line
+        for n, s, c in zip(df[name_col], sku_series, cat_series)
+    ]
+    return df[mask].copy()
+
+
+def render_collection_filter_bar(df_standard: pd.DataFrame | None = None) -> str:
+    """Render the Collection Filter segmented control above KPI cards.
+
+    Args:
+        df_standard: Optional current standardized dataframe for real-time counts.
+
+    Returns:
+        The selected collection string.
+    """
+    options = ["🌐 All Products", "💎 DEEN Selects", "📦 DEEN Regular"]
+    current = st.session_state.get("live_collection_filter", "🌐 All Products")
+    if current not in options:
+        current = "🌐 All Products"
+
+    c_filter, c_hint = st.columns([3.5, 2.5], vertical_alignment="center")
+    with c_filter:
+        if hasattr(st, "segmented_control"):
+            chosen = st.segmented_control(
+                "Collection Line",
+                options,
+                default=current,
+                key="live_collection_filter_segmented",
+                label_visibility="collapsed",
+            )
+        elif hasattr(st, "pills"):
+            chosen = st.pills(
+                "Collection Line",
+                options,
+                default=current,
+                key="live_collection_filter_pills",
+                label_visibility="collapsed",
+            )
+        else:
+            chosen = st.radio(
+                "Collection Line",
+                options,
+                index=options.index(current),
+                horizontal=True,
+                key="live_collection_filter_radio",
+                label_visibility="collapsed",
+            )
+
+    chosen = chosen or current
+
+    with c_hint:
+        if chosen == "💎 DEEN Selects":
+            st.caption("Showing **DEEN Selects** premium line in KPI cards & charts")
+        elif chosen == "📦 DEEN Regular":
+            st.caption("Showing **DEEN Regular** core catalog in KPI cards & charts")
+        else:
+            st.caption("Showing **All Products** across both collections")
+
+    if chosen != current:
+        st.session_state["live_collection_filter"] = chosen
+        st.session_state.pop("live_df_standard", None)
+        st.session_state.pop("live_cmp_standard", None)
+        st.rerun()
+
+    return chosen

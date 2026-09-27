@@ -318,3 +318,73 @@ def test_product_listing_export_file_sorted_item_then_sku():
     assert len(excel_bytes) > 0
     # Valid ZIP header for xlsx
     assert excel_bytes[:2] == b"PK"
+
+
+def test_generate_executive_briefing_with_selects_split():
+    """Verify briefing includes DEEN Selects vs Regular breakdown when stats provided."""
+    selects_stats = {
+        "total_revenue": 100000.0,
+        "total_qty": 50,
+        "selects_rev": 30000.0,
+        "selects_qty": 15,
+        "selects_rev_share": 30.0,
+        "regular_rev": 70000.0,
+        "regular_qty": 35,
+        "regular_rev_share": 70.0,
+    }
+    report = generate_executive_briefing(
+        today_rev=100000,
+        today_qty=50,
+        today_orders=25,
+        today_aov=4000,
+        dm={"last_shipped_order": "1001", "last_pathao_print": "1001"},
+        top=pd.DataFrame(
+            [{"Clean_Product": "Product A", "Total Qty": 10, "Total Amount": 25000}]
+        ),
+        gross_rev=100000,
+        cashback_disc=0.0,
+        selects_stats=selects_stats,
+    )
+
+    assert "Collection Split:" in report
+    assert "DEEN Selects:" in report
+    assert "৳30,000" in report
+    assert "15 pcs · 30.0%" in report
+    assert "DEEN Regular:" in report
+    assert "৳70,000" in report
+    assert "35 pcs · 70.0%" in report
+
+
+def test_build_export_data_includes_subcategory_sales():
+    """Verify Excel export builder generates Sub-Category Sales tab."""
+    from src.components.dashboard.dashboard_output import _build_export_data
+
+    active_df = pd.DataFrame(
+        {
+            "Category": ["Pants", "Pants", "Shirts"],
+            "Sub-Category": ["Cargo Pants", "Jeans", "Polo Shirt"],
+            "Quantity": [2, 3, 5],
+            "Total Amount": [3000.0, 4500.0, 6000.0],
+        }
+    )
+
+    export_data = _build_export_data(
+        is_operational=True,
+        summ=pd.DataFrame(),
+        top=pd.DataFrame(),
+        active_df=active_df,
+        today_rev=13500.0,
+        today_qty=10,
+        today_orders=5,
+        today_aov=2700.0,
+        dm={},
+        final_report_text="Sample report",
+    )
+
+    assert "Sub-Category Sales" in export_data
+    sub_df = export_data["Sub-Category Sales"]
+    assert "Sub-Category" in sub_df.columns
+    assert "Sales Quantity (Units)" in sub_df.columns
+    assert "Sales Amount (BDT)" in sub_df.columns
+    assert "Revenue Share (%)" in sub_df.columns
+    assert len(sub_df) == 3

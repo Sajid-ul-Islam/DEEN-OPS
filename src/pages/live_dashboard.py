@@ -14,6 +14,8 @@ import streamlit as st
 from src.components.dashboard.dashboard_metrics import render_operational_metrics
 from src.components.dashboard.dashboard_output import render_dashboard_output
 from src.components.dashboard.live_components import (
+    filter_by_collection,
+    render_collection_filter_bar,
     render_dashboard_banner,
 )
 from src.components.ui.widgets import render_reset_confirm
@@ -668,13 +670,24 @@ def render_live_tab():
     }
     # Standardize data for current view
     df_standard, timeframe = prepare_granular_data(df_live, live_mapping)
+    cmp_standard = _get_comparison_frame(
+        selected_view, nav_mode, order_view_mode, live_mapping
+    )
+
+    # ── Collection Filter Bar (All Products / 💎 DEEN Selects / 📦 DEEN Regular) ─
+    chosen_col = render_collection_filter_bar(df_standard)
+    df_filtered = filter_by_collection(df_standard, chosen_col)
+    cmp_filtered = (
+        filter_by_collection(cmp_standard, chosen_col)
+        if cmp_standard is not None
+        else None
+    )
 
     # Stash the granular frames so the KPI cards and downstream charts share
     # the exact same synchronized dataset.
-    st.session_state["live_df_standard"] = df_standard
-    st.session_state["live_cmp_standard"] = _get_comparison_frame(
-        selected_view, nav_mode, order_view_mode, live_mapping
-    )
+    st.session_state["live_df_standard"] = df_filtered
+    st.session_state["live_cmp_standard"] = cmp_filtered
+    st.session_state["live_df_unfiltered"] = df_standard
 
     # ── KPI Cards (5 core metric cards + comparison deltas) ────────────────────
     safe_render(
@@ -686,23 +699,27 @@ def render_live_tab():
         _render_order_pipeline_summary(df_live)
 
     # ── Detail & Performance Charts ─────────────────────────────────────────
-    if df_standard.empty:
+    if df_filtered.empty:
         if selected_view in {"Today Shipped", "Today"}:
             st.info(
-                "🚚 **No orders shipped yet today.** Today's dispatches will appear here once fulfilled."
+                f"🚚 **No {chosen_col} orders shipped yet today.** Today's dispatches will appear here once fulfilled."
             )
         elif selected_view in {"Last Day Shipped", "Last Day"}:
-            st.info("🕘 **No shipped orders recorded** for the previous calendar day.")
+            st.info(
+                f"🕘 **No {chosen_col} shipped orders recorded** for the previous calendar day."
+            )
         elif selected_view == "Queue":
             st.info(
-                "📋 **Queue is clear.** There are currently no orders on hold or waiting."
+                f"📋 **Queue is clear.** There are currently no {chosen_col} orders on hold or waiting."
             )
         else:
-            st.info(f"📦 **No active orders found** for the **{selected_view}** view.")
+            st.info(
+                f"📦 **No active {chosen_col} orders found** for the **{selected_view}** view."
+            )
         render_staleness_monitor()
         return
 
-    drill, summ, top, basket = aggregate_data(df_standard, live_mapping)
+    drill, summ, top, basket = aggregate_data(df_filtered, live_mapping)
     if drill is None or summ is None:
         st.info(
             "ℹ️ Insufficient category data available to display charts for this view."
@@ -720,7 +737,7 @@ def render_live_tab():
             basket,
             str(source_name) if source_name is not None else None,
             str(modified_at) if modified_at is not None else None,
-            granular_df=df_standard,
+            granular_df=df_filtered,
             show_core_metrics=False,
             raw_df=df_live,
         ),

@@ -1290,6 +1290,7 @@ def generate_executive_briefing(
     top,
     gross_rev=None,
     cashback_disc=None,
+    selects_stats=None,
 ):
     """Generates the single source of truth narrative for the Executive Briefing."""
 
@@ -1307,6 +1308,22 @@ def generate_executive_briefing(
         f"📦 *Shipped Items:* {today_qty:,.0f}",
         f"🛍️ *Avg Basket Value:* ৳{gross_aov:,.0f}",
     ]
+
+    if selects_stats and selects_stats.get("total_revenue", 0) > 0:
+        s_rev = selects_stats.get("selects_rev", 0.0)
+        s_qty = selects_stats.get("selects_qty", 0)
+        s_pct = selects_stats.get("selects_rev_share", 0.0)
+        r_rev = selects_stats.get("regular_rev", 0.0)
+        r_qty = selects_stats.get("regular_qty", 0)
+        r_pct = selects_stats.get("regular_rev_share", 0.0)
+        report_lines.extend(
+            [
+                "",
+                "🏷️ *Collection Split:*",
+                f"💎 *DEEN Selects:* ৳{s_rev:,.0f} ({s_qty:,} pcs · {s_pct:.1f}%)",
+                f"📦 *DEEN Regular:* ৳{r_rev:,.0f} ({r_qty:,} pcs · {r_pct:.1f}%)",
+            ]
+        )
 
     report_lines.extend(
         [

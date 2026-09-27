@@ -77,6 +77,8 @@ MODULES = [
     "src.services.courier",
     "src.processing.return_processor",
     "src.utils.notifications",
+    "src.processing.selects_analytics",
+    "src.components.dashboard.selects_analysis_view",
 ]
 
 

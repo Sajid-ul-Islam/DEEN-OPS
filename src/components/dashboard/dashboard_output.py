@@ -146,7 +146,7 @@ def _render_ingestion_mode_metrics(granular_df, dummy_mapping, last_updated):
     return drill, summ, top, basket, active_df
 
 
-def _render_charts(summ, total_rev=None):
+def _render_charts(summ, total_rev=None, granular_df=None):
     """Render the Performance Outlook charts section with executive metric highlights."""
     if summ is None or summ.empty:
         st.info("No category sales data available for current selection.")
@@ -178,6 +178,23 @@ def _render_charts(summ, total_rev=None):
         chart_summ = chart_summ.groupby("Category", as_index=False).agg(
             {"Total Qty": "sum", "Total Amount": "sum"}
         )
+
+    # Compute DEEN Selects analytics from granular data
+    selects_pct = None
+    selects_stats = None
+    if granular_df is not None and not granular_df.empty:
+        from src.processing.selects_analytics import compute_selects_regular_analytics
+
+        cat_k = "Category" if "Category" in granular_df.columns else display_col
+        subcat_k = (
+            "Sub-Category" if "Sub-Category" in granular_df.columns else display_col
+        )
+        analytics_res = compute_selects_regular_analytics(
+            granular_df, cat_col=cat_k, subcat_col=subcat_k
+        )
+        selects_stats = analytics_res.get("summary", {})
+        if selects_stats and selects_stats.get("total_revenue", 0) > 0:
+            selects_pct = selects_stats.get("selects_rev_share")
 
     # Prepare metrics summary for inline placement inside chart whitespace
     metrics_summary = {}
@@ -214,6 +231,8 @@ def _render_charts(summ, total_rev=None):
 
     metrics_summary["cat_cnt"] = len(chart_summ)
     metrics_summary["avg_price"] = (tot_rev / tot_vol) if tot_vol > 0 else 0
+    if selects_pct is not None:
+        metrics_summary["selects_pct"] = selects_pct
 
     sorted_cats = (
         chart_summ.sort_values("Total Amount", ascending=False)[display_col].tolist()
@@ -234,6 +253,8 @@ def _render_charts(summ, total_rev=None):
             color_map,
             metrics_summary=metrics_summary,
             total_revenue=total_rev,
+            selects_pct=selects_pct,
+            selects_stats=selects_stats,
         )
     st.divider()
 
@@ -359,6 +380,58 @@ def _build_export_data(
 
     if summ is not None and not summ.empty:
         export_data["Category Summary"] = summ
+
+    # Sub-Category wise sales quantity and amount tab
+    if active_df is not None and not active_df.empty:
+        subcat_col = (
+            "Sub-Category"
+            if "Sub-Category" in active_df.columns
+            else ("SubCategory" if "SubCategory" in active_df.columns else None)
+        )
+        cat_col = "Category" if "Category" in active_df.columns else None
+        qty_col = "Quantity" if "Quantity" in active_df.columns else "Total Qty"
+        amt_col = (
+            "Total Amount"
+            if "Total Amount" in active_df.columns
+            else (
+                "Gross Amount" if "Gross Amount" in active_df.columns else "Item Cost"
+            )
+        )
+
+        if subcat_col and qty_col in active_df.columns and amt_col in active_df.columns:
+            group_keys = [cat_col, subcat_col] if cat_col else [subcat_col]
+            sub_agg = (
+                active_df.groupby(group_keys, as_index=False)
+                .agg({qty_col: "sum", amt_col: "sum"})
+                .rename(
+                    columns={
+                        qty_col: "Sales Quantity (Units)",
+                        amt_col: "Sales Amount (BDT)",
+                    }
+                )
+            )
+            tot_amt = float(sub_agg["Sales Amount (BDT)"].sum())
+            tot_qty_val = float(sub_agg["Sales Quantity (Units)"].sum())
+            sub_agg["Avg Unit Price (BDT)"] = sub_agg.apply(
+                lambda r: (
+                    (r["Sales Amount (BDT)"] / r["Sales Quantity (Units)"])
+                    if r["Sales Quantity (Units)"] > 0
+                    else 0.0
+                ),
+                axis=1,
+            ).round(2)
+            if tot_amt > 0:
+                sub_agg["Revenue Share (%)"] = (
+                    sub_agg["Sales Amount (BDT)"] / tot_amt * 100
+                ).round(2)
+            if tot_qty_val > 0:
+                sub_agg["Quantity Share (%)"] = (
+                    sub_agg["Sales Quantity (Units)"] / tot_qty_val * 100
+                ).round(2)
+
+            sub_agg = sub_agg.sort_values("Sales Amount (BDT)", ascending=False)
+            export_data["Sub-Category Sales"] = sub_agg
+
     if top is not None and not top.empty:
         export_data["Top Products"] = top
     if active_df is not None and not active_df.empty:
@@ -723,7 +796,13 @@ def render_dashboard_output(
     # Unified performance view selector
     hub_view = st.segmented_control(
         "Performance view",
-        ["Category Share", "Spotlight", "SKU Report", "Basket Analysis"],
+        [
+            "Category Share",
+            "Spotlight",
+            "SKU Report",
+            "Basket Analysis",
+            "DEEN Selects vs Regular",
+        ],
         default=st.session_state.get("dashboard_performance_view", "Category Share"),
         key="dashboard_performance_view",
         label_visibility="collapsed",
@@ -731,7 +810,7 @@ def render_dashboard_output(
     color_map = {}
 
     if hub_view == "Category Share":
-        color_map = _render_charts(summ, total_rev=gross_rev)
+        color_map = _render_charts(summ, total_rev=gross_rev, granular_df=active_df)
     elif hub_view == "Spotlight":
         prev_top = None
         if st.session_state.get("wc_sync_mode") == "Operational Cycle":
@@ -765,6 +844,16 @@ def render_dashboard_output(
         render_market_basket_analysis_section(
             active_df, raw_df=raw_df if raw_df is not None else active_df
         )
+    elif hub_view in {"DEEN Selects vs Regular", "DEEN Selects", "Selects vs Regular"}:
+        from src.components.dashboard.selects_analysis_view import (
+            render_selects_analysis_section,
+        )
+
+        full_df = st.session_state.get("live_df_unfiltered", active_df)
+        render_selects_analysis_section(
+            full_df if full_df is not None and not full_df.empty else active_df,
+            raw_df=raw_df if raw_df is not None else active_df,
+        )
 
     if is_operational:
         gross_aov = float(
@@ -785,6 +874,15 @@ def render_dashboard_output(
                 active_df, full_df_for_cust, wc_raw_mapping
             )
 
+        briefing_selects = None
+        if active_df is not None and not active_df.empty:
+            from src.processing.selects_analytics import (
+                compute_selects_regular_analytics,
+            )
+
+            briefing_res = compute_selects_regular_analytics(active_df)
+            briefing_selects = briefing_res.get("summary", {})
+
         report_text = generate_executive_briefing(
             gross_rev,
             today_qty,
@@ -794,6 +892,7 @@ def render_dashboard_output(
             top,
             gross_rev=gross_rev,
             cashback_disc=0.0,
+            selects_stats=briefing_selects,
         )
 
         current_data_fingerprint = f"{gross_rev}_{today_orders}_{dm.get('pathao_count', 0)}_{dm.get('other_count', 0)}_{new_cust_cnt}_{ret_cust_cnt}"

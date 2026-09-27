@@ -79,6 +79,8 @@ def render_category_charts(
     color_map: dict[str, str],
     metrics_summary: dict | None = None,
     total_revenue: float | None = None,
+    selects_pct: float | None = None,
+    selects_stats: dict | None = None,
 ) -> None:
     """Render the Revenue Share pie and Volume bar charts with truncated labels.
 
@@ -88,6 +90,8 @@ def render_category_charts(
         color_map: Mapping of category values to hex colours.
         metrics_summary: Optional dictionary containing top revenue/volume metrics.
         total_revenue: Optional Net Realized Revenue override for exact center donut alignment.
+        selects_pct: Optional percentage of revenue from DEEN Selects line to display in donut center.
+        selects_stats: Optional summary dict with exact Selects vs Regular revenue, qty, and shares.
     """
     if summ is None or summ.empty:
         return
@@ -117,6 +121,31 @@ def render_category_charts(
 
     v1, v2 = st.columns(2)
     with v1:
+        # Compact Split Ratio Bar (DEEN Selects vs DEEN Regular)
+        if selects_stats and selects_stats.get("total_revenue", 0) > 0:
+            s_rev = selects_stats.get("selects_rev", 0.0)
+            s_qty = selects_stats.get("selects_qty", 0)
+            s_pct = selects_stats.get("selects_rev_share", 0.0)
+            r_rev = selects_stats.get("regular_rev", 0.0)
+            r_qty = selects_stats.get("regular_qty", 0)
+            r_pct = selects_stats.get("regular_rev_share", 0.0)
+
+            st.markdown(
+                f"""
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; margin-bottom: 5px;">
+                        <span style="color: #059669; font-weight: 700;">💎 Selects: <b>৳{s_rev:,.0f}</b> <span style="font-weight: 400; color: #64748b;">({s_qty:,} pcs · {s_pct:.1f}%)</span></span>
+                        <span style="color: #2563eb; font-weight: 700;"><span style="font-weight: 400; color: #64748b;">({r_pct:.1f}% · {r_qty:,} pcs)</span> <b>৳{r_rev:,.0f}</b> 📦 Regular</span>
+                    </div>
+                    <div style="height: 6px; border-radius: 3px; background: #f1f5f9; overflow: hidden; display: flex;">
+                        <div style="width: {s_pct:.1f}%; background: linear-gradient(90deg, #10b981, #34d399);" title="DEEN Selects: {s_pct:.1f}%"></div>
+                        <div style="width: {r_pct:.1f}%; background: linear-gradient(90deg, #3b82f6, #60a5fa);" title="DEEN Regular: {r_pct:.1f}%"></div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         pie_display = summ_display.copy()
         pie_display["Pie_Name"] = pie_display[display_col].apply(
             get_short_category_label
@@ -263,17 +292,19 @@ def render_category_charts(
         )
 
         center_annotation_text = (
-            f"<span style='font-size:18px;'><b>৳ {total_amt:,.0f}</b></span><br>"
-            f"<span style='font-size:10px;opacity:0.75;letter-spacing:0.5px;'>TOTAL REVENUE</span>"
+            f"<span style='font-size:18px;color:#0f172a;'><b>৳ {total_amt:,.0f}</b></span><br>"
+            f"<span style='font-size:10px;color:#64748b;letter-spacing:0.5px;'>TOTAL REVENUE</span>"
         )
         fig_pie.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="#ffffff",
+            plot_bgcolor="#ffffff",
             margin=dict(t=40, b=30, l=20, r=20),
             height=440,
             showlegend=False,
+            font=dict(family="Inter, sans-serif", color="#0f172a"),
+            title_font=dict(color="#0f172a", size=15),
             hoverlabel=dict(
-                bgcolor="#0f172a",
+                bgcolor="#1e293b",
                 font_size=12,
                 font_family="Inter, sans-serif",
                 font_color="#ffffff",
@@ -290,21 +321,13 @@ def render_category_charts(
                 )
             ],
         )
-        # Determine background gap color so slices do NOT join:
-        # Light mode page -> #ffffff (creates a 4.5px white gap separating slices)
-        # Dark mode page  -> #0f172a (creates a 4.5px dark gap separating slices)
-        is_dark = (
-            st.session_state.get("dark_mode", False)
-            or "dark" in str(st.session_state.get("theme_mode", "")).lower()
-        )
-        gap_color = "#0f172a" if is_dark else "#ffffff"
 
         fig_pie.update_traces(
             sort=False,
             textposition="inside",
             texttemplate="%{customdata[1]}<br>%{percent:.0%}",
             textfont_size=11,
-            marker=dict(line=dict(color=gap_color, width=4.5)),
+            marker=dict(line=dict(color="#ffffff", width=3.5)),
             hovertemplate=(
                 "<b>%{customdata[2]}</b><br>"
                 "💰 Revenue: <b>৳ %{value:,.0f}</b> (%{percent:.1%})<br>"
@@ -318,6 +341,31 @@ def render_category_charts(
         )
 
     with v2:
+        # Compact Item/Volume Split Ratio Bar (DEEN Selects vs DEEN Regular)
+        if selects_stats and selects_stats.get("total_qty", 0) > 0:
+            s_qty = selects_stats.get("selects_qty", 0)
+            s_q_pct = selects_stats.get("selects_qty_share", 0.0)
+            s_rev = selects_stats.get("selects_rev", 0.0)
+            r_qty = selects_stats.get("regular_qty", 0)
+            r_q_pct = selects_stats.get("regular_qty_share", 0.0)
+            r_rev = selects_stats.get("regular_rev", 0.0)
+
+            st.markdown(
+                f"""
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; margin-bottom: 5px;">
+                        <span style="color: #059669; font-weight: 700;">💎 Selects: <b>{s_qty:,} pcs</b> <span style="font-weight: 400; color: #64748b;">({s_q_pct:.1f}% · ৳{s_rev:,.0f})</span></span>
+                        <span style="color: #2563eb; font-weight: 700;"><span style="font-weight: 400; color: #64748b;">(৳{r_rev:,.0f} · {r_q_pct:.1f}%)</span> <b>{r_qty:,} pcs</b> 📦 Regular</span>
+                    </div>
+                    <div style="height: 6px; border-radius: 3px; background: #f1f5f9; overflow: hidden; display: flex;">
+                        <div style="width: {s_q_pct:.1f}%; background: linear-gradient(90deg, #10b981, #34d399);" title="DEEN Selects Items: {s_q_pct:.1f}%"></div>
+                        <div style="width: {r_q_pct:.1f}%; background: linear-gradient(90deg, #3b82f6, #60a5fa);" title="DEEN Regular Items: {r_q_pct:.1f}%"></div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         bar_axis = "Sub-Category" if "Sub-Category" in summ.columns else display_col
         bar_display = summ_display.copy()
 
@@ -398,22 +446,24 @@ def render_category_charts(
             fig_bar.add_hline(
                 y=avg_vol,
                 line_dash="dash",
-                line_color="rgba(255,255,255,0.4)",
+                line_color="rgba(15, 23, 42, 0.35)",
                 annotation_text=f"Avg: {avg_vol:.1f} units",
                 annotation_position="top right",
-                annotation_font=dict(size=10, color="rgba(255,255,255,0.7)"),
+                annotation_font=dict(size=10, color="rgba(15, 23, 42, 0.75)"),
             )
 
         fig_bar.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="#ffffff",
+            plot_bgcolor="#ffffff",
             margin=dict(t=40, b=30, l=20, r=20),
             height=440,
             xaxis_title="",
             yaxis_title="Units Sold",
             showlegend=False,
+            font=dict(family="Inter, sans-serif", color="#0f172a"),
+            title_font=dict(color="#0f172a", size=15),
             hoverlabel=dict(
-                bgcolor="#0f172a",
+                bgcolor="#1e293b",
                 font_size=12,
                 font_family="Inter, sans-serif",
                 font_color="#ffffff",
@@ -427,17 +477,20 @@ def render_category_charts(
             tickvals=unique_bars["Bar_X"],
             ticktext=unique_bars["Bar_Label"],
             tickangle=-45,
+            tickfont=dict(color="#0f172a"),
         )
         fig_bar.update_yaxes(
             showgrid=True,
             gridwidth=1,
-            gridcolor="rgba(255,255,255,0.06)",
-            zeroline=False,
+            gridcolor="#e2e8f0",
+            zeroline=True,
+            zerolinecolor="#cbd5e1",
             automargin=True,
+            tickfont=dict(color="#0f172a"),
         )
         fig_bar.update_traces(
             cliponaxis=False,
-            marker=dict(line=dict(color="rgba(255,255,255,0.2)", width=1)),
+            marker=dict(line=dict(color="rgba(0,0,0,0.12)", width=1)),
             hovertemplate="<b>%{x}</b><br>📦 Volume: %{y:,.0f} Units<br>💰 Net Revenue: ৳ %{customdata[1]:,.0f}<br>🏷️ Avg Price: ৳ %{customdata[2]:,.0f}/unit",
         )
         st.plotly_chart(
