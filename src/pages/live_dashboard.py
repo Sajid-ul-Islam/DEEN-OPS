@@ -1093,60 +1093,66 @@ def _render_dispatch_export(selected_view: str | None = None):
             )
 
         with tab_subcat:
-            # ── Elegant styled HTML table ─────────────────────────────────────
+            # ── Elegant styled HTML table (tr/td only — Streamlit strips thead/tfoot) ──
+            # Header row
+            _hdr = (
+                '<tr style="background:linear-gradient(135deg,#1e3a8a 0%,#3730a3 100%);">'
+                '<td style="padding:11px 14px;color:#fff;font-size:12px;font-weight:700;'
+                'letter-spacing:.05em;text-transform:uppercase;">Category</td>'
+                '<td style="padding:11px 14px;color:#c7d2fe;font-size:12px;font-weight:700;'
+                'letter-spacing:.05em;text-transform:uppercase;">Sub-Category</td>'
+                '<td style="padding:11px 14px;color:#c7d2fe;font-size:12px;font-weight:700;'
+                'letter-spacing:.05em;text-transform:uppercase;text-align:right;">Units Sold</td>'
+                '<td style="padding:11px 14px;color:#c7d2fe;font-size:12px;font-weight:700;'
+                'letter-spacing:.05em;text-transform:uppercase;text-align:right;">Sales Amount</td>'
+                '<td style="padding:11px 14px;color:#c7d2fe;font-size:12px;font-weight:700;'
+                'letter-spacing:.05em;text-transform:uppercase;">Share</td>'
+                '</tr>'
+            )
+            # Data rows
             _rows_html = ""
             for _i, _row in _subcat_summary.iterrows():
                 _bg = "#f9fafb" if _i % 2 == 0 else "#ffffff"
                 _units = int(_row["Units Sold"])
                 _amt = float(_row["Sales Amount (৳)"])
                 _share_str = str(_row["Share (%)"])
-                _share_val = float(_share_str.replace("%", "")) if _sc_total_amt > 0 else 0
-                _bar_w = max(2, round(_share_val))
-                _rows_html += f"""
-                <tr style="background:{_bg}; transition:background 0.15s;">
-                  <td style="padding:9px 14px; color:#374151; font-size:13px; border-bottom:1px solid #f0f0f0;">{_row['Category']}</td>
-                  <td style="padding:9px 14px; color:#6b7280; font-size:13px; border-bottom:1px solid #f0f0f0;">{_row['Sub-Category']}</td>
-                  <td style="padding:9px 14px; text-align:right; font-weight:600; color:#1d4ed8; font-size:13px; border-bottom:1px solid #f0f0f0;">{_units:,}</td>
-                  <td style="padding:9px 14px; text-align:right; font-weight:600; color:#065f46; font-size:13px; border-bottom:1px solid #f0f0f0;">৳ {_amt:,.0f}</td>
-                  <td style="padding:9px 14px; border-bottom:1px solid #f0f0f0;">
-                    <div style="display:flex; align-items:center; gap:6px;">
-                      <div style="flex:1; background:#e5e7eb; border-radius:4px; height:6px;">
-                        <div style="width:{_bar_w}%; background:linear-gradient(90deg,#6366f1,#8b5cf6); border-radius:4px; height:6px;"></div>
-                      </div>
-                      <span style="font-size:12px; color:#6b7280; min-width:36px; text-align:right;">{_share_str}</span>
-                    </div>
-                  </td>
-                </tr>"""
-
-            _table_html = f"""
-            <style>
-              .subcat-table {{ border-collapse:collapse; width:100%; font-family:'Inter',sans-serif; }}
-              .subcat-table tr:hover td {{ background:#eff6ff !important; }}
-            </style>
-            <div style="border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-              <table class="subcat-table">
-                <thead>
-                  <tr style="background:linear-gradient(135deg,#1e3a8a 0%,#3730a3 100%);">
-                    <th style="padding:11px 14px; text-align:left; color:#fff; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Category</th>
-                    <th style="padding:11px 14px; text-align:left; color:#c7d2fe; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Sub-Category</th>
-                    <th style="padding:11px 14px; text-align:right; color:#c7d2fe; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Units Sold</th>
-                    <th style="padding:11px 14px; text-align:right; color:#c7d2fe; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Sales Amount</th>
-                    <th style="padding:11px 14px; text-align:left; color:#c7d2fe; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Share</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {_rows_html}
-                </tbody>
-                <tfoot>
-                  <tr style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%); border-top:2px solid #f59e0b;">
-                    <td colspan="2" style="padding:11px 14px; font-weight:700; color:#92400e; font-size:13px; letter-spacing:0.02em;">GRAND TOTAL</td>
-                    <td style="padding:11px 14px; text-align:right; font-weight:700; color:#92400e; font-size:14px;">{_sc_total_units:,}</td>
-                    <td style="padding:11px 14px; text-align:right; font-weight:700; color:#065f46; font-size:14px;">৳ {_sc_total_amt:,.0f}</td>
-                    <td style="padding:11px 14px; font-weight:700; color:#92400e; font-size:13px;">100%</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>"""
+                try:
+                    _share_val = float(_share_str.replace("%", ""))
+                except ValueError:
+                    _share_val = 0.0
+                _bar_w = max(2, min(100, round(_share_val)))
+                _rows_html += (
+                    f'<tr style="background:{_bg};">'
+                    f'<td style="padding:9px 14px;color:#374151;font-size:13px;border-bottom:1px solid #f0f0f0;">{_row["Category"]}</td>'
+                    f'<td style="padding:9px 14px;color:#6b7280;font-size:13px;border-bottom:1px solid #f0f0f0;">{_row["Sub-Category"]}</td>'
+                    f'<td style="padding:9px 14px;text-align:right;font-weight:600;color:#1d4ed8;font-size:13px;border-bottom:1px solid #f0f0f0;">{_units:,}</td>'
+                    f'<td style="padding:9px 14px;text-align:right;font-weight:600;color:#065f46;font-size:13px;border-bottom:1px solid #f0f0f0;">৳ {_amt:,.0f}</td>'
+                    f'<td style="padding:9px 14px;border-bottom:1px solid #f0f0f0;">'
+                    f'<div style="display:flex;align-items:center;gap:6px;">'
+                    f'<div style="flex:1;background:#e5e7eb;border-radius:4px;height:6px;">'
+                    f'<div style="width:{_bar_w}%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:4px;height:6px;"></div>'
+                    f'</div>'
+                    f'<span style="font-size:12px;color:#6b7280;min-width:36px;text-align:right;">{_share_str}</span>'
+                    f'</div></td></tr>'
+                )
+            # Total row — plain tr/td so Streamlit renders it
+            _total_row_html = (
+                '<tr style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);'
+                'border-top:2px solid #f59e0b;">'
+                '<td style="padding:12px 14px;font-weight:700;color:#92400e;font-size:13px;'
+                'letter-spacing:.02em;" colspan="2">🏆 GRAND TOTAL</td>'
+                f'<td style="padding:12px 14px;text-align:right;font-weight:800;color:#92400e;font-size:14px;">{_sc_total_units:,}</td>'
+                f'<td style="padding:12px 14px;text-align:right;font-weight:800;color:#065f46;font-size:14px;">৳ {_sc_total_amt:,.0f}</td>'
+                '<td style="padding:12px 14px;font-weight:700;color:#92400e;font-size:13px;">100%</td>'
+                '</tr>'
+            )
+            _table_html = (
+                '<div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;'
+                'box-shadow:0 1px 4px rgba(0,0,0,.06);margin-top:8px;">'
+                '<table style="border-collapse:collapse;width:100%;font-family:Inter,sans-serif;">'
+                f'{_hdr}{_rows_html}{_total_row_html}'
+                '</table></div>'
+            )
             st.markdown(_table_html, unsafe_allow_html=True)
 
         file_tag = (
@@ -1163,10 +1169,24 @@ def _render_dispatch_export(selected_view: str | None = None):
             try:
                 _sheet_tag = f"Shipped_{file_tag}"[:31]
                 _sc_sheet_tag = f"SubCat_{file_tag}"[:31]
+                # Include the GRAND TOTAL row in the exported sheet
+                _subcat_export = pd.concat(
+                    [
+                        _subcat_summary,
+                        pd.DataFrame([{
+                            "Category": "GRAND TOTAL",
+                            "Sub-Category": "",
+                            "Units Sold": _sc_total_units,
+                            "Sales Amount (৳)": round(_sc_total_amt, 2),
+                            "Share (%)": "100%",
+                        }]),
+                    ],
+                    ignore_index=True,
+                )
                 excel_bytes = export_to_styled_excel(
                     {
                         _sheet_tag: display_df,
-                        _sc_sheet_tag: _subcat_summary,
+                        _sc_sheet_tag: _subcat_export,
                     },
                     group_by_col="Order ID"
                     if "Order ID" in display_df.columns
