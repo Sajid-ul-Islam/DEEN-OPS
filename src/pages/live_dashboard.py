@@ -923,6 +923,43 @@ def _render_dispatch_export(selected_view: str | None = None):
 
         export_df["Line Total"] = (export_df[qty_col] * export_df[cost_col]).round(2)
 
+        # ── Enrich with Category & Sub-Category ─────────────────────────────
+        from src.processing.categorization import (
+            get_category_for_sales,
+            get_sub_category_for_sales,
+        )
+
+        if prod_col and prod_col in export_df.columns:
+            _names = export_df[prod_col].astype(str)
+            _cats = _names.map(get_category_for_sales)
+            export_df["Category"] = _cats
+            export_df["Sub-Category"] = _names.apply(
+                lambda n: get_sub_category_for_sales(n, get_category_for_sales(n))
+            )
+        else:
+            export_df["Category"] = "Unknown"
+            export_df["Sub-Category"] = "Unknown"
+
+        # ── Sub-Category Summary ─────────────────────────────────────────────
+        _subcat_summary = (
+            export_df.groupby(["Category", "Sub-Category"], sort=False)
+            .agg(
+                _units=(qty_col, "sum"),
+                _amt=("Line Total", "sum"),
+            )
+            .reset_index()
+            .sort_values("_amt", ascending=False)
+            .rename(columns={"_units": "Units Sold", "_amt": "Sales Amount (৳)"})
+        )
+        _subcat_summary["Sales Amount (৳)"] = _subcat_summary["Sales Amount (৳)"].round(2)
+        _sc_total_units = int(_subcat_summary["Units Sold"].sum())
+        _sc_total_amt = float(_subcat_summary["Sales Amount (৳)"].sum())
+        _subcat_summary["Share (%)"] = (
+            (_subcat_summary["Sales Amount (৳)"] / _sc_total_amt * 100).round(1).astype(str) + "%"
+            if _sc_total_amt > 0
+            else "0%"
+        )
+
         # Format dates
         if "mod_dt_parsed" in export_df.columns:
             export_df["Shipped Date"] = safe_coerce_datetime_naive(
@@ -957,6 +994,8 @@ def _render_dispatch_export(selected_view: str | None = None):
             qty_col: "Quantity",
             cost_col: "Item Cost",
             "Line Total": "Line Total",
+            "Category": "Category",
+            "Sub-Category": "Sub-Category",
             status_col: "Status",
             "Order Source": "Source",
             "Shipped Date": "Shipped Date",
@@ -1020,33 +1059,95 @@ def _render_dispatch_export(selected_view: str | None = None):
         m3.metric("৳ Shipped Revenue", f"৳ {total_rev:,.0f}")
         m4.metric("🏷️ Unique SKUs", f"{unique_skus:,}")
 
-        # Search box
-        search_q = st.text_input(
-            "🔍 Search items by Order ID, Product Name, SKU, Customer, or Phone",
-            key="shipped_product_export_search",
-        ).strip()
-
-        view_df = display_df.copy()
-        if search_q:
-            mask = pd.Series(False, index=view_df.index)
-            for c in ["Order ID", "Product Name", "SKU", "Customer", "Phone", "City"]:
-                if c in view_df.columns:
-                    mask = mask | view_df[c].astype(str).str.contains(
-                        search_q, case=False, na=False
-                    )
-            view_df = view_df[mask]
-
-        st.dataframe(
-            view_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Order ID": st.column_config.NumberColumn("Order ID", format="%d"),
-                "Quantity": st.column_config.NumberColumn("Qty", format="%d"),
-                "Item Cost": st.column_config.NumberColumn("Price (৳)", format="%.2f"),
-                "Line Total": st.column_config.NumberColumn("Total (৳)", format="%.2f"),
-            },
+        # ── Tabs: Product Lines | Sub-Category Summary ──────────────────────
+        tab_items, tab_subcat = st.tabs(
+            ["📋 Product Line Items", "📊 Sub-Category Summary"]
         )
+
+        with tab_items:
+            search_q = st.text_input(
+                "🔍 Search by Order ID, Product Name, SKU, Customer, or Phone",
+                key="shipped_product_export_search",
+            ).strip()
+
+            view_df = display_df.copy()
+            if search_q:
+                mask = pd.Series(False, index=view_df.index)
+                for c in ["Order ID", "Product Name", "SKU", "Customer", "Phone", "City"]:
+                    if c in view_df.columns:
+                        mask = mask | view_df[c].astype(str).str.contains(
+                            search_q, case=False, na=False
+                        )
+                view_df = view_df[mask]
+
+            st.dataframe(
+                view_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Order ID": st.column_config.NumberColumn("Order ID", format="%d"),
+                    "Quantity": st.column_config.NumberColumn("Qty", format="%d"),
+                    "Item Cost": st.column_config.NumberColumn("Price (৳)", format="%.2f"),
+                    "Line Total": st.column_config.NumberColumn("Total (৳)", format="%.2f"),
+                },
+            )
+
+        with tab_subcat:
+            # ── Elegant styled HTML table ─────────────────────────────────────
+            _rows_html = ""
+            for _i, _row in _subcat_summary.iterrows():
+                _bg = "#f9fafb" if _i % 2 == 0 else "#ffffff"
+                _units = int(_row["Units Sold"])
+                _amt = float(_row["Sales Amount (৳)"])
+                _share_str = str(_row["Share (%)"])
+                _share_val = float(_share_str.replace("%", "")) if _sc_total_amt > 0 else 0
+                _bar_w = max(2, round(_share_val))
+                _rows_html += f"""
+                <tr style="background:{_bg}; transition:background 0.15s;">
+                  <td style="padding:9px 14px; color:#374151; font-size:13px; border-bottom:1px solid #f0f0f0;">{_row['Category']}</td>
+                  <td style="padding:9px 14px; color:#6b7280; font-size:13px; border-bottom:1px solid #f0f0f0;">{_row['Sub-Category']}</td>
+                  <td style="padding:9px 14px; text-align:right; font-weight:600; color:#1d4ed8; font-size:13px; border-bottom:1px solid #f0f0f0;">{_units:,}</td>
+                  <td style="padding:9px 14px; text-align:right; font-weight:600; color:#065f46; font-size:13px; border-bottom:1px solid #f0f0f0;">৳ {_amt:,.0f}</td>
+                  <td style="padding:9px 14px; border-bottom:1px solid #f0f0f0;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <div style="flex:1; background:#e5e7eb; border-radius:4px; height:6px;">
+                        <div style="width:{_bar_w}%; background:linear-gradient(90deg,#6366f1,#8b5cf6); border-radius:4px; height:6px;"></div>
+                      </div>
+                      <span style="font-size:12px; color:#6b7280; min-width:36px; text-align:right;">{_share_str}</span>
+                    </div>
+                  </td>
+                </tr>"""
+
+            _table_html = f"""
+            <style>
+              .subcat-table {{ border-collapse:collapse; width:100%; font-family:'Inter',sans-serif; }}
+              .subcat-table tr:hover td {{ background:#eff6ff !important; }}
+            </style>
+            <div style="border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+              <table class="subcat-table">
+                <thead>
+                  <tr style="background:linear-gradient(135deg,#1e3a8a 0%,#3730a3 100%);">
+                    <th style="padding:11px 14px; text-align:left; color:#fff; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Category</th>
+                    <th style="padding:11px 14px; text-align:left; color:#c7d2fe; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Sub-Category</th>
+                    <th style="padding:11px 14px; text-align:right; color:#c7d2fe; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Units Sold</th>
+                    <th style="padding:11px 14px; text-align:right; color:#c7d2fe; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Sales Amount</th>
+                    <th style="padding:11px 14px; text-align:left; color:#c7d2fe; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {_rows_html}
+                </tbody>
+                <tfoot>
+                  <tr style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%); border-top:2px solid #f59e0b;">
+                    <td colspan="2" style="padding:11px 14px; font-weight:700; color:#92400e; font-size:13px; letter-spacing:0.02em;">GRAND TOTAL</td>
+                    <td style="padding:11px 14px; text-align:right; font-weight:700; color:#92400e; font-size:14px;">{_sc_total_units:,}</td>
+                    <td style="padding:11px 14px; text-align:right; font-weight:700; color:#065f46; font-size:14px;">৳ {_sc_total_amt:,.0f}</td>
+                    <td style="padding:11px 14px; font-weight:700; color:#92400e; font-size:13px;">100%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>"""
+            st.markdown(_table_html, unsafe_allow_html=True)
 
         file_tag = (
             start_date.strftime("%Y%m%d")
@@ -1056,12 +1157,17 @@ def _render_dispatch_export(selected_view: str | None = None):
         now_str = bd_now().strftime("%H%M")
         base_filename = f"DEEN_Shipped_Products_{file_tag}_{now_str}"
 
-        # Export generators
+        # Export: two sheets — line items + sub-cat summary
         c_down1, c_down2 = st.columns(2)
         with c_down1:
             try:
+                _sheet_tag = f"Shipped_{file_tag}"[:31]
+                _sc_sheet_tag = f"SubCat_{file_tag}"[:31]
                 excel_bytes = export_to_styled_excel(
-                    {f"Shipped_{file_tag}"[:31]: display_df},
+                    {
+                        _sheet_tag: display_df,
+                        _sc_sheet_tag: _subcat_summary,
+                    },
                     group_by_col="Order ID"
                     if "Order ID" in display_df.columns
                     else None,
