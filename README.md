@@ -3045,7 +3045,7 @@ The foundation is now in place for systematic UX improvements following Hick's L
 | 1 | Live Dashboard | `src.pages.live_dashboard` | `render_live_tab()` | ✅ PASS |
 | 2 | WooCommerce Orders | `src.pages.woocommerce_orders` | `render_woocommerce_orders_tab()` | ✅ PASS |
 | 3 | Pathao Orders | `src.pages.pathao_orders` | `render_pathao_tab()` | ✅ PASS |
-| 4 | Delivery Parser | `src.pages.delivery_parser` | `render_fuzzy_parser_tab()` | ✅ PASS |
+| 4 | Delivery Parser | `src.pages.delivery_parser` | `render_data_parser_tab()` | ✅ PASS |
 | 5 | Product Listing | `src.pages.product_listing` | `render_product_listing_tab()` | ✅ PASS |
 | 6 | Stock Analytics | `src.pages.stock_analytics` | `render_stock_analytics_tab()` | ✅ PASS |
 | 8 | Sales Ingestion | `src.pages.sales_ingestion` | `render_manual_tab()` | ✅ PASS |

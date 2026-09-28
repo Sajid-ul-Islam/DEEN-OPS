@@ -52,9 +52,9 @@ def test_pathao_tab_no_longer_has_redundant_order_tracking():
         assert mock_helper.called
 
 
-def test_delivery_parser_is_unified_without_split_tabs():
-    """Verify delivery parser renders as a unified smart parser without duplicate tabs."""
-    from src.pages.delivery_parser import render_fuzzy_parser_tab
+def test_delivery_parser_content_does_not_fragment_tabs():
+    """Verify the delivery parser content renderer does not open split tabs."""
+    from src.pages.delivery_parser import render_delivery_parser_content
 
     tabs_called = False
 
@@ -64,8 +64,8 @@ def test_delivery_parser_is_unified_without_split_tabs():
         return [MagicMock() for _ in labels]
 
     with patch.object(st, "tabs", side_effect=mock_tabs):
-        render_fuzzy_parser_tab()
-        # Ensure it does NOT use split tabs anymore
+        render_delivery_parser_content()
+        # Ensure content renderer does NOT use split tabs
         assert not tabs_called
 
 

@@ -356,8 +356,3 @@ def render_data_parser_tab():
         render_delivery_parser_content()
     with tab_item_desc:
         render_item_description_content()
-
-
-def render_fuzzy_parser_tab():
-    """Backward-compatible entry point for Delivery Data Parser feature."""
-    render_delivery_parser_content()
