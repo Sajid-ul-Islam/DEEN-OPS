@@ -923,11 +923,12 @@ def _render_dispatch_export(selected_view: str | None = None):
 
         export_df["Line Total"] = (export_df[qty_col] * export_df[cost_col]).round(2)
 
-        # ── Enrich with Category & Sub-Category ─────────────────────────────
+        # ── Enrich with Category, Sub-Category & Product Line ─────────────
         from src.processing.categorization import (
             get_category_for_sales,
             get_sub_category_for_sales,
         )
+        from src.processing.selects_analytics import classify_product_line
 
         if prod_col and prod_col in export_df.columns:
             _names = export_df[prod_col].astype(str)
@@ -936,9 +937,19 @@ def _render_dispatch_export(selected_view: str | None = None):
             export_df["Sub-Category"] = _names.apply(
                 lambda n: get_sub_category_for_sales(n, get_category_for_sales(n))
             )
+            sku_series = (
+                export_df[sku_col].astype(str)
+                if sku_col and sku_col in export_df.columns
+                else [""] * len(export_df)
+            )
+            export_df["Product Line"] = [
+                classify_product_line(str(n), str(s), str(c))
+                for n, s, c in zip(_names, sku_series, _cats)
+            ]
         else:
             export_df["Category"] = "Unknown"
             export_df["Sub-Category"] = "Unknown"
+            export_df["Product Line"] = "DEEN Regular"
 
         # ── Sub-Category Summary ─────────────────────────────────────────────
         _subcat_summary = (
@@ -951,11 +962,16 @@ def _render_dispatch_export(selected_view: str | None = None):
             .sort_values("_amt", ascending=False)
             .rename(columns={"_units": "Units Sold", "_amt": "Sales Amount (৳)"})
         )
-        _subcat_summary["Sales Amount (৳)"] = _subcat_summary["Sales Amount (৳)"].round(2)
+        _subcat_summary["Sales Amount (৳)"] = _subcat_summary["Sales Amount (৳)"].round(
+            2
+        )
         _sc_total_units = int(_subcat_summary["Units Sold"].sum())
         _sc_total_amt = float(_subcat_summary["Sales Amount (৳)"].sum())
         _subcat_summary["Share (%)"] = (
-            (_subcat_summary["Sales Amount (৳)"] / _sc_total_amt * 100).round(1).astype(str) + "%"
+            (_subcat_summary["Sales Amount (৳)"] / _sc_total_amt * 100)
+            .round(1)
+            .astype(str)
+            + "%"
             if _sc_total_amt > 0
             else "0%"
         )
@@ -991,6 +1007,7 @@ def _render_dispatch_export(selected_view: str | None = None):
             "Order ID": "Order ID",
             prod_col: "Product Name",
             sku_col: "SKU",
+            "Product Line": "Product Line",
             qty_col: "Quantity",
             cost_col: "Item Cost",
             "Line Total": "Line Total",
@@ -1073,7 +1090,15 @@ def _render_dispatch_export(selected_view: str | None = None):
             view_df = display_df.copy()
             if search_q:
                 mask = pd.Series(False, index=view_df.index)
-                for c in ["Order ID", "Product Name", "SKU", "Customer", "Phone", "City"]:
+                for c in [
+                    "Order ID",
+                    "Product Name",
+                    "Product Line",
+                    "SKU",
+                    "Customer",
+                    "Phone",
+                    "City",
+                ]:
                     if c in view_df.columns:
                         mask = mask | view_df[c].astype(str).str.contains(
                             search_q, case=False, na=False
@@ -1087,8 +1112,13 @@ def _render_dispatch_export(selected_view: str | None = None):
                 column_config={
                     "Order ID": st.column_config.NumberColumn("Order ID", format="%d"),
                     "Quantity": st.column_config.NumberColumn("Qty", format="%d"),
-                    "Item Cost": st.column_config.NumberColumn("Price (৳)", format="%.2f"),
-                    "Line Total": st.column_config.NumberColumn("Total (৳)", format="%.2f"),
+                    "Product Line": st.column_config.TextColumn("Product Line"),
+                    "Item Cost": st.column_config.NumberColumn(
+                        "Price (৳)", format="%.2f"
+                    ),
+                    "Line Total": st.column_config.NumberColumn(
+                        "Total (৳)", format="%.2f"
+                    ),
                 },
             )
 
@@ -1107,7 +1137,7 @@ def _render_dispatch_export(selected_view: str | None = None):
                 'letter-spacing:.05em;text-transform:uppercase;text-align:right;">Sales Amount</td>'
                 '<td style="padding:11px 14px;color:#c7d2fe;font-size:12px;font-weight:700;'
                 'letter-spacing:.05em;text-transform:uppercase;">Share</td>'
-                '</tr>'
+                "</tr>"
             )
             # Data rows
             _rows_html = ""
@@ -1131,9 +1161,9 @@ def _render_dispatch_export(selected_view: str | None = None):
                     f'<div style="display:flex;align-items:center;gap:6px;">'
                     f'<div style="flex:1;background:#e5e7eb;border-radius:4px;height:6px;">'
                     f'<div style="width:{_bar_w}%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:4px;height:6px;"></div>'
-                    f'</div>'
+                    f"</div>"
                     f'<span style="font-size:12px;color:#6b7280;min-width:36px;text-align:right;">{_share_str}</span>'
-                    f'</div></td></tr>'
+                    f"</div></td></tr>"
                 )
             # Total row — plain tr/td so Streamlit renders it
             _total_row_html = (
@@ -1144,14 +1174,14 @@ def _render_dispatch_export(selected_view: str | None = None):
                 f'<td style="padding:12px 14px;text-align:right;font-weight:800;color:#92400e;font-size:14px;">{_sc_total_units:,}</td>'
                 f'<td style="padding:12px 14px;text-align:right;font-weight:800;color:#065f46;font-size:14px;">৳ {_sc_total_amt:,.0f}</td>'
                 '<td style="padding:12px 14px;font-weight:700;color:#92400e;font-size:13px;">100%</td>'
-                '</tr>'
+                "</tr>"
             )
             _table_html = (
                 '<div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;'
                 'box-shadow:0 1px 4px rgba(0,0,0,.06);margin-top:8px;">'
                 '<table style="border-collapse:collapse;width:100%;font-family:Inter,sans-serif;">'
-                f'{_hdr}{_rows_html}{_total_row_html}'
-                '</table></div>'
+                f"{_hdr}{_rows_html}{_total_row_html}"
+                "</table></div>"
             )
             st.markdown(_table_html, unsafe_allow_html=True)
 
@@ -1173,13 +1203,17 @@ def _render_dispatch_export(selected_view: str | None = None):
                 _subcat_export = pd.concat(
                     [
                         _subcat_summary,
-                        pd.DataFrame([{
-                            "Category": "GRAND TOTAL",
-                            "Sub-Category": "",
-                            "Units Sold": _sc_total_units,
-                            "Sales Amount (৳)": round(_sc_total_amt, 2),
-                            "Share (%)": "100%",
-                        }]),
+                        pd.DataFrame(
+                            [
+                                {
+                                    "Category": "GRAND TOTAL",
+                                    "Sub-Category": "",
+                                    "Units Sold": _sc_total_units,
+                                    "Sales Amount (৳)": round(_sc_total_amt, 2),
+                                    "Share (%)": "100%",
+                                }
+                            ]
+                        ),
                     ],
                     ignore_index=True,
                 )

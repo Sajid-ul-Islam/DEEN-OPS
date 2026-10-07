@@ -19,6 +19,7 @@ REGULAR_LABEL = "DEEN Regular"
 # Patterns to detect DEEN Selects collection across product names, categories, or SKUs
 _SELECTS_PATTERN = re.compile(r"\b(selects?|deen\s*selects?)\b", re.IGNORECASE)
 _SELECTS_SKU_PREFIX = re.compile(r"^(DS|SEL)[-_0-9]", re.IGNORECASE)
+_DEEN_PATTERN = re.compile(r"\bdeen\b", re.IGNORECASE)
 
 # Brands and product lines categorized under WooCommerce Category ID 1281 ('DEEN SELECT')
 _SELECTS_BRANDS = [
@@ -34,6 +35,10 @@ _SELECTS_BRANDS = [
     "sorbino",
     "lefties",
     "dragon ball z",
+    "zara",
+    "tiffosi",
+    "petrol",
+    "4f",
 ]
 
 
@@ -43,7 +48,17 @@ def classify_product_line(
     sku: str = "",
     category: str = "",
 ) -> str:
-    """Classify a product as 'DEEN Selects' or 'DEEN Regular' based on WooCommerce API standards.
+    """Classify a product as 'DEEN Selects' or 'DEEN Regular'.
+
+    Domain Invariant:
+        In DEEN operations:
+        - In-house core products have the brand tag 'DEEN' in their product name
+          (e.g., 'DEEN High-End Jeans', 'DEEN Teal Trousers') -> 'DEEN Regular'.
+        - Products that do NOT contain the tag 'DEEN' in their name (e.g., curated third-party/imported
+          brands like '4F T-shirt', 'ZARA Quilted Jacket', 'Sorbino Denim Jacket', 'Calvin Klein Jeans')
+          belong to 'DEEN Selects'.
+        - Any item explicitly marked with 'Selects' / 'DEEN Selects' in name/category or SKU prefix
+          ('DS-', 'SEL-') belongs to 'DEEN Selects'.
 
     Args:
         name: Product name or item name string.
@@ -51,23 +66,36 @@ def classify_product_line(
         category: Category or tag name.
 
     Returns:
-        'DEEN Selects' if the item matches select collection patterns, else 'DEEN Regular'.
+        'DEEN Selects' if the item does not contain the 'DEEN' brand tag or matches selects patterns,
+        else 'DEEN Regular'.
     """
     s_name = str(name).strip().lower() if name else ""
     s_sku = str(sku).strip().lower() if sku else ""
     s_cat = str(category).strip().lower() if category else ""
 
-    # Direct select keyword or category match
+    # 1. Explicit selects keyword or category match (e.g. "DEEN Selects Silk Panjabi")
     if _SELECTS_PATTERN.search(s_name) or _SELECTS_PATTERN.search(s_cat):
         return SELECTS_LABEL
 
-    # SKU prefix match (e.g. DS-104-...)
+    # 2. SKU prefix match (e.g. DS-104-..., SEL-...)
     if _SELECTS_PATTERN.search(s_sku) or _SELECTS_SKU_PREFIX.match(s_sku):
         return SELECTS_LABEL
 
-    # WooCommerce DEEN SELECT brand line match
+    # 3. Known multi-brand Selects line match (extra safety check)
     if any(b in s_name for b in _SELECTS_BRANDS):
         return SELECTS_LABEL
+
+    # 4. Primary Rule: Check for 'DEEN' brand tag in product name
+    if s_name:
+        if _DEEN_PATTERN.search(s_name):
+            return REGULAR_LABEL
+        return SELECTS_LABEL
+
+    # 5. Fallback when name is absent/empty: check category and SKU
+    if s_cat and _DEEN_PATTERN.search(s_cat):
+        return REGULAR_LABEL
+    if s_sku and _DEEN_PATTERN.search(s_sku):
+        return REGULAR_LABEL
 
     return REGULAR_LABEL
 
@@ -131,7 +159,11 @@ def compute_selects_regular_analytics(
     amt_col = (
         "Total Amount"
         if "Total Amount" in work_df.columns
-        else ("Gross Amount" if "Gross Amount" in work_df.columns else "Item Cost")
+        else (
+            "Line Total"
+            if "Line Total" in work_df.columns
+            else ("Gross Amount" if "Gross Amount" in work_df.columns else "Item Cost")
+        )
     )
     qty_col = "Quantity" if "Quantity" in work_df.columns else None
     oid_col = "Order ID" if "Order ID" in work_df.columns else None
@@ -143,14 +175,31 @@ def compute_selects_regular_analytics(
     work_df["_amt"] = pd.to_numeric(work_df[amt_col], errors="coerce").fillna(0.0)
     work_df["_qty"] = pd.to_numeric(work_df[qty_col], errors="coerce").fillna(0.0)
 
-    # Apply product line classification
-    if "Product Line" not in work_df.columns:
-        cat_series = work_df[cat_col] if cat_col in work_df.columns else ""
-        sku_series = work_df[sku_col] if sku_col else ""
-        work_df["Product Line"] = [
-            classify_product_line(str(n), str(s), str(c))
-            for n, s, c in zip(work_df[name_col], sku_series, cat_series)
-        ]
+    # Defensive unit price adjustment if amt_col is single Item Cost and Quantity > 1
+    if amt_col == "Item Cost" and "_qty" in work_df.columns:
+        work_df["_amt"] = work_df["_amt"] * work_df["_qty"]
+
+    # Enrich Category and Sub-Category if missing or empty
+    if cat_col not in work_df.columns or work_df[cat_col].isna().all():
+        from src.processing.categorization import get_category_for_sales
+
+        work_df[cat_col] = work_df[name_col].apply(get_category_for_sales)
+
+    if subcat_col not in work_df.columns or work_df[subcat_col].isna().all():
+        from src.processing.categorization import get_sub_category_for_sales
+
+        work_df[subcat_col] = work_df.apply(
+            lambda r: get_sub_category_for_sales(str(r[name_col]), str(r[cat_col])),
+            axis=1,
+        )
+
+    # Always apply latest product line classification
+    cat_series = work_df[cat_col] if cat_col in work_df.columns else [""] * len(work_df)
+    sku_series = work_df[sku_col] if sku_col else [""] * len(work_df)
+    work_df["Product Line"] = [
+        classify_product_line(str(n), str(s), str(c))
+        for n, s, c in zip(work_df[name_col], sku_series, cat_series)
+    ]
 
     # Partition datasets
     sel_df = work_df[work_df["Product Line"] == SELECTS_LABEL].copy()

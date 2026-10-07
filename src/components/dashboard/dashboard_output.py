@@ -182,15 +182,18 @@ def _render_charts(summ, total_rev=None, granular_df=None):
     # Compute DEEN Selects analytics from granular data
     selects_pct = None
     selects_stats = None
-    if granular_df is not None and not granular_df.empty:
+    source_df = granular_df
+    if (source_df is None or source_df.empty) and "wc_curr_df" in st.session_state:
+        source_df = st.session_state.get("wc_curr_df")
+    if source_df is not None and not source_df.empty:
         from src.processing.selects_analytics import compute_selects_regular_analytics
 
-        cat_k = "Category" if "Category" in granular_df.columns else display_col
+        cat_k = "Category" if "Category" in source_df.columns else display_col
         subcat_k = (
-            "Sub-Category" if "Sub-Category" in granular_df.columns else display_col
+            "Sub-Category" if "Sub-Category" in source_df.columns else display_col
         )
         analytics_res = compute_selects_regular_analytics(
-            granular_df, cat_col=cat_k, subcat_col=subcat_k
+            source_df, cat_col=cat_k, subcat_col=subcat_k
         )
         selects_stats = analytics_res.get("summary", {})
         if selects_stats and selects_stats.get("total_revenue", 0) > 0:
@@ -292,9 +295,40 @@ def _render_sku_report(top):
             {"": "N/A", "nan": "N/A", "None": "N/A"}
         )
 
+    # Classify each SKU into Product Line with icons
+    from src.processing.selects_analytics import classify_product_line
+
+    names = (
+        report_df["Product Name"]
+        if "Product Name" in report_df.columns
+        else [""] * len(report_df)
+    )
+    skus = report_df["SKU"] if "SKU" in report_df.columns else [""] * len(report_df)
+    cats = (
+        report_df["Category"]
+        if "Category" in report_df.columns
+        else [""] * len(report_df)
+    )
+
+    report_df["Product Line"] = [
+        (
+            "💎 DEEN Selects"
+            if classify_product_line(str(n), str(s), str(c)) == "DEEN Selects"
+            else "📦 DEEN Regular"
+        )
+        for n, s, c in zip(names, skus, cats)
+    ]
+
     col_order = [
         c
-        for c in ["SKU", "Product Name", "Category", "Total Qty", "Total Amount"]
+        for c in [
+            "SKU",
+            "Product Name",
+            "Product Line",
+            "Category",
+            "Total Qty",
+            "Total Amount",
+        ]
         if c in report_df.columns
     ]
     report_df = report_df[col_order]
@@ -305,7 +339,7 @@ def _render_sku_report(top):
 
     display_df = report_df.copy()
     search_q = st.text_input(
-        "🔍 Search Product Name or SKU in Report", key="sku_report_search"
+        "🔍 Search Product Name, SKU, or Line in Report", key="sku_report_search"
     ).strip()
     if search_q:
         display_df = display_df[
@@ -313,6 +347,9 @@ def _render_sku_report(top):
             .astype(str)
             .str.contains(search_q, case=False, na=False)
             | display_df["SKU"].astype(str).str.contains(search_q, case=False, na=False)
+            | display_df["Product Line"]
+            .astype(str)
+            .str.contains(search_q, case=False, na=False)
         ]
         st.caption(
             f'Showing **{len(display_df)}** of **{len(report_df)}** products matching `"{search_q}"`'
@@ -328,6 +365,10 @@ def _render_sku_report(top):
             ),
             "Product Name": st.column_config.TextColumn(
                 "Product Name", help="Clean/Base product name"
+            ),
+            "Product Line": st.column_config.TextColumn(
+                "Product Line",
+                help="Collection line: 💎 DEEN Selects vs 📦 DEEN Regular",
             ),
             "Category": st.column_config.TextColumn(
                 "Category", help="Product main category"

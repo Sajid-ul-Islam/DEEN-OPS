@@ -40,7 +40,8 @@ def render_selects_analysis_section(
     st.markdown("### 💎 DEEN Selects vs DEEN Regular Analytics")
     st.caption(
         "Real-time comparative performance between the premium **DEEN Selects** collection "
-        "and the core **DEEN Regular** catalog across revenue, units, and category sales."
+        "(products without the DEEN brand tag, e.g. curated third-party brands) and the core "
+        "**DEEN Regular** catalog (products bearing the DEEN brand tag) across revenue, volume, and category sales."
     )
 
     # ── Executive KPI Cards ──────────────────────────────────────────────────

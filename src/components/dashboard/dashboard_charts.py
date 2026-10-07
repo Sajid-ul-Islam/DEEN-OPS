@@ -291,10 +291,17 @@ def render_category_charts(
             ].values
         )
 
-        center_annotation_text = (
-            f"<span style='font-size:18px;color:#0f172a;'><b>৳ {total_amt:,.0f}</b></span><br>"
-            f"<span style='font-size:10px;color:#64748b;letter-spacing:0.5px;'>TOTAL REVENUE</span>"
-        )
+        if selects_pct is not None and selects_pct > 0:
+            center_annotation_text = (
+                f"<span style='font-size:17px;color:#0f172a;'><b>৳ {total_amt:,.0f}</b></span><br>"
+                f"<span style='font-size:9.5px;color:#64748b;letter-spacing:0.5px;'>TOTAL REVENUE</span><br>"
+                f"<span style='font-size:10px;color:#059669;font-weight:700;'>💎 {selects_pct:.1f}% Selects</span>"
+            )
+        else:
+            center_annotation_text = (
+                f"<span style='font-size:18px;color:#0f172a;'><b>৳ {total_amt:,.0f}</b></span><br>"
+                f"<span style='font-size:10px;color:#64748b;letter-spacing:0.5px;'>TOTAL REVENUE</span>"
+            )
         fig_pie.update_layout(
             paper_bgcolor="#ffffff",
             plot_bgcolor="#ffffff",
