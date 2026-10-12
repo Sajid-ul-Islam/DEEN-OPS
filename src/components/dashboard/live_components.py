@@ -363,7 +363,7 @@ def _render_dashboard_view_selector():
         }
     else:
         descriptions = {
-            "All Orders": "Today's online checkout orders + backlog unfulfilled queue (excluding hold & waiting)",
+            "All Orders": "Today's online checkout orders + backlog unfulfilled queue + orders completed today",
             "Today Shipped": "Online checkout orders shipped or completed today (00:00–23:59 BD time)",
             "Last Day Shipped": f"Online checkout orders shipped on {prev_day_name} (previous working day)",
             "Queue": "All online checkout orders on hold, waiting, or pending across all dates",

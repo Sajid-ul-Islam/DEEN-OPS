@@ -200,6 +200,27 @@ def test_compute_live_filter_counts_matches_filter_views():
     }
 
 
+def test_earlier_order_completed_today_included_in_all_orders():
+    """An order placed 3 days ago and completed today must show in both Today Shipped and All Orders."""
+    reference = date(2026, 10, 12)
+    df = _orders(
+        [
+            (17176, "completed", "2026-10-09 19:25:15", "2026-10-12 15:18:18"),
+            (17177, "processing", "2026-10-12 10:00:00", "2026-10-12 10:00:00"),
+        ]
+    )
+    today_shipped = filter_live_dashboard_view(
+        df, "Today Shipped", reference_date=reference
+    )
+    all_orders = filter_live_dashboard_view(df, "All Orders", reference_date=reference)
+    counts = compute_live_filter_counts(df, reference_date=reference)
+
+    assert 17176 in set(today_shipped["Order ID"])
+    assert 17176 in set(all_orders["Order ID"])
+    assert counts["All Orders"] == 2
+    assert counts["Today Shipped"] == 1
+
+
 def test_apply_order_view_shipped_delegates_to_shipped_filter(fake_session):
     df = _orders(
         [

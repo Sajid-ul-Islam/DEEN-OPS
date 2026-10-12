@@ -495,7 +495,13 @@ def filter_live_dashboard_view(df, view: str, reference_date=None):
         mask = is_queue & ~is_processing
     elif v == "All Orders":
         mask = (
-            ~is_cancelled & ~is_hold_waiting & (is_today_created_date | is_prior_queue)
+            ~is_cancelled
+            & ~is_hold_waiting
+            & (
+                is_today_created_date
+                | is_prior_queue
+                | (is_sale & is_today_shipped_date)
+            )
         )
     else:
         mask = pd.Series(False, index=df.index)
@@ -600,7 +606,13 @@ def compute_live_filter_counts(df, reference_date=None) -> dict[str, int]:
         "Last Day Shipped": is_sale & (sale_date == previous_day),
         "Queue": is_queue & ~is_processing,
         "All Orders": (
-            ~is_cancelled & ~is_hold_waiting & (is_today_created_date | is_prior_queue)
+            ~is_cancelled
+            & ~is_hold_waiting
+            & (
+                is_today_created_date
+                | is_prior_queue
+                | (is_sale & is_today_shipped_date)
+            )
         ),
     }
 
