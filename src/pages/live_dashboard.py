@@ -14,8 +14,6 @@ import streamlit as st
 from src.components.dashboard.dashboard_metrics import render_operational_metrics
 from src.components.dashboard.dashboard_output import render_dashboard_output
 from src.components.dashboard.live_components import (
-    filter_by_collection,
-    render_collection_filter_bar,
     render_dashboard_banner,
 )
 from src.components.ui.widgets import render_reset_confirm
@@ -696,19 +694,10 @@ def render_live_tab():
         selected_view, nav_mode, order_view_mode, live_mapping
     )
 
-    # ── Collection Filter Bar (All Products / 💎 DEEN Selects / 📦 DEEN Regular) ─
-    chosen_col = render_collection_filter_bar(df_standard)
-    df_filtered = filter_by_collection(df_standard, chosen_col)
-    cmp_filtered = (
-        filter_by_collection(cmp_standard, chosen_col)
-        if cmp_standard is not None
-        else None
-    )
-
     # Stash the granular frames so the KPI cards and downstream charts share
     # the exact same synchronized dataset.
-    st.session_state["live_df_standard"] = df_filtered
-    st.session_state["live_cmp_standard"] = cmp_filtered
+    st.session_state["live_df_standard"] = df_standard
+    st.session_state["live_cmp_standard"] = cmp_standard
     st.session_state["live_df_unfiltered"] = df_standard
 
     # ── KPI Cards (5 core metric cards + comparison deltas) ────────────────────
@@ -717,6 +706,11 @@ def render_live_tab():
     )
 
     # ── Detail & Performance Charts ─────────────────────────────────────────
+    # Single source of truth: the full standardized dataset (collection filter
+    # removed — All Products is the only collection). No filtering needed.
+    df_filtered = df_standard
+    chosen_col = "🌐 All Products"
+
     if df_filtered.empty:
         if selected_view in {"Today Shipped", "Today"}:
             st.info(

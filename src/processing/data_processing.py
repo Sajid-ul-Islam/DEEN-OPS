@@ -425,6 +425,144 @@ def _detect_exchange_mask(df):
     return status_mask | fee_mask
 
 
+def count_by_status(
+    df: pd.DataFrame,
+    *,
+    status_col: str | None = None,
+    order_id_col: str | None = None,
+) -> dict[str, int]:
+    """Count unique operational statuses in *df*.
+
+    Returns a dict with the keys ``'shipped'``, ``'processing'``, ``'held'``,
+    ``'exchange'``, and ``'other'``, each holding a count of unique orders
+    (or rows when no order-id column is available).
+
+    Exchange orders are detected with the same rule as ``_detect_exchange_mask``
+    (Order Status contains "exchange" OR Fee Notes contains "exchange credit"),
+    so they are reported separately instead of being mis-counted as shipped.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The operational order frame to classify.
+    status_col : str | None
+        Explicit status column to use. When ``None``, the function picks the
+        first of ``'Order Status'`` / ``'Status'`` that is present.
+    order_id_col : str | None
+        Column whose unique values define one order. When ``None``, the count
+        falls back to the number of rows.
+
+    Returns
+    -------
+    dict[str, int]
+        ``{'shipped': int, 'processing': int, 'held': int, 'exchange': int, 'other': int}``
+    """
+    if df is None or df.empty:
+        return {"shipped": 0, "processing": 0, "held": 0, "exchange": 0, "other": 0}
+
+    if status_col is None:
+        status_col = (
+            "Order Status"
+            if "Order Status" in df.columns
+            else "Status"
+            if "Status" in df.columns
+            else None
+        )
+    if status_col is None:
+        return {"shipped": 0, "processing": 0, "held": 0, "exchange": 0, "other": 0}
+
+    from src.config.constants import (
+        ACTIVE_STATUSES,
+        CANCELLED_STATUSES,
+        HOLD_WAITING_STATUSES,
+        SHIPPED_STATUSES,
+    )
+
+    statuses = df[status_col].astype(str).str.lower().str.strip()
+
+    shipped_mask = statuses.isin([s.lower() for s in SHIPPED_STATUSES])
+    processing_mask = statuses.isin([s.lower() for s in ACTIVE_STATUSES])
+    held_mask = statuses.isin([s.lower() for s in HOLD_WAITING_STATUSES])
+    exchange_mask = _detect_exchange_mask(df)
+
+    # Exchange orders are replacements, not new sales — remove them from the
+    # shipped bucket so they are never counted as revenue-recognised sales.
+    sales_mask = shipped_mask & ~exchange_mask
+    other_mask = ~(sales_mask | processing_mask | held_mask | exchange_mask)
+
+    def _count(mask: pd.Series) -> int:
+        subset = df[mask]
+        if order_id_col and order_id_col in subset.columns:
+            return int(subset[order_id_col].nunique())
+        return len(subset)
+
+    return {
+        "shipped": _count(sales_mask),
+        "processing": _count(processing_mask),
+        "held": _count(held_mask),
+        "exchange": _count(exchange_mask),
+        "other": _count(other_mask),
+    }
+
+
+def robust_order_count(
+    df: pd.DataFrame,
+    basket_total_orders: int = 0,
+    *,
+    order_id_candidates: tuple[str, ...] = ("Order ID", "Order Number"),
+) -> int:
+    """Return the unique-order count for *df*, resolving the best available key.
+
+    Resolution order:
+    1. ``basket_total_orders`` when it is a positive value (set by
+       ``aggregate_data`` / ``prepare_granular_data``).
+    2. ``df[<best Order ID column>].nunique()``.
+    3. ``len(df)``.
+
+    This is the same fallback ladder used by ``render_operational_metrics`` and
+    ``_get_comparison_frame`` so the KPI cards and the delta frame always count
+    orders the same way.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+    basket_total_orders : int
+    order_id_candidates : tuple[str, ...]
+        Candidate column names tried, in priority order.
+
+    Returns
+    -------
+    int
+    """
+    if basket_total_orders > 0:
+        return basket_total_orders
+
+    if df is None or df.empty:
+        return 0
+
+    for candidate in order_id_candidates:
+        if candidate in df.columns:
+            return int(df[candidate].nunique())
+
+    return len(df)
+
+
+def pick_order_id_column(
+    df: pd.DataFrame,
+    candidates: tuple[str, ...] = ("Order ID", "Order Number"),
+    fallback: str | None = None,
+) -> str | None:
+    """Return the first candidate column present on *df*, or *fallback*.
+
+    Convenience wrapper around the repeated ``next(... for c in candidates if c in df.columns)``
+    pattern used across the dashboard and order-tracking code paths.
+    """
+    for candidate in candidates:
+        if candidate in df.columns:
+            return candidate
+    return fallback
+
+
 def filter_live_dashboard_view(df, view: str, reference_date=None):
     """Apply the four mutually exclusive Live Dashboard visibility rules.
 

@@ -11,6 +11,7 @@ import streamlit as st
 
 from src.config.constants import bd_today
 from src.processing.data_processing import compute_live_filter_counts
+
 from src.services.woocommerce.client import load_live_source as _load_live_source
 
 
@@ -176,6 +177,71 @@ def _render_operation_mode_selector(nav_mode: str):
     if new_nav != nav_mode:
         st.session_state.wc_nav_mode = new_nav
         st.rerun()
+
+    # compact companion to the Queue filter: the upload button sits in a
+    # small 5.2:1.3 column next to the Queue pill, so it never wins
+    # horizontal space. A single paste target for the manual file.
+    manual_row, manual_reset = st.columns([5.2, 1.3], vertical_alignment="center")
+    with manual_row:
+        if st.button(
+            "📁 Upload Sales File",
+            key="btn_manual_upload",
+            use_container_width=True,
+            help=(
+                "Upload a .csv/.xlsx export of the order list. "
+                "Column detection is automatic — the file's own columns are read "
+                "and the dashboard computes orders / revenue / qty from them."
+            ),
+        ):
+            uploaded = st.file_uploader(
+                "Upload sales file (csv / xlsx)",
+                type=["csv", "xlsx"],
+                key="live_manual_file_uploader",
+                label_visibility="collapsed",
+            )
+            if uploaded is not None:
+                from src.utils.file_io import read_sales_file
+                from src.processing.data_processing import safe_coerce_datetime_naive
+
+                try:
+                    df_up = read_sales_file(uploaded, uploaded.name)
+                    if df_up is not None and not df_up.empty:
+                        if (
+                            "Order Date" in df_up.columns
+                            and "dt_parsed" not in df_up.columns
+                        ):
+                            df_up["dt_parsed"] = safe_coerce_datetime_naive(
+                                df_up["Order Date"]
+                            )
+                        if (
+                            "Order Date Modified" in df_up.columns
+                            and "mod_dt_parsed" not in df_up.columns
+                        ):
+                            df_up["mod_dt_parsed"] = safe_coerce_datetime_naive(
+                                df_up["Order Date Modified"]
+                            )
+                        st.session_state["live_manual_override_df"] = df_up
+                        st.session_state["live_manual_override_name"] = uploaded.name
+                        st.session_state.pop("live_df_standard", None)
+                        st.session_state.pop("live_cmp_standard", None)
+                        st.toast(f"✅ Loaded {uploaded.name} ({len(df_up)} rows)")
+                        st.rerun()
+                except Exception as ex:
+                    st.error(f"⚠️ Failed to read uploaded file: {ex}")
+
+    with manual_reset:
+        if st.button(
+            "✕",
+            key="btn_reset_manual_override",
+            use_container_width=True,
+            help="Discard manual upload and resume live WooCommerce API sync",
+        ):
+            st.session_state.pop("live_manual_override_df", None)
+            st.session_state.pop("live_manual_override_name", None)
+            st.session_state.pop("live_df_standard", None)
+            st.session_state.pop("live_cmp_standard", None)
+            st.toast("⚡ Restored automatic live sync!")
+            st.rerun()
 
     return selected_mode
 
@@ -566,7 +632,10 @@ def render_collection_filter_bar(df_standard: pd.DataFrame | None = None) -> str
     Returns:
         The selected collection string.
     """
-    options = ["🌐 All Products", "💎 DEEN Selects", "📦 DEEN Regular"]
+    # Collection filter: single "All Products" option only. DEEN Selects and
+    # DEEN Regular are separate analytics views (see selects_analysis_view.py)
+    # and are not part of the main all-orders collection filter.
+    options = ["🌐 All Products"]
     current = st.session_state.get("live_collection_filter", "🌐 All Products")
     if current not in options:
         current = "🌐 All Products"

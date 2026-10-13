@@ -346,7 +346,9 @@ def _render_single_and_search_view():
                         else:
                             st.toast("✅ Status retrieved successfully!")
                             data_obj = status_data.get("data", {})
-                            status_val = str(data_obj.get("order_status", "N/A")).capitalize()
+                            status_val = str(
+                                data_obj.get("order_status", "N/A")
+                            ).capitalize()
                             payment_val = str(
                                 data_obj.get("payment_status", "N/A")
                             ).capitalize()
@@ -384,8 +386,8 @@ def _render_single_and_search_view():
                             </div>
                         </div>
                         """,
-                        unsafe_allow_html=True,
-                    )
+                                unsafe_allow_html=True,
+                            )
 
                     with st.expander("View Full API Response"):
                         st.json(status_data)

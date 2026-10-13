@@ -116,7 +116,7 @@ def render_category_charts(
         summ_display["Total Amount"] = 0.0
 
     summ_display["Display_Label"] = summ_display[display_col].apply(
-        lambda x: truncate_label(get_short_category_label(x), max_len=15)
+        lambda x: truncate_label(get_short_category_label(x), max_len=22)
     )
 
     v1, v2 = st.columns(2)
@@ -247,7 +247,7 @@ def render_category_charts(
             ["_Name_Total", "Total Amount"], ascending=[False, False]
         )
         pie_display["Display_Label"] = pie_display["Pie_Name"].apply(
-            lambda x: truncate_label(x, max_len=15)
+            lambda x: truncate_label(x, max_len=22)
         )
 
         pie_display["Total Qty"] = (
@@ -303,8 +303,8 @@ def render_category_charts(
                 f"<span style='font-size:10px;color:#64748b;letter-spacing:0.5px;'>TOTAL REVENUE</span>"
             )
         fig_pie.update_layout(
-            paper_bgcolor="#ffffff",
-            plot_bgcolor="#ffffff",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
             margin=dict(t=40, b=30, l=20, r=20),
             height=440,
             showlegend=False,
@@ -429,7 +429,7 @@ def render_category_charts(
 
         unique_bars = pd.DataFrame({"Bar_X": sorted_bars})
         unique_bars["Bar_Label"] = unique_bars["Bar_X"].apply(
-            lambda x: truncate_label(get_short_category_label(x), max_len=15)
+            lambda x: truncate_label(get_short_category_label(x), max_len=22)
         )
 
         fig_bar = px.bar(
@@ -460,8 +460,8 @@ def render_category_charts(
             )
 
         fig_bar.update_layout(
-            paper_bgcolor="#ffffff",
-            plot_bgcolor="#ffffff",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
             margin=dict(t=40, b=30, l=20, r=20),
             height=440,
             xaxis_title="",

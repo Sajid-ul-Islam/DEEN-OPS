@@ -100,29 +100,17 @@ def inject_base_styles():
           function syncDeenTheme() {
             var isDark = detectIsDark();
             var theme = isDark ? 'dark' : 'light';
+            // Single source of truth: the <html> element only. Streamlit
+            // ThemeProvider reads data-theme on the documentElement, so a
+            // body/html/.stApp override was fighting the provider and
+            // producing a light flash on startup.
             var doc = document.documentElement;
             if (doc.getAttribute('data-theme') !== theme) {
               doc.setAttribute('data-theme', theme);
-              doc.classList.toggle('dark', isDark);
-              doc.classList.toggle('light', !isDark);
-            }
-            if (document.body && document.body.getAttribute('data-theme') !== theme) {
-              document.body.setAttribute('data-theme', theme);
-              document.body.classList.toggle('dark', isDark);
-              document.body.classList.toggle('light', !isDark);
-            }
-            var app = document.querySelector('.stApp');
-            if (app && app.getAttribute('data-theme') !== theme) {
-              app.setAttribute('data-theme', theme);
-              app.classList.toggle('dark', isDark);
-              app.classList.toggle('light', !isDark);
             }
           }
 
           syncDeenTheme();
-          requestAnimationFrame(syncDeenTheme);
-          setTimeout(syncDeenTheme, 100);
-          setTimeout(syncDeenTheme, 400);
 
           if (!window.__deen_theme_observer_installed) {
             window.__deen_theme_observer_installed = true;

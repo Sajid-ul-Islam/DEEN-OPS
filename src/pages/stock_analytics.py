@@ -165,14 +165,30 @@ def render_bundle_inventory_intelligence(sales_df, stock_df):
         else 0.0
     )
 
-    bundle_html = (
-        '<div class="metric-container">'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Bundle Fulfillment</div><div class="metric-value">{fulfillment_rate:.0f}%</div></div><div class="metric-icon">🚀</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Orphan Stock Rate</div><div class="metric-value">{orphan_pct:.1f}%</div></div><div class="metric-icon">⚠️</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Co-buy Rate</div><div class="metric-value">{dependency_score:.0%}</div></div><div class="metric-icon">🔗</div></div>'
-        "</div>"
+    from src.components.ui.metric_card import MetricCard, render_metric_cards
+
+    render_metric_cards(
+        [
+            MetricCard(
+                "Bundle Fulfillment",
+                f"{fulfillment_rate:.0f}%",
+                "🚀",
+                delta_kind=("up" if fulfillment_rate >= 50 else "down"),
+            ),
+            MetricCard(
+                "Orphan Stock Rate",
+                f"{orphan_pct:.1f}%",
+                "⚠️",
+                delta_kind="down" if orphan_pct > 0 else "up",
+            ),
+            MetricCard(
+                "Co-buy Rate",
+                f"{dependency_score:.0%}",
+                "🔗",
+            ),
+        ],
+        container_class="metric-container",
     )
-    st.markdown(bundle_html, unsafe_allow_html=True)
 
     if fulfillment_rate < 50:
         st.error("⚠️ Fulfillment Critical: Lost sales due to bundle imbalance.")
@@ -427,17 +443,24 @@ def _render_stock_body(df: pd.DataFrame) -> None:
     val_stock = (current_stocks * df_sim["Price"]).sum()
     out_of_stock = (current_stocks <= 0).sum()
 
-    is_critical = (low_stock / len(df_sim) > 0.2)
+    is_critical = low_stock / len(df_sim) > 0.2
 
-    stock_html = (
-        '<div class="metric-container">'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Warehouse Units</div><div class="metric-value">{total_qty:,.0f}</div></div><div class="metric-icon">🏠</div></div>'
-        f'<div class="metric-card {"stock-critical" if is_critical else ""}"><div class="metric-content"><div class="metric-label">Low Stock (<{low_thresh})</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Out of Stock</div><div class="metric-value">{out_of_stock}</div></div><div class="metric-icon">🚫</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Inventory Value</div><div class="metric-value">৳ {val_stock:,.0f}</div></div><div class="metric-icon">💰</div></div>'
-        "</div>"
+    from src.components.ui.metric_card import MetricCard, render_metric_cards
+
+    render_metric_cards(
+        [
+            MetricCard("Warehouse Units", f"{total_qty:,.0f}", "🏠"),
+            MetricCard(
+                f"Low Stock (<{low_thresh})",
+                f"{low_stock}",
+                "⚠️",
+                extra_class="stock-critical" if is_critical else "",
+            ),
+            MetricCard("Out of Stock", f"{out_of_stock}", "🚫"),
+            MetricCard("Inventory Value", f"৳ {val_stock:,.0f}", "💰"),
+        ],
+        container_class="metric-container",
     )
-    st.markdown(stock_html, unsafe_allow_html=True)
 
     sales_df = st.session_state.get("wc_curr_df")
     if sales_df is not None and not sales_df.empty:

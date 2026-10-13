@@ -259,11 +259,11 @@ def render_return_analytics_tab():
 
             total_returns = len(df)
 
-            st.markdown(
-                '<div class="metric-container">'
-                f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Filtered Returns</div><div class="metric-value">{total_returns}</div></div><div class="metric-icon">📦</div></div>'
-                "</div>",
-                unsafe_allow_html=True,
+            from src.components.ui.metric_card import MetricCard, render_metric_cards
+
+            render_metric_cards(
+                [MetricCard("Filtered Returns", str(total_returns), "📦")],
+                container_class="metric-container",
             )
 
             st.divider()
@@ -571,16 +571,37 @@ def render_return_analytics_tab():
                             ]
                         )
 
-                    st.markdown(
-                        '<div class="metric-container">'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Total Shipped</div><div class="metric-value">{total_shipped}</div></div><div class="metric-icon">📦</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Matched Returns</div><div class="metric-value">{total_matches}</div></div><div class="metric-icon">🔁</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Return Rate</div><div class="metric-value">{return_rate:.1f}%</div></div><div class="metric-icon">📉</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">WC Status Mismatches</div><div class="metric-value">{wc_mismatches}</div></div><div class="metric-icon">⚠️</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Prepaid Refund Risks</div><div class="metric-value">{prepaid_refunds}</div></div><div class="metric-icon">💳</div></div>'
-                        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Financial Impact</div><div class="metric-value">৳ {financial_impact:,.0f}</div></div><div class="metric-icon">💰</div></div>'
-                        "</div>",
-                        unsafe_allow_html=True,
+                    from src.components.ui.metric_card import (
+                        MetricCard,
+                        render_metric_cards,
+                    )
+
+                    render_metric_cards(
+                        [
+                            MetricCard("Total Shipped", f"{total_shipped:,}", "📦"),
+                            MetricCard("Matched Returns", f"{total_matches:,}", "🔁"),
+                            MetricCard(
+                                "Return Rate",
+                                f"{return_rate:.1f}%",
+                                "📉",
+                            ),
+                            MetricCard(
+                                "WC Status Mismatches",
+                                f"{wc_mismatches:,}",
+                                "⚠️",
+                            ),
+                            MetricCard(
+                                "Prepaid Refund Risks",
+                                f"{prepaid_refunds:,}",
+                                "💳",
+                            ),
+                            MetricCard(
+                                "Financial Impact",
+                                f"৳ {financial_impact:,.0f}",
+                                "💰",
+                            ),
+                        ],
+                        container_class="metric-container",
                     )
 
                     st.divider()

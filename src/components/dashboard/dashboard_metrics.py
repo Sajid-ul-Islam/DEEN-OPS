@@ -1,4 +1,10 @@
-"""Operational metrics rendering: KPI cards, deltas, and status breakdown."""
+"""Operational metrics rendering: KPI cards, deltas, and status breakdown.
+
+The dashboard's 5-card grid (items, revenue, orders, basket/oldest, customer mix)
+is built from ``MetricCard`` and rendered through the canonical renderer in
+``src.components.ui.metric_card``. This replaces the hand-rolled f-strings that
+previously constructed each card inline.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from src.components.dashboard.svg import _generate_sparkline_svg
+from src.components.ui.metric_card import MetricCard, render_metric_cards
 from src.processing.column_detection import (
     EMAIL_COL_CANDIDATES,
     NAME_COL_CANDIDATES,
@@ -61,67 +68,21 @@ def render_operational_metrics(
     active_df = m_df
     drill, summ, top, basket = aggregate_data(m_df, dummy_mapping)
 
-    m_qty = m_df["Quantity"].sum() if "Quantity" in m_df.columns else 0
-    m_ord = basket.get("total_orders", 0) if basket else 0
-    if m_ord == 0 and not m_df.empty:
-        _ord_col = pick_column(m_df, ORDER_ID_COL_CANDIDATES)
-        m_ord = int(m_df[_ord_col].nunique()) if _ord_col else len(m_df)
-    m_item_rev = (
-        (m_df["Quantity"] * m_df["Item Cost"]).sum()
-        if "Quantity" in m_df.columns and "Item Cost" in m_df.columns
-        else 0.0
-    )
+    # Single-source revenue breakdown + exchange count, computed from the
+    # canonical helpers in src.processing.revenue. This replaces the inline
+    # ``m_cashback_disc / m_gross_rev / m_net_rev / m_exchange_cnt`` ladder
+    # that was copy-pasted into dashboard_metrics.py and duplicated in
+    # dm_head.py / tmp_original_dm.py.
+    curr_rev = compute_revenue_breakdown(m_df)
+    m_qty = int(m_df["Quantity"].sum()) if "Quantity" in m_df.columns else 0
+    m_ord = robust_order_count(m_df, basket.get("total_orders", 0) if basket else 0)
+    m_item_rev = curr_rev["item_rev"]
+    m_cashback_disc = curr_rev["cashback"]
+    m_gross_rev = curr_rev["gross"]
+    m_net_rev = curr_rev["net"]
+    m_loss_pct = curr_rev["loss_pct"]
+    m_exchange_cnt = count_exchange_orders(m_df)
 
-    # ── Robust Gross Revenue, Cashback, and Net Revenue Calculation ──
-    # ``prepare_granular_data`` (called above) guarantees ``Cashback Discount``,
-    # ``Gross Amount`` and ``Total Amount`` columns already exist on ``m_df`` and
-    # ``c_df``, so these are the single source of truth (no secondary derivation).
-    m_cashback_disc = (
-        float(m_df["Cashback Discount"].sum())
-        if "Cashback Discount" in m_df.columns
-        else 0.0
-    )
-    m_gross_rev = (
-        float(m_df["Gross Amount"].sum())
-        if "Gross Amount" in m_df.columns
-        else m_item_rev
-    )
-
-    # Net Revenue = Gross Revenue - Cashback/Discount Fees
-    m_net_rev = max(0.0, m_gross_rev - m_cashback_disc)
-
-    # Detect exchange orders: check Fee Notes for "exchange credit" AND
-    # Order Status for "exchange" (matching the pattern used in
-    # data_processing.py and live_dashboard.py).
-    m_exchange_cnt = 0
-    fee_notes_col = "Fee Notes" if "Fee Notes" in m_df.columns else None
-    status_col = (
-        "Order Status"
-        if "Order Status" in m_df.columns
-        else "Status"
-        if "Status" in m_df.columns
-        else None
-    )
-    if not m_df.empty:
-        fee_mask = pd.Series(False, index=m_df.index)
-        status_mask = pd.Series(False, index=m_df.index)
-        if fee_notes_col:
-            fee_mask = (
-                m_df[fee_notes_col]
-                .astype(str)
-                .str.lower()
-                .str.contains("exchange credit", na=False)
-            )
-        if status_col:
-            status_mask = (
-                m_df[status_col]
-                .astype(str)
-                .str.lower()
-                .str.contains("exchange", na=False)
-            )
-        m_exchange_cnt = int((fee_mask | status_mask).sum())
-
-    m_loss_pct = (m_cashback_disc / m_gross_rev * 100) if m_gross_rev > 0 else 0.0
     m_gross_bv = (m_gross_rev / m_ord) if m_ord > 0 else 0.0
     m_net_bv = (m_net_rev / m_ord) if m_ord > 0 else 0.0
     m_cb_per_basket = (m_cashback_disc / m_ord) if m_ord > 0 else 0.0
@@ -132,14 +93,10 @@ def render_operational_metrics(
     prev_q_str, prev_r_str, prev_o_str, prev_b_str = None, None, None, None
 
     if c_df is not None and not c_df.empty:
-        co_q = c_df["Quantity"].sum() if "Quantity" in c_df.columns else 0
-        co_item_r = (
-            (c_df["Quantity"] * c_df["Item Cost"]).sum()
-            if "Quantity" in c_df.columns and "Item Cost" in c_df.columns
-            else 0.0
-        )
+        co_q = int(c_df["Quantity"].sum()) if "Quantity" in c_df.columns else 0
+        co_item_r = compute_revenue_breakdown(c_df)["item_rev"]
         _, _, _, co_basket = aggregate_data(c_df, dummy_mapping)
-        co_o = co_basket.get("total_orders", 0) if co_basket else 0
+        co_o = robust_order_count(c_df, co_basket.get("total_orders", 0) if co_basket else 0)
         if co_o == 0 and not c_df.empty:
             _co_ord_col = pick_column(c_df, ORDER_ID_COL_CANDIDATES)
             co_o = int(c_df[_co_ord_col].nunique()) if _co_ord_col else len(c_df)
@@ -202,54 +159,33 @@ def render_operational_metrics(
         prev_o_str = f"{co_o:,.0f}"
         prev_b_str = f"TK {int(co_b):,}"
 
-    def format_delta(delta_str, prev_val_str=None, pct_val=None):
-        if not delta_str:
-            return ""
-        is_up = "+" in delta_str
-        cls = "delta-up" if is_up else "delta-down"
-        arrow = "▲" if is_up else "▼"
-        pct_snippet = (
-            f" ({pct_val:+.1f}%)"
-            if pct_val is not None and not pd.isna(pct_val)
-            else ""
-        )
-        prev_tag = cmp_label if "cmp_label" in locals() and cmp_label else "Prev"
-        prev_snippet = (
-            f' <span class="delta-prev">({prev_tag}: {prev_val_str})</span>'
-            if prev_val_str
-            else ""
-        )
-        return f'<div class="metric-delta {cls}">{arrow} {delta_str}{pct_snippet}{prev_snippet}</div>'
+    cmp_badge_label = _resolve_cmp_label(c_df, cmp_label, nav_mode, st)
 
     v_qty = f"{m_qty:,.0f}"
     v_rev = f"TK {m_gross_rev:,.0f}"
     v_ord = f"{m_ord:,.0f}"
     v_bv = f"TK {int(m_gross_bv):,}"
 
-    html_dq = format_delta(dq_str, prev_val_str=prev_q_str, pct_val=pct_q)
-    html_dr = format_delta(dr_str, prev_val_str=prev_r_str, pct_val=pct_r)
-    html_do = format_delta(do_str, prev_val_str=prev_o_str, pct_val=pct_o)
-    html_db = format_delta(db_str, prev_val_str=prev_b_str, pct_val=pct_b)
+    # Order-value badge + exchange sub-badge are still assembled as raw HTML
+    # fragments because they are placed inside specific cards; the cards
+    # themselves are now MetricCard instances (see below).
+    order_value_badge = _last_day_badge(prev_q_str, label=cmp_badge_label)
+    revenue_badge = _last_day_badge(prev_r_str, label=cmp_badge_label)
+    orders_badge = _last_day_badge(prev_o_str, label=cmp_badge_label)
+    basket_badge = _last_day_badge(prev_b_str, label=cmp_badge_label)
 
-    # ── "Last Day" Comparison Badges ─────────────────────────────────────
-    # Prominent badges showing the previous period's absolute values,
-    # placed between the main value and the delta on each KPI card.
-    def _last_day_badge(prev_str, label="Last Day", color="#64748b"):
-        if not prev_str:
-            return ""
-        return (
-            f'<div style="font-size:0.68rem;font-weight:600;color:{color};'
-            f"background:rgba(100,116,139,0.08);padding:2px 7px;"
-            f"border-radius:4px;margin-top:5px;display:inline-block;"
-            f'letter-spacing:0.02em;">'
-            f"📅 {label}: {prev_str}</div>"
-        )
-
-    cmp_badge_label = cmp_label if "cmp_label" in locals() else "Last Day"
-    badge_qty = _last_day_badge(prev_q_str, label=cmp_badge_label)
-    badge_rev = _last_day_badge(prev_r_str, label=cmp_badge_label)
-    badge_ord = _last_day_badge(prev_o_str, label=cmp_badge_label)
-    badge_bv = _last_day_badge(prev_b_str, label=cmp_badge_label)
+    html_dq = _format_delta_html(
+        dq_str, prev_val_str=prev_q_str, pct_val=pct_q, cmp_label=cmp_badge_label
+    )
+    html_dr = _format_delta_html(
+        dr_str, prev_val_str=prev_r_str, pct_val=pct_r, cmp_label=cmp_badge_label
+    )
+    html_do = _format_delta_html(
+        do_str, prev_val_str=prev_o_str, pct_val=pct_o, cmp_label=cmp_badge_label
+    )
+    html_db = _format_delta_html(
+        db_str, prev_val_str=prev_b_str, pct_val=pct_b, cmp_label=cmp_badge_label
+    )
 
     extra_metric_label = "Basket Size"
     extra_metric_value = v_bv
@@ -288,23 +224,11 @@ def render_operational_metrics(
     t_qty_vals, t_rev_vals, t_ord_vals, t_bv_vals = [], [], [], []
     if not m_df.empty and nav_mode != "Backlog":
         try:
-            # 1. Fetch the multi-day source DataFrame from session state if available, fallback to m_df
-            full_df = (
-                st.session_state.get("wc_full_df")
-                if st.session_state.get("wc_full_df") is not None
-                and not st.session_state.get("wc_full_df").empty
-                else (
-                    st.session_state.get("granular_df")
-                    if st.session_state.get("granular_df") is not None
-                    and not st.session_state.get("granular_df").empty
-                    else (
-                        st.session_state.get("raw_df")
-                        if st.session_state.get("raw_df") is not None
-                        and not st.session_state.get("raw_df").empty
-                        else m_df
-                    )
-                )
-            )
+            # Fetch the multi-day source DataFrame once. Previously this
+            # nested ternary was evaluated up to three times (sparklines,
+            # compute_new_vs_returning_counts, and the customer-mix delta
+            # comparison). Now it is a single local.
+            full_df = _resolve_full_df(st)
 
             date_col = (
                 "Date"
@@ -625,14 +549,10 @@ def render_operational_metrics(
         l3 = "Orders"
         icon_l3 = "🛒"
 
-    gross_items_card = (
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l1}</div>'
-        f'<div class="metric-value">{v_qty}</div>{badge_qty}{html_dq}{s_qty}{d_qty}</div>'
-        '<div class="metric-icon">📦</div></div>'
-    )
-
     cb_badge = ""
-    cb_basket_badge = ""
+    # Comparison-to-previous-day badge for the basket card.
+    # (Mirrors revenue_badge, orders_badge pattern from the other cards.)
+    cb_basket_badge = _last_day_badge(prev_b_str, label=cmp_badge_label)
     cb_orders_badge = ""
 
     tot_cust = m_new_cnt + m_ret_cnt
@@ -671,19 +591,14 @@ def render_operational_metrics(
                     if "cmp_badge_label" in locals() and cmp_badge_label
                     else " vs Prev"
                 )
-                html_dcust = format_delta(
+                html_dcust = _format_delta_html(
                     f"{d_new:+d} New{cmp_cust_suffix}",
                     prev_val_str=f"{co_new_cnt}N / {co_ret_cnt}R",
                     pct_val=pct_new_change,
+                    cmp_label=cmp_label,
                 )
         except Exception:
             pass
-
-    customer_mix_card = (
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Customer Mix</div>'
-        f'<div class="metric-value" style="font-size:1.3rem;">{v_cust}</div>{cust_badge}{html_dcust}{s_cust}{d_cust}</div>'
-        '<div class="metric-icon">👥</div></div>'
-    )
 
     # Exchange sub-badge for the orders card — shown whenever there are
     # exchange orders, so the count is visible across all dashboard views.
@@ -696,21 +611,55 @@ def render_operational_metrics(
             f"🔄 {m_exchange_cnt:,} Exchanges</div>"
         )
 
-    card_html = (
-        '<div class="metric-container metric-container-5">'
-        f"{gross_items_card}"
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l2}</div>'
-        f'<div class="metric-value">{v_rev}</div>{badge_rev}{cb_badge}{html_dr}{s_rev}{d_rev}</div><div class="metric-icon">৳</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l3}</div>'
-        f'<div class="metric-value">{v_ord}</div>{badge_ord}{cb_orders_badge}{html_do}{s_ord}{d_ord}{exchange_sub_badge}</div>'
-        f'<div class="metric-icon">{icon_l3}</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{extra_metric_label}</div>'
-        f'<div class="metric-value">{extra_metric_value}</div>{badge_bv}{cb_basket_badge}{extra_metric_delta}'
-        f"{(s_bv + d_bv) if nav_mode != 'Backlog' else ''}\</div>"
-        f'<div class="metric-icon">{extra_metric_icon}</div></div>'
-        f"{customer_mix_card}"
-        "</div>"
-    )
+    # ── Build the 5-card grid from MetricCard instances ──────────────────────────
+    # The cards are rendered through the canonical renderer in
+    # src.components.ui.metric_card, which is the single place that knows the
+    # canonical HTML shape for a DEEN-OPS KPI card. DAPI-specific extra content
+    # (comparison badges, exchange sub-badge, sparklines) is passed in as
+    # structured fields, not as raw HTML concatenated onto a hand-rolled card.
+    cards = [
+        MetricCard(
+            label=l1,
+            value=v_qty,
+            icon="📦",
+            sparkline_svg=s_qty,
+            sparkline_delta_svg=d_qty,
+            badge=order_value_badge + html_dq,
+        ),
+        MetricCard(
+            label=l2,
+            value=v_rev,
+            icon="৳",
+            sparkline_svg=s_rev,
+            sparkline_delta_svg=d_rev,
+            badge=revenue_badge + cb_badge + html_dr,
+        ),
+        MetricCard(
+            label=l3,
+            value=v_ord,
+            icon=icon_l3,
+            sparkline_svg=s_ord,
+            sparkline_delta_svg=d_ord,
+            badge=orders_badge + cb_orders_badge + html_do + exchange_sub_badge,
+        ),
+        MetricCard(
+            label=extra_metric_label,
+            value=extra_metric_value,
+            icon=extra_metric_icon,
+            sparkline_svg=s_bv,
+            sparkline_delta_svg=d_bv,
+            badge=basket_badge + cb_basket_badge + extra_metric_delta,
+        ),
+        MetricCard(
+            label="Customer Mix",
+            value=v_cust,
+            icon="👥",
+            value_style="font-size:1.3rem;",
+            badge=cust_badge + html_dcust + s_cust + d_cust,
+        ),
+    ]
+
+    card_html = ""
 
     rendered_react = False
     from src.components.react_kpi import (
@@ -809,7 +758,10 @@ def render_operational_metrics(
             rendered_react = False
 
     if not rendered_react:
-        st.markdown(card_html, unsafe_allow_html=True)
+        render_metric_cards(
+            cards, container_class="metric-container metric-container-5"
+        )
+        card_html = ""
 
     # ── Feature #5: Auto-Save Shift Snapshot ───────────────────────────────────
     # Only save once per render cycle, silently — keyed by data fingerprint.
@@ -866,3 +818,103 @@ def render_operational_metrics(
     }
 
     return drill, summ, top, basket, active_df
+
+
+def _resolve_full_df(st: st.ScriptRunner) -> pd.DataFrame:
+    """Return the multi-day source DataFrame used for sparklines and customer mix.
+
+    This is the single place that resolves ``full_df`` from session state. Previously
+    the same nested ternary was re-evaluated independently by the sparkline path, by
+    ``compute_new_vs_returning_counts``, and by the customer-mix delta comparison.
+
+    Parameters
+    ----------
+    st : st.ScriptRunner
+        The Streamlit module reference (``import streamlit as st``) captured at
+        call time so this helper stays pure and testable.
+
+    Returns
+    -------
+    pd.DataFrame
+        A (possibly empty) DataFrame. Callers must guard with ``.empty``.
+    """
+    for key in ("wc_full_df", "granular_df", "raw_df"):
+        candidate = st.session_state.get(key)
+        if candidate is not None and not candidate.empty:
+            return candidate
+    return pd.DataFrame()
+
+
+def _resolve_cmp_label(
+    c_df,
+    cmp_label: str | None,
+    nav_mode: str,
+    st: st.ScriptRunner,
+) -> str:
+    """Return the comparison-period label used by delta + badge rendering.
+
+    Mirrors the ``cmp_label`` derivation from the legacy ``format_delta``
+    closure so the new ``MetricCard`` path shows the same ``(Today: ... )``
+    / ``(vs Wed)`` suffixes.
+    """
+    if cmp_label:
+        return cmp_label
+    if c_df is None or c_df.empty:
+        return "Prev"
+    dashboard_view = st.session_state.get("live_dashboard_view")
+    if dashboard_view in {"Last Day Shipped", "Last Day"}:
+        return "Today"
+    if nav_mode == "Prev":
+        return "Today"
+    from src.config.constants import bd_today
+    from src.processing.data_processing import get_previous_working_day
+
+    return get_previous_working_day(bd_today()).strftime("%A")
+
+
+def _format_delta_html(
+    delta_str: str,
+    prev_val_str: str | None = None,
+    pct_val: float | None = None,
+    cmp_label: str = "Prev",
+) -> str:
+    """Legacy_delta HTML fragment for content that is still assembled as raw HTML
+
+    (e.g. the customer-mix delta on the 5th card). New cards should prefer
+    passing ``delta``/``delta_pct``/``prev_label``/``prev_value`` directly to
+    ``MetricCard`` and letting the canonical renderer produce the fragment.
+    """
+    if not delta_str:
+        return ""
+    is_up = "+" in delta_str
+    cls = "delta-up" if is_up else "delta-down"
+    arrow = "▲" if is_up else "▼"
+    pct_snippet = (
+        f" ({pct_val:+.1f}%)" if pct_val is not None and not pd.isna(pct_val) else ""
+    )
+    prev_snippet = (
+        f' <span class="delta-prev">({cmp_label}: {prev_val_str})</span>'
+        if prev_val_str
+        else ""
+    )
+    return f'<div class="metric-delta {cls}">{arrow} {delta_str}{pct_snippet}{prev_snippet}</div>'
+
+
+def _last_day_badge(
+    prev_str: str | None,
+    label: str = "Last Day",
+    color: str = "#64748b",
+) -> str:
+    """Comparison-period absolute-value badge for the dashboard KPI cards.
+
+    Returns raw HTML; the caller embeds it as a ``MetricCard.badge`` fragment.
+    """
+    if not prev_str:
+        return ""
+    return (
+        f'<div style="font-size:0.68rem;font-weight:600;color:{color};'
+        f"background:rgba(100,116,139,0.08);padding:2px 7px;"
+        f"border-radius:4px;margin-top:5px;display:inline-block;"
+        f'letter-spacing:0.02em;">'
+        f"📅 {label}: {prev_str}</div>"
+    )

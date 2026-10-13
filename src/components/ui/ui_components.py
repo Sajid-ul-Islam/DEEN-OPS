@@ -1,5 +1,10 @@
 import streamlit as st
 
+from src.components.ui.metric_card import (
+    MetricCard,
+    render_metric_cards,
+)
+
 
 def render_premium_header(
     title: str, subtitle: str, icon: str = "🚀", active_badge: bool = True
@@ -30,29 +35,41 @@ def render_premium_header(
 def generate_metric_card(label: str, value: str, icon: str = "") -> str:
     """
     Generates a single premium metric card HTML block.
-    Expects to be wrapped in a <div class="metric-container">.
 
-    Emitted as a single line with no leading indentation: st.markdown parses
-    CommonMark, and any HTML line indented 4+ spaces becomes an indented code
-    block, which would render the raw HTML as literal text instead of cards.
+    Deprecated: prefer ``MetricCard(label, value, icon).to_html()`` or
+    ``render_metric_cards([...])`` from ``src.components.ui.metric_card``.
+    This wrapper exists so existing call sites continue to work during the
+    migration; it deliberately does NOT uppercase the label (the old behaviour
+    was an accident of the legacy template, not an intentional contract).
     """
-    return (
-        f'<div class="metric-card"><div>'
-        f'<div class="metric-label">{label.upper()}</div>'
-        f'<div class="metric-value">{value}</div>'
-        f'</div><div class="metric-icon">{icon}</div></div>'
-    )
+    return MetricCard(label, value, icon).to_html()
 
 
 def render_metric_grid(metrics: list):
     """
     Renders a grid of metric cards.
-    `metrics` should be a list of dicts: [{"label": "Orders", "value": "150", "icon": "📦"}, ...]
+
+    Accepted input (for the migration window):
+    * a list of ``MetricCard`` instances, or
+    * a list of dicts ``{"label": ..., "value": ..., "icon": ...}``.
+
+    Once all call sites have migrated, this can be replaced with a direct call
+    to ``render_metric_cards``.
     """
-    html = '<div class="metric-container">'
+    if not metrics:
+        return
+
+    cards: list[MetricCard] = []
     for m in metrics:
-        html += generate_metric_card(
-            m.get("label", ""), str(m.get("value", "")), m.get("icon", "")
-        )
-    html += "</div>"
-    st.markdown(html, unsafe_allow_html=True)
+        if isinstance(m, MetricCard):
+            cards.append(m)
+        else:
+            cards.append(
+                MetricCard(
+                    str(m.get("label", "")),
+                    str(m.get("value", "")),
+                    str(m.get("icon", "")),
+                )
+            )
+
+    render_metric_cards(cards)
