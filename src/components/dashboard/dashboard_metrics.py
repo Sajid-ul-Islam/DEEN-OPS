@@ -101,7 +101,9 @@ def render_operational_metrics(
         co_q = int(c_df["Quantity"].sum()) if "Quantity" in c_df.columns else 0
         co_item_r = compute_revenue_breakdown(c_df)["item_rev"]
         _, _, _, co_basket = aggregate_data(c_df, dummy_mapping)
-        co_o = robust_order_count(c_df, co_basket.get("total_orders", 0) if co_basket else 0)
+        co_o = robust_order_count(
+            c_df, co_basket.get("total_orders", 0) if co_basket else 0
+        )
         if co_o == 0 and not c_df.empty:
             _co_ord_col = pick_column(c_df, ORDER_ID_COL_CANDIDATES)
             co_o = int(c_df[_co_ord_col].nunique()) if _co_ord_col else len(c_df)

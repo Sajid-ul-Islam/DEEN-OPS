@@ -36,19 +36,39 @@ def compute_revenue_breakdown(df: pd.DataFrame) -> dict:
       secondary signal by downstream consumers.
     """
     if df is None or df.empty:
-        return {"gross": 0.0, "cashback": 0.0, "net": 0.0, "loss_pct": 0.0, "item_rev": 0.0}
+        return {
+            "gross": 0.0,
+            "cashback": 0.0,
+            "net": 0.0,
+            "loss_pct": 0.0,
+            "item_rev": 0.0,
+        }
 
     qty_col = "Quantity" if "Quantity" in df.columns else None
     cost_col = "Item Cost" if "Item Cost" in df.columns else None
-    item_rev = float((df[qty_col] * df[cost_col]).sum()) if qty_col and cost_col else 0.0
+    item_rev = (
+        float((df[qty_col] * df[cost_col]).sum()) if qty_col and cost_col else 0.0
+    )
 
-    gross = float(df["Gross Amount"].sum()) if "Gross Amount" in df.columns else item_rev
-    cashback = float(df["Cashback Discount"].sum()) if "Cashback Discount" in df.columns else 0.0
+    gross = (
+        float(df["Gross Amount"].sum()) if "Gross Amount" in df.columns else item_rev
+    )
+    cashback = (
+        float(df["Cashback Discount"].sum())
+        if "Cashback Discount" in df.columns
+        else 0.0
+    )
 
     net = max(0.0, gross - cashback)
     loss_pct = (cashback / gross * 100.0) if gross > 0 else 0.0
 
-    return {"gross": gross, "cashback": cashback, "net": net, "loss_pct": loss_pct, "item_rev": item_rev}
+    return {
+        "gross": gross,
+        "cashback": cashback,
+        "net": net,
+        "loss_pct": loss_pct,
+        "item_rev": item_rev,
+    }
 
 
 def count_exchange_orders(
@@ -108,11 +128,19 @@ def cashback_coverage(df: pd.DataFrame, gross_rev: float = 0.0) -> dict:
         return {"covered_orders": 0, "total_orders": 0, "ratio": 0.0}
 
     if "Cashback Discount" not in df.columns or gross_rev <= 0:
-        return {"covered_orders": 0, "total_orders": robust_order_count(df), "ratio": 0.0}
+        return {
+            "covered_orders": 0,
+            "total_orders": robust_order_count(df),
+            "ratio": 0.0,
+        }
 
     id_col = pick_column(df, ORDER_ID_COL_CANDIDATES) or None
     if id_col is None:
-        return {"covered_orders": 0, "total_orders": robust_order_count(df), "ratio": 0.0}
+        return {
+            "covered_orders": 0,
+            "total_orders": robust_order_count(df),
+            "ratio": 0.0,
+        }
 
     uniq = df.drop_duplicates(subset=[id_col])
     covered = int((uniq["Cashback Discount"] > 0).sum())
@@ -120,7 +148,9 @@ def cashback_coverage(df: pd.DataFrame, gross_rev: float = 0.0) -> dict:
     return {"covered_orders": covered, "total_orders": total, "ratio": covered / total}
 
 
-def basket_value(gross_rev: float, order_count: int, *, net_rev: float | None = None) -> dict:
+def basket_value(
+    gross_rev: float, order_count: int, *, net_rev: float | None = None
+) -> dict:
     """Average value per order (basket size / AOV) from revenue and order count.
 
     Parameters
@@ -235,14 +265,30 @@ def _regroup_by_hour(
     out of the 514-line card renderer.
     """
     work = df.copy()
-    work["_dt"] = df[date_col] if False else None  # placeholder, unused in current extraction
+    work["_dt"] = (
+        df[date_col] if False else None
+    )  # placeholder, unused in current extraction
     hour_map_qty: dict = defaultdict(float)
     hour_map_rev: dict = defaultdict(float)
     hour_map_ord: dict = defaultdict(float)
 
-    for h_key, grp in work.groupby(df[date_col].dt.floor("h") if False else None or "placeholder"):
-        hour_map_qty[h_key] = float(grp["Quantity"].sum()) if "Quantity" in grp.columns else 0.0
-        hour_map_rev[h_key] = float(grp[rev_col].sum()) if rev_col and rev_col in grp.columns else 0.0
-        hour_map_ord[h_key] = float(grp[order_id_col].nunique()) if order_id_col and order_id_col in grp.columns else 0.0
+    for h_key, grp in work.groupby(
+        df[date_col].dt.floor("h") if False else None or "placeholder"
+    ):
+        hour_map_qty[h_key] = (
+            float(grp["Quantity"].sum()) if "Quantity" in grp.columns else 0.0
+        )
+        hour_map_rev[h_key] = (
+            float(grp[rev_col].sum()) if rev_col and rev_col in grp.columns else 0.0
+        )
+        hour_map_ord[h_key] = (
+            float(grp[order_id_col].nunique())
+            if order_id_col and order_id_col in grp.columns
+            else 0.0
+        )
 
-    return {"qty": dict(hour_map_qty), "rev": dict(hour_map_rev), "ord": dict(hour_map_ord)}
+    return {
+        "qty": dict(hour_map_qty),
+        "rev": dict(hour_map_rev),
+        "ord": dict(hour_map_ord),
+    }
