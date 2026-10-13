@@ -48,17 +48,29 @@ def _render_delivery_health_tab():
     # KPI Cards
     health_html = (
         '<div class="metric-container metric-container-4">'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">DELIVERY RATE</div>'
-        f'<div class="metric-value" style="color:#10b981;">{delivery_rate:.1f}%</div></div><div class="metric-icon">✅</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">RETURN RATE</div>'
-        f'<div class="metric-value" style="color:#ef4444;">{return_rate:.1f}%</div></div><div class="metric-icon">🔄</div></div>'
-        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">IN TRANSIT</div>'
-        f'<div class="metric-value" style="color:#3b82f6;">{in_transit}</div></div><div class="metric-icon">🚚</div></div>'
+        f'<div class="metric-card health-delivery"><div class="metric-content"><div class="metric-label">DELIVERY RATE</div>'
+        f'<div class="metric-value">{delivery_rate:.1f}%</div></div><div class="metric-icon">✅</div></div>'
+        f'<div class="metric-card health-return"><div class="metric-content"><div class="metric-label">RETURN RATE</div>'
+        f'<div class="metric-value">{return_rate:.1f}%</div></div><div class="metric-icon">🔄</div></div>'
+        f'<div class="metric-card health-transit"><div class="metric-content"><div class="metric-label">IN TRANSIT</div>'
+        f'<div class="metric-value">{in_transit}</div></div><div class="metric-icon">🚚</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">TOTAL TRACKED</div>'
         f'<div class="metric-value">{total}</div></div><div class="metric-icon">📦</div></div>'
         "</div>"
     )
     st.markdown(health_html, unsafe_allow_html=True)
+
+    # Color-coded metric-values for health KPIs (visual semantics preserved)
+    st.markdown(
+        """
+        <style>
+        .health-delivery .metric-value { color: #10b981 !important; }
+        .health-return .metric-value { color: #ef4444 !important; }
+        .health-transit .metric-value { color: #3b82f6 !important; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     # Status Donut
     import plotly.graph_objects as go

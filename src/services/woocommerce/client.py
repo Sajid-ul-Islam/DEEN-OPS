@@ -510,31 +510,126 @@ def _apply_shipped_history(df_full):
     status_lower = df_full["Order Status"].astype(str).str.lower().str.strip()
     is_shipped_mask = status_lower.isin([s.lower() for s in SHIPPED_STATUSES])
 
-    for idx, row in df_full[is_shipped_mask].iterrows():
-        oid = str(row.get("Order ID", row.get("Order Number", "")))
-        if not oid:
-            continue
-        actual_mod_dt = row["mod_dt_parsed"]
+    # Guard against marking an order as shipped today just because its status
+    # was finalized to "completed" today. If the order was created days ago but
+    # has no (or a very recent) shipment history entry, the history was likely
+    # lost and the order was actually shipped earlier. Use the creation date as
+    # a conservative fallback so the dashboard does not re-count it as shipped
+    # today (see AGENTS.md: Protection Against Status Reversions).
+    def _resolve_shipment_date(idx, actual_mod_dt, oid):
+        """Return the correct shipment date for an order currently in a shipped status.
+
+        Prefers the stored shipped_history date. If that is missing or suspiciously
+        recent for an old order, falls back to the order creation date.
+        """
+        nonlocal history_updated
+        dt_create = pd.NaT
+        if "dt_parsed" in df_full.columns:
+            # safe_coerce_datetime_naive expects a Series, but df_full.loc[idx, "dt_parsed"]
+            # returns a scalar when the index is unique. Wrap it in a Series so the helper
+            # does not call .empty on a Timestamp.
+            raw = df_full.loc[idx, "dt_parsed"]
+            if isinstance(raw, pd.Series):
+                raw = raw.iloc[0]
+            dt_create = safe_coerce_datetime_naive(pd.Series([raw])).iloc[0]
+
         if oid in shipped_history:
             stored_dt = safe_coerce_datetime_naive(
                 pd.Series([shipped_history[oid]])
             ).iloc[0]
             if pd.notnull(stored_dt):
-                # Preserve the original shipment date so subsequent admin edits
-                # (customer messaging, notes, tracking updates) do not move the
-                # order out of its original operational shift.
+                # If the stored shipment date is within 24h of now but the order
+                # was created more than 24h earlier, the history entry was likely
+                # corrupted by a status finalization today. Fall back to creation
+                # date so the dashboard does not re-count the order as shipped today.
+                now_bd = bd_now().replace(tzinfo=None)
+                hours_since_stored = (now_bd - stored_dt).total_seconds() / 3600
+                if pd.notnull(dt_create):
+                    gap_hours = (stored_dt - dt_create).total_seconds() / 3600
+                    if hours_since_stored <= 24 and gap_hours > 24:
+                        # History entry is suspiciously recent for an old order —
+                        # likely corrupted by a status finalization (e.g. "completed"
+                        # after an exchange). Correct the history and restore creation
+                        # date so the dashboard does not re-count this order as shipped
+                        # today on future syncs.
+                        df_full.at[idx, "mod_dt_parsed"] = dt_create
+                        shipped_history[oid] = str(dt_create)
+                        history_updated = True
+                        return
                 df_full.at[idx, "mod_dt_parsed"] = stored_dt
+                return
             elif pd.notnull(actual_mod_dt):
-                shipped_history[oid] = str(actual_mod_dt)
+                # Stored date is invalid; recreate entry using earlier of
+                # mod_dt_parsed and dt_parsed.
+                if pd.notnull(dt_create) and pd.notnull(actual_mod_dt):
+                    gap_days = (actual_mod_dt - dt_create).days
+                    if gap_days > 1:
+                        shipped_history[oid] = str(dt_create)
+                    else:
+                        shipped_history[oid] = str(actual_mod_dt)
+                else:
+                    shipped_history[oid] = str(actual_mod_dt)
                 history_updated = True
+                df_full.at[idx, "mod_dt_parsed"] = (
+                    dt_create
+                    if (pd.notnull(dt_create) and gap_days > 1)
+                    else actual_mod_dt
+                )
+                return
+
         elif pd.notnull(actual_mod_dt):
-            shipped_history[oid] = str(actual_mod_dt)
+            # No history entry at all — use earlier of mod_dt_parsed and dt_parsed
+            # so a lost history for an old order does not get re-counted as shipped
+            # today.
+            if pd.notnull(dt_create) and pd.notnull(actual_mod_dt):
+                gap_days = (actual_mod_dt - dt_create).days
+                if gap_days > 1:
+                    shipped_history[oid] = str(dt_create)
+                    df_full.at[idx, "mod_dt_parsed"] = dt_create
+                else:
+                    shipped_history[oid] = str(actual_mod_dt)
+                    df_full.at[idx, "mod_dt_parsed"] = actual_mod_dt
+            else:
+                shipped_history[oid] = str(actual_mod_dt)
+                df_full.at[idx, "mod_dt_parsed"] = actual_mod_dt
             history_updated = True
 
-    # If an order's status is NOT in SHIPPED_STATUSES, remove it from shipped_history
+    for idx, row in df_full[is_shipped_mask].iterrows():
+        oid = str(row.get("Order ID", row.get("Order Number", "")))
+        if not oid:
+            continue
+        actual_mod_dt = row["mod_dt_parsed"]
+        _resolve_shipment_date(idx, actual_mod_dt, oid)
+
+    # If an order's status is NOT in SHIPPED_STATUSES, remove it from
+    # shipped_history ONLY if it is cancelled/refunded (permanent states).
+    # Temporary states like "processing", "on-hold", "pending" do NOT cause
+    # deletion — the order may later return to a shipped status, and we must
+    # preserve the original shipment date so the dashboard does not re-count
+    # the order as shipped today when it comes back.
+    #
+    # Exchange orders (status/fee notes containing "exchange") also keep their
+    # original shipment date so the dashboard does not re-count them as shipped
+    # today just because the exchange operation bumped mod_dt_parsed.
+    CANCELLED_REFUNDED = {
+        "cancelled",
+        "wc-cancelled",
+        "failed",
+        "wc-failed",
+        "refunded",
+        "wc-refunded",
+        "trash",
+        "wc-trash",
+    }
     for idx, row in df_full[~is_shipped_mask].iterrows():
         oid = str(row.get("Order ID", row.get("Order Number", "")))
-        if oid and oid in shipped_history:
+        if not oid or oid not in shipped_history:
+            continue
+        status_val = str(row.get("Order Status", row.get("Status", ""))).lower()
+        # Only delete history for permanently cancelled/refunded orders.
+        # Temporary non-shipped states (processing, hold, pending) and exchange
+        # orders keep their original shipment date.
+        if status_val in CANCELLED_REFUNDED:
             del shipped_history[oid]
             history_updated = True
 

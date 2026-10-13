@@ -312,10 +312,10 @@ def _render_live_orders_view():
 
     metrics_html = (
         '<div class="metric-container">'
-        f'<div class="metric-card"><div><div class="metric-label">FILTERED ORDERS</div><div class="metric-value">{total_orders:,.0f}</div></div><div class="metric-icon">📦</div></div>'
-        f'<div class="metric-card"><div><div class="metric-label">GROSS REVENUE</div><div class="metric-value">TK {gross_revenue:,.0f}</div></div><div class="metric-icon">৳</div></div>'
-        f'<div class="metric-card"><div><div class="metric-label">PROCESSING</div><div class="metric-value">{processing:,.0f}</div></div><div class="metric-icon">⏳</div></div>'
-        f'<div class="metric-card"><div><div class="metric-label">COMPLETED</div><div class="metric-value">{completed:,.0f}</div></div><div class="metric-icon">✅</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">FILTERED ORDERS</div><div class="metric-value">{total_orders:,.0f}</div></div><div class="metric-icon">📦</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">GROSS REVENUE</div><div class="metric-value">TK {gross_revenue:,.0f}</div></div><div class="metric-icon">৳</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">PROCESSING</div><div class="metric-value">{processing:,.0f}</div></div><div class="metric-icon">⏳</div></div>'
+        f'<div class="metric-card"><div class="metric-content"><div class="metric-label">COMPLETED</div><div class="metric-value">{completed:,.0f}</div></div><div class="metric-icon">✅</div></div>'
         "</div>"
     )
     st.markdown(metrics_html, unsafe_allow_html=True)

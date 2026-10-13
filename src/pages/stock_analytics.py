@@ -427,12 +427,12 @@ def _render_stock_body(df: pd.DataFrame) -> None:
     val_stock = (current_stocks * df_sim["Price"]).sum()
     out_of_stock = (current_stocks <= 0).sum()
 
-    glow_class = "critical-glow" if (low_stock / len(df_sim) > 0.2) else ""
+    is_critical = (low_stock / len(df_sim) > 0.2)
 
     stock_html = (
         '<div class="metric-container">'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Warehouse Units</div><div class="metric-value">{total_qty:,.0f}</div></div><div class="metric-icon">🏠</div></div>'
-        f'<div class="metric-card {glow_class}"><div class="metric-content"><div class="metric-label">Low Stock (<{low_thresh})</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
+        f'<div class="metric-card {"stock-critical" if is_critical else ""}"><div class="metric-content"><div class="metric-label">Low Stock (<{low_thresh})</div><div class="metric-value">{low_stock}</div></div><div class="metric-icon">⚠️</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Out of Stock</div><div class="metric-value">{out_of_stock}</div></div><div class="metric-icon">🚫</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">Inventory Value</div><div class="metric-value">৳ {val_stock:,.0f}</div></div><div class="metric-icon">💰</div></div>'
         "</div>"

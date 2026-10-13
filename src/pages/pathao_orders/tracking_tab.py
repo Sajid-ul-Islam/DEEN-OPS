@@ -135,34 +135,50 @@ def _render_pending_in_pathao_view():
     )
     total_cod = float(df_pending["COD Amount"].sum())
 
+    # Color-coded metric-values for tracking KPIs (visual semantics preserved)
+    st.markdown(
+        """
+        <style>
+        .tracking-kpis .metric-card:nth-child(1) .metric-value { color: #3b82f6 !important; }
+        .tracking-kpis .metric-card:nth-child(2) .metric-value { color: #06b6d4 !important; }
+        .tracking-kpis .metric-card:nth-child(3) .metric-value { color: #f59e0b !important; }
+        .tracking-kpis .metric-card:nth-child(4) .metric-value { color: #10b981 !important; }
+        .tracking-detail .metric-card:nth-child(1) .metric-value { font-size: 1.5rem !important; }
+        .tracking-detail .metric-card:nth-child(2) .metric-value { font-size: 1.5rem !important; }
+        .tracking-detail .metric-card:nth-child(3) .metric-value { font-size: 1.5rem !important; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown(
         f"""
-        <div class="metric-container metric-container-4" style="margin: 16px 0;">
+        <div class="metric-container metric-container-4 tracking-kpis">
             <div class="metric-card">
                 <div class="metric-content">
                     <div class="metric-label">TOTAL PENDING</div>
-                    <div class="metric-value" style="color: #3b82f6;">{total_count}</div>
+                    <div class="metric-value">{total_count}</div>
                 </div>
                 <div class="metric-icon">⏳</div>
             </div>
             <div class="metric-card">
                 <div class="metric-content">
                     <div class="metric-label">IN TRANSIT</div>
-                    <div class="metric-value" style="color: #06b6d4;">{in_transit_count}</div>
+                    <div class="metric-value">{in_transit_count}</div>
                 </div>
                 <div class="metric-icon">🚚</div>
             </div>
             <div class="metric-card">
                 <div class="metric-content">
                     <div class="metric-label">PICKUP / ASSIGNED</div>
-                    <div class="metric-value" style="color: #f59e0b;">{pickup_count}</div>
+                    <div class="metric-value">{pickup_count}</div>
                 </div>
                 <div class="metric-icon">📦</div>
             </div>
             <div class="metric-card">
                 <div class="metric-content">
                     <div class="metric-label">PENDING COD AMOUNT</div>
-                    <div class="metric-value" style="color: #10b981;">৳{total_cod:,.0f}</div>
+                    <div class="metric-value">৳{total_cod:,.0f}</div>
                 </div>
                 <div class="metric-icon">💰</div>
             </div>
@@ -289,84 +305,85 @@ def _render_single_and_search_view():
 
                             st.markdown(
                                 f"""
-                            <div class="metric-container" style="animation: slideUpFade 0.5s ease-out forwards;">
-                                <div class="metric-card">
-                                    <div class="metric-content">
-                                        <div class="metric-label">Order Status</div>
-                                        <div class="metric-value" style="font-size: 1.5rem;">{status_val}</div>
+                                <div class="metric-container tracking-detail">
+                                    <div class="metric-card">
+                                        <div class="metric-content">
+                                            <div class="metric-label">Order Status</div>
+                                            <div class="metric-value">{status_val}</div>
+                                        </div>
+                                        <div class="metric-icon">📦</div>
                                     </div>
-                                    <div class="metric-icon">📦</div>
-                                </div>
-                                <div class="metric-card">
-                                    <div class="metric-content">
-                                        <div class="metric-label">Payment Status</div>
-                                        <div class="metric-value" style="font-size: 1.5rem;">{payment_val}</div>
+                                    <div class="metric-card">
+                                        <div class="metric-content">
+                                            <div class="metric-label">Payment Status</div>
+                                            <div class="metric-value">{payment_val}</div>
+                                        </div>
+                                        <div class="metric-icon">💳</div>
                                     </div>
-                                    <div class="metric-icon">💳</div>
-                                </div>
-                                <div class="metric-card">
-                                    <div class="metric-content">
-                                        <div class="metric-label">Collected Amount</div>
-                                        <div class="metric-value" style="font-size: 1.5rem;">{collected_val}</div>
+                                    <div class="metric-card">
+                                        <div class="metric-content">
+                                            <div class="metric-label">Collected Amount</div>
+                                            <div class="metric-value">{collected_val}</div>
+                                        </div>
+                                        <div class="metric-icon">💰</div>
                                     </div>
-                                    <div class="metric-icon">💰</div>
                                 </div>
-                            </div>
-                            """,
+                                """,
                                 unsafe_allow_html=True,
                             )
+
                             with st.expander("View Full Details"):
                                 st.json(o)
                 except Exception as e:
                     st.error(f"Error checking Pathao status: {e}")
-        else:
-            with st.spinner(f"Checking status for '{consignment_id}'..."):
-                status_data = get_pathao_order_status(consignment_id)
-                if "error" in status_data:
-                    st.error(
-                        f"Failed to fetch status for {consignment_id}: {status_data['error']}"
-                    )
                 else:
-                    st.toast("✅ Status retrieved successfully!")
-                    data_obj = status_data.get("data", {})
-                    status_val = str(data_obj.get("order_status", "N/A")).capitalize()
-                    payment_val = str(
-                        data_obj.get("payment_status", "N/A")
-                    ).capitalize()
-                    collected_val = (
-                        f"৳{float(data_obj.get('collected_amount', 0)):,.0f}"
-                        if str(data_obj.get("collected_amount", 0))
-                        .replace(".", "", 1)
-                        .isdigit()
-                        else f"৳{data_obj.get('collected_amount', 0)}"
-                    )
+                    with st.spinner(f"Checking status for '{consignment_id}'..."):
+                        status_data = get_pathao_order_status(consignment_id)
+                        if "error" in status_data:
+                            st.error(
+                                f"Failed to fetch status for {consignment_id}: {status_data['error']}"
+                            )
+                        else:
+                            st.toast("✅ Status retrieved successfully!")
+                            data_obj = status_data.get("data", {})
+                            status_val = str(data_obj.get("order_status", "N/A")).capitalize()
+                            payment_val = str(
+                                data_obj.get("payment_status", "N/A")
+                            ).capitalize()
+                            collected_val = (
+                                f"৳{float(data_obj.get('collected_amount', 0)):,.0f}"
+                                if str(data_obj.get("collected_amount", 0))
+                                .replace(".", "", 1)
+                                .isdigit()
+                                else f"৳{data_obj.get('collected_amount', 0)}"
+                            )
 
-                    st.markdown(
-                        f"""
-                    <div class="metric-container" style="animation: slideUpFade 0.5s ease-out forwards;">
-                        <div class="metric-card">
-                            <div class="metric-content">
-                                <div class="metric-label">Order Status</div>
-                                <div class="metric-value" style="font-size: 1.5rem;">{status_val}</div>
+                            st.markdown(
+                                f"""
+                        <div class="metric-container tracking-detail">
+                            <div class="metric-card">
+                                <div class="metric-content">
+                                    <div class="metric-label">Order Status</div>
+                                    <div class="metric-value">{status_val}</div>
+                                </div>
+                                <div class="metric-icon">📦</div>
                             </div>
-                            <div class="metric-icon">📦</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-content">
-                                <div class="metric-label">Payment Status</div>
-                                <div class="metric-value" style="font-size: 1.5rem;">{payment_val}</div>
+                            <div class="metric-card">
+                                <div class="metric-content">
+                                    <div class="metric-label">Payment Status</div>
+                                    <div class="metric-value">{payment_val}</div>
+                                </div>
+                                <div class="metric-icon">💳</div>
                             </div>
-                            <div class="metric-icon">💳</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-content">
-                                <div class="metric-label">Collected Amount</div>
-                                <div class="metric-value" style="font-size: 1.5rem;">{collected_val}</div>
+                            <div class="metric-card">
+                                <div class="metric-content">
+                                    <div class="metric-label">Collected Amount</div>
+                                    <div class="metric-value">{collected_val}</div>
+                                </div>
+                                <div class="metric-icon">💰</div>
                             </div>
-                            <div class="metric-icon">💰</div>
                         </div>
-                    </div>
-                    """,
+                        """,
                         unsafe_allow_html=True,
                     )
 

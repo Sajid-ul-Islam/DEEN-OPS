@@ -53,12 +53,12 @@ def _get_dashboard_source(fallback=None, online_only: bool = True):
             st.session_state.get("wc_curr_df"),
             st.session_state.get("wc_prev_df"),
             st.session_state.get("wc_backlog_df"),
+            st.session_state.get("wc_full_df"),
         )
         if frame is not None and not frame.empty
     ]
     if not frames:
-        full = st.session_state.get("wc_full_df")
-        res = full if (full is not None and not full.empty) else fallback
+        res = fallback
     else:
         combined = pd.concat(frames, ignore_index=True)
         try:
@@ -437,6 +437,20 @@ def _render_order_pipeline_summary(df):
         return int(subset[order_col].nunique()) if order_col else len(subset)
 
     sales_mask = statuses.isin({"shipped", "completed", "wc-shipped", "wc-completed"})
+    # Exclude exchange orders from sales count - they are replacements, not new sales
+    # Detect exchange from status OR from fee notes containing "Exchange credit"
+    exchange_status_mask = statuses.str.contains("exchange", na=False)
+    fee_notes_col = "Fee Notes" if "Fee Notes" in df.columns else None
+    exchange_fee_mask = pd.Series(False, index=df.index)
+    if fee_notes_col:
+        exchange_fee_mask = (
+            df[fee_notes_col]
+            .astype(str)
+            .str.lower()
+            .str.contains("exchange credit", na=False)
+        )
+    exchange_mask = exchange_status_mask | exchange_fee_mask
+    sales_mask = sales_mask & ~exchange_mask
     processing_mask = statuses.isin({"processing", "process", "wc-processing"})
     held_mask = statuses.isin(
         {
@@ -450,11 +464,12 @@ def _render_order_pipeline_summary(df):
             "wc-waiting",
         }
     )
-    other_mask = ~(sales_mask | processing_mask | held_mask)
+    other_mask = ~(sales_mask | processing_mask | held_mask | exchange_mask)
 
+    exchange_count = count_orders(exchange_mask)
     summary_parts = [
         f"🚚 Actual sales **{count_orders(sales_mask)}**",
-        f"⚙️ Processing **{count_orders(processing_mask)}**",
+        f"🔄 Exchange **{exchange_count}**",
     ]
     held_count = count_orders(held_mask)
     if held_count > 0:
@@ -651,9 +666,16 @@ def render_live_tab():
 
     selected_view = st.session_state.get("live_dashboard_view", "All Orders")
     nav_mode, order_view_mode = view_state.get(selected_view, view_state["All Orders"])
-    df_live = filter_live_dashboard_view(
-        _get_dashboard_source(fallback=df_live), selected_view
-    )
+    df_live = _get_dashboard_source(fallback=df_live)
+
+    # For shipped views, ensure ONLY online checkout orders are shown (exclude outlet/POS)
+    if selected_view in {"Today Shipped", "Today", "Last Day Shipped", "Last Day"}:
+        if df_live is not None and not df_live.empty:
+            from src.processing.completed_analytics import filter_online_orders
+
+            df_live = filter_online_orders(df_live)
+
+    df_live = filter_live_dashboard_view(df_live, selected_view)
     if df_live is None:
         df_live = pd.DataFrame()
 
@@ -1002,6 +1024,26 @@ def _render_dispatch_export(selected_view: str | None = None):
         if "_order_source" in export_df.columns:
             export_df["Order Source"] = export_df["_order_source"]
 
+        # Detect exchange orders for visual distinction
+        fee_notes_col = "Fee Notes" if "Fee Notes" in export_df.columns else None
+        status_col_check = status_col if status_col else None
+        if fee_notes_col and fee_notes_col in export_df.columns:
+            export_df["Is Exchange"] = (
+                export_df[fee_notes_col]
+                .astype(str)
+                .str.lower()
+                .str.contains("exchange credit", na=False)
+            )
+        elif status_col_check and status_col_check in export_df.columns:
+            export_df["Is Exchange"] = (
+                export_df[status_col_check]
+                .astype(str)
+                .str.lower()
+                .str.contains("exchange", na=False)
+            )
+        else:
+            export_df["Is Exchange"] = False
+
         # Map customer and order fields
         field_mapping = {
             "Order ID": "Order ID",
@@ -1022,6 +1064,7 @@ def _render_dispatch_export(selected_view: str | None = None):
             "Shipping City": "City",
             "Shipping Address 1": "Address",
             "Pathao Consignment ID": "Consignment ID",
+            "Is Exchange": "Exchange",
         }
 
         # Build column ordering
@@ -1050,24 +1093,35 @@ def _render_dispatch_export(selected_view: str | None = None):
         final_cols = [c for c in export_cols if c in clean_df.columns]
         display_df = clean_df[final_cols].copy()
 
-        # Summary KPIs
+        # Split into regular and exchange orders — exchanges are replacements,
+        # not new sales, so they go in their own tab and are excluded from the
+        # main KPIs / download.
+        is_exchange_col = "Exchange" if "Exchange" in display_df.columns else None
+        if is_exchange_col is not None:
+            regular_df = display_df[~display_df[is_exchange_col].astype(bool)].copy()
+            exchange_df = display_df[display_df[is_exchange_col].astype(bool)].copy()
+        else:
+            regular_df = display_df.copy()
+            exchange_df = pd.DataFrame(columns=display_df.columns)
+
+        # Summary KPIs — regular (non-exchange) orders only
         total_items = (
-            int(display_df["Quantity"].sum())
-            if "Quantity" in display_df.columns
-            else len(display_df)
+            int(regular_df["Quantity"].sum())
+            if "Quantity" in regular_df.columns
+            else len(regular_df)
         )
         total_orders = (
-            int(display_df["Order ID"].nunique())
-            if "Order ID" in display_df.columns
-            else len(display_df)
+            int(regular_df["Order ID"].nunique())
+            if "Order ID" in regular_df.columns
+            else len(regular_df)
         )
         total_rev = (
-            float(display_df["Line Total"].sum())
-            if "Line Total" in display_df.columns
+            float(regular_df["Line Total"].sum())
+            if "Line Total" in regular_df.columns
             else 0.0
         )
         unique_skus = (
-            int(display_df["SKU"].nunique()) if "SKU" in display_df.columns else 0
+            int(regular_df["SKU"].nunique()) if "SKU" in regular_df.columns else 0
         )
 
         m1, m2, m3, m4 = st.columns(4)
@@ -1076,9 +1130,9 @@ def _render_dispatch_export(selected_view: str | None = None):
         m3.metric("৳ Shipped Revenue", f"৳ {total_rev:,.0f}")
         m4.metric("🏷️ Unique SKUs", f"{unique_skus:,}")
 
-        # ── Tabs: Product Lines | Sub-Category Summary ──────────────────────
-        tab_items, tab_subcat = st.tabs(
-            ["📋 Product Line Items", "📊 Sub-Category Summary"]
+        # ── Tabs: Product Lines | Sub-Category Summary | Exchange Orders ──────────────────────
+        tab_items, tab_subcat, tab_exchange = st.tabs(
+            ["📋 Product Line Items", "📊 Sub-Category Summary", "🔄 Exchange Orders"]
         )
 
         with tab_items:
@@ -1087,7 +1141,7 @@ def _render_dispatch_export(selected_view: str | None = None):
                 key="shipped_product_export_search",
             ).strip()
 
-            view_df = display_df.copy()
+            view_df = regular_df.copy()
             if search_q:
                 mask = pd.Series(False, index=view_df.index)
                 for c in [
@@ -1193,7 +1247,7 @@ def _render_dispatch_export(selected_view: str | None = None):
         now_str = bd_now().strftime("%H%M")
         base_filename = f"DEEN_Shipped_Products_{file_tag}_{now_str}"
 
-        # Export: two sheets — line items + sub-cat summary
+        # ── Regular orders export (excludes exchanges) ─────────────────────────────
         c_down1, c_down2 = st.columns(2)
         with c_down1:
             try:
@@ -1219,15 +1273,15 @@ def _render_dispatch_export(selected_view: str | None = None):
                 )
                 excel_bytes = export_to_styled_excel(
                     {
-                        _sheet_tag: display_df,
+                        _sheet_tag: regular_df,
                         _sc_sheet_tag: _subcat_export,
                     },
                     group_by_col="Order ID"
-                    if "Order ID" in display_df.columns
+                    if "Order ID" in regular_df.columns
                     else None,
                 )
                 st.download_button(
-                    label=f"⬇️ Download Excel (.xlsx) — {len(display_df)} items",
+                    label=f"⬇️ Download Excel (.xlsx) — {len(regular_df)} items",
                     data=excel_bytes,
                     file_name=f"{base_filename}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1240,9 +1294,9 @@ def _render_dispatch_export(selected_view: str | None = None):
                 st.warning("Excel formatting unavailable, use CSV download.")
 
         with c_down2:
-            csv_bytes = display_df.to_csv(index=False).encode("utf-8")
+            csv_bytes = regular_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                label=f"⬇️ Download CSV (.csv) — {len(display_df)} items",
+                label=f"⬇️ Download CSV (.csv) — {len(regular_df)} items",
                 data=csv_bytes,
                 file_name=f"{base_filename}.csv",
                 mime="text/csv",
@@ -1250,3 +1304,132 @@ def _render_dispatch_export(selected_view: str | None = None):
                 use_container_width=True,
                 key="shipped_product_download_csv",
             )
+
+        # ── Exchange orders tab: separate view + download ──────────────────────────
+        with tab_exchange:
+            if exchange_df.empty:
+                st.info("No exchange/returned orders found for this period.")
+            else:
+                ex_total_items = (
+                    int(exchange_df["Quantity"].sum())
+                    if "Quantity" in exchange_df.columns
+                    else len(exchange_df)
+                )
+                ex_total_orders = (
+                    int(exchange_df["Order ID"].nunique())
+                    if "Order ID" in exchange_df.columns
+                    else len(exchange_df)
+                )
+                ex_total_rev = (
+                    float(exchange_df["Line Total"].sum())
+                    if "Line Total" in exchange_df.columns
+                    else 0.0
+                )
+                st.caption(
+                    f"🔄 **{ex_total_orders} exchange order(s)** · {ex_total_items} items · ৳ {ex_total_rev:,.0f}"
+                )
+
+                st.dataframe(
+                    exchange_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Order ID": st.column_config.NumberColumn(
+                            "Order ID", format="%d"
+                        ),
+                        "Quantity": st.column_config.NumberColumn("Qty", format="%d"),
+                        "Product Line": st.column_config.TextColumn("Product Line"),
+                        "Item Cost": st.column_config.NumberColumn(
+                            "Price (৳)", format="%.2f"
+                        ),
+                        "Line Total": st.column_config.NumberColumn(
+                            "Total (৳)", format="%.2f"
+                        ),
+                    },
+                )
+
+                ex_base_filename = f"DEEN_Exchange_Products_{file_tag}_{now_str}"
+                c_ex1, c_ex2 = st.columns(2)
+                with c_ex1:
+                    try:
+                        _ex_sheet_tag = f"Exchange_{file_tag}"[:31]
+                        _ex_subcat = (
+                            exchange_df.groupby(
+                                ["Category", "Sub-Category"], sort=False
+                            )
+                            .agg(
+                                _units=("Quantity", "sum"),
+                                _amt=("Line Total", "sum"),
+                            )
+                            .reset_index()
+                            .rename(
+                                columns={
+                                    "_units": "Units Sold",
+                                    "_amt": "Sales Amount (৳)",
+                                }
+                            )
+                            .sort_values("_amt", ascending=False)
+                        )
+                        _ex_subcat["Sales Amount (৳)"] = _ex_subcat[
+                            "Sales Amount (৳)"
+                        ].round(2)
+                        _ex_total_units = int(_ex_subcat["Units Sold"].sum())
+                        _ex_total_amt = float(_ex_subcat["Sales Amount (৳)"].sum())
+                        _ex_subcat["Share (%)"] = (
+                            (_ex_subcat["Sales Amount (৳)"] / _ex_total_amt * 100)
+                            .round(1)
+                            .astype(str)
+                            + "%"
+                            if _ex_total_amt > 0
+                            else "0%"
+                        )
+                        _ex_subcat_export = pd.concat(
+                            [
+                                _ex_subcat,
+                                pd.DataFrame(
+                                    [
+                                        {
+                                            "Category": "GRAND TOTAL",
+                                            "Sub-Category": "",
+                                            "Units Sold": _ex_total_units,
+                                            "Sales Amount (৳)": round(_ex_total_amt, 2),
+                                            "Share (%)": "100%",
+                                        }
+                                    ]
+                                ),
+                            ],
+                            ignore_index=True,
+                        )
+                        ex_excel_bytes = export_to_styled_excel(
+                            {
+                                _ex_sheet_tag: exchange_df,
+                                f"ExSubCat_{file_tag}"[:31]: _ex_subcat_export,
+                            },
+                            group_by_col="Order ID"
+                            if "Order ID" in exchange_df.columns
+                            else None,
+                        )
+                        st.download_button(
+                            label=f"⬇️ Download Excel (.xlsx) — {len(exchange_df)} items",
+                            data=ex_excel_bytes,
+                            file_name=f"{ex_base_filename}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            type="primary",
+                            use_container_width=True,
+                            key="exchange_product_download_excel",
+                        )
+                    except Exception as e:
+                        log_system_event("EXCEL_EXPORT_ERROR", str(e))
+                        st.warning("Excel formatting unavailable, use CSV download.")
+
+                with c_ex2:
+                    ex_csv_bytes = exchange_df.to_csv(index=False).encode("utf-8")
+                    st.download_button(
+                        label=f"⬇️ Download CSV (.csv) — {len(exchange_df)} items",
+                        data=ex_csv_bytes,
+                        file_name=f"{ex_base_filename}.csv",
+                        mime="text/csv",
+                        type="secondary",
+                        use_container_width=True,
+                        key="exchange_product_download_csv",
+                    )

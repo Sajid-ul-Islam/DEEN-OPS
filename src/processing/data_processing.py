@@ -391,6 +391,40 @@ def get_previous_working_day(reference_date=None):
     return candidate
 
 
+def _detect_exchange_mask(df):
+    """Return a boolean Series marking exchange/return orders.
+
+    An order is an exchange if its Order Status contains "exchange" OR its
+    Fee Notes contains "exchange credit". This is the same detection used by
+    dashboard_metrics.py and live_dashboard.py.
+    """
+    status_col = (
+        "Order Status"
+        if "Order Status" in df.columns
+        else "Status"
+        if "Status" in df.columns
+        else None
+    )
+    fee_notes_col = "Fee Notes" if "Fee Notes" in df.columns else None
+
+    status_mask = pd.Series(False, index=df.index)
+    if status_col:
+        status_mask = (
+            df[status_col].astype(str).str.lower().str.contains("exchange", na=False)
+        )
+
+    fee_mask = pd.Series(False, index=df.index)
+    if fee_notes_col:
+        fee_mask = (
+            df[fee_notes_col]
+            .astype(str)
+            .str.lower()
+            .str.contains("exchange credit", na=False)
+        )
+
+    return status_mask | fee_mask
+
+
 def filter_live_dashboard_view(df, view: str, reference_date=None):
     """Apply the four mutually exclusive Live Dashboard visibility rules.
 
@@ -399,6 +433,10 @@ def filter_live_dashboard_view(df, view: str, reference_date=None):
     - "Today Shipped" / "Today": Only orders shipped or completed today (00:00-23:59 BD).
     - "Last Day Shipped" / "Last Day": Only orders shipped or completed on the previous operational working day (skips Friday).
     - "Queue": Orders currently on hold, waiting, or pending across all dates (processing excluded).
+
+    Exchange orders (status or fee notes containing "exchange") are excluded from
+    the sale mask so they are never counted as shipped/completed revenue, even if
+    their mod_dt_parsed was bumped to today by the exchange operation.
     """
     if df is None or df.empty:
         return df
@@ -471,6 +509,12 @@ def filter_live_dashboard_view(df, view: str, reference_date=None):
     is_processing = statuses.isin(processing_statuses) | statuses.str.contains(
         r"process", case=False, na=False
     )
+
+    # Exclude exchange orders from the sale mask — they are replacements,
+    # not new shipments, and their mod_dt_parsed may have been bumped to today
+    # by the exchange operation (see AGENTS.md: Protection Against Status Reversions).
+    exchange_mask = _detect_exchange_mask(df)
+    is_sale = is_sale & ~exchange_mask
 
     v = str(view).strip()
     is_saturday = today.weekday() == 5
@@ -586,6 +630,11 @@ def compute_live_filter_counts(df, reference_date=None) -> dict[str, int]:
     is_processing = statuses.isin(processing_statuses) | statuses.str.contains(
         r"process", case=False, na=False
     )
+
+    # Exclude exchange orders from the sale mask — mirrors filter_live_dashboard_view
+    # so the button badge count matches the KPI card count exactly.
+    exchange_mask = _detect_exchange_mask(df)
+    is_sale = is_sale & ~exchange_mask
 
     is_saturday = today.weekday() == 5
     if is_saturday:
@@ -1210,8 +1259,11 @@ def get_dispatch_metrics(active_df, total_orders=0):
                 metrics["pending"] = active_df[pending_mask][order_col].nunique()
 
                 # Dispatched orders: ONLY orders with status in SHIPPED_STATUSES
+                # Exclude exchange orders - they are replacements, not new sales.
+                # Use the same detection as _detect_exchange_mask (status + fee notes).
                 shipped_mask = status_lower.isin([s.lower() for s in SHIPPED_STATUSES])
-                shipped_df = active_df[shipped_mask]
+                exchange_mask = _detect_exchange_mask(active_df)
+                shipped_df = active_df[shipped_mask & ~exchange_mask]
                 metrics["dispatched"] = (
                     shipped_df[order_col].nunique() if not shipped_df.empty else 0
                 )

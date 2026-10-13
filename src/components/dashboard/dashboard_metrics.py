@@ -90,6 +90,37 @@ def render_operational_metrics(
     # Net Revenue = Gross Revenue - Cashback/Discount Fees
     m_net_rev = max(0.0, m_gross_rev - m_cashback_disc)
 
+    # Detect exchange orders: check Fee Notes for "exchange credit" AND
+    # Order Status for "exchange" (matching the pattern used in
+    # data_processing.py and live_dashboard.py).
+    m_exchange_cnt = 0
+    fee_notes_col = "Fee Notes" if "Fee Notes" in m_df.columns else None
+    status_col = (
+        "Order Status"
+        if "Order Status" in m_df.columns
+        else "Status"
+        if "Status" in m_df.columns
+        else None
+    )
+    if not m_df.empty:
+        fee_mask = pd.Series(False, index=m_df.index)
+        status_mask = pd.Series(False, index=m_df.index)
+        if fee_notes_col:
+            fee_mask = (
+                m_df[fee_notes_col]
+                .astype(str)
+                .str.lower()
+                .str.contains("exchange credit", na=False)
+            )
+        if status_col:
+            status_mask = (
+                m_df[status_col]
+                .astype(str)
+                .str.lower()
+                .str.contains("exchange", na=False)
+            )
+        m_exchange_cnt = int((fee_mask | status_mask).sum())
+
     m_loss_pct = (m_cashback_disc / m_gross_rev * 100) if m_gross_rev > 0 else 0.0
     m_gross_bv = (m_gross_rev / m_ord) if m_ord > 0 else 0.0
     m_net_bv = (m_net_rev / m_ord) if m_ord > 0 else 0.0
@@ -654,16 +685,28 @@ def render_operational_metrics(
         '<div class="metric-icon">👥</div></div>'
     )
 
+    # Exchange sub-badge for the orders card — shown whenever there are
+    # exchange orders, so the count is visible across all dashboard views.
+    exchange_sub_badge = ""
+    if m_exchange_cnt > 0:
+        exchange_sub_badge = (
+            '<div style="font-size:0.72rem;color:#8b5cf6;font-weight:600;'
+            "background:rgba(139,92,246,0.1);padding:2px 7px;border-radius:4px;"
+            "margin-top:4px;display:inline-block;" + ">"
+            f"🔄 {m_exchange_cnt:,} Exchanges</div>"
+        )
+
     card_html = (
         '<div class="metric-container metric-container-5">'
         f"{gross_items_card}"
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l2}</div>'
         f'<div class="metric-value">{v_rev}</div>{badge_rev}{cb_badge}{html_dr}{s_rev}{d_rev}</div><div class="metric-icon">৳</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{l3}</div>'
-        f'<div class="metric-value">{v_ord}</div>{badge_ord}{cb_orders_badge}{html_do}{s_ord}{d_ord}</div><div class="metric-icon">{icon_l3}</div></div>'
+        f'<div class="metric-value">{v_ord}</div>{badge_ord}{cb_orders_badge}{html_do}{s_ord}{d_ord}{exchange_sub_badge}</div>'
+        f'<div class="metric-icon">{icon_l3}</div></div>'
         f'<div class="metric-card"><div class="metric-content"><div class="metric-label">{extra_metric_label}</div>'
         f'<div class="metric-value">{extra_metric_value}</div>{badge_bv}{cb_basket_badge}{extra_metric_delta}'
-        f"{(s_bv + d_bv) if nav_mode != 'Backlog' else ''}</div>"
+        f"{(s_bv + d_bv) if nav_mode != 'Backlog' else ''}\</div>"
         f'<div class="metric-icon">{extra_metric_icon}</div></div>'
         f"{customer_mix_card}"
         "</div>"
@@ -812,6 +855,7 @@ def render_operational_metrics(
         "cashback_disc": float(m_cashback_disc),
         "net_rev": float(m_net_rev),
         "orders": int(m_ord),
+        "exchange_orders": int(m_exchange_cnt),
         "qty": int(m_qty),
         "net_aov": float(m_net_bv),
         "gross_aov": float(m_gross_bv),
