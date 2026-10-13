@@ -37,6 +37,11 @@ from src.utils.customer_registry import (
 )
 from src.utils.logging import log_system_event
 from src.utils.metric_history import save_shift_snapshot
+from src.processing.revenue import (
+    compute_revenue_breakdown,
+    count_exchange_orders,
+    robust_order_count,
+)
 
 
 def render_operational_metrics(
@@ -169,10 +174,11 @@ def render_operational_metrics(
     # Order-value badge + exchange sub-badge are still assembled as raw HTML
     # fragments because they are placed inside specific cards; the cards
     # themselves are now MetricCard instances (see below).
-    order_value_badge = _last_day_badge(prev_q_str, label=cmp_badge_label)
     revenue_badge = _last_day_badge(prev_r_str, label=cmp_badge_label)
     orders_badge = _last_day_badge(prev_o_str, label=cmp_badge_label)
-    basket_badge = _last_day_badge(prev_b_str, label=cmp_badge_label)
+
+    # Order-value badge for the items card (comparison-to-previous-day).
+    order_value_badge = _last_day_badge(prev_q_str, label=cmp_badge_label)
 
     html_dq = _format_delta_html(
         dq_str, prev_val_str=prev_q_str, pct_val=pct_q, cmp_label=cmp_badge_label
@@ -648,7 +654,7 @@ def render_operational_metrics(
             icon=extra_metric_icon,
             sparkline_svg=s_bv,
             sparkline_delta_svg=d_bv,
-            badge=basket_badge + cb_basket_badge + extra_metric_delta,
+            badge=cb_basket_badge + extra_metric_delta,
         ),
         MetricCard(
             label="Customer Mix",

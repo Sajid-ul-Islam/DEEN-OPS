@@ -473,7 +473,6 @@ def count_by_status(
 
     from src.config.constants import (
         ACTIVE_STATUSES,
-        CANCELLED_STATUSES,
         HOLD_WAITING_STATUSES,
         SHIPPED_STATUSES,
     )
