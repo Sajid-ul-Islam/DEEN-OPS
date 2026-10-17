@@ -9,7 +9,9 @@ corsAllowedOrigins = [
     "https://order-process-automation.streamlit.app",
     "http://localhost:8501",
     "http://192.168.68.103:8501",
+    "http://192.168.0.120:8501",
     "http://103.7.248.247:8501",
+    "http://61.247.178.202:8501",
 ]
 allowedHosts = [
     "ops.deencommerce.com",
@@ -19,7 +21,9 @@ allowedHosts = [
     "localhost",
     "127.0.0.1",
     "192.168.68.103",
+    "192.168.0.120",
     "103.7.248.247",
+    "61.247.178.202",
 ]
 enableXsrfProtection = true
 maxUploadSize = 200
