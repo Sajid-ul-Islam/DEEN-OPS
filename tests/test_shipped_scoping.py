@@ -13,6 +13,7 @@ Rules locked in here for `filter_shipped_by_slot`:
   - A user-selected custom date range scopes shipped orders by effective date.
 """
 
+import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta, timezone
 
@@ -235,3 +236,104 @@ def test_shipped_orders_remain_visible_after_cutoff_same_day(op_state, monkeypat
     # 203 belongs to the previous shift
     assert 203 in set(df_prev["Order ID"])
     assert 203 not in set(df_live["Order ID"])
+
+
+# ── Authoritative Date Completed & Weekend Fulfillment Invariants ───────────
+
+
+def test_weekend_holiday_fulfillment_counts_as_shipped_today():
+    """Orders placed before weekend/holiday (e.g. Thu night) and completed Saturday must count today."""
+    from conftest import FakeSessionState
+    from src.services.woocommerce.client import _apply_shipped_history
+
+    st.session_state = FakeSessionState()
+    st.session_state["_shipped_history_cache"] = {}
+
+    now = now_bd().replace(hour=12, minute=0, second=0, microsecond=0)
+    created_thursday = now - timedelta(days=2)  # ~48 hours ago
+    completed_today = now - timedelta(hours=1)
+
+    df_test = pd.DataFrame(
+        [
+            {
+                "Order ID": "17941",
+                "Order Number": "17941",
+                "Order Date": str(created_thursday),
+                "Order Date Modified": str(completed_today),
+                "Date Completed": str(completed_today),
+                "Order Status": "completed",
+            }
+        ]
+    )
+
+    df_resolved = _apply_shipped_history(df_test)
+    assert df_resolved.loc[0, "mod_dt_parsed"].date() == now.date()
+
+    shipped = filter_shipped_by_slot(df_resolved, "Today", is_comparison=False)
+    assert "17941" in set(shipped["Order ID"])
+
+
+def test_old_order_modified_today_preserves_past_completed_date():
+    """Old completed orders edited today (notes/exchanges) must NOT recount as shipped today."""
+    from conftest import FakeSessionState
+    from src.services.woocommerce.client import _apply_shipped_history
+
+    st.session_state = FakeSessionState()
+    st.session_state["_shipped_history_cache"] = {}
+
+    now = now_bd().replace(hour=12, minute=0, second=0, microsecond=0)
+    created_old = now - timedelta(days=3)
+    completed_past = now - timedelta(days=2)
+    modified_today = now - timedelta(minutes=30)
+
+    df_test = pd.DataFrame(
+        [
+            {
+                "Order ID": "17839",
+                "Order Number": "17839",
+                "Order Date": str(created_old),
+                "Order Date Modified": str(modified_today),
+                "Date Completed": str(completed_past),
+                "Order Status": "completed",
+            }
+        ]
+    )
+
+    df_resolved = _apply_shipped_history(df_test)
+    assert df_resolved.loc[0, "mod_dt_parsed"].date() == completed_past.date()
+
+    shipped = filter_shipped_by_slot(df_resolved, "Today", is_comparison=False)
+    assert "17839" not in set(shipped["Order ID"])
+
+
+def test_zero_amount_exchange_replacement_counts_as_shipped_today():
+    """Replacement exchange orders created and completed today count as today's shipments."""
+    from conftest import FakeSessionState
+    from src.services.woocommerce.client import _apply_shipped_history
+
+    st.session_state = FakeSessionState()
+    st.session_state["_shipped_history_cache"] = {}
+
+    now = now_bd().replace(hour=12, minute=0, second=0, microsecond=0)
+    created_today = now - timedelta(hours=2)
+    completed_today = now - timedelta(hours=1)
+
+    df_test = pd.DataFrame(
+        [
+            {
+                "Order ID": "18085",
+                "Order Number": "18085",
+                "Order Date": str(created_today),
+                "Order Date Modified": str(completed_today),
+                "Date Completed": str(completed_today),
+                "Order Status": "completed",
+                "Order Total Amount": 0.0,
+            }
+        ]
+    )
+
+    df_resolved = _apply_shipped_history(df_test)
+    assert df_resolved.loc[0, "mod_dt_parsed"].date() == now.date()
+
+    shipped = filter_shipped_by_slot(df_resolved, "Today", is_comparison=False)
+    assert "18085" in set(shipped["Order ID"])

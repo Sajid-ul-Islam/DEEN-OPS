@@ -42,6 +42,11 @@ def _flatten_order(order: dict) -> list[dict]:
         m_val = _normalize_iso_gmt(order.get("date_modified_gmt"))
     else:
         m_val = order.get("date_modified")
+
+    if order.get("date_completed_gmt"):
+        c_val = _normalize_iso_gmt(order.get("date_completed_gmt"))
+    else:
+        c_val = order.get("date_completed")
     status = order.get("status")
     bill = order.get("billing", {})
     ship = order.get("shipping", {})
@@ -146,6 +151,7 @@ def _flatten_order(order: dict) -> list[dict]:
                 "Order Number": onum,
                 "Order Date": d_val,
                 "Order Date Modified": m_val,
+                "Date Completed": c_val,
                 "Order Status": status,
                 "Created via": str(order.get("created_via", "")).strip(),
                 "Full Name (Billing)": c_name,
@@ -204,7 +210,7 @@ def _fetch_wc_page(url: str, params: dict, auth: HTTPBasicAuth, page: int):
 
 def _fetch_wc_batch(url: str, params: dict, auth: HTTPBasicAuth) -> list:
     """Fetch all pages of WooCommerce orders concurrently and return flattened rows."""
-    fields = "id,number,date_created,date_created_gmt,date_modified,date_modified_gmt,status,billing,shipping,payment_method_title,line_items,total,discount_total,shipping_total,fee_lines,coupon_lines,meta_data"
+    fields = "id,number,date_created,date_created_gmt,date_modified,date_modified_gmt,date_completed,date_completed_gmt,status,billing,shipping,payment_method_title,line_items,total,discount_total,shipping_total,fee_lines,coupon_lines,meta_data"
     params["_fields"] = fields
 
     try:
@@ -486,6 +492,12 @@ def _apply_shipped_history(df_full):
     df_full["mod_dt_parsed"] = safe_coerce_datetime_naive(
         df_full["Order Date Modified"]
     )
+    if "Date Completed" in df_full.columns:
+        df_full["completed_dt_parsed"] = safe_coerce_datetime_naive(
+            df_full["Date Completed"]
+        )
+    else:
+        df_full["completed_dt_parsed"] = pd.NaT
 
     import json
     import os
@@ -510,85 +522,61 @@ def _apply_shipped_history(df_full):
     status_lower = df_full["Order Status"].astype(str).str.lower().str.strip()
     is_shipped_mask = status_lower.isin([s.lower() for s in SHIPPED_STATUSES])
 
-    # Guard against marking an order as shipped today just because its status
-    # was finalized to "completed" today. If the order was created days ago but
-    # has no (or a very recent) shipment history entry, the history was likely
-    # lost and the order was actually shipped earlier. Use the creation date as
-    # a conservative fallback so the dashboard does not re-count it as shipped
-    # today (see AGENTS.md: Protection Against Status Reversions).
     def _resolve_shipment_date(idx, actual_mod_dt, oid):
-        """Return the correct shipment date for an order currently in a shipped status.
+        """Return the authoritative shipment date for an order in a shipped status.
 
-        Prefers the stored shipped_history date. If that is missing or suspiciously
-        recent for an old order, falls back to the order creation date.
+        Authoritative Order of Precedence:
+        1. Date Completed from WooCommerce API: When an order is completed, WooCommerce
+           stamps `date_completed`. This timestamp is immutable in WooCommerce; subsequent
+           order edits/notes update `date_modified` but NEVER touch `date_completed`.
+           Thus, `date_completed` is the definitive ground truth for when fulfillment occurred.
+           Old orders modified today (e.g. notes/exchanges) retain their original past
+           `date_completed` and will never recount as shipped today.
+        2. Stored shipped_history date: If `date_completed` is missing (e.g. custom non-standard
+           status like 'shipped'), use the first-observed shipment timestamp recorded in history.
+        3. Fallback for new shipments without prior history:
+           Use `actual_mod_dt`. Only if the order was created > 14 days ago without completion date
+           or history does it fall back to `dt_create` to guard against ancient archival edits.
+           Normal multi-day fulfillment (e.g. weekend/holiday backlogs taking 1-3 days) is fully preserved.
         """
         nonlocal history_updated
         dt_create = pd.NaT
         if "dt_parsed" in df_full.columns:
-            # safe_coerce_datetime_naive expects a Series, but df_full.loc[idx, "dt_parsed"]
-            # returns a scalar when the index is unique. Wrap it in a Series so the helper
-            # does not call .empty on a Timestamp.
             raw = df_full.loc[idx, "dt_parsed"]
             if isinstance(raw, pd.Series):
                 raw = raw.iloc[0]
             dt_create = safe_coerce_datetime_naive(pd.Series([raw])).iloc[0]
 
+        dt_completed = pd.NaT
+        if "completed_dt_parsed" in df_full.columns:
+            raw_c = df_full.loc[idx, "completed_dt_parsed"]
+            if isinstance(raw_c, pd.Series):
+                raw_c = raw_c.iloc[0]
+            dt_completed = safe_coerce_datetime_naive(pd.Series([raw_c])).iloc[0]
+
+        # 1. Authoritative ground truth: date_completed from WooCommerce
+        if pd.notnull(dt_completed):
+            df_full.at[idx, "mod_dt_parsed"] = dt_completed
+            if shipped_history.get(oid) != str(dt_completed):
+                shipped_history[oid] = str(dt_completed)
+                history_updated = True
+            return
+
+        # 2. Stored shipment date from history (for non-completed shipped states)
         if oid in shipped_history:
             stored_dt = safe_coerce_datetime_naive(
                 pd.Series([shipped_history[oid]])
             ).iloc[0]
             if pd.notnull(stored_dt):
-                # If the stored shipment date is within 24h of now but the order
-                # was created more than 24h earlier, the history entry was likely
-                # corrupted by a status finalization today. Fall back to creation
-                # date so the dashboard does not re-count the order as shipped today.
-                now_bd = bd_now().replace(tzinfo=None)
-                hours_since_stored = (now_bd - stored_dt).total_seconds() / 3600
-                if pd.notnull(dt_create):
-                    gap_hours = (stored_dt - dt_create).total_seconds() / 3600
-                    if hours_since_stored <= 24 and gap_hours > 24:
-                        # History entry is suspiciously recent for an old order —
-                        # likely corrupted by a status finalization (e.g. "completed"
-                        # after an exchange). Correct the history and restore creation
-                        # date so the dashboard does not re-count this order as shipped
-                        # today on future syncs.
-                        df_full.at[idx, "mod_dt_parsed"] = dt_create
-                        shipped_history[oid] = str(dt_create)
-                        history_updated = True
-                        return
                 df_full.at[idx, "mod_dt_parsed"] = stored_dt
                 return
-            elif pd.notnull(actual_mod_dt):
-                # Stored date is invalid; recreate entry using earlier of
-                # mod_dt_parsed and dt_parsed.
-                if pd.notnull(dt_create) and pd.notnull(actual_mod_dt):
-                    gap_days = (actual_mod_dt - dt_create).days
-                    if gap_days > 1:
-                        shipped_history[oid] = str(dt_create)
-                    else:
-                        shipped_history[oid] = str(actual_mod_dt)
-                else:
-                    shipped_history[oid] = str(actual_mod_dt)
-                history_updated = True
-                df_full.at[idx, "mod_dt_parsed"] = (
-                    dt_create
-                    if (pd.notnull(dt_create) and gap_days > 1)
-                    else actual_mod_dt
-                )
-                return
 
-        elif pd.notnull(actual_mod_dt):
-            # No history entry at all — use earlier of mod_dt_parsed and dt_parsed
-            # so a lost history for an old order does not get re-counted as shipped
-            # today.
-            if pd.notnull(dt_create) and pd.notnull(actual_mod_dt):
-                gap_days = (actual_mod_dt - dt_create).days
-                if gap_days > 1:
-                    shipped_history[oid] = str(dt_create)
-                    df_full.at[idx, "mod_dt_parsed"] = dt_create
-                else:
-                    shipped_history[oid] = str(actual_mod_dt)
-                    df_full.at[idx, "mod_dt_parsed"] = actual_mod_dt
+        # 3. New shipment without history
+        if pd.notnull(actual_mod_dt):
+            if pd.notnull(dt_create) and (actual_mod_dt - dt_create).days > 14:
+                # Ancient order (> 14 days) modified today without completion date or history
+                shipped_history[oid] = str(dt_create)
+                df_full.at[idx, "mod_dt_parsed"] = dt_create
             else:
                 shipped_history[oid] = str(actual_mod_dt)
                 df_full.at[idx, "mod_dt_parsed"] = actual_mod_dt
@@ -822,7 +810,7 @@ def fetch_specific_woocommerce_orders(order_ids: list):
             include_str = ",".join(map(str, batch_ids))
             params = {
                 "include": include_str,
-                "_fields": "id,number,date_created,date_modified,status,billing,shipping,payment_method_title,line_items,total,meta_data",
+                "_fields": "id,number,date_created,date_created_gmt,date_modified,date_modified_gmt,date_completed,date_completed_gmt,status,billing,shipping,payment_method_title,line_items,total,meta_data",
                 "per_page": 100,
             }
 

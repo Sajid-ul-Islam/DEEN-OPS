@@ -57,11 +57,17 @@ DEEN-OPS follows a strict **unidirectional dependency architecture**. Bypassing 
 
 ### B. Order Lifecycle & Shipped Tracking Rules
 - **Strict Status Whitelist**: Only orders with statuses in `SHIPPED_STATUSES` (`completed`, `shipped`) count as sales/revenue.
+- **Authoritative Date Completed Precedence**:
+  - For completed orders, WooCommerce permanently sets `date_completed` upon fulfillment. This timestamp is immutable in WooCommerce; subsequent edits, customer service notes, or exchange operations only bump `date_modified` and NEVER alter `date_completed`.
+  - The shipment timestamp (`mod_dt_parsed`) **strictly prioritizes `date_completed`** over `date_modified`.
+  - **Weekend & Multi-Day Fulfillment Rule**: Orders placed prior to weekends/holidays (e.g. Thursday evening or Friday) and fulfilled on the next operational day (e.g. Saturday) **must count as shipped on their completion date**. Overwriting an order's shipment timestamp with its creation date based on arbitrary lead-time heuristics (`gap_hours > 24` or `gap_days > 1`) is strictly forbidden.
+  - **Protection Against Past Order Re-counts**: Old orders modified today (e.g. support notes added on an order completed days ago like `#17839`) maintain their original past `date_completed` and will NEVER recount as shipped today.
+  - **Zero-Amount Replacement Invariant**: Zero-cost size exchange replacement orders (e.g. `#18085`) completed today count as today's shipments.
 - **Protection Against Status Reversions**:
   - If an order was previously marked shipped/completed but its status in WooCommerce is changed back to `on-hold`, `waiting`, `pending`, or `processing`, it **must immediately be purged from shipped metrics** and placed back into the active queue.
   - The presence of a Pathao tracking consignment ID does NOT override the live WooCommerce order status.
 - **Date Modified vs. Date Created**:
-  - Shipped orders are scoped by **Order Date Modified** (`mod_dt_parsed`), falling back to **Order Date** (`dt_parsed`).
+  - Shipped orders are scoped by the authoritative shipment timestamp (`mod_dt_parsed`), falling back to **Order Date** (`dt_parsed`).
   - Active/processing orders are scoped by **Order Date** (`dt_parsed`).
 
 ### C. Metric History & 30-Day Snapshots

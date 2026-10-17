@@ -593,6 +593,7 @@ def _render_live_orders_view():
         "Payment Method Title",
         "dt_parsed",
         "mod_dt_parsed",
+        "completed_dt_parsed",
         "SKU",
         "Item Cost",
     ]

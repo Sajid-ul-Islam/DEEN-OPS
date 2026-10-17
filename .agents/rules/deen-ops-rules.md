@@ -17,6 +17,10 @@ These rules apply across all coding and refactoring sessions within the DEEN-OPS
 
 ## 3. Shipped vs. Unfulfilled Order Invariant
 - Only orders in `SHIPPED_STATUSES` (`completed`, `shipped`) count toward revenue/dispatch metrics.
+- **Authoritative Date Completed Precedence**: Completed orders must use WooCommerce immutable `date_completed` as their canonical fulfillment timestamp. Subsequent edits/notes touch `date_modified` but never alter `date_completed`.
+- **Weekend & Multi-Day Fulfillment**: Orders placed before weekends/holidays (e.g. Thursday night) and completed on the next operational shift (e.g. Saturday) must count as shipped on their completion date. Overwriting shipment timestamps with order creation dates based on lead-time heuristics (`gap_hours > 24`) is strictly forbidden.
+- **Past Order Modification Protection**: Old orders modified today (e.g. `#17839`) retain their original past `date_completed` and never recount today.
+- **Zero-Amount Replacement Exchanges**: Completed replacement exchange orders (e.g. `#18085`) count as shipments on their completion date.
 - Reverted orders (e.g. changed from completed to `processing`, `on-hold`, `waiting`) must be immediately evicted from shipped totals and treated as active queue workload.
 
 ## 4. Verification Gate
