@@ -12,7 +12,7 @@ Thank you for contributing to **DEEN-OPS Terminal**! Whether you are a human sof
    cd DEEN-OPS
    python -m venv .venv
    .venv\Scripts\activate      # On Linux/macOS: source .venv/bin/activate
-   pip install -r requirements_dev.txt
+   pip install -r requirements.txt
    ```
 
 2. **Branching Strategy**:
@@ -32,24 +32,24 @@ Before pushing any commit or opening a Pull Request, all of the following checks
 
 ```powershell
 # 1. Lint checks
-.venv\Scripts\ruff.exe check .
+py -m ruff check .
 
 # 2. Formatting verification
-.venv\Scripts\ruff.exe format --check .
+py -m ruff format --check .
 
 # 3. Syntax compile validation
-.venv\Scripts\python.exe -m compileall -q src app.py
+py -m compileall -q src app.py
 
-# 4. Strict 63-module import verification
+# 4. Strict 65-module import verification
 $env:PYTHONPATH="."
-.venv\Scripts\python.exe scripts/check_imports.py
+py scripts/check_imports.py
 
-# 5. Full automated test suite (432+ unit tests)
+# 5. Full automated test suite (375+ unit tests)
 $env:PYTHONPATH="."
-.venv\Scripts\pytest.exe tests/ -q --disable-warnings
+py -m pytest tests/ -q --disable-warnings
 
 # 6. Streamlit configuration check
-.venv\Scripts\python.exe -c "import toml; toml.load('.streamlit/config.toml'); print('Streamlit config OK')"
+py -c "import toml; toml.load('.streamlit/config.toml'); print('Streamlit config OK')"
 ```
 
 ---

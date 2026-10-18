@@ -28,6 +28,6 @@ Before declaring any task complete or committing:
 1. `ruff check .`
 2. `ruff format --check .`
 3. `python -m compileall -q src app.py`
-4. `python scripts/check_imports.py` (63/63 modules OK)
-5. `pytest tests/ -q --disable-warnings` (432+ passed)
+4. `python scripts/check_imports.py` (65/65 modules OK)
+5. `pytest tests/ -q --disable-warnings` (360+ passed)
 6. `python -c "import toml; toml.load('.streamlit/config.toml'); print('Streamlit config OK')"`

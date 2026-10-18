@@ -1,7 +1,7 @@
 # AGENTS.md — Agent Operating Guidelines for DEEN-OPS Terminal
 
 > **Target Audience**: AI Coding Assistants (Antigravity, Claude Code, Cursor, Copilot Workspace, Devin) and Human Contributors.  
-> **Repository**: [DEEN-OPS Terminal](file:///h:/Repo/Order%20Process%20Automation) (AI-assisted enterprise operations workspace for WooCommerce, Pathao courier logistics, SIP POS stock reconciliation, and shift analytics).
+> **Repository**: [DEEN-OPS Terminal](https://github.com/Sajid-ul-Islam/DEEN-OPS) (AI-assisted enterprise operations workspace for WooCommerce, Pathao courier logistics, and shift analytics).
 
 ---
 
@@ -91,27 +91,27 @@ Before completing any task or committing changes, you **must run and pass all 6 
 
 ```powershell
 # 1. Linting (Ruff)
-.venv\Scripts\ruff.exe check .
+py -m ruff check .
 
 # 2. Code Formatting (Ruff)
-.venv\Scripts\ruff.exe format --check .
+py -m ruff format --check .
 
 # 3. Python Compilation (Syntax verification)
-.venv\Scripts\python.exe -m compileall -q src app.py
+py -m compileall -q src app.py
 
-# 4. Strict 63-Module Import Verification
+# 4. Strict 65-Module Import Verification
 $env:PYTHONPATH="."
-.venv\Scripts\python.exe scripts/check_imports.py
+py scripts/check_imports.py
 
-# 5. Full Unit Test Suite (432+ tests)
+# 5. Full Unit Test Suite (375+ tests)
 $env:PYTHONPATH="."
-.venv\Scripts\pytest.exe tests/ -q --disable-warnings
+py -m pytest tests/ -q --disable-warnings
 
 # 6. Streamlit Config Validation
-.venv\Scripts\python.exe -c "import toml; toml.load('.streamlit/config.toml'); print('Streamlit config OK')"
+py -c "import toml; toml.load('.streamlit/config.toml'); print('Streamlit config OK')"
 ```
 
-*(On Linux / macOS bash, replace `.venv\Scripts\` with `.venv/bin/` and use `export PYTHONPATH="."`)*.
+*(On Linux / macOS bash, replace `py` with `python` or `.venv/bin/python` and use `export PYTHONPATH="."`)*.
 
 ---
 
@@ -124,10 +124,12 @@ $env:PYTHONPATH="."
 2. **Defensive DataFrames**:
    - Always check for empty DataFrames before accessing columns (`if df is not None and not df.empty`).
    - Use `safe_coerce_datetime_naive(series)` for parsing timestamps to avoid timezone mismatch warnings.
-3. **No Hardcoded Secrets or Credentials**:
+3. **Single Requirements File Invariant**:
+   - Maintain a single `requirements.txt` at the root for both runtime and dev/testing dependencies. Do not create split or subfolder requirement files.
+4. **No Hardcoded Secrets or Credentials**:
    - Never commit API keys, store passwords, or credentials.
    - All secrets belong in `.streamlit/secrets.toml` or environment variables documented in `.env.example`.
-4. **Preserve Documentation Integrity**:
+5. **Preserve Documentation Integrity**:
    - Preserve existing docstrings, test invariants, and comments unrelated to your changes.
-5. **Git Commit Messages**:
+6. **Git Commit Messages**:
    - Follow Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.

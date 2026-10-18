@@ -47,6 +47,8 @@ resources/metric_snapshots/
 resources/sales_snapshot.csv
 resources/customer_registry.db
 *.db
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 *.local-backup

@@ -194,16 +194,3 @@ def render_metric_cards(
         html += card.to_html()
     html += "</div>"
     st.markdown(html, unsafe_allow_html=True)
-
-
-def metric_card(
-    label: str,
-    value: str,
-    icon: str = "",
-    **kwargs,
-) -> MetricCard:
-    """Convenience constructor that mirrors the old ``generate_metric_card``
-    signature for incremental migration. ``label`` is NOT uppercased here so
-    callers that want uppercase can pass it themselves.
-    """
-    return MetricCard(label, value, icon, **kwargs)

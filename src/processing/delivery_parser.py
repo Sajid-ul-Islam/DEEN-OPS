@@ -255,3 +255,121 @@ def parse_data_fuzzy(raw_text):
             record = extract_fields_fuzzy(cons_id, body)
             records.append(record)
     return pd.DataFrame(records)
+
+
+def build_item_description(
+    cat_map: dict[str, dict[str, int]], total_qty: int, trx_info: str = ""
+) -> str:
+    """Builds the ItemDesc string for Pathao / Courier from a category map."""
+    full_desc = ""
+
+    if int(total_qty) == 1:
+        # Single Item
+        for _cat, items in cat_map.items():
+            for item_str, _count in items.items():
+                full_desc = str(item_str).strip().rstrip(";")
+                break
+            if full_desc:
+                break
+
+        if trx_info:
+            single_trx_info = trx_info
+            if single_trx_info.startswith(" - "):
+                single_trx_info = single_trx_info[3:].strip()
+            elif single_trx_info.startswith("- "):
+                single_trx_info = single_trx_info[2:].strip()
+
+            full_desc += f"; {single_trx_info}"
+    else:
+        # Multi Item
+        desc_parts = []
+        for cat, items_dict in cat_map.items():
+            formatted_items = []
+            cat_total = 0
+            for item_str, count in items_dict.items():
+                cat_total += count
+                clean_item = str(item_str).strip().rstrip(";")
+                if count > 1:
+                    formatted_items.append(f"{clean_item} ({count} pcs)")
+                else:
+                    formatted_items.append(clean_item)
+
+            items_joined = "; ".join(filter(None, formatted_items))
+            desc_parts.append(f"{cat_total} {cat} = {items_joined}")
+
+        full_desc = "; ".join(filter(None, desc_parts))
+
+        suffix_parts = [f"{int(total_qty)} items"]
+        if trx_info:
+            suffix_parts.append(trx_info)
+
+        full_desc += f"; ({' - '.join(suffix_parts)})"
+
+    # Clean up any accidental double semicolons
+    full_desc = re.sub(r"(\s*;\s*)+", "; ", full_desc).strip()
+    return full_desc
+
+
+def parse_manual_item_lines(raw_text: str) -> tuple[dict[str, dict[str, int]], int]:
+    """Parses a raw text block of manual items into a category map and total quantity."""
+    from src.processing.categorization import get_short_sub_category
+
+    lines = [line.strip() for line in str(raw_text).splitlines() if line.strip()]
+    cat_map: dict[str, dict[str, int]] = {}
+    total_qty = 0
+
+    for raw_line in lines:
+        line_clean = raw_line.strip().rstrip(";")
+        if not line_clean:
+            continue
+
+        qty = 1
+        item_str = line_clean
+
+        m1 = re.match(r"^(\d+)\s*[xX]\s*(.+)", item_str)
+        if m1:
+            qty = int(m1.group(1))
+            item_str = m1.group(2)
+        else:
+            m2 = re.search(r"(.+?)\s*[xX]\s*(\d+)$", item_str)
+            if m2:
+                item_str = m2.group(1)
+                qty = int(m2.group(2))
+            else:
+                m3 = re.search(
+                    r"(.+?)\s*\(\s*(\d+)\s*pcs?\s*\)$", item_str, re.IGNORECASE
+                )
+                if m3:
+                    item_str = m3.group(1)
+                    qty = int(m3.group(2))
+
+        item_str = item_str.strip().rstrip(";")
+        item_str = item_str.replace(" | ", " - ")
+
+        category = get_short_sub_category(item_str)
+
+        if category not in cat_map:
+            cat_map[category] = {}
+        if item_str not in cat_map[category]:
+            cat_map[category][item_str] = 0
+
+        cat_map[category][item_str] += qty
+        total_qty += qty
+
+    return cat_map, total_qty
+
+
+def normalize_manual_item_input(raw_text: str) -> tuple[list[dict[str, any]], str]:
+    """Returns normalized items (list of dicts) and the formatted description string."""
+    cat_map, total_qty = parse_manual_item_lines(raw_text)
+
+    normalized_items = []
+    ordered_cat_map = {}
+    for cat, items in sorted(cat_map.items(), key=lambda entry: entry[0]):
+        ordered_items = dict(sorted(items.items(), key=lambda entry: entry[0]))
+        ordered_cat_map[cat] = ordered_items
+        for item, q in ordered_items.items():
+            normalized_items.append({"category": cat, "label": item, "qty": q})
+
+    full_desc = build_item_description(ordered_cat_map, total_qty)
+    return normalized_items, full_desc

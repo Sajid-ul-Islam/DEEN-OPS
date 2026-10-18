@@ -96,7 +96,7 @@ render_mobile_navbar(
     assert at.session_state["sidebar_nav"] == PRIMARY_NAV[0]
     assert at.session_state["mobile_bottom_nav"] == PRIMARY_NAV[0]
 
-    # Switch via mobile nav to "📦 Inventory & Stock"
+    # Switch via mobile nav to "🧩 Data Parser"
     at.segmented_control(key="mobile_bottom_nav").set_value(PRIMARY_NAV[2]).run()
     assert at.session_state["selected_nav"] == PRIMARY_NAV[2]
     assert at.session_state["sidebar_nav"] == PRIMARY_NAV[2]
@@ -140,94 +140,101 @@ render_mobile_navbar(
     test_file.write_text(script_content, encoding="utf-8")
 
     at = AppTest.from_file(str(test_file))
-    at.session_state["_nav_override"] = "🚀 Data Pilot"
+    at.session_state["_nav_override"] = "🏬 SIP Outlet Mapper"
     at.run()
 
-    # Should map "🚀 Data Pilot" -> "🛒 Orders & Fulfillment"
-    assert at.session_state["selected_nav"] == "🛒 Orders & Fulfillment"
-    assert at.session_state["sidebar_nav"] == "🛒 Orders & Fulfillment"
-    assert at.session_state["mobile_bottom_nav"] == "🛒 Orders & Fulfillment"
+    # Should map "🏬 SIP Outlet Mapper" -> "📋 Product Listing"
+    assert at.session_state["selected_nav"] == "📋 Product Listing"
+    assert at.session_state["sidebar_nav"] == "📋 Product Listing"
+    assert at.session_state["mobile_bottom_nav"] == "📋 Product Listing"
 
 
-def test_orders_sub_feature_initialization_in_route_page(tmp_path):
-    """Ensure Orders & Fulfillment initializes orders_sub_feature without AttributeError."""
+def test_legacy_orders_fulfillment_routes_to_live_dashboard(tmp_path):
+    """Ensure legacy Orders & Fulfillment routes safely to Live Dashboard fallback."""
     script_content = """import streamlit as st
+from unittest.mock import patch
 from src.app_bootstrap import _route_page
 
-for key in ["orders_sub_feature", "inventory_sub_feature", "analytics_sub_feature", "automation_sub_feature"]:
-    st.session_state.pop(key, None)
-
-_route_page("🛒 Orders & Fulfillment")
+with patch("src.pages.live_dashboard.render_live_tab") as mock_live:
+    _route_page("🛒 Orders & Fulfillment")
+    assert mock_live.called
 """
     test_file = tmp_path / "test_route_orders.py"
     test_file.write_text(script_content, encoding="utf-8")
 
     at = AppTest.from_file(str(test_file)).run()
     assert not at.exception, f"Failed with exception: {at.exception}"
-    assert at.session_state["orders_sub_feature"] == "Order Tracking"
 
 
 def test_legacy_subfeature_override():
-    """Ensure legacy subfeature mappings correctly match expected sub-features."""
+    """Ensure legacy subfeature mappings correctly match active analytics sub-features."""
     from src.config.ui_config import LEGACY_NAV_MAPPING, LEGACY_SUBFEATURE_MAPPING
 
-    assert "📦 Pathao Processor" in LEGACY_SUBFEATURE_MAPPING
-    sub_key, sub_val = LEGACY_SUBFEATURE_MAPPING["📦 Pathao Processor"]
-    assert sub_key == "orders_sub_feature"
-    assert sub_val == "Pathao Processor"
-    assert LEGACY_SUBFEATURE_MAPPING["🛒 Order Tracking"] == (
-        "orders_sub_feature",
-        "Order Tracking",
+    assert "📥 Sales Data Ingestion" in LEGACY_SUBFEATURE_MAPPING
+    sub_key, sub_val = LEGACY_SUBFEATURE_MAPPING["📥 Sales Data Ingestion"]
+    assert sub_key == "analytics_sub_feature"
+    assert sub_val == "Sales Data Ingestion"
+    assert LEGACY_SUBFEATURE_MAPPING["📉 Return Analytics"] == (
+        "analytics_sub_feature",
+        "Returns",
     )
-    assert LEGACY_SUBFEATURE_MAPPING["📋 Product Listing"] == (
-        "orders_sub_feature",
-        "Product Listing",
+    assert LEGACY_SUBFEATURE_MAPPING["🔎 Return Orders Extractor"] == (
+        "analytics_sub_feature",
+        "Returns",
     )
-    assert LEGACY_NAV_MAPPING["📋 Product Listing"] == "🛒 Orders & Fulfillment"
-    # Removed features redirect to Orders & Fulfillment / SIP Outlet Mapper.
-    assert LEGACY_SUBFEATURE_MAPPING[":material/rocket_launch: Data Pilot"] == (
-        "orders_sub_feature",
-        "SIP Outlet Mapper",
-    )
-    assert LEGACY_SUBFEATURE_MAPPING["💬 WhatsApp Messaging"] == (
-        "orders_sub_feature",
-        "SIP Outlet Mapper",
-    )
+    assert LEGACY_NAV_MAPPING["📋 Product Listing"] == "📋 Product Listing"
+    assert LEGACY_NAV_MAPPING["🏬 SIP Outlet Mapper"] == "📋 Product Listing"
+    # Ensure removed dead features are completely pruned from subfeature mapping
+    assert "💬 WhatsApp Messaging" not in LEGACY_SUBFEATURE_MAPPING
+    assert "🚀 Data Pilot" not in LEGACY_SUBFEATURE_MAPPING
 
 
-def test_product_listing_routed_under_orders_fulfillment(tmp_path):
-    """Ensure Product Listing routes cleanly under Orders & Fulfillment."""
+def test_product_listing_direct_sidebar_route(tmp_path):
+    """Ensure Product Listing routes cleanly from top-level sidebar selection."""
     script_content = """import streamlit as st
 from unittest.mock import patch
 from src.app_bootstrap import _route_page
 
-st.session_state["orders_sub_feature"] = "Product Listing"
-with patch("src.pages.product_listing.render_product_listing_tab"):
-    _route_page("🛒 Orders & Fulfillment")
+with patch("src.pages.product_listing.render_product_listing_tab") as mock_render:
+    _route_page("📋 Product Listing")
+    assert mock_render.called
 """
-    test_file = tmp_path / "test_route_product_listing.py"
+    test_file = tmp_path / "test_route_product_listing_sidebar.py"
     test_file.write_text(script_content, encoding="utf-8")
 
     at = AppTest.from_file(str(test_file)).run(timeout=10)
     assert not at.exception, f"Failed with exception: {at.exception}"
-    assert at.session_state["orders_sub_feature"] == "Product Listing"
 
 
-def test_inventory_sub_feature_initialization_defaults_to_stock_analytics(tmp_path):
-    """Ensure Inventory & Stock defaults to Current Stock Analytics."""
+def test_data_parser_direct_sidebar_route(tmp_path):
+    """Ensure Data Parser routes cleanly from top-level sidebar selection."""
     script_content = """import streamlit as st
 from unittest.mock import patch
 from src.app_bootstrap import _route_page
 
-st.session_state.pop("inventory_sub_feature", None)
-with patch("src.pages.stock_analytics.render_stock_analytics_tab"):
+with patch("src.pages.delivery_parser.render_data_parser_tab") as mock_render:
+    _route_page("🧩 Data Parser")
+    assert mock_render.called
+"""
+    test_file = tmp_path / "test_route_data_parser_sidebar.py"
+    test_file.write_text(script_content, encoding="utf-8")
+
+    at = AppTest.from_file(str(test_file)).run(timeout=10)
+    assert not at.exception, f"Failed with exception: {at.exception}"
+
+
+def test_legacy_inventory_stock_routes_to_live_dashboard(tmp_path):
+    """Ensure legacy Inventory & Stock routes safely to Live Dashboard fallback."""
+    script_content = """import streamlit as st
+from unittest.mock import patch
+from src.app_bootstrap import _route_page
+
+with patch("src.pages.live_dashboard.render_live_tab") as mock_live:
     _route_page("📦 Inventory & Stock")
+    assert mock_live.called
 """
     test_file = tmp_path / "test_route_inventory_defaults.py"
     test_file.write_text(script_content, encoding="utf-8")
 
     at = AppTest.from_file(str(test_file)).run(timeout=10)
-    assert at.session_state["inventory_sub_feature"] in (
-        "SIP Stock - Smart Inventory with POS",
-        "Current Stock Analytics",
-    )
+    assert not at.exception, f"Failed with exception: {at.exception}"

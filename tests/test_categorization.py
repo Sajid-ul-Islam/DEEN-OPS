@@ -10,10 +10,9 @@ import pytest
 from src.components.dashboard.dashboard_charts import get_short_category_label
 from src.processing.categorization import (
     get_category_for_sales,
+    get_short_sub_category,
     get_sub_category_for_sales,
 )
-from src.processing.order_processor import get_short_sub_category
-from src.processing.stock_categorization import map_to_csv_category
 
 
 @pytest.mark.parametrize(
@@ -59,21 +58,6 @@ def test_dashboard_short_category_label(product_name, expected_short_label):
 
 
 @pytest.mark.parametrize(
-    ("product_name", "expected_stock_cat"),
-    [
-        ("Formal Panjabi", "Panjabi"),
-        ("White Formal Panjabi - XL", "Panjabi"),
-        ("Executive Formal", "Formal Shirt"),
-        ("Executive Formal Shirt", "Formal Shirt"),
-        ("Formal Shirt", "Formal Shirt"),
-    ],
-)
-def test_stock_categorization(product_name, expected_stock_cat):
-    stock_cat = map_to_csv_category(product_name)
-    assert stock_cat == expected_stock_cat
-
-
-@pytest.mark.parametrize(
     ("product_name", "expected_cat", "expected_subcat"),
     [
         # New WooCommerce store categories: Mug, Hoodie, Denim Jacket
@@ -114,16 +98,3 @@ def test_new_store_categories(product_name, expected_cat, expected_subcat):
 def test_order_processor_get_short_sub_category(product_name, expected_type):
     item_type = get_short_sub_category(product_name)
     assert item_type == expected_type
-
-
-@pytest.mark.parametrize(
-    ("product_name", "expected_stock_cat"),
-    [
-        ("DEEN 1% Better Every Day Mug", "Mug"),
-        ("Allen Solly Hoodie", "Hoodie"),
-        ("Sorbino Denim Jacket", "Jacket"),
-    ],
-)
-def test_new_store_categories_stock(product_name, expected_stock_cat):
-    """Stock categorization maps new store categories instead of 'Others'/'Sweatshirt'."""
-    assert map_to_csv_category(product_name) == expected_stock_cat

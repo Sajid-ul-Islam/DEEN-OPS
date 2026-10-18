@@ -44,7 +44,7 @@ def test_no_unused_imports_f401():
     )
     if probe.returncode != 0:
         pytest.skip(
-            "ruff is not installed — run `pip install -r requirements_dev.txt` "
+            "ruff is not installed — run `pip install -r requirements.txt` "
             "to enable the F401 unused-import guard"
         )
 

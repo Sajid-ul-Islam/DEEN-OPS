@@ -10,8 +10,11 @@ from src.components.ui.widgets import (
     section_card,
 )
 from src.config.constants import bd_today
-from src.processing.delivery_parser import parse_data_fuzzy, parse_records
-from src.processing.order_processor import normalize_manual_item_input
+from src.processing.delivery_parser import (
+    normalize_manual_item_input,
+    parse_data_fuzzy,
+    parse_records,
+)
 from src.state.persistence import clear_state_keys
 from src.utils.file_io import to_excel_bytes
 

@@ -80,23 +80,12 @@ def _format_nav_item(item: str) -> str:
     """Map a nav key to a Material-icon-labelled display string."""
     nav_icons = {
         "📈 Live Dashboard": ":material/dashboard: Live Dashboard",
-        "🛒 Order Tracking": ":material/shopping_cart: Order Tracking",
-        "🛒 Order tracking": ":material/shopping_cart: Order Tracking",
         "📋 Product Listing": ":material/receipt_long: Product Listing",
-        "📦 Pathao Processor": ":material/local_shipping: Pathao Processor",
-        "📦 Current Stock Analytics": ":material/analytics: Stock Analytics",
-        "SIP Stock - Smart Inventory with POS": ":material/inventory_2: SIP Stock",
-        "📦 SIP Stock - Smart Inventory with POS": ":material/inventory_2: SIP Stock",
-        "🧩 Delivery Data Parser": ":material/data_object: Delivery Parser",
-        "Data Parser": ":material/data_object: Data Parser",
+        "Product Listing": ":material/receipt_long: Product Listing",
         "🧩 Data Parser": ":material/data_object: Data Parser",
-        "📥 Sales Data Ingestion": ":material/cloud_download: Sales Ingestion",
-        "📉 Return Analytics": ":material/keyboard_return: Return Analytics",
-        "🏬 Outlet Dispatch & Product Listing": ":material/storefront: Outlet Dispatch & Product Listing",
-        "Outlet Dispatch & Product Listing": ":material/storefront: Outlet Dispatch & Product Listing",
-        "🏬 Outlet Wise Extractor": ":material/storefront: Outlet Wise Extractor",
-        "Outlet Wise Extractor": ":material/storefront: Outlet Wise Extractor",
-        "SIP Outlet Mapper": ":material/storefront: Outlet Wise Extractor",
+        "Data Parser": ":material/data_object: Data Parser",
+        "📊 Analytics & Insights": ":material/analytics: Analytics & Insights",
+        "Analytics & Insights": ":material/analytics: Analytics & Insights",
     }
     return nav_icons.get(item, item)
 
@@ -386,159 +375,56 @@ def _route_page(selected_nav: str) -> None:
     """Route to the correct page renderer based on sidebar selection.
 
     Jakob's Law Implementation:
-    - 5 consolidated navigation tabs map to sub-feature selectors
-    - Each tab uses session state to track which sub-feature to display
+    - 4 active navigation workspaces (Live Dashboard, Product Listing, Data Parser, Analytics & Insights)
+    - Sub-features managed cleanly under consolidated pages
     """
+    from src.config.ui_config import LEGACY_NAV_MAPPING
 
-    # Lazy imports keep bootstrap resilient on cloud
-    # when a module has runtime incompatibilities.
+    nav = LEGACY_NAV_MAPPING.get(selected_nav, selected_nav)
 
     # === 📈 Live Dashboard (Home) ===
-    if selected_nav == "📈 Live Dashboard":
+    if nav == "📈 Live Dashboard":
         from src.components.layout.header import render_app_banner
         from src.pages.live_dashboard import render_live_tab
 
         safe_render(render_app_banner, fallback_msg="App banner unavailable.")
         safe_render(render_live_tab, fallback_msg="Live Dashboard unavailable.")
 
-    # === 🛒 Orders & Fulfillment (Consolidated) ===
-    elif selected_nav == "🛒 Orders & Fulfillment":
-        orders_sub_options = [
-            "Order Tracking",
-            "Outlet Dispatch & Product Listing",
-            "Data Parser",
-        ]
-        legacy_orders_sub = {
-            "Delivery Data Parser": "Data Parser",
-            "Pathao Processor": "Data Parser",
-            "Outlet Wise Extractor": "Outlet Dispatch & Product Listing",
-            "SIP Outlet Mapper": "Outlet Dispatch & Product Listing",
-            "Outlet Extractor": "Outlet Dispatch & Product Listing",
-            "Outlet Manager": "Outlet Dispatch & Product Listing",
-            "Outlet Wise Product Listing": "Outlet Dispatch & Product Listing",
-        }
-        if st.session_state.get("orders_sub_feature") in legacy_orders_sub:
-            st.session_state["orders_sub_feature"] = legacy_orders_sub[
-                st.session_state["orders_sub_feature"]
-            ]
-        if "orders_sub_feature" not in st.session_state or (
-            st.session_state["orders_sub_feature"] not in orders_sub_options
-            and st.session_state["orders_sub_feature"] != "Product Listing"
-        ):
-            st.session_state["orders_sub_feature"] = "Order Tracking"
-        curr_sub = st.session_state["orders_sub_feature"]
-        pill_default = curr_sub if curr_sub in orders_sub_options else "Data Parser"
+    # === 📋 Product Listing (Consolidated Outlet Dispatch, Picking & Product Listing) ===
+    elif nav in (
+        "📋 Product Listing",
+        "Product Listing",
+        "Outlet Dispatch & Product Listing",
+        "🏬 Outlet Dispatch & Product Listing",
+        "🏬 Outlet Wise Extractor",
+        "Outlet Wise Extractor",
+        "🏬 SIP Outlet Mapper",
+        "SIP Outlet Mapper",
+    ):
+        from src.pages.product_listing import render_product_listing_tab
 
-        # Prominently render sub-feature selector directly so all features are visible
-        if hasattr(st, "pills"):
-            chosen_sub = st.pills(
-                "Orders Feature",
-                orders_sub_options,
-                selection_mode="single",
-                default=pill_default,
-                label_visibility="collapsed",
-                key="orders_sub_pills",
-            )
-            if chosen_sub and chosen_sub != pill_default:
-                st.session_state["orders_sub_feature"] = chosen_sub
-                st.rerun()
-        else:
-            radio_idx = (
-                orders_sub_options.index(curr_sub)
-                if curr_sub in orders_sub_options
-                else 1
-            )
-            sub_feature = st.radio(
-                "Choose a feature:",
-                orders_sub_options,
-                index=radio_idx,
-                label_visibility="collapsed",
-                horizontal=True,
-                key="orders_sub_radio",
-            )
-            if sub_feature != orders_sub_options[radio_idx]:
-                st.session_state["orders_sub_feature"] = sub_feature
-                st.rerun()
+        safe_render(
+            render_product_listing_tab,
+            fallback_msg="Product Listing unavailable.",
+        )
 
-        # Route to appropriate sub-feature
-        active_sub = st.session_state.get("orders_sub_feature", "Order Tracking")
-        if active_sub == "Order Tracking":
-            from src.pages.woocommerce_orders import render_woocommerce_orders_tab
+    # === 🧩 Data Parser ===
+    elif nav in (
+        "🧩 Data Parser",
+        "Data Parser",
+        "Delivery Data Parser",
+        "🧩 Delivery Data Parser",
+        "📦 Pathao Processor",
+    ):
+        from src.pages.delivery_parser import render_data_parser_tab
 
-            safe_render(
-                render_woocommerce_orders_tab,
-                fallback_msg="Order Tracking unavailable.",
-            )
-        elif active_sub in (
-            "Outlet Dispatch & Product Listing",
-            "Outlet Wise Extractor",
-            "SIP Outlet Mapper",
-        ):
-            from src.pages.sip_outlet_mapper import render_sip_outlet_tab
-
-            safe_render(
-                render_sip_outlet_tab,
-                fallback_msg="Outlet Dispatch & Product Listing unavailable.",
-            )
-        elif active_sub == "Product Listing":
-            from src.pages.product_listing import render_product_listing_tab
-
-            safe_render(
-                render_product_listing_tab, fallback_msg="Product Listing unavailable."
-            )
-        elif active_sub in ("Data Parser", "Delivery Data Parser", "Pathao Processor"):
-            from src.pages.delivery_parser import render_data_parser_tab
-
-            safe_render(
-                render_data_parser_tab,
-                fallback_msg="Data Parser unavailable.",
-            )
-
-    # === 📦 Inventory & Stock (Consolidated) ===
-    elif selected_nav == "📦 Inventory & Stock":
-        inventory_sub_options = [
-            "SIP Stock - Smart Inventory with POS",
-        ]
-        legacy_inv_sub = {
-            "Current Stock Analytics": "SIP Stock - Smart Inventory with POS",
-            "📦 Current Stock Analytics": "SIP Stock - Smart Inventory with POS",
-        }
-        if st.session_state.get("inventory_sub_feature") in legacy_inv_sub:
-            st.session_state["inventory_sub_feature"] = legacy_inv_sub[
-                st.session_state["inventory_sub_feature"]
-            ]
-        if "inventory_sub_feature" not in st.session_state or (
-            st.session_state.inventory_sub_feature not in inventory_sub_options
-            and st.session_state.inventory_sub_feature != "Current Stock Analytics"
-        ):
-            st.session_state.inventory_sub_feature = (
-                "SIP Stock - Smart Inventory with POS"
-            )
-
-        with st.expander("📂 Select Feature", expanded=False):
-            sub_feature = st.radio(
-                "Choose a feature:",
-                inventory_sub_options,
-                index=0,
-                label_visibility="collapsed",
-                horizontal=True,
-            )
-            if sub_feature != st.session_state.inventory_sub_feature:
-                st.session_state.inventory_sub_feature = sub_feature
-                st.rerun()
-
-        if st.session_state.inventory_sub_feature in (
-            "SIP Stock - Smart Inventory with POS",
-            "Current Stock Analytics",
-        ):
-            from src.pages.stock_analytics import render_stock_analytics_tab
-
-            safe_render(
-                render_stock_analytics_tab, fallback_msg="SIP Stock unavailable."
-            )
+        safe_render(
+            render_data_parser_tab,
+            fallback_msg="Data Parser unavailable.",
+        )
 
     # === 📊 Analytics & Insights (Consolidated) ===
-    elif selected_nav == "📊 Analytics & Insights":
+    elif nav in ("📊 Analytics & Insights", "Analytics & Insights"):
         analytics_sub_options = [
             "Sales Data Ingestion",
             "Returns",
@@ -575,6 +461,14 @@ def _route_page(selected_nav: str) -> None:
             safe_render(
                 render_combined_returns_tab, fallback_msg="Returns unavailable."
             )
+
+    else:
+        # Fallback to Live Dashboard if unknown nav selected
+        from src.components.layout.header import render_app_banner
+        from src.pages.live_dashboard import render_live_tab
+
+        safe_render(render_app_banner, fallback_msg="App banner unavailable.")
+        safe_render(render_live_tab, fallback_msg="Live Dashboard unavailable.")
 
 
 # ── Public entry point ──────────────────────────────────────────────────────
@@ -645,12 +539,6 @@ def run_app() -> None:
         st.session_state["header_status_banner"] = ""
 
     # ── Sub-feature Navigation Defaults ─────────────────────────────────────
-    if "orders_sub_feature" not in st.session_state:
-        st.session_state["orders_sub_feature"] = "Order Tracking"
-    if "inventory_sub_feature" not in st.session_state:
-        st.session_state["inventory_sub_feature"] = (
-            "SIP Stock - Smart Inventory with POS"
-        )
     if "analytics_sub_feature" not in st.session_state:
         st.session_state["analytics_sub_feature"] = "Sales Data Ingestion"
 

@@ -27,6 +27,7 @@ from src.processing.completed_analytics import has_blank_phone, is_walkin_custom
 from src.processing.data_processing import (
     aggregate_data,
     prepare_granular_data,
+    robust_order_count,
     safe_coerce_datetime_naive,
 )
 from src.utils.customer_registry import (
@@ -40,7 +41,6 @@ from src.utils.metric_history import save_shift_snapshot
 from src.processing.revenue import (
     compute_revenue_breakdown,
     count_exchange_orders,
-    robust_order_count,
 )
 
 
@@ -74,10 +74,7 @@ def render_operational_metrics(
     drill, summ, top, basket = aggregate_data(m_df, dummy_mapping)
 
     # Single-source revenue breakdown + exchange count, computed from the
-    # canonical helpers in src.processing.revenue. This replaces the inline
-    # ``m_cashback_disc / m_gross_rev / m_net_rev / m_exchange_cnt`` ladder
-    # that was copy-pasted into dashboard_metrics.py and duplicated in
-    # dm_head.py / tmp_original_dm.py.
+    # canonical helpers in src.processing.revenue.
     curr_rev = compute_revenue_breakdown(m_df)
     m_qty = int(m_df["Quantity"].sum()) if "Quantity" in m_df.columns else 0
     m_ord = robust_order_count(m_df, basket.get("total_orders", 0) if basket else 0)

@@ -388,3 +388,15 @@ def test_build_export_data_includes_subcategory_sales():
     assert "Sales Amount (BDT)" in sub_df.columns
     assert "Revenue Share (%)" in sub_df.columns
     assert len(sub_df) == 3
+
+
+def test_render_product_listing_tab_smoketest():
+    """Verify render_product_listing_tab runs without TypeError or argument mismatches."""
+    from unittest.mock import patch
+    import streamlit as st
+    from src.pages.product_listing import render_product_listing_tab
+
+    with patch.object(st, "session_state", {}):
+        with patch.object(st, "radio", return_value="Live WooCommerce Session"):
+            with patch.object(st, "markdown"):
+                render_product_listing_tab()

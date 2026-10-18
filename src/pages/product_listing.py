@@ -1,8 +1,7 @@
-"""Product Listing & Excel Merger Page.
+"""Product Listing & Warehouse Picking Workspace.
 
-Aggregates item quantities from raw WooCommerce orders or Excel uploads,
-maps live multi-outlet stock, applies pastel SKU color distinctions,
-and generates warehouse-ready styled Excel picking lists.
+Provides automated item and SKU aggregation, warehouse picking metrics,
+pastel group styling, and styled Excel exports for WooCommerce orders.
 """
 
 from __future__ import annotations
@@ -14,202 +13,150 @@ import streamlit as st
 
 from src.components.ui.ui_components import render_premium_header
 from src.config.constants import bd_now, bd_today
-from src.processing.data_processing import aggregate_product_listing
-from src.processing.column_detection import (
-    DATE_COL_CANDIDATES,
-    ITEM_NAME_COL_CANDIDATES,
-    ORDER_ID_COL_CANDIDATES,
-    QTY_COL_CANDIDATES,
-    SKU_COL_CANDIDATES,
-    detect_column,
-    find_columns,
-)
+from src.processing.orders.product_aggregator import aggregate_product_listing
 from src.services.exports.excel_exporter import export_to_styled_excel
-from src.utils.safe_ops import safe_render
+from src.utils.file_io import read_uploaded
 
 
-def _render_product_listing_content() -> None:
+def _detect_column(cols: list[str], candidates: list[str], default_idx: int = 0) -> int:
+    """Find the best match column index from candidates (case-insensitive substring)."""
+    for cand in candidates:
+        for idx, col in enumerate(cols):
+            if cand.lower() in col.lower():
+                return idx
+    return default_idx
+
+
+def render_product_listing_tab() -> None:
+    """Render the Product Listing & Warehouse Picking workspace."""
     render_premium_header(
-        "Product Listing & SKU Aggregator",
-        "Merge orders by SKU/Item, compare outlet stock, and export styled picking lists",
-        "📋",
+        title="Product Listing & Picking List",
+        subtitle="Aggregate orders by Item Name and SKU variant for warehouse picking and dispatch.",
+        icon="📋",
     )
 
-    c_source, c_sync = st.columns([3, 1])
-    with c_source:
-        source_mode = st.radio(
-            "Select Data Source:",
-            ["⚡ Live WooCommerce Orders", "📁 Upload Order File (CSV/Excel)"],
-            horizontal=True,
-            key="pl_source_mode",
-        )
+    df = None
+    data_source = st.radio(
+        "Select Data Source:",
+        ["Live WooCommerce Session", "Upload Excel / CSV File"],
+        horizontal=True,
+        key="pl_data_source",
+    )
 
-    df: pd.DataFrame | None = None
+    if data_source == "Live WooCommerce Session":
+        # Check active session dataframe
+        live_df = st.session_state.get("wc_curr_df")
+        if live_df is None or live_df.empty:
+            live_df = st.session_state.get("wc_full_df")
 
-    if source_mode == "⚡ Live WooCommerce Orders":
-        wc_df = st.session_state.get("wc_full_df")
-        if wc_df is None or wc_df.empty:
-            wc_df = st.session_state.get("wc_curr_df")
-        if wc_df is None or wc_df.empty:
-            wc_df = st.session_state.get("wc_tracking_df")
-
-        if wc_df is not None and not wc_df.empty:
-            df = wc_df.copy()
-            st.info(f"Loaded **{len(df):,}** order rows from live WooCommerce sync.")
-        else:
-            st.warning(
-                "⚠️ No live order data found in memory. Please fetch orders from the Live Dashboard or upload a file."
+        if live_df is not None and not live_df.empty:
+            df = live_df.copy()
+            st.info(
+                f"Using active WooCommerce session data ({len(df):,} items loaded)."
             )
+        else:
+            st.warning("⚠️ No active WooCommerce order session found in memory.")
     else:
         uploaded_file = st.file_uploader(
-            "Upload Order File (CSV or Excel)",
-            type=["csv", "xlsx", "xls"],
+            "Upload Orders Export (Excel or CSV):",
+            type=["xlsx", "xls", "csv"],
             key="pl_file_uploader",
         )
         if uploaded_file is not None:
             try:
-                if uploaded_file.name.endswith(".csv"):
-                    df = pd.read_csv(uploaded_file)
-                else:
-                    df = pd.read_excel(uploaded_file)
+                df = read_uploaded(uploaded_file)
                 st.success(f"Uploaded **{len(df):,}** rows successfully.")
             except Exception as e:
-                st.error(f"Error reading uploaded file: {e}")
+                st.error(f"Error reading file: {e}")
 
     if df is None or df.empty:
+        st.info("💡 Upload an order file or sync live WooCommerce data to proceed.")
         return
 
-    # Auto-detect relevant columns: first try to get the actual column matching known schema,
-    # then fallback to smart partial detection, then defaults.
     cols = df.columns.tolist()
-    det = find_columns(df)
+    if not cols:
+        st.error("Uploaded file has no columns.")
+        return
 
-    detected_item = (
-        detect_column(df, ITEM_NAME_COL_CANDIDATES)
-        or det.get("item")
-        or det.get("name")
-    )
-    detected_sku = detect_column(df, SKU_COL_CANDIDATES) or det.get("sku")
-    detected_qty = detect_column(df, QTY_COL_CANDIDATES) or det.get("qty")
-    detected_order = detect_column(df, ORDER_ID_COL_CANDIDATES) or det.get("order_id")
-    detected_date = detect_column(df, DATE_COL_CANDIDATES) or det.get("date")
+    # Auto-detect best column matches
+    name_candidates = [
+        "Product Name",
+        "Item Name",
+        "Name",
+        "Product",
+        "Title",
+        "item_name",
+    ]
+    qty_candidates = ["Quantity", "Qty", "quantity", "qty", "Units", "Count"]
+    sku_candidates = ["SKU", "sku", "Item SKU", "Product SKU", "Code"]
+    order_candidates = [
+        "Order ID",
+        "Order Number",
+        "Order #",
+        "order_id",
+        "ID",
+        "Order",
+    ]
+    date_candidates = [
+        "Order Date",
+        "Date",
+        "Order Date Modified",
+        "Created At",
+        "date",
+    ]
 
-    item_index = (
-        cols.index(detected_item) if (detected_item and detected_item in cols) else 0
-    )
-    sku_index = (
-        (cols.index(detected_sku) + 1) if (detected_sku and detected_sku in cols) else 0
-    )
-    qty_index = (
-        cols.index(detected_qty) if (detected_qty and detected_qty in cols) else 0
-    )
-    order_index = (
-        (cols.index(detected_order) + 1)
-        if (detected_order and detected_order in cols)
-        else 0
-    )
-    date_index = (
-        (cols.index(detected_date) + 1)
-        if (detected_date and detected_date in cols)
-        else 0
-    )
+    item_idx = _detect_column(cols, name_candidates, 0)
+    qty_idx = _detect_column(cols, qty_candidates, 0)
+    sku_idx = _detect_column(cols, sku_candidates, 0)
+    order_idx = _detect_column(cols, order_candidates, 0)
+    date_idx = _detect_column(cols, date_candidates, 0)
 
-    # Ensure cached widget state doesn't point to non-existent columns from a previous file
-    for key, valid_options, default_val in [
-        ("pl_item_col", cols, cols[item_index] if cols else None),
-        (
-            "pl_sku_col",
-            ["None"] + cols,
-            (["None"] + cols)[sku_index] if cols else "None",
-        ),
-        ("pl_qty_col", cols, cols[qty_index] if cols else None),
-        (
-            "pl_order_col",
-            ["None"] + cols,
-            (["None"] + cols)[order_index] if cols else "None",
-        ),
-        (
-            "pl_date_col",
-            ["None"] + cols,
-            (["None"] + cols)[date_index] if cols else "None",
-        ),
-    ]:
-        if key in st.session_state and st.session_state[key] not in valid_options:
-            st.session_state[key] = default_val
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1:
-        item_col = st.selectbox(
-            "Item Name Column:",
-            cols,
-            index=item_index,
-            key="pl_item_col",
-        )
-    with c2:
-        sku_col = st.selectbox(
-            "SKU Column (Optional):",
-            ["None"] + cols,
-            index=sku_index,
-            key="pl_sku_col",
-        )
-    with c3:
-        qty_col = st.selectbox(
-            "Quantity Column:",
-            cols,
-            index=qty_index,
-            key="pl_qty_col",
-        )
-    with c4:
-        order_col = st.selectbox(
-            "Order ID Column (Optional):",
-            ["None"] + cols,
-            index=order_index,
-            key="pl_order_col",
-        )
-    with c5:
-        date_col = st.selectbox(
-            "Date Column (Optional):",
-            ["None"] + cols,
-            index=date_index,
-            key="pl_date_col",
-        )
-
-    # Optional Outlet Filtering if SIP / Outlet data is present
-    has_sip = "SIP" in df.columns or "Item Outlet" in df.columns
-    if has_sip:
-        from src.processing.sip_outlet_processor import process_order_item_outlets
-
-        actual_order_col = (
-            order_col
-            if (order_col != "None" and order_col in df.columns)
-            else ("Order Number" if "Order Number" in df.columns else df.columns[0])
-        )
-        if "Item Outlet" not in df.columns and "SIP" in df.columns:
-            df = process_order_item_outlets(
-                df,
-                order_col=actual_order_col,
-                sip_col="SIP",
+    # Column configuration selectors
+    with st.expander("⚙️ Column Configuration", expanded=False):
+        c1, c2, c3, c4, c5 = st.columns(5)
+        with c1:
+            item_col = st.selectbox(
+                "Item Name Column:",
+                cols,
+                index=item_idx,
+                key="pl_item_col",
             )
-
-        if "Item Outlet" in df.columns:
-            unique_outlets = [
-                o for o in df["Item Outlet"].dropna().unique() if o != "Warehouse"
-            ]
-            outlet_opts = [
-                "🏭 Warehouse Only (Recommended)",
-                "🌐 All Outlets",
-            ] + unique_outlets
-            chosen_outlet = st.selectbox(
-                "Filter Product Listing by Outlet:",
-                outlet_opts,
-                index=0,
-                key="pl_outlet_filter_choice",
-                help="Filters picking list to items fulfilled by the selected outlet.",
+        with c2:
+            qty_col = st.selectbox(
+                "Quantity Column:",
+                cols,
+                index=qty_idx,
+                key="pl_qty_col",
             )
-            if chosen_outlet == "🏭 Warehouse Only (Recommended)":
-                df = df[df["Item Outlet"] == "Warehouse"]
-            elif chosen_outlet != "🌐 All Outlets":
-                df = df[df["Item Outlet"] == chosen_outlet]
+        with c3:
+            sku_options = ["None"] + cols
+            sku_default = cols[sku_idx] if cols[sku_idx] in sku_options else "None"
+            sku_col = st.selectbox(
+                "SKU Column (Optional):",
+                sku_options,
+                index=sku_options.index(sku_default),
+                key="pl_sku_col",
+            )
+        with c4:
+            order_options = ["None"] + cols
+            order_default = (
+                cols[order_idx] if cols[order_idx] in order_options else "None"
+            )
+            order_col = st.selectbox(
+                "Order ID Column:",
+                order_options,
+                index=order_options.index(order_default),
+                key="pl_order_col",
+            )
+        with c5:
+            date_options = ["None"] + cols
+            date_default = cols[date_idx] if cols[date_idx] in date_options else "None"
+            date_col = st.selectbox(
+                "Date Column (Optional):",
+                date_options,
+                index=date_options.index(date_default),
+                key="pl_date_col",
+            )
 
     # Grouping & Aggregation: sorted first item-wise, then SKU-wise
     merged_df = aggregate_product_listing(
@@ -229,15 +176,12 @@ def _render_product_listing_content() -> None:
 
     # Resolve Date
     date_val = None
-    resolved_date_col = (
-        date_col if (date_col != "None" and date_col in df.columns) else detected_date
-    )
-    if resolved_date_col and resolved_date_col in df.columns:
-        dt_series = pd.to_datetime(df[resolved_date_col], errors="coerce").dropna()
+    if date_col != "None" and date_col in df.columns:
+        dt_series = pd.to_datetime(df[date_col], errors="coerce").dropna()
         if not dt_series.empty:
             date_val = dt_series.max().strftime("%d %b %Y")
         else:
-            first_valid = df[resolved_date_col].dropna()
+            first_valid = df[date_col].dropna()
             if not first_valid.empty:
                 date_val = str(first_valid.iloc[-1])[:10]
 
@@ -249,11 +193,9 @@ def _render_product_listing_content() -> None:
     if order_col != "None" and order_col in df.columns:
         valid_orders = df.dropna(subset=[order_col])
         if not valid_orders.empty:
-            if resolved_date_col and resolved_date_col in valid_orders.columns:
+            if date_col != "None" and date_col in valid_orders.columns:
                 try:
-                    sorted_df = valid_orders.sort_values(
-                        by=resolved_date_col, ascending=False
-                    )
+                    sorted_df = valid_orders.sort_values(by=date_col, ascending=False)
                     last_order_num = str(sorted_df[order_col].iloc[0])
                 except Exception:
                     last_order_num = str(valid_orders[order_col].iloc[-1])
@@ -311,7 +253,7 @@ def _render_product_listing_content() -> None:
     )
 
     # Style table with pastel group coloring
-    def _apply_pastel_colors(data_df):
+    def _apply_pastel_colors(data_df: pd.DataFrame) -> pd.DataFrame:
         styles = pd.DataFrame("", index=data_df.index, columns=data_df.columns)
         color_col = (
             item_col
@@ -344,7 +286,8 @@ def _render_product_listing_content() -> None:
         if len(data_df) > 0:
             last_idx = data_df.index[-1]
             styles.loc[last_idx, :] = (
-                "background-color: #e2e8f0; color: #0f172a; font-weight: 800; border-top: 2px solid #475569;"
+                "background-color: #e2e8f0; color: #0f172a; "
+                "font-weight: 800; border-top: 2px solid #475569;"
             )
         return styles
 
@@ -377,14 +320,4 @@ def _render_product_listing_content() -> None:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         type="primary",
         use_container_width=True,
-    )
-
-
-def render_product_listing_tab() -> None:
-    """Public router entry point for Product Listing page (now merged into Outlet Dispatch & Product Listing)."""
-    from src.pages.sip_outlet_mapper import render_sip_outlet_tab
-
-    safe_render(
-        render_sip_outlet_tab,
-        fallback_msg="Outlet Dispatch & Product Listing unavailable.",
     )

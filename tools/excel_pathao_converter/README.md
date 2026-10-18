@@ -12,10 +12,8 @@ This folder is **completely self-contained**. You can move, copy, or zip this en
 tools/excel_pathao_converter/
 ├── convert_to_pathao.py        # Python conversion engine (CLI + GUI file picker)
 ├── run_converter.bat           # 1-click Windows launcher (double-click or drag-and-drop)
-├── requirements.txt            # Minimal dependencies (pandas, openpyxl)
 ├── README.md                   # This documentation
 ├── templates/
-│   ├── sample_product_wise_orders.xlsx     # Sample multi-item input file
 │   └── pathao_bulk_template.xlsx           # Empty official Pathao bulk schema
 └── vba/
     ├── PathaoBulkConverter.bas # Native Excel VBA module (can be saved as .xlam)

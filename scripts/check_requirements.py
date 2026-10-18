@@ -36,6 +36,16 @@ STDLIB = (
     }
 )
 
+# Packages that are run via CLI or pytest plugins, not direct top-level app imports
+DEV_OR_RUNNER_PKGS = {
+    "streamlit",
+    "pytest",
+    "pytest-cov",
+    "pre-commit",
+    "ruff",
+    "xlsxwriter",  # Pandas ExcelWriter backend engine
+}
+
 
 def get_actual_imports(base_dir: Path) -> set:
     """Scan all .py files and extract top-level imports."""
@@ -56,7 +66,7 @@ def get_actual_imports(base_dir: Path) -> set:
                     if node.module:
                         imports.add(node.module.split(".")[0])
         except Exception as e:
-            print(f"⚠️ Failed to parse {filepath.name}: {e}")
+            print(f"[WARN] Failed to parse {filepath.name}: {e}")
 
     return imports - STDLIB
 
@@ -72,8 +82,9 @@ def get_requirements(req_path: Path) -> dict:
             clean_line = line.split("#")[0].strip()
             if not clean_line or clean_line.startswith("-"):
                 continue
-            # Strip version specifiers (==, >=, <=, etc.)
-            pkg = re.split(r"[=><!~]", clean_line)[0].strip()
+            # Strip extras and version specifiers (==, >=, <=, etc.)
+            pkg_base = clean_line.split("[")[0].strip()
+            pkg = re.split(r"[=><!~]", pkg_base)[0].strip()
             module_name = PKG_TO_MODULE.get(pkg.lower(), pkg.replace("-", "_"))
             reqs[pkg] = module_name.lower()
 
@@ -84,24 +95,24 @@ if __name__ == "__main__":
     root_dir = Path(__file__).resolve().parent.parent
     req_path = root_dir / "requirements.txt"
 
-    print("🔍 Scanning AST for active imports...")
+    print("[SCAN] Scanning AST for active imports...")
     actual_imports = {m.lower() for m in get_actual_imports(root_dir)}
 
-    print("📄 Parsing requirements.txt...")
+    print("[PARSE] Parsing requirements.txt...")
     reqs = get_requirements(req_path)
     req_modules = set(reqs.values())
 
-    print("\n--- 📋 RESULTS ---")
+    print("\n--- RESULTS ---")
     unused = [
         pkg
         for pkg, mod in reqs.items()
-        if mod not in actual_imports and mod != "streamlit"
+        if mod not in actual_imports and pkg.lower() not in DEV_OR_RUNNER_PKGS
     ]
     if unused:
         print(
-            "⚠️  Potentially Unused Packages in requirements.txt:\n"
+            "[WARN] Potentially Unused Packages in requirements.txt:\n"
             + "\n".join(f"  - {p}" for p in unused)
         )
         sys.exit(1)
     else:
-        print("✅ All packages in requirements.txt appear to be used.")
+        print("[OK] All packages in requirements.txt appear to be used.")

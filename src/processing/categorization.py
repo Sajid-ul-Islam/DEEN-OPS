@@ -213,3 +213,119 @@ def get_sub_category_for_sales(name, category) -> str:
         return "Cargo Trouser"
 
     return category
+
+
+def get_short_sub_category(item_name: str) -> str:
+    """Extracts a shortened sub-category name for Pathao ItemDesc formatting."""
+    name_lower = str(item_name).lower()
+
+    if "tank top" in name_lower or "tanktop" in name_lower or "tank-top" in name_lower:
+        return "TankTop"
+    if "jeans" in name_lower:
+        return "Jeans"
+    if "denim" in name_lower:
+        return "Denim"
+    if "flannel" in name_lower:
+        return "Flannel"
+    if "drop shoulder" in name_lower or "oversized" in name_lower:
+        return "Drop Shoulder"
+    if (
+        "active wear" in name_lower
+        or "activewear" in name_lower
+        or "sports" in name_lower
+        or "jersey" in name_lower
+    ):
+        return "Active Wear"
+
+    # T-Shirt categorization: check t-shirt explicitly before generic sleeve keywords
+    is_tshirt = (
+        "t-shirt" in name_lower
+        or "tshirt" in name_lower
+        or "tee" in name_lower
+        or "t shirt" in name_lower
+    )
+    if is_tshirt:
+        if (
+            "full sleeve" in name_lower
+            or "fs" in name_lower
+            or "long sleeve" in name_lower
+        ):
+            return "FS T-Shirt"
+        return "HS T-Shirt"
+
+    if "sweatshirt" in name_lower:
+        return "Sweatshirt"
+    if "sweater" in name_lower:
+        return "Sweater"
+    if "hoodie" in name_lower:
+        return "Hoodie"
+    if "mug" in name_lower:
+        return "Mug"
+    if "jacket" in name_lower:
+        return "Jacket"
+    if "polo" in name_lower:
+        return "Polo"
+    if "panjabi" in name_lower or "punjabi" in name_lower:
+        return "Panjabi"
+    if "pajama" in name_lower or "payjama" in name_lower:
+        return "Pajama"
+    if "oxford" in name_lower:
+        return "Oxford"
+    if "cuban" in name_lower:
+        return "Cuban"
+    if "linen" in name_lower:
+        return "Linen"
+    if "corduroy" in name_lower:
+        return "Corduroy"
+    if "chino" in name_lower:
+        return "Chino"
+    if "twill" in name_lower:
+        return "Twill"
+    if "cargo" in name_lower:
+        return "Cargo"
+    if "jogger" in name_lower:
+        return "Jogger"
+    if "trouser" in name_lower:
+        return "Trouser"
+    if "executive" in name_lower or "formal" in name_lower:
+        return "Formal"
+
+    # Casual Shirt: Don't show generic 'Shirt =', show 'Casual ='
+    if "casual" in name_lower:
+        return "Casual"
+
+    # Full Sleeve Shirt (non-casual) -> FS Shirt
+    if (
+        "full sleeve shirt" in name_lower
+        or "fs shirt" in name_lower
+        or ("full sleeve" in name_lower and "shirt" in name_lower)
+        or (name_lower.startswith("fs ") and "shirt" in name_lower)
+    ):
+        return "FS Shirt"
+
+    # Half Sleeve Shirt (non-casual) -> HS Shirt
+    if (
+        "half sleeve shirt" in name_lower
+        or "hs shirt" in name_lower
+        or ("half sleeve" in name_lower and "shirt" in name_lower)
+        or (name_lower.startswith("hs ") and "shirt" in name_lower)
+    ):
+        return "HS Shirt"
+
+    if "shirt" in name_lower:
+        return "Shirt"
+    if "wallet" in name_lower:
+        return "Wallet"
+    if "belt" in name_lower:
+        return "Belt"
+    if "kaftan" in name_lower:
+        return "Kaftan"
+    if "boxer" in name_lower:
+        return "Boxer"
+    if "mask" in name_lower:
+        return "Mask"
+    if "turtleneck" in name_lower or "turtle neck" in name_lower:
+        return "Turtleneck"
+
+    parts = str(item_name).split(" - ")
+    return parts[0].strip()

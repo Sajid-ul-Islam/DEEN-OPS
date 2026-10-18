@@ -8,12 +8,10 @@ Covers:
 - Architectural invariant: no invalid st.status(state="warning")
 """
 
-from datetime import date
 import pandas as pd
 
-from src.config.constants import bd_now, bd_today
+from src.config.constants import bd_now
 from src.components.react_kpi import render_react_kpi_toolbar
-from src.components.orders.order_components import _handle_fetch_orders
 from src.pages.delivery_parser import render_visual_report
 
 
@@ -132,55 +130,6 @@ def test_delivery_parser_visual_report_empty_and_none(monkeypatch):
     assert "subheader" in mock_calls
 
 
-def test_order_components_date_range_handling(monkeypatch):
-    """Ensure _handle_fetch_orders does not crash on empty tuple, single date, or 2-date range."""
-    session_store = {}
-    monkeypatch.setattr("streamlit.session_state", session_store)
-
-    mock_status_obj = type(
-        "Status",
-        (),
-        {
-            "write": lambda self, msg: None,
-            "update": lambda self, **kwargs: None,
-            "__enter__": lambda self: self,
-            "__exit__": lambda self, *args: None,
-        },
-    )()
-    monkeypatch.setattr("streamlit.status", lambda *a, **k: mock_status_obj)
-
-    def mock_load():
-        return {"df_to_return": pd.DataFrame()}
-
-    mock_load.clear = lambda: None
-    monkeypatch.setattr(
-        "src.services.woocommerce.client.load_from_woocommerce", mock_load
-    )
-
-    t1 = date(2026, 9, 1)
-    t2 = date(2026, 9, 14)
-
-    # Case 1: normal tuple of 2 dates
-    _handle_fetch_orders((t1, t2))
-    assert session_store["wc_sync_start_date"] == t1
-    assert session_store["wc_sync_end_date"] == t2
-
-    # Case 2: tuple of 1 date (during user selection)
-    _handle_fetch_orders((t1,))
-    assert session_store["wc_sync_start_date"] == t1
-    assert session_store["wc_sync_end_date"] == t1
-
-    # Case 3: empty tuple (during user clearing calendar)
-    _handle_fetch_orders(())
-    assert session_store["wc_sync_start_date"] == bd_today()
-    assert session_store["wc_sync_end_date"] == bd_today()
-
-    # Case 4: single date object
-    _handle_fetch_orders(t1)
-    assert session_store["wc_sync_start_date"] == t1
-    assert session_store["wc_sync_end_date"] == t1
-
-
 def test_no_invalid_status_state_warning():
     """Verify that no code in src/ calls status.update(state='warning').
 
@@ -205,82 +154,3 @@ def test_no_invalid_status_state_warning():
     assert not violations, (
         f"Found invalid state='warning' in st.status calls: {violations}"
     )
-
-
-def test_pathao_processor_order_id_order_number_equivalence():
-    """Verify that Order ID and Order Number are treated as interchangeable in Pathao Processor."""
-    from src.pages.pathao_orders.processing_tab import _detect_and_map_columns
-    from src.processing.order_processor import clean_dataframe, identify_columns
-
-    # 1. File with only "Order ID"
-    df_id_only = pd.DataFrame(
-        [
-            {
-                "Phone (Billing)": "01712345678",
-                "Full Name (Shipping)": "John Doe",
-                "Address 1&2 (Shipping)": "Dhanmondi, Dhaka",
-                "Order ID": "ORD-5001",
-                "Item Name": "Panjabi",
-                "Quantity": 1,
-                "Item Cost": 1500,
-                "Order Total Amount": 1500,
-            }
-        ]
-    )
-    mapped_df, mapping, missing = _detect_and_map_columns(df_id_only)
-    assert mapping["Order ID"] == "Order ID"
-    assert mapping["Order Number"] == "Order ID"
-    assert "Order ID" not in missing
-    assert "Order Number" not in missing
-    assert "Order Number" in mapped_df.columns
-    assert mapped_df["Order Number"].iloc[0] == "ORD-5001"
-
-    # 2. File with only "Order Number"
-    df_num_only = pd.DataFrame(
-        [
-            {
-                "Phone (Billing)": "01712345678",
-                "Full Name (Shipping)": "John Doe",
-                "Address 1&2 (Shipping)": "Dhanmondi, Dhaka",
-                "Order Number": "ORD-6002",
-                "Item Name": "Panjabi",
-                "Quantity": 1,
-                "Item Cost": 1500,
-                "Order Total Amount": 1500,
-            }
-        ]
-    )
-    mapped_df2, mapping2, missing2 = _detect_and_map_columns(df_num_only)
-    assert mapping2["Order Number"] == "Order Number"
-    assert mapping2["Order ID"] == "Order Number"
-    assert "Order ID" not in missing2
-    assert "Order Number" not in missing2
-    assert "Order ID" in mapped_df2.columns
-    assert mapped_df2["Order ID"].iloc[0] == "ORD-6002"
-
-    # 3. File with case-insensitive variation e.g. "order_id"
-    df_lower = pd.DataFrame(
-        [
-            {
-                "Phone (Billing)": "01712345678",
-                "Full Name (Shipping)": "John Doe",
-                "Address 1&2 (Shipping)": "Dhanmondi, Dhaka",
-                "order_id": "ORD-7003",
-                "Item Name": "Panjabi",
-                "Quantity": 1,
-                "Item Cost": 1500,
-                "Order Total Amount": 1500,
-            }
-        ]
-    )
-    mapped_df3, mapping3, missing3 = _detect_and_map_columns(df_lower)
-    assert mapping3["Order ID"] == "order_id"
-    assert mapping3["Order Number"] == "order_id"
-    assert "Order ID" not in missing3
-    assert "Order Number" not in missing3
-
-    # 4. order_processor identify_columns resilience
-    cleaned = clean_dataframe(df_id_only.copy())
-    assert "Order Number" in cleaned.columns
-    cols = identify_columns(cleaned)
-    assert cols["order_col"] in ("Order ID", "Order Number")

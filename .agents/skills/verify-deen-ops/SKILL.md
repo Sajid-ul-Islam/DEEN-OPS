@@ -1,8 +1,8 @@
 ---
 name: verify-deen-ops
 description: >-
-  Use this skill to run the required quality gates, unit test suite (79+ tests),
-  and 60-module import verification before concluding any code changes in DEEN-OPS Terminal.
+  Use this skill to run the required quality gates, unit test suite (360+ tests),
+  and 65-module import verification before concluding any code changes in DEEN-OPS Terminal.
 ---
 
 # DEEN-OPS Verification & Quality Gate
@@ -10,8 +10,8 @@ description: >-
 Run this verification workflow before concluding any refactor, feature addition, or bug fix.
 
 ## Quality Gate Criteria
-- **Unit Tests**: All 79+ unit tests in `tests/` must pass with 0 failures.
-- **Module Imports**: All 60 modules in `scripts/check_imports.py` must report `OK` with 0 failures.
+- **Unit Tests**: All 360+ unit tests in `tests/` must pass with 0 failures.
+- **Module Imports**: All 65 modules in `scripts/check_imports.py` must report `OK` with 0 failures.
 
 ## Verification Steps
 
@@ -20,24 +20,24 @@ Run this verification workflow before concluding any refactor, feature addition,
 **Windows (PowerShell)**:
 ```powershell
 $env:PYTHONPATH="."
-.venv\Scripts\pytest.exe tests/ -v
+py -m pytest tests/ -v
 ```
 
 **Linux / macOS (Bash)**:
 ```bash
-PYTHONPATH=. .venv/bin/pytest tests/ -v
+PYTHONPATH=. python -m pytest tests/ -v
 ```
 
 ### Step 2: Run Module Import Check
 
 **Windows (PowerShell)**:
 ```powershell
-.venv\Scripts\python.exe scripts/check_imports.py
+py scripts/check_imports.py
 ```
 
 **Linux / macOS (Bash)**:
 ```bash
-.venv/bin/python scripts/check_imports.py
+python scripts/check_imports.py
 ```
 
 ### Step 3: Evaluate Results

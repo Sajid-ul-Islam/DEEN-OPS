@@ -4,92 +4,53 @@
 # Rule 3: Core actions only in bottom nav
 # Rule 4: Settings NOT in bottom nav (already in sidebar)
 PRIMARY_NAV = [
-    "📈 Live Dashboard",  # Home - far left (Rule 1)
-    "🛒 Orders & Fulfillment",  # Core action 1
-    "📦 Inventory & Stock",  # Core action 2
-    "📊 Analytics & Insights",  # Core action 3
+    "📈 Live Dashboard",  # Home - far left
+    "📋 Product Listing",  # Product Listing (Outlet Dispatch, Picking & Pathao Bulk)
+    "🧩 Data Parser",  # Data Parser (Delivery Parsing & Item Description Helper)
+    "📊 Analytics & Insights",  # Core action: Analytics & Insights
 ]
 
-# Legacy nav items mapped to new consolidated structure
+# Legacy nav items mapped to consolidated structure
 LEGACY_NAV_MAPPING = {
     # Section: Live Dashboard
     "📈 Live Dashboard": "📈 Live Dashboard",
-    # Section: Orders & Fulfillment
-    "🛒 Order Tracking": "🛒 Orders & Fulfillment",
-    "🛒 Order tracking": "🛒 Orders & Fulfillment",
-    "📋 Product Listing": "🛒 Orders & Fulfillment",
-    "📦 Pathao Processor": "🛒 Orders & Fulfillment",
-    "🧩 Delivery Data Parser": "🛒 Orders & Fulfillment",
-    "Delivery Data Parser": "🛒 Orders & Fulfillment",
-    "🧩 Data Parser": "🛒 Orders & Fulfillment",
-    "Data Parser": "🛒 Orders & Fulfillment",
-    # Section: Inventory & Stock
-    "📦 Current Stock Analytics": "📦 Inventory & Stock",
-    "Current Stock Analytics": "📦 Inventory & Stock",
-    "SIP Stock - Smart Inventory with POS": "📦 Inventory & Stock",
-    "📦 SIP Stock - Smart Inventory with POS": "📦 Inventory & Stock",
+    # Section: Orders & Fulfillment (Legacy Fallback)
+    "🛒 Orders & Fulfillment": "📈 Live Dashboard",
+    "🛒 Order Tracking": "📈 Live Dashboard",
+    "🛒 Order tracking": "📈 Live Dashboard",
+    # Section: Product Listing (Moved to sidebar)
+    "📋 Product Listing": "📋 Product Listing",
+    "Product Listing": "📋 Product Listing",
+    "🏬 Outlet Dispatch & Product Listing": "📋 Product Listing",
+    "Outlet Dispatch & Product Listing": "📋 Product Listing",
+    "🏬 Outlet Wise Extractor": "📋 Product Listing",
+    "Outlet Wise Extractor": "📋 Product Listing",
+    "🏬 SIP Outlet Mapper": "📋 Product Listing",
+    "SIP Outlet Mapper": "📋 Product Listing",
+    # Section: Data Parser (Moved to sidebar)
+    "🧩 Data Parser": "🧩 Data Parser",
+    "Data Parser": "🧩 Data Parser",
+    "🧩 Delivery Data Parser": "🧩 Data Parser",
+    "Delivery Data Parser": "🧩 Data Parser",
+    "📦 Pathao Processor": "🧩 Data Parser",
+    # Section: Inventory & Stock (Legacy Fallback)
+    "📦 Current Stock Analytics": "📈 Live Dashboard",
+    "Current Stock Analytics": "📈 Live Dashboard",
+    "SIP Stock - Smart Inventory with POS": "📈 Live Dashboard",
+    "📦 SIP Stock - Smart Inventory with POS": "📈 Live Dashboard",
+    "📦 Inventory & Stock": "📈 Live Dashboard",
     # Section: Analytics & Insights
     "📥 Sales Data Ingestion": "📊 Analytics & Insights",
     "📉 Return Analytics": "📊 Analytics & Insights",
-    # Section: SIP / Outlet Wise Extractor (in Orders & Fulfillment)
-    "💬 WhatsApp Messaging": "🛒 Orders & Fulfillment",  # redirected to Orders
-    "🚀 Data Pilot": "🛒 Orders & Fulfillment",  # redirected to Orders
-    ":material/rocket_launch: Data Pilot": "🛒 Orders & Fulfillment",  # redirected to Orders
-    "🏬 Outlet Dispatch & Product Listing": "🛒 Orders & Fulfillment",
-    "Outlet Dispatch & Product Listing": "🛒 Orders & Fulfillment",
-    "🏬 SIP Outlet Mapper": "🛒 Orders & Fulfillment",
-    "SIP Outlet Mapper": "🛒 Orders & Fulfillment",
-    "🏬 Outlet Wise Extractor": "🛒 Orders & Fulfillment",
-    "Outlet Wise Extractor": "🛒 Orders & Fulfillment",
-    "Outlet Extractor": "🛒 Orders & Fulfillment",
-    "Outlet Manager": "🛒 Orders & Fulfillment",
-    "Outlet Wise Product Listing": "🛒 Orders & Fulfillment",
+    "📊 Analytics & Insights": "📊 Analytics & Insights",
 }
 
 LEGACY_SUBFEATURE_MAPPING = {
-    "🛒 Order Tracking": ("orders_sub_feature", "Order Tracking"),
-    "🛒 Order tracking": ("orders_sub_feature", "Order Tracking"),
-    "📋 Product Listing": ("orders_sub_feature", "Product Listing"),
-    "📦 Pathao Processor": ("orders_sub_feature", "Pathao Processor"),
-    "🧩 Delivery Data Parser": ("orders_sub_feature", "Delivery Data Parser"),
-    "Delivery Data Parser": ("orders_sub_feature", "Data Parser"),
-    "🧩 Data Parser": ("orders_sub_feature", "Data Parser"),
-    "Data Parser": ("orders_sub_feature", "Data Parser"),
-    "📦 Current Stock Analytics": ("inventory_sub_feature", "Current Stock Analytics"),
-    "Current Stock Analytics": (
-        "inventory_sub_feature",
-        "SIP Stock - Smart Inventory with POS",
-    ),
-    "SIP Stock - Smart Inventory with POS": (
-        "inventory_sub_feature",
-        "SIP Stock - Smart Inventory with POS",
-    ),
-    "📦 SIP Stock - Smart Inventory with POS": (
-        "inventory_sub_feature",
-        "SIP Stock - Smart Inventory with POS",
-    ),
     "📥 Sales Data Ingestion": ("analytics_sub_feature", "Sales Data Ingestion"),
     "📉 Return Analytics": ("analytics_sub_feature", "Returns"),
     "🔎 Return Orders Extractor": ("analytics_sub_feature", "Returns"),
-    "💬 WhatsApp Messaging": ("orders_sub_feature", "SIP Outlet Mapper"),
-    "🚀 Data Pilot": ("orders_sub_feature", "SIP Outlet Mapper"),
-    ":material/rocket_launch: Data Pilot": ("orders_sub_feature", "SIP Outlet Mapper"),
-    "🏬 Outlet Dispatch & Product Listing": (
-        "orders_sub_feature",
-        "Outlet Dispatch & Product Listing",
-    ),
-    "Outlet Dispatch & Product Listing": (
-        "orders_sub_feature",
-        "Outlet Dispatch & Product Listing",
-    ),
-    "🏬 SIP Outlet Mapper": ("orders_sub_feature", "SIP Outlet Mapper"),
-    "SIP Outlet Mapper": ("orders_sub_feature", "SIP Outlet Mapper"),
-    "🏬 Outlet Wise Extractor": ("orders_sub_feature", "Outlet Wise Extractor"),
-    "Outlet Wise Extractor": ("orders_sub_feature", "Outlet Wise Extractor"),
-    "Outlet Extractor": ("orders_sub_feature", "Outlet Wise Extractor"),
-    "Outlet Manager": ("orders_sub_feature", "Outlet Wise Extractor"),
-    "Outlet Wise Product Listing": ("orders_sub_feature", "Outlet Wise Extractor"),
 }
+
 
 CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"
 

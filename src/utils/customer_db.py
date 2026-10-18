@@ -22,8 +22,6 @@ from src.config.constants import RESOURCES_DIR
 from src.utils.text import normalize_city_name, normalize_phone_number
 
 CUSTOMER_DB_PATH = os.path.join(RESOURCES_DIR, "customer_registry.db")
-FULL_JSON_PATH = os.path.join(RESOURCES_DIR, "customer_registry_full.json")
-LEGACY_JSON_PATH = os.path.join(RESOURCES_DIR, "customer_registry.json")
 
 
 def _get_connection() -> sqlite3.Connection:
@@ -62,107 +60,6 @@ def init_customer_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_customers_first_seen ON customers(first_seen);"
         )
-
-
-def sync_json_to_db(force: bool = False) -> int:
-    """Bootstrap the SQLite database from existing JSON registry files.
-
-    Returns the number of customer records seeded.
-    """
-    init_customer_db()
-
-    with _get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM customers")
-        existing_count = cursor.fetchone()[0]
-        if existing_count > 0 and not force:
-            return existing_count
-
-        records_to_insert = []
-
-        # 1. First seed from customer_registry_full.json if available
-        if os.path.exists(FULL_JSON_PATH):
-            try:
-                import json
-
-                with open(FULL_JSON_PATH, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                for bucket in (
-                    "registered_customers",
-                    "guest_with_email",
-                    "guest_without_email",
-                ):
-                    bucket_dict = data.get(bucket, {})
-                    for key, entry in bucket_dict.items():
-                        if not isinstance(entry, dict):
-                            continue
-                        phone = entry.get("phone") or (
-                            key
-                            if not key.startswith("user_") and "@" not in key
-                            else ""
-                        )
-                        norm_phone = normalize_phone_number(phone)
-                        if not norm_phone:
-                            continue
-                        email = (entry.get("email") or "").strip().lower() or None
-                        name = (entry.get("name") or "").strip() or None
-                        city = normalize_city_name(entry.get("city") or "") or None
-                        first_seen = entry.get("first_seen") or "2020-01-01"
-
-                        records_to_insert.append(
-                            (
-                                norm_phone,
-                                email,
-                                name,
-                                city,
-                                first_seen,
-                                first_seen,
-                                bucket,
-                                1,
-                            )
-                        )
-            except Exception:
-                pass
-
-        # 2. Fallback / supplement from legacy customer_registry.json
-        if not records_to_insert and os.path.exists(LEGACY_JSON_PATH):
-            try:
-                import json
-
-                with open(LEGACY_JSON_PATH, "r", encoding="utf-8") as f:
-                    legacy_data = json.load(f)
-
-                for phone, first_seen in legacy_data.items():
-                    norm_phone = normalize_phone_number(phone)
-                    if norm_phone:
-                        records_to_insert.append(
-                            (
-                                norm_phone,
-                                None,
-                                None,
-                                None,
-                                str(first_seen),
-                                str(first_seen),
-                                "guest_without_email",
-                                1,
-                            )
-                        )
-            except Exception:
-                pass
-
-        if records_to_insert:
-            cursor.executemany(
-                """
-                INSERT OR REPLACE INTO customers (phone, email, name, city, first_seen, last_seen, bucket, order_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-                """,
-                records_to_insert,
-            )
-            conn.commit()
-
-        cursor.execute("SELECT COUNT(*) FROM customers")
-        return cursor.fetchone()[0]
 
 
 def lookup_customer(
