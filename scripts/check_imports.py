@@ -27,6 +27,7 @@ MODULES = [
     "src.processing.orders.product_aggregator",
     "src.processing.forecasting",
     "src.processing.delivery_parser",
+    "src.processing.sip_outlet_processor",
     "src.services.pathao.client",
     "src.services.pathao.orders",
     "src.services.pathao.dispatch_ledger",

@@ -1,64 +1,169 @@
-"""Product Listing & Warehouse Picking Workspace.
+"""Product Listing & Outlet Dispatch Workspace.
 
-Provides automated item and SKU aggregation, warehouse picking metrics,
-pastel group styling, and styled Excel exports for WooCommerce orders.
+Enables users to upload or sync WooCommerce order exports with SIP outlet data,
+automatically map item-wise dispatch locations, generate outlet-specific and global
+picking lists with pastel group styling, and export 15-column Pathao Bulk consignments
+with automated split-dispatch rules.
 """
 
 from __future__ import annotations
 
 import colorsys
+from typing import Optional
 
 import pandas as pd
 import streamlit as st
 
-from src.components.ui.ui_components import render_premium_header
+from src.components.ui.ui_components import render_metric_grid, render_premium_header
 from src.config.constants import bd_now, bd_today
 from src.processing.orders.product_aggregator import aggregate_product_listing
+from src.processing.sip_outlet_processor import (
+    auto_map_columns,
+    compute_sip_stats,
+    generate_outlet_product_listing,
+    generate_pathao_bulk_consignments,
+    is_inside_dhaka,
+    process_order_item_outlets,
+)
 from src.services.exports.excel_exporter import export_to_styled_excel
-from src.utils.file_io import read_uploaded
+from src.utils.file_io import read_uploaded, to_excel_bytes
+
+# Role -> (UI label, is the role required to run the mapping)
+_ROLE_LABELS = {
+    "order": ("Order Identifier", True),
+    "sip": ("SIP Routing JSON", True),
+    "item": ("Item Name", False),
+    "sku": ("SKU", False),
+    "qty": ("Quantity", False),
+    "name": ("Recipient Name", False),
+    "phone": ("Recipient Phone", False),
+    "address": ("Recipient Address", False),
+    "city": ("Recipient City", False),
+    "cost": ("Item Cost", False),
+}
 
 
-def _detect_column(cols: list[str], candidates: list[str], default_idx: int = 0) -> int:
-    """Find the best match column index from candidates (case-insensitive substring)."""
-    for cand in candidates:
-        for idx, col in enumerate(cols):
-            if cand.lower() in col.lower():
-                return idx
-    return default_idx
+def _render_column_mapping_ui(df: pd.DataFrame) -> dict[str, Optional[str]]:
+    """Auto-detect columns, render an editable mapping UI, return the mapping."""
+    auto = auto_map_columns(df)
+    cols = df.columns.tolist()
+    choices = ["(not found)"] + cols
+
+    mapping: dict[str, Optional[str]] = {}
+    with st.expander(
+        "⚙️ Column Mapping (auto-detected — adjust if needed)", expanded=False
+    ):
+        st.caption(
+            "Standard columns are detected automatically from your file headers. "
+            "Only the Order Identifier is required; everything else is optional — "
+            "missing optional columns degrade gracefully instead of failing."
+        )
+        n_roles = len(_ROLE_LABELS)
+        role_cols = st.columns(min(n_roles, 4))
+        for i, (role, (label, _required)) in enumerate(_ROLE_LABELS.items()):
+            detected = auto.get(role)
+            default = detected if detected is not None else "(not found)"
+            if default not in choices:
+                default = "(not found)"
+            with role_cols[i % len(role_cols)]:
+                chosen = st.selectbox(
+                    label,
+                    choices,
+                    index=choices.index(default),
+                    key=f"pl_map_{role}",
+                    help=(
+                        f"Auto-detected: {detected}"
+                        if detected is not None
+                        else "No matching column found — pick one manually or leave as '(not found)'."
+                    ),
+                )
+            mapping[role] = chosen if chosen != "(not found)" else None
+
+        missing_optional = [
+            _ROLE_LABELS[r][0]
+            for r, v in mapping.items()
+            if v is None and not _ROLE_LABELS[r][1]
+        ]
+        if missing_optional:
+            st.info(
+                "ℹ️ Optional columns not found: "
+                + ", ".join(missing_optional)
+                + ". The tool will continue without them."
+            )
+    return mapping
+
+
+def _apply_pastel_colors(
+    data_df: pd.DataFrame, color_col: Optional[str] = None
+) -> pd.DataFrame:
+    """Apply soft pastel color distinction to rows grouped by item/SKU with summary row emphasis."""
+    styles = pd.DataFrame("", index=data_df.index, columns=data_df.columns)
+    if not color_col or color_col not in data_df.columns:
+        return styles
+    content_df = data_df.iloc[:-1] if len(data_df) > 1 else data_df
+    unique_vals = content_df[color_col].unique()
+
+    color_dict = {}
+    for i, val in enumerate(unique_vals):
+        hue = (i * 0.618033988749895) % 1.0
+        rgb = colorsys.hls_to_rgb(hue, 0.94, 0.45)
+        color_dict[val] = "#%02x%02x%02x" % (
+            int(rgb[0] * 255),
+            int(rgb[1] * 255),
+            int(rgb[2] * 255),
+        )
+
+    for idx, row in content_df.iterrows():
+        val = row.get(color_col)
+        hex_c = color_dict.get(val, "#ffffff")
+        styles.loc[idx, :] = (
+            f"background-color: {hex_c}; color: #0f172a; font-weight: 500;"
+        )
+
+    if len(data_df) > 0:
+        last_idx = data_df.index[-1]
+        styles.loc[last_idx, :] = (
+            "background-color: #e2e8f0; color: #0f172a; "
+            "font-weight: 800; border-top: 2px solid #475569;"
+        )
+    return styles
 
 
 def render_product_listing_tab() -> None:
-    """Render the Product Listing & Warehouse Picking workspace."""
+    """Render the Product Listing & Outlet Dispatch workspace."""
     render_premium_header(
-        title="Product Listing & Picking List",
-        subtitle="Aggregate orders by Item Name and SKU variant for warehouse picking and dispatch.",
+        title="Product Listing & Outlet Dispatch",
+        subtitle="Consolidated picking lists, multi-outlet routing, and Pathao bulk dispatch.",
         icon="📋",
     )
 
-    df = None
-    data_source = st.radio(
+    # 1. Data Source Selection
+    source_opt = st.radio(
         "Select Data Source:",
-        ["Live WooCommerce Session", "Upload Excel / CSV File"],
+        [
+            "⚡ Live WooCommerce Session",
+            "📁 Upload Order File (Excel/CSV)",
+        ],
         horizontal=True,
-        key="pl_data_source",
+        key="pl_source_opt",
     )
 
-    if data_source == "Live WooCommerce Session":
-        # Check active session dataframe
-        live_df = st.session_state.get("wc_curr_df")
-        if live_df is None or live_df.empty:
-            live_df = st.session_state.get("wc_full_df")
+    df: Optional[pd.DataFrame] = None
 
-        if live_df is not None and not live_df.empty:
-            df = live_df.copy()
-            st.info(
-                f"Using active WooCommerce session data ({len(df):,} items loaded)."
-            )
+    if source_opt == "⚡ Live WooCommerce Session":
+        wc_df = st.session_state.get("wc_curr_df")
+        if wc_df is None or wc_df.empty:
+            wc_df = st.session_state.get("wc_full_df")
+        if wc_df is not None and not wc_df.empty:
+            df = wc_df.copy()
+            st.info(f"Loaded **{len(df):,}** order rows from live WooCommerce sync.")
         else:
-            st.warning("⚠️ No active WooCommerce order session found in memory.")
+            st.warning(
+                "No live order data in memory. Please sync orders or upload a file."
+            )
     else:
         uploaded_file = st.file_uploader(
-            "Upload Orders Export (Excel or CSV):",
+            "Upload Customer Order Spreadsheet (Excel or CSV):",
             type=["xlsx", "xls", "csv"],
             key="pl_file_uploader",
         )
@@ -73,251 +178,656 @@ def render_product_listing_tab() -> None:
         st.info("💡 Upload an order file or sync live WooCommerce data to proceed.")
         return
 
-    cols = df.columns.tolist()
-    if not cols:
-        st.error("Uploaded file has no columns.")
+    # 2. Column Mapping
+    mapping = _render_column_mapping_ui(df)
+    order_col = mapping["order"]
+    sip_col = mapping["sip"]
+
+    if order_col is None:
+        st.error(
+            "⚠️ No Order Identifier column detected. Please pick the column that "
+            "contains the order number (e.g. 'Order Number', 'Order ID') in the "
+            "Column Mapping section above."
+        )
         return
 
-    # Auto-detect best column matches
-    name_candidates = [
-        "Product Name",
-        "Item Name",
-        "Name",
-        "Product",
-        "Title",
-        "item_name",
+    if sip_col is None and "Item Outlet" not in df.columns:
+        st.warning(
+            "⚠️ No SIP routing column detected — all items will be assigned to the "
+            "default outlet (Warehouse). Select the SIP/Outlet JSON column above "
+            "if your file has one."
+        )
+
+    with st.expander("⚙️ Target Column & Outlet Settings", expanded=False):
+        c_set1, c_set2 = st.columns(2)
+        with c_set1:
+            target_col_name = st.text_input(
+                "Outlet Column Name:",
+                value="Item Outlet",
+                key="pl_target_col_name",
+            )
+        with c_set2:
+            canonical_toggle = st.checkbox(
+                "Canonical Outlet Names (e.g. 'mirpur-12' -> 'Mirpur')",
+                value=True,
+                key="pl_canonical_toggle",
+            )
+
+    # 3. Process DataFrame for Outlet Allocation
+    with st.spinner("Mapping item outlets..."):
+        processed_df = process_order_item_outlets(
+            df=df,
+            order_col=order_col,
+            sip_col=sip_col,
+            target_col=target_col_name,
+            canonical=canonical_toggle,
+        )
+        stats = compute_sip_stats(
+            df=processed_df,
+            order_col=order_col,
+            outlet_col=target_col_name,
+        )
+
+    # 4. Display Summary KPI Cards
+    metrics = [
+        {
+            "label": "Total Line Items",
+            "value": f"{stats['total_items']:,}",
+            "icon": "📦",
+        },
+        {"label": "Unique Orders", "value": f"{stats['total_orders']:,}", "icon": "🧾"},
+        {
+            "label": "Multi-Item Orders",
+            "value": f"{stats['multi_item_orders']:,}",
+            "icon": "🛍️",
+        },
+        {
+            "label": "Split Outlet Orders",
+            "value": f"{stats['split_orders_count']:,}",
+            "icon": "🔀",
+        },
     ]
-    qty_candidates = ["Quantity", "Qty", "quantity", "qty", "Units", "Count"]
-    sku_candidates = ["SKU", "sku", "Item SKU", "Product SKU", "Code"]
-    order_candidates = [
-        "Order ID",
-        "Order Number",
-        "Order #",
-        "order_id",
-        "ID",
-        "Order",
-    ]
-    date_candidates = [
-        "Order Date",
-        "Date",
-        "Order Date Modified",
-        "Created At",
-        "date",
-    ]
+    render_metric_grid(metrics)
 
-    item_idx = _detect_column(cols, name_candidates, 0)
-    qty_idx = _detect_column(cols, qty_candidates, 0)
-    sku_idx = _detect_column(cols, sku_candidates, 0)
-    order_idx = _detect_column(cols, order_candidates, 0)
-    date_idx = _detect_column(cols, date_candidates, 0)
-
-    # Column configuration selectors
-    with st.expander("⚙️ Column Configuration", expanded=False):
-        c1, c2, c3, c4, c5 = st.columns(5)
-        with c1:
-            item_col = st.selectbox(
-                "Item Name Column:",
-                cols,
-                index=item_idx,
-                key="pl_item_col",
-            )
-        with c2:
-            qty_col = st.selectbox(
-                "Quantity Column:",
-                cols,
-                index=qty_idx,
-                key="pl_qty_col",
-            )
-        with c3:
-            sku_options = ["None"] + cols
-            sku_default = cols[sku_idx] if cols[sku_idx] in sku_options else "None"
-            sku_col = st.selectbox(
-                "SKU Column (Optional):",
-                sku_options,
-                index=sku_options.index(sku_default),
-                key="pl_sku_col",
-            )
-        with c4:
-            order_options = ["None"] + cols
-            order_default = (
-                cols[order_idx] if cols[order_idx] in order_options else "None"
-            )
-            order_col = st.selectbox(
-                "Order ID Column:",
-                order_options,
-                index=order_options.index(order_default),
-                key="pl_order_col",
-            )
-        with c5:
-            date_options = ["None"] + cols
-            date_default = cols[date_idx] if cols[date_idx] in date_options else "None"
-            date_col = st.selectbox(
-                "Date Column (Optional):",
-                date_options,
-                index=date_options.index(date_default),
-                key="pl_date_col",
+    # 5. Outlet Breakdown
+    outlet_counts = stats.get("outlet_counts", {})
+    if outlet_counts:
+        st.markdown("##### 📍 Outlet Allocation Summary")
+        cols_b = st.columns(min(len(outlet_counts), 5))
+        for idx, (outlet, count) in enumerate(outlet_counts.items()):
+            col_target = cols_b[idx % len(cols_b)]
+            pct = (count / stats["total_items"] * 100) if stats["total_items"] else 0
+            col_target.metric(
+                label=outlet, value=f"{count:,} items", delta=f"{pct:.1f}%"
             )
 
-    # Grouping & Aggregation: sorted first item-wise, then SKU-wise
-    merged_df = aggregate_product_listing(
-        df,
-        item_col=item_col,
-        qty_col=qty_col,
-        sku_col=sku_col if sku_col != "None" else None,
-    )
-
-    tot_units = int(merged_df[qty_col].sum()) if not merged_df.empty else 0
-    tot_skus = len(merged_df)
-    unique_orders = (
-        df[order_col].nunique()
-        if (order_col != "None" and order_col in df.columns)
-        else len(df)
-    )
-
-    # Resolve Date
-    date_val = None
-    if date_col != "None" and date_col in df.columns:
-        dt_series = pd.to_datetime(df[date_col], errors="coerce").dropna()
-        if not dt_series.empty:
-            date_val = dt_series.max().strftime("%d %b %Y")
-        else:
-            first_valid = df[date_col].dropna()
-            if not first_valid.empty:
-                date_val = str(first_valid.iloc[-1])[:10]
-
-    if not date_val:
-        date_val = bd_today().strftime("%d %b %Y")
-
-    # Resolve Last Order Number
-    last_order_num = "—"
-    if order_col != "None" and order_col in df.columns:
-        valid_orders = df.dropna(subset=[order_col])
-        if not valid_orders.empty:
-            if date_col != "None" and date_col in valid_orders.columns:
-                try:
-                    sorted_df = valid_orders.sort_values(by=date_col, ascending=False)
-                    last_order_num = str(sorted_df[order_col].iloc[0])
-                except Exception:
-                    last_order_num = str(valid_orders[order_col].iloc[-1])
-            else:
-                try:
-                    num_ids = pd.to_numeric(valid_orders[order_col], errors="coerce")
-                    if num_ids.notna().any():
-                        last_order_num = str(int(num_ids.max()))
-                    else:
-                        last_order_num = str(valid_orders[order_col].iloc[-1])
-                except Exception:
-                    last_order_num = str(valid_orders[order_col].iloc[-1])
-
-    last_order_display = (
-        f"#{last_order_num}"
-        if (last_order_num != "—" and not str(last_order_num).startswith("#"))
-        else str(last_order_num)
-    )
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("📦 Total Required Units", f"{tot_units:,}")
-    m2.metric("🏷️ Unique SKUs / Products", f"{tot_skus:,}")
-    m3.metric(
-        "🛒 Total Orders",
-        f"{unique_orders:,}"
-        if isinstance(unique_orders, (int, float))
-        else f"{unique_orders}",
-    )
-    m4.metric("📋 Last Order & Date", f"{last_order_display} · {date_val}")
+    # 6. Split Orders Warning Card
+    if stats["split_orders_count"] > 0:
+        with st.expander(
+            f"⚠️ Split-Outlet Orders Detected ({stats['split_orders_count']} orders)",
+            expanded=False,
+        ):
+            st.warning(
+                "The following orders contain items dispatched from **multiple different outlets**. "
+                "These orders will require split fulfillment or partial dispatch:"
+            )
+            split_rows = []
+            for item in stats["split_orders"]:
+                order_id = item["order_id"]
+                sub = processed_df[processed_df[order_col] == order_id]
+                item_names = (
+                    sub[mapping["item"]].tolist()
+                    if mapping["item"] and mapping["item"] in sub
+                    else []
+                )
+                outlets = sub[target_col_name].tolist()
+                items_detail = (
+                    " | ".join(
+                        [f"{name} ({out})" for name, out in zip(item_names, outlets)]
+                    )
+                    if item_names
+                    else item["summary"]
+                )
+                split_rows.append(
+                    {
+                        "Order Number": order_id,
+                        "Items Count": item["item_count"],
+                        "Outlets": item["summary"],
+                        "Details": items_detail,
+                    }
+                )
+            st.dataframe(
+                pd.DataFrame(split_rows), use_container_width=True, hide_index=True
+            )
 
     st.divider()
 
-    # Construct the summary last row
-    orders_label = (
-        f"{unique_orders:,} Orders"
-        if isinstance(unique_orders, (int, float))
-        else f"{unique_orders}"
-    )
-    summary_row = {}
-    if sku_col != "None" and sku_col in merged_df.columns:
-        summary_row[item_col] = (
-            f"TOTAL: {orders_label} | Last Order: {last_order_display}"
-        )
-        summary_row[sku_col] = f"Date: {date_val}"
-    else:
-        summary_row[item_col] = (
-            f"TOTAL: {orders_label} | Last Order: {last_order_display} | Date: {date_val}"
-        )
-    summary_row[qty_col] = tot_units
-
-    display_df = (
-        pd.concat([merged_df, pd.DataFrame([summary_row])], ignore_index=True)
-        if not merged_df.empty
-        else merged_df
+    # 7. Multi-View Tabs
+    tab_full, tab_wh_listing, tab_global_listing, tab_pathao = st.tabs(
+        [
+            "📋 Outlets & Fulfillment Matrix",
+            "🏭 Outlet-Wise Picking List",
+            "📦 Global Product Listing",
+            "🚚 Pathao Bulk Consignments",
+        ]
     )
 
-    # Style table with pastel group coloring
-    def _apply_pastel_colors(data_df: pd.DataFrame) -> pd.DataFrame:
-        styles = pd.DataFrame("", index=data_df.index, columns=data_df.columns)
-        color_col = (
-            item_col
-            if item_col in data_df.columns
-            else (sku_col if sku_col != "None" else None)
-        )
-        if not color_col:
-            return styles
-        content_df = data_df.iloc[:-1] if len(data_df) > 1 else data_df
-        unique_vals = content_df[color_col].unique()
+    with tab_full:
+        st.markdown(f"##### 📋 Order Line Items with '{target_col_name}' Column")
 
-        color_dict = {}
-        for i, val in enumerate(unique_vals):
-            hue = (i * 0.618033988749895) % 1.0
-            rgb = colorsys.hls_to_rgb(hue, 0.94, 0.45)
-            color_dict[val] = "#%02x%02x%02x" % (
-                int(rgb[0] * 255),
-                int(rgb[1] * 255),
-                int(rgb[2] * 255),
+        c_filter, c_search = st.columns([2, 2])
+        with c_filter:
+            avail_outlets = ["All Outlets"] + list(outlet_counts.keys())
+            selected_outlet = st.selectbox(
+                "Filter by Outlet:", avail_outlets, key="pl_outlet_filter"
+            )
+        with c_search:
+            search_query = st.text_input(
+                "Search Order or Item:", "", key="pl_search_query"
             )
 
-        for idx, row in content_df.iterrows():
-            val = row[color_col]
-            hex_c = color_dict.get(val, "#ffffff")
-            styles.loc[idx, :] = (
-                f"background-color: {hex_c}; color: #0f172a; font-weight: 500;"
+        matrix_display_df = processed_df.copy()
+        if selected_outlet != "All Outlets":
+            matrix_display_df = matrix_display_df[
+                matrix_display_df[target_col_name] == selected_outlet
+            ]
+
+        if search_query.strip():
+            q = search_query.strip().lower()
+            mask = (
+                matrix_display_df.astype(str)
+                .apply(lambda row: row.str.lower().str.contains(q, regex=False))
+                .any(axis=1)
+            )
+            matrix_display_df = matrix_display_df[mask]
+
+        st.caption(
+            f"Showing **{len(matrix_display_df):,}** of **{len(processed_df):,}** rows"
+        )
+        st.dataframe(matrix_display_df, use_container_width=True)
+
+        excel_bytes = to_excel_bytes(processed_df, sheet_name="Order_Item_Outlets")
+        st.download_button(
+            label=f"📥 Download Enriched Excel with '{target_col_name}'",
+            data=excel_bytes,
+            file_name="orders_with_item_outlets.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
+            use_container_width=True,
+        )
+
+    with tab_wh_listing:
+        c_pick_out = st.columns([2])[0]
+        with c_pick_out:
+            listing_outlet_options = (
+                ["Warehouse"]
+                + [o for o in outlet_counts.keys() if o != "Warehouse"]
+                + ["All"]
+            )
+            selected_listing_outlet = st.selectbox(
+                "Select Outlet for Product Listing:",
+                listing_outlet_options,
+                index=0,
+                key="pl_listing_outlet_choice",
             )
 
-        # Highlight the last summary row
-        if len(data_df) > 0:
-            last_idx = data_df.index[-1]
-            styles.loc[last_idx, :] = (
-                "background-color: #e2e8f0; color: #0f172a; "
-                "font-weight: 800; border-top: 2px solid #475569;"
+        pl_item_col = mapping["item"]
+        pl_sku_col = mapping["sku"]
+        pl_qty_col = mapping["qty"]
+
+        if pl_item_col is None:
+            st.warning(
+                "⚠️ No Item Name column mapped — cannot build the picking list. "
+                "Set the 'Item Name' mapping in the Column Mapping section above."
             )
-        return styles
+        else:
+            filtered_raw = (
+                processed_df[processed_df[target_col_name] == selected_listing_outlet]
+                if selected_listing_outlet != "All"
+                else processed_df
+            )
 
-    st.markdown("### 📋 Aggregated Product Picking List")
-    st.dataframe(
-        display_df.style.apply(_apply_pastel_colors, axis=None),
-        use_container_width=True,
-        height=min(600, max(300, len(display_df) * 35 + 40)),
-        column_config={
-            qty_col: st.column_config.NumberColumn("📦 Total Quantity", format="%d"),
-            item_col: st.column_config.TextColumn("🛍️ Item Name"),
-        },
-    )
+            outlet_listing_df = generate_outlet_product_listing(
+                df=processed_df,
+                outlet=selected_listing_outlet,
+                item_col=pl_item_col,
+                qty_col=pl_qty_col,
+                sku_col=pl_sku_col,
+                outlet_col=target_col_name,
+            )
 
-    # Export to styled Excel
-    export_col = (
-        item_col
-        if item_col in display_df.columns
-        else (sku_col if sku_col != "None" else None)
-    )
-    excel_bytes = export_to_styled_excel(
-        {"Product Listing": display_df},
-        group_by_col=export_col,
-    )
+            if outlet_listing_df.empty:
+                st.warning(
+                    f"No line items found for outlet **{selected_listing_outlet}**."
+                )
+            else:
+                qty_sum_col = (
+                    pl_qty_col
+                    if pl_qty_col and pl_qty_col in outlet_listing_df.columns
+                    else "__qty_placeholder__"
+                )
+                tot_units = int(outlet_listing_df[qty_sum_col].sum())
+                tot_skus = len(outlet_listing_df)
+                unique_orders = (
+                    filtered_raw[order_col].nunique()
+                    if order_col in filtered_raw
+                    else len(filtered_raw)
+                )
 
-    st.download_button(
-        label="📥 Download Styled Product Listing (Excel)",
-        data=excel_bytes,
-        file_name=f"Product_Listing_{bd_now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        type="primary",
-        use_container_width=True,
-    )
+                # Resolve Date from order data
+                date_val = None
+                for c in ["Order Date", "Date", "date", "created_at"]:
+                    if c in filtered_raw.columns:
+                        dt_series = pd.to_datetime(
+                            filtered_raw[c], errors="coerce"
+                        ).dropna()
+                        if not dt_series.empty:
+                            date_val = dt_series.max().strftime("%d %b %Y")
+                        else:
+                            first_valid = filtered_raw[c].dropna()
+                            if not first_valid.empty:
+                                date_val = str(first_valid.iloc[-1])[:10]
+                        break
+                if not date_val:
+                    date_val = bd_today().strftime("%d %b %Y")
+
+                # Resolve Last Order Number
+                last_order_num = "—"
+                if order_col in filtered_raw.columns:
+                    valid_orders = filtered_raw.dropna(subset=[order_col])
+                    if not valid_orders.empty:
+                        try:
+                            num_ids = pd.to_numeric(
+                                valid_orders[order_col], errors="coerce"
+                            )
+                            if num_ids.notna().any():
+                                last_order_num = str(int(num_ids.max()))
+                            else:
+                                last_order_num = str(valid_orders[order_col].iloc[-1])
+                        except Exception:
+                            last_order_num = str(valid_orders[order_col].iloc[-1])
+
+                last_order_display = (
+                    f"#{last_order_num}"
+                    if (
+                        last_order_num != "—"
+                        and not str(last_order_num).startswith("#")
+                    )
+                    else str(last_order_num)
+                )
+
+                # 4 KPI Metrics
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("📦 Total Required Units", f"{tot_units:,}")
+                m2.metric("🏷️ Unique SKUs / Products", f"{tot_skus:,}")
+                m3.metric(
+                    "🛒 Total Orders",
+                    f"{unique_orders:,}"
+                    if isinstance(unique_orders, (int, float))
+                    else f"{unique_orders}",
+                )
+                m4.metric("📋 Last Order & Date", f"{last_order_display} · {date_val}")
+
+                st.divider()
+
+                # Construct summary last row
+                orders_label = (
+                    f"{unique_orders:,} Orders"
+                    if isinstance(unique_orders, (int, float))
+                    else f"{unique_orders}"
+                )
+                summary_row = {}
+                if pl_sku_col and pl_sku_col in outlet_listing_df.columns:
+                    summary_row[pl_item_col] = (
+                        f"TOTAL: {orders_label} | Last Order: {last_order_display}"
+                    )
+                    summary_row[pl_sku_col] = f"Date: {date_val}"
+                else:
+                    summary_row[pl_item_col] = (
+                        f"TOTAL: {orders_label} | Last Order: {last_order_display} | Date: {date_val}"
+                    )
+                summary_row[qty_sum_col] = tot_units
+
+                wh_display_df = pd.concat(
+                    [outlet_listing_df, pd.DataFrame([summary_row])], ignore_index=True
+                )
+
+                export_col = (
+                    pl_item_col
+                    if pl_item_col in wh_display_df.columns
+                    else (pl_sku_col if pl_sku_col else None)
+                )
+
+                st.markdown(f"### 📋 Picking List — {selected_listing_outlet}")
+                column_cfg = {
+                    qty_sum_col: st.column_config.NumberColumn(
+                        "📦 Total Quantity", format="%d"
+                    ),
+                    pl_item_col: st.column_config.TextColumn("🛍️ Item Name"),
+                }
+                st.dataframe(
+                    wh_display_df.style.apply(
+                        lambda d: _apply_pastel_colors(d, color_col=export_col),
+                        axis=None,
+                    ),
+                    use_container_width=True,
+                    height=min(600, max(300, len(wh_display_df) * 35 + 40)),
+                    column_config=column_cfg,
+                )
+
+                # Export to styled Excel
+                excel_styled_bytes = export_to_styled_excel(
+                    {f"{selected_listing_outlet} Picking List": wh_display_df},
+                    group_by_col=export_col,
+                )
+
+                st.download_button(
+                    label=f"📥 Download Styled {selected_listing_outlet} Product Listing (Excel)",
+                    data=excel_styled_bytes,
+                    file_name=f"{selected_listing_outlet.lower().replace(' ', '_')}_picking_list_{bd_now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+    with tab_global_listing:
+        st.markdown("### 📦 Global Product Listing & SKU Aggregator")
+        st.caption(
+            "Consolidated picking list across all orders and outlets. Groups items and SKUs, "
+            "calculates required fulfillment quantities, applies pastel visual grouping, and exports styled Excel."
+        )
+
+        c_g_filter, _ = st.columns([2, 2])
+        with c_g_filter:
+            g_outlet_choices = ["🌐 All Outlets (Global)"] + list(outlet_counts.keys())
+            selected_g_outlet = st.selectbox(
+                "Filter Scope:",
+                g_outlet_choices,
+                key="pl_global_outlet_scope",
+            )
+
+        g_item_col = mapping["item"]
+        g_sku_col = mapping["sku"]
+        g_qty_col = mapping["qty"]
+
+        if g_item_col is None:
+            st.warning(
+                "⚠️ No Item Name column mapped — cannot build the global picking list."
+            )
+        else:
+            g_filtered_df = processed_df.copy()
+            if selected_g_outlet != "🌐 All Outlets (Global)":
+                g_filtered_df = g_filtered_df[
+                    g_filtered_df[target_col_name] == selected_g_outlet
+                ]
+
+            if g_qty_col is None or g_qty_col not in g_filtered_df.columns:
+                g_filtered_df["_Auto_Qty"] = 1
+                effective_qty_col = "_Auto_Qty"
+            else:
+                effective_qty_col = g_qty_col
+
+            g_merged_df = aggregate_product_listing(
+                g_filtered_df,
+                item_col=g_item_col,
+                qty_col=effective_qty_col,
+                sku_col=g_sku_col,
+            )
+
+            if g_merged_df.empty:
+                st.warning("No records available to aggregate.")
+            else:
+                tot_units = int(g_merged_df[effective_qty_col].sum())
+                tot_skus = len(g_merged_df)
+                unique_orders = (
+                    g_filtered_df[order_col].nunique()
+                    if order_col in g_filtered_df
+                    else len(g_filtered_df)
+                )
+
+                # Resolve Date
+                date_val = None
+                for c in ["Order Date", "Date", "date", "created_at"]:
+                    if c in g_filtered_df.columns:
+                        dt_series = pd.to_datetime(
+                            g_filtered_df[c], errors="coerce"
+                        ).dropna()
+                        if not dt_series.empty:
+                            date_val = dt_series.max().strftime("%d %b %Y")
+                        else:
+                            first_valid = g_filtered_df[c].dropna()
+                            if not first_valid.empty:
+                                date_val = str(first_valid.iloc[-1])[:10]
+                        break
+                if not date_val:
+                    date_val = bd_today().strftime("%d %b %Y")
+
+                # Resolve Last Order Number
+                last_order_num = "—"
+                if order_col in g_filtered_df.columns:
+                    valid_orders = g_filtered_df.dropna(subset=[order_col])
+                    if not valid_orders.empty:
+                        try:
+                            num_ids = pd.to_numeric(
+                                valid_orders[order_col], errors="coerce"
+                            )
+                            if num_ids.notna().any():
+                                last_order_num = str(int(num_ids.max()))
+                            else:
+                                last_order_num = str(valid_orders[order_col].iloc[-1])
+                        except Exception:
+                            last_order_num = str(valid_orders[order_col].iloc[-1])
+
+                last_order_display = (
+                    f"#{last_order_num}"
+                    if (
+                        last_order_num != "—"
+                        and not str(last_order_num).startswith("#")
+                    )
+                    else str(last_order_num)
+                )
+
+                gm1, gm2, gm3, gm4 = st.columns(4)
+                gm1.metric("📦 Total Units Required", f"{tot_units:,}")
+                gm2.metric("🏷️ Unique SKUs / Products", f"{tot_skus:,}")
+                gm3.metric(
+                    "🛒 Total Orders",
+                    f"{unique_orders:,}"
+                    if isinstance(unique_orders, (int, float))
+                    else f"{unique_orders}",
+                )
+                gm4.metric("📋 Last Order & Date", f"{last_order_display} · {date_val}")
+
+                st.divider()
+
+                # Construct summary last row
+                orders_label = (
+                    f"{unique_orders:,} Orders"
+                    if isinstance(unique_orders, (int, float))
+                    else f"{unique_orders}"
+                )
+                summary_row = {}
+                if g_sku_col and g_sku_col in g_merged_df.columns:
+                    summary_row[g_item_col] = (
+                        f"TOTAL: {orders_label} | Last Order: {last_order_display}"
+                    )
+                    summary_row[g_sku_col] = f"Date: {date_val}"
+                else:
+                    summary_row[g_item_col] = (
+                        f"TOTAL: {orders_label} | Last Order: {last_order_display} | Date: {date_val}"
+                    )
+                summary_row[effective_qty_col] = tot_units
+
+                g_display_df = pd.concat(
+                    [g_merged_df, pd.DataFrame([summary_row])], ignore_index=True
+                )
+
+                export_col = (
+                    g_item_col
+                    if g_item_col in g_display_df.columns
+                    else (
+                        g_sku_col
+                        if g_sku_col and g_sku_col in g_display_df.columns
+                        else None
+                    )
+                )
+
+                col_cfg = {
+                    effective_qty_col: st.column_config.NumberColumn(
+                        "📦 Total Quantity", format="%d"
+                    ),
+                    g_item_col: st.column_config.TextColumn("🛍️ Item Name"),
+                }
+                st.dataframe(
+                    g_display_df.style.apply(
+                        lambda d: _apply_pastel_colors(d, color_col=export_col),
+                        axis=None,
+                    ),
+                    use_container_width=True,
+                    height=min(600, max(300, len(g_display_df) * 35 + 40)),
+                    column_config=col_cfg,
+                )
+
+                # Export to styled Excel
+                excel_styled_bytes = export_to_styled_excel(
+                    {"Global Product Listing": g_display_df},
+                    group_by_col=export_col,
+                )
+
+                st.download_button(
+                    label="📥 Download Styled Global Product Listing (Excel)",
+                    data=excel_styled_bytes,
+                    file_name=f"global_product_listing_{bd_now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+    with tab_pathao:
+        st.markdown("### 🚚 Pathao Bulk Upload Consignments")
+        st.caption(
+            "Auto-generates 15-column Pathao Bulk Upload sheet. Orders with items across multiple outlets are split into separate consignments: "
+            "Warehouse & Mirpur dispatch together (default order ID), Cumilla adds ' c', Sylhet adds ' s', and Wari adds ' w'. "
+            "Delivery fee (50 Tk inside Dhaka, 90 Tk outside Dhaka) is added to the first dispatch only."
+        )
+
+        with st.expander("⚙️ Pathao Consignment Settings", expanded=False):
+            pc1, pc2, pc3, pc4 = st.columns(4)
+            with pc1:
+                store_name_val = st.text_input(
+                    "Store Name:", value="DEEN", key="pl_pathao_store_name"
+                )
+            with pc2:
+                in_dhaka_fee = st.number_input(
+                    "Inside Dhaka Fee (Tk):", value=50, step=5, key="pl_pathao_in_fee"
+                )
+            with pc3:
+                out_dhaka_fee = st.number_input(
+                    "Outside Dhaka Fee (Tk):", value=90, step=5, key="pl_pathao_out_fee"
+                )
+            with pc4:
+                def_weight_val = st.text_input(
+                    "Default Weight (kg):", value="0.5", key="pl_pathao_weight"
+                )
+
+        pathao_df = generate_pathao_bulk_consignments(
+            df=processed_df,
+            store_name=store_name_val,
+            inside_dhaka_fee=int(in_dhaka_fee),
+            outside_dhaka_fee=int(out_dhaka_fee),
+            default_weight=def_weight_val,
+            order_col=order_col,
+            sip_col=sip_col if sip_col else "SIP",
+            target_col=target_col_name,
+            sku_col=mapping.get("sku"),
+        )
+
+        if pathao_df.empty:
+            st.warning("No consignments generated.")
+        else:
+            tot_consignments = len(pathao_df)
+            tot_cod = int(
+                pd.to_numeric(pathao_df["AmountToCollect(*)"], errors="coerce")
+                .fillna(0)
+                .sum()
+            )
+            split_consignments_count = len(
+                pathao_df[
+                    pathao_df["SpecialInstruction"].str.contains("Split Part", na=False)
+                ]
+            )
+            inside_dhaka_count = sum(
+                1
+                for _, r in pathao_df.iterrows()
+                if is_inside_dhaka(r["RecipientCity(*)"], r["RecipientAddress(*)"])
+            )
+            outside_dhaka_count = tot_consignments - inside_dhaka_count
+
+            pm1, pm2, pm3, pm4 = st.columns(4)
+            pm1.metric("📦 Total Consignments", f"{tot_consignments:,}")
+            pm2.metric("🔀 Split Consignments", f"{split_consignments_count:,}")
+            pm3.metric("💰 Total Amount to Collect", f"৳{tot_cod:,}")
+            pm4.metric(
+                "🏙️ Dhaka / Outside",
+                f"{inside_dhaka_count} in / {outside_dhaka_count} out",
+            )
+
+            st.divider()
+
+            # Filter and search Pathao records
+            c_p_filter, c_p_search = st.columns([2, 2])
+            with c_p_filter:
+                p_outlets = ["All Outlets"] + [
+                    o for o in pathao_df["WarehouseOutlet"].dropna().unique() if o
+                ]
+                selected_p_outlet = st.selectbox(
+                    "Filter Consignments by Outlet:",
+                    p_outlets,
+                    key="pl_pathao_outlet_filter",
+                )
+            with c_p_search:
+                p_search_q = st.text_input(
+                    "Search Consignments (ID, Phone, Name):",
+                    "",
+                    key="pl_pathao_search_q",
+                )
+
+            p_display = pathao_df.copy()
+            if selected_p_outlet != "All Outlets":
+                p_display = p_display[p_display["WarehouseOutlet"] == selected_p_outlet]
+
+            if p_search_q.strip():
+                pq = p_search_q.strip().lower()
+                p_mask = (
+                    p_display.astype(str)
+                    .apply(lambda row: row.str.lower().str.contains(pq, regex=False))
+                    .any(axis=1)
+                )
+                p_display = p_display[p_mask]
+
+            st.caption(
+                f"Showing **{len(p_display):,}** of **{len(pathao_df):,}** consignments"
+            )
+            st.dataframe(p_display, use_container_width=True)
+
+            # Download buttons for Pathao Bulk (Excel and CSV)
+            c_d1, c_d2 = st.columns(2)
+            with c_d1:
+                pathao_excel_bytes = to_excel_bytes(pathao_df, sheet_name="Pathao_Bulk")
+                st.download_button(
+                    label="📥 Download Pathao Bulk Upload (.xlsx)",
+                    data=pathao_excel_bytes,
+                    file_name=f"pathao_bulk_upload_{bd_now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary",
+                    use_container_width=True,
+                )
+            with c_d2:
+                pathao_csv_bytes = pathao_df.to_csv(index=False).encode("utf-8-sig")
+                st.download_button(
+                    label="📥 Download Pathao Bulk Upload (.csv)",
+                    data=pathao_csv_bytes,
+                    file_name=f"pathao_bulk_upload_{bd_now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
