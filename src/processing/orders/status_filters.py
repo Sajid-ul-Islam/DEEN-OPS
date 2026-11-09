@@ -98,6 +98,21 @@ def _detect_exchange_mask(df: pd.DataFrame) -> pd.Series:
             s = df[col].astype(str).str.lower().str.strip()
             mask |= ~s.isin(["", "nan", "none", "null", "0", "false", "[]"])
 
+    # 7. Order ID or Consignment Prefix (D-17839, DD-17839, EX-17839)
+    for oc in [
+        "Order ID",
+        "order_id",
+        "Order Number",
+        "Pathao Consignment ID",
+        "Consignment ID",
+    ]:
+        if oc in df.columns:
+            mask |= (
+                df[oc]
+                .astype(str)
+                .str.contains(r"^(?:d|dd|ex)[-_]\d+$", case=False, regex=True)
+            )
+
     return mask
 
 

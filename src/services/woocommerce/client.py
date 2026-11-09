@@ -1145,8 +1145,13 @@ def load_live_source(force_refresh=False):
             try:
                 from src.utils.snapshots import save_sales_snapshot
 
-                if df_new is not None and not df_new.empty:
-                    save_sales_snapshot(df_new)
+                snapshot_df = (
+                    full_df_candidate
+                    if full_df_candidate is not None and not full_df_candidate.empty
+                    else df_new
+                )
+                if snapshot_df is not None and not snapshot_df.empty:
+                    save_sales_snapshot(snapshot_df)
             except Exception:
                 pass
 

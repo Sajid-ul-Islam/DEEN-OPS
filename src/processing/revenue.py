@@ -49,9 +49,12 @@ def compute_revenue_breakdown(df: pd.DataFrame) -> dict:
         float((df[qty_col] * df[cost_col]).sum()) if qty_col and cost_col else 0.0
     )
 
-    gross = (
-        float(df["Gross Amount"].sum()) if "Gross Amount" in df.columns else item_rev
-    )
+    if "Gross Amount" in df.columns:
+        gross = float(df["Gross Amount"].sum())
+    elif "Line Total" in df.columns:
+        gross = float(df["Line Total"].sum())
+    else:
+        gross = item_rev
     cashback = (
         float(df["Cashback Discount"].sum())
         if "Cashback Discount" in df.columns

@@ -112,7 +112,7 @@ def render_operational_metrics(
 
     # 1. Primary Benchmark: Compare vs average of last 7 days (User Requirement)
     timeline_report = None
-    full_df = st.session_state.get("wc_full_df")
+    full_df = _resolve_full_df(st)
     if full_df is not None and not full_df.empty and dashboard_view != "Queue":
         try:
             from src.processing.completed_analytics import filter_online_orders
@@ -658,15 +658,66 @@ def render_operational_metrics(
         else ""
     )
 
-    # Previous slot comparison for Customer Mix
+    # Benchmark comparison for Customer Mix (vs 7D Avg if available, otherwise comparison frame)
     html_dcust = ""
-    if c_df is not None and not c_df.empty:
-        try:
-            full_ref = (
-                full_df
-                if "full_df" in locals() and full_df is not None and not full_df.empty
-                else m_df
-            )
+    try:
+        full_ref = (
+            full_df
+            if "full_df" in locals() and full_df is not None and not full_df.empty
+            else m_df
+        )
+        if (
+            timeline_report is not None
+            and cmp_badge_label == "7D Avg"
+            and full_ref is not None
+            and not full_ref.empty
+        ):
+            from datetime import date as _date
+            from src.processing.orders.timeline_7d import filter_orders_to_date
+
+            tot_new, tot_ret = 0, 0
+            for day_summary in timeline_report.days:
+                try:
+                    d_obj = _date.fromisoformat(day_summary.date_iso)
+                    d_slice = filter_orders_to_date(full_ref, d_obj)
+                    if not d_slice.empty:
+                        dn, dr = compute_new_vs_returning_counts(
+                            d_slice, full_ref, wc_raw_mapping
+                        )
+                        tot_new += dn
+                        tot_ret += dr
+                except Exception:
+                    pass
+            co_new_cnt = tot_new / 7.0
+            co_ret_cnt = tot_ret / 7.0
+            co_tot = co_new_cnt + co_ret_cnt
+            if co_tot > 0:
+                d_new = m_new_cnt - co_new_cnt
+                pct_new_change = (
+                    ((m_new_cnt - co_new_cnt) / co_new_cnt * 100)
+                    if co_new_cnt > 0
+                    else (100.0 if m_new_cnt > 0 else 0.0)
+                )
+                d_new_str = (
+                    f"{d_new:+.0f} New" if abs(d_new) >= 1 else f"{d_new:+.1f} New"
+                )
+                prev_n_fmt = (
+                    f"{co_new_cnt:.1f}"
+                    if abs(co_new_cnt - round(co_new_cnt)) > 0.05
+                    else f"{co_new_cnt:.0f}"
+                )
+                prev_r_fmt = (
+                    f"{co_ret_cnt:.1f}"
+                    if abs(co_ret_cnt - round(co_ret_cnt)) > 0.05
+                    else f"{co_ret_cnt:.0f}"
+                )
+                html_dcust = _format_delta_html(
+                    d_new_str,
+                    prev_val_str=f"{prev_n_fmt}N / {prev_r_fmt}R",
+                    pct_val=pct_new_change,
+                    cmp_label=cmp_badge_label,
+                )
+        elif c_df is not None and not c_df.empty:
             co_new_cnt, co_ret_cnt = compute_new_vs_returning_counts(
                 c_df, full_ref, wc_raw_mapping
             )
@@ -685,8 +736,8 @@ def render_operational_metrics(
                     pct_val=pct_new_change,
                     cmp_label=cmp_badge_label,
                 )
-        except Exception:
-            pass
+    except Exception:
+        pass
 
     # Exchange sub-badge for the orders card — shown whenever there are
     # exchange orders, so the count is visible across all dashboard views.

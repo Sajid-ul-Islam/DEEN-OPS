@@ -17,7 +17,6 @@ from src.processing.orders.date_utils import (
     get_previous_working_day,
     safe_coerce_datetime_naive,
 )
-from src.processing.orders.exchange_detector import detect_order_exchange
 
 
 @dataclass
@@ -107,24 +106,6 @@ def build_7day_dispatch_timeline(
     qty_col = next(
         (c for c in ["Quantity", "quantity", "Total Qty"] if c in df.columns), None
     )
-    total_col = next(
-        (
-            c
-            for c in [
-                "Line Total",
-                "Total Amount",
-                "Order Total Amount",
-                "Total Price",
-                "Subtotal Cost",
-                "total",
-            ]
-            if c in df.columns
-        ),
-        None,
-    )
-    cost_col = next(
-        (c for c in ["Item Cost", "cost", "Item Price"] if c in df.columns), None
-    )
 
     comp_col = next(
         (c for c in ["date_completed", "Date Completed"] if c in df.columns),
@@ -200,38 +181,14 @@ def build_7day_dispatch_timeline(
             else len(day_subset)
         )
 
-        # Sum revenue (excluding replacement orders if zero-cost or marked exchange)
-        rev = 0.0
-        if total_col:
-            rev = float(
-                pd.to_numeric(day_subset[total_col], errors="coerce").fillna(0).sum()
-            )
-        elif cost_col and qty_col:
-            rev = float(
-                (
-                    pd.to_numeric(day_subset[cost_col], errors="coerce")
-                    * pd.to_numeric(day_subset[qty_col], errors="coerce")
-                )
-                .fillna(0)
-                .sum()
-            )
-        elif cost_col:
-            rev = float(
-                pd.to_numeric(day_subset[cost_col], errors="coerce").fillna(0).sum()
-            )
+        from src.processing.revenue import (
+            compute_revenue_breakdown,
+            count_exchange_orders,
+        )
 
-        aov = (rev / unique_orders) if unique_orders > 0 else 0.0
-
-        # Count exchanges
-        ex_count = 0
-        seen_ex_ids = set()
-        for _, row in day_subset.iterrows():
-            oid = str(row.get(order_id_col, "")).strip()
-            if oid and oid not in seen_ex_ids:
-                if detect_order_exchange(row).is_exchange:
-                    seen_ex_ids.add(oid)
-                    ex_count += 1
-
+        rev_info = compute_revenue_breakdown(day_subset)
+        rev = float(rev_info["gross"])
+        ex_count = count_exchange_orders(day_subset, order_id_col=order_id_col)
         reg_orders = max(0, unique_orders - ex_count)
         aov = (
             (rev / reg_orders)
