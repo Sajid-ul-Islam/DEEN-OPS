@@ -2,10 +2,12 @@
 
 import pandas as pd
 import streamlit as st
+from unittest.mock import patch
 
 from src.components.dashboard.dashboard_metrics import (
     _format_delta_html,
     _resolve_cmp_label,
+    render_operational_metrics,
 )
 
 
@@ -30,3 +32,22 @@ def test_format_delta_html_7d_avg():
 def test_resolve_cmp_label():
     assert _resolve_cmp_label(None, "7D Avg", "Today", st) == "7D Avg"
     assert _resolve_cmp_label(pd.DataFrame(), "7D Avg", "Today", st) == "7D Avg"
+
+
+def test_render_operational_metrics_smoke():
+    mapping = {
+        "name": "Item Name",
+        "cost": "Item Cost",
+        "qty": "Quantity",
+        "date": "Order Date",
+        "order_id": "Order ID",
+        "phone": "Phone (Billing)",
+        "sku": "SKU",
+    }
+    # Test with empty DataFrame and None comparison frame
+    with (
+        patch("streamlit.session_state", {}),
+        patch("src.components.dashboard.dashboard_metrics.render_metric_cards"),
+    ):
+        render_operational_metrics(pd.DataFrame(), None, "Today", mapping, mapping)
+        render_operational_metrics(None, None, "Today", mapping, mapping)

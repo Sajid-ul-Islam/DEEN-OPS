@@ -92,7 +92,8 @@ def render_operational_metrics(
     dq_str, dr_str, do_str, db_str = None, None, None, None
     pct_q, pct_r, pct_o, pct_b = None, None, None, None
     prev_q_str, prev_r_str, prev_o_str, prev_b_str = None, None, None, None
-    cmp_label = None
+    cmp_label: str = "7D Avg"
+    cmp_badge_label: str = "7D Avg"
 
     dashboard_view = st.session_state.get("live_dashboard_view")
 
@@ -626,16 +627,12 @@ def render_operational_metrics(
                     if co_new_cnt > 0
                     else (100.0 if m_new_cnt > 0 else 0.0)
                 )
-                cmp_cust_suffix = (
-                    f" vs {cmp_badge_label}"
-                    if "cmp_badge_label" in locals() and cmp_badge_label
-                    else " vs Prev"
-                )
+                cmp_cust_suffix = f" vs {cmp_badge_label}"
                 html_dcust = _format_delta_html(
                     f"{d_new:+d} New",
                     prev_val_str=f"{co_new_cnt}N / {co_ret_cnt}R",
                     pct_val=pct_new_change,
-                    cmp_label=cmp_label,
+                    cmp_label=cmp_badge_label,
                 )
         except Exception:
             pass
