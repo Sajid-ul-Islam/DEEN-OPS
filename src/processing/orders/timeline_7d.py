@@ -1,8 +1,8 @@
 """7-Day Dispatch History Timeline & Operational Reporting Engine.
 
 Ports rolling dispatch history aggregation from DEEN Sales Analysis (liveOpsProcessor.ts).
-Constructs an authoritative 7-day operational timeline with order counts, exchange tags,
-and revenue performance for quick one-click historical audits.
+Constructs an authoritative 7-day operational timeline with shipped/completed order counts,
+exchange tags, and revenue performance for quick one-click historical audits.
 """
 
 from __future__ import annotations
@@ -53,6 +53,8 @@ def build_7day_dispatch_timeline(
 ) -> Timeline7dReport:
     """Aggregate the rolling 7-day dispatch history from orders data.
 
+    Only orders completed/shipped on that day are counted.
+
     Args:
         full_orders_df: DataFrame of orders across recent dates.
         reference_date: Reference calendar date (defaults to bd_today()).
@@ -75,6 +77,27 @@ def build_7day_dispatch_timeline(
         else pd.DataFrame()
     )
 
+    # 1. Filter out physical outlet/POS orders (only online dispatches count)
+    if not df.empty:
+        try:
+            from src.processing.completed_analytics import filter_online_orders
+
+            df = filter_online_orders(df)
+        except Exception:
+            pass
+
+    # 2. Strict Status Whitelist: only completed/shipped count as dispatches
+    status_col = next(
+        (c for c in ["Order Status", "status", "Status"] if c in df.columns),
+        None,
+    )
+    if status_col and not df.empty:
+        from src.config.constants import SHIPPED_STATUSES
+
+        shipped_vals = {s.lower() for s in SHIPPED_STATUSES}
+        status_s = df[status_col].astype(str).str.lower().str.strip()
+        df = df[status_s.isin(shipped_vals)].copy()
+
     order_id_col = next(
         (c for c in ["Order ID", "order_id", "Order Number"] if c in df.columns), None
     )
@@ -84,7 +107,14 @@ def build_7day_dispatch_timeline(
     total_col = next(
         (
             c
-            for c in ["Line Total", "Total Amount", "Total Price", "total"]
+            for c in [
+                "Line Total",
+                "Total Amount",
+                "Order Total Amount",
+                "Total Price",
+                "Subtotal Cost",
+                "total",
+            ]
             if c in df.columns
         ),
         None,
@@ -105,20 +135,6 @@ def build_7day_dispatch_timeline(
         ),
         None,
     )
-    date_col = next(
-        (c for c in ["dt_parsed", "Order Date", "date_created"] if c in df.columns),
-        None,
-    )
-    status_col = next(
-        (c for c in ["Order Status", "status", "Status"] if c in df.columns),
-        None,
-    )
-    if status_col and not df.empty:
-        from src.config.constants import SHIPPED_STATUSES
-
-        shipped_vals = {s.lower() for s in SHIPPED_STATUSES}
-        status_s = df[status_col].astype(str).str.lower().str.strip()
-        df = df[status_s.isin(shipped_vals)].copy()
 
     if not df.empty:
         dt_comp = (
@@ -131,13 +147,10 @@ def build_7day_dispatch_timeline(
             if mod_col
             else pd.Series(pd.NaT, index=df.index)
         )
-        dt_create = (
-            safe_coerce_datetime_naive(df[date_col])
-            if date_col
-            else pd.Series(pd.NaT, index=df.index)
-        )
-        # Authoritative precedence: date_completed -> date_modified -> date_created
-        df["_effective_date"] = dt_comp.fillna(dt_mod).fillna(dt_create).dt.date
+        # Authoritative shipment date precedence: date_completed -> date_modified.
+        # NEVER fall back to date_created, because orders created in the past must only
+        # count on the exact date they were shipped/completed.
+        df["_effective_date"] = dt_comp.fillna(dt_mod).dt.date
     else:
         df["_effective_date"] = pd.Series(dtype="object")
 

@@ -1,8 +1,8 @@
 """7-Day Rolling Dispatch History Timeline Component.
 
-Renders an interactive 7-day timeline banner with operational performance cards:
-- Rolling 7-day revenue, order volume, and AOV benchmarks
-- Daily day-cards with order counts, revenues, and exchange badges
+Renders an interactive 7-day timeline banner with operational dispatch cards:
+- Rolling 7-day shipped order volume and daily dispatch average
+- Daily day-cards with authoritative shipped/completed order counts
 - Interactive day selection to scope the dashboard to any historical day in 1-click
 """
 
@@ -40,16 +40,12 @@ def render_timeline_7d_bar(
 
     st.markdown("#### 📅 7-Day Rolling Dispatch Performance")
 
-    # Benchmark subheader
-    col_bench1, col_bench2, col_bench3, col_bench4 = st.columns(4)
+    # Clean, uncluttered operational benchmark
+    col_bench1, col_bench2 = st.columns([1, 1])
     with col_bench1:
-        st.caption(f"7D Total Rev: **৳ {report.total_7d_revenue:,.0f}**")
+        st.caption(f"📦 7-Day Shipped Orders: **{report.total_7d_orders}**")
     with col_bench2:
-        st.caption(f"7D Orders: **{report.total_7d_orders}**")
-    with col_bench3:
-        st.caption(f"Daily Avg Rev: **৳ {report.avg_7d_revenue:,.0f}**")
-    with col_bench4:
-        st.caption(f"7D Avg AOV: **৳ {report.avg_7d_aov:,.0f}**")
+        st.caption(f"📈 Daily Dispatch Avg: **{report.avg_7d_orders:.1f} orders/day**")
 
     # Render day cards horizontally in 7 columns
     selected_date_key = f"{key_prefix}_selected"
@@ -71,11 +67,6 @@ def render_timeline_7d_bar(
                 if day.is_today
                 else ("PREV" if day.is_prev_day else day.day_short)
             )
-            exchange_badge = (
-                f"<span style='background:#fef3c7;color:#92400e;font-size:11px;padding:2px 5px;border-radius:4px;'>🔄 {day.exchange_count}</span>"
-                if day.exchange_count > 0
-                else ""
-            )
 
             date_display = (
                 day.date_label.split(",")[1].strip()
@@ -84,12 +75,10 @@ def render_timeline_7d_bar(
             )
             st.markdown(
                 f"""
-                <div style="border: {border}; background: {bg}; border-radius: 8px; padding: 8px 10px; text-align: center; margin-bottom: 6px;">
+                <div style="border: {border}; background: {bg}; border-radius: 8px; padding: 10px 6px; text-align: center; margin-bottom: 6px;">
                     <div style="font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">{tag}</div>
                     <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin: 2px 0;">{date_display} ({day.day_short})</div>
-                    <div style="font-size: 15px; font-weight: 800; color: #0f172a;">{day.order_count} <span style="font-size: 11px; font-weight: normal; color: #64748b;">orders</span></div>
-                    <div style="font-size: 12px; font-weight: 600; color: #059669; margin-top: 2px;">৳ {day.revenue:,.0f}</div>
-                    <div style="margin-top: 4px;">{exchange_badge}</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px;">{day.order_count} <span style="font-size: 11px; font-weight: 600; color: #2563eb;">orders</span></div>
                 </div>
                 """,
                 unsafe_allow_html=True,

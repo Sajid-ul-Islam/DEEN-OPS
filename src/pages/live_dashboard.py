@@ -680,10 +680,13 @@ def render_live_tab():
     # ── 7-Day Rolling Dispatch Timeline Bar ────────────────────────────────
     full_timeline_src = st.session_state.get("wc_full_df")
     if full_timeline_src is None or full_timeline_src.empty:
-        full_timeline_src = _get_dashboard_source(online_only=False)
+        full_timeline_src = _get_dashboard_source(online_only=True)
     if full_timeline_src is not None and not full_timeline_src.empty:
+        from src.processing.completed_analytics import filter_online_orders
+
+        timeline_online_df = filter_online_orders(full_timeline_src)
         safe_render(
-            lambda: render_timeline_7d_bar(full_timeline_src),
+            lambda: render_timeline_7d_bar(timeline_online_df),
             fallback_msg="7-day dispatch timeline unavailable.",
         )
 
