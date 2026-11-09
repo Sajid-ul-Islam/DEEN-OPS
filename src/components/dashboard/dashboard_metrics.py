@@ -578,8 +578,35 @@ def render_operational_metrics(
         _total_ord = max(1, int(m_ord))
     order_view_mode = st.session_state.get("live_order_filter", "Shipped")
     dashboard_view = st.session_state.get("live_dashboard_view")
+    timeline_selected = st.session_state.get("dispatch_timeline_7d_selected")
 
-    if dashboard_view == "Queue":
+    if timeline_selected:
+        from src.config.constants import bd_today
+
+        sel_d = pd.to_datetime(timeline_selected).date()
+        today_d = bd_today()
+        if sel_d != today_d:
+            date_str = sel_d.strftime("%a, %b %d")
+            l1 = f"Shipped Items · {date_str}"
+            l2 = f"Sales Revenue · {date_str}"
+            l3 = f"Shipped Orders · {date_str}"
+            icon_l3 = "📅"
+        elif dashboard_view in {"Today Shipped", "Today"}:
+            l1 = "Shipped Items · Today"
+            l2 = "Sales Revenue · Today"
+            l3 = "Shipped Orders · Today"
+            icon_l3 = "🚚"
+        elif dashboard_view == "Queue":
+            l1 = "Queue Items"
+            l2 = "Pipeline Value"
+            l3 = "Queue Orders"
+            icon_l3 = "📥"
+        else:
+            l1 = "Shipped Items · Today"
+            l2 = "Sales Revenue · Today"
+            l3 = "Shipped Orders · Today"
+            icon_l3 = "🚚"
+    elif dashboard_view == "Queue":
         l1 = "Queue Items"
         l2 = "Pipeline Value"
         l3 = "Queue Orders"

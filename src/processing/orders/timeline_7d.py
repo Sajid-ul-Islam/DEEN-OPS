@@ -284,3 +284,99 @@ def build_7day_dispatch_timeline(
         total_7d_orders=tot_ord,
         total_7d_regular_orders=tot_reg_ord,
     )
+
+
+def filter_orders_to_date(
+    df: pd.DataFrame,
+    target_date: date | str,
+    *,
+    shipped_only: bool = True,
+    online_only: bool = True,
+) -> pd.DataFrame:
+    """Filter orders DataFrame to records completed/shipped on target_date (BDT).
+
+    Strictly honors authoritative completion date (date_completed -> date_modified).
+
+    Args:
+        df: Input orders DataFrame.
+        target_date: Target calendar date (date object or ISO YYYY-MM-DD string).
+        shipped_only: Whether to restrict to SHIPPED_STATUSES (default True).
+        online_only: Whether to exclude outlet/POS walk-in orders (default True).
+
+    Returns:
+        Filtered orders DataFrame matching the target date.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    res = df.copy()
+
+    # 1. Online only filter
+    if online_only:
+        try:
+            from src.processing.completed_analytics import filter_online_orders
+
+            res = filter_online_orders(res)
+        except Exception:
+            pass
+
+    # 2. Strict status whitelist for shipped orders
+    if shipped_only:
+        from src.config.constants import SHIPPED_STATUSES
+
+        status_col = next(
+            (c for c in ["Order Status", "Status", "order_status"] if c in res.columns),
+            None,
+        )
+        if status_col:
+            status_lower = res[status_col].astype(str).str.lower().str.strip()
+            res = res[status_lower.isin([s.lower() for s in SHIPPED_STATUSES])]
+
+    # 3. Resolve authoritative shipment date
+    comp_col = next(
+        (
+            c
+            for c in [
+                "Date Completed",
+                "date_completed",
+                "date_completed_gmt",
+            ]
+            if c in res.columns
+        ),
+        None,
+    )
+    mod_col = next(
+        (
+            c
+            for c in [
+                "mod_dt_parsed",
+                "Order Date Modified",
+                "date_modified",
+                "date_modified_gmt",
+            ]
+            if c in res.columns
+        ),
+        None,
+    )
+
+    dt_comp = (
+        safe_coerce_datetime_naive(res[comp_col])
+        if comp_col
+        else pd.Series(pd.NaT, index=res.index)
+    )
+    dt_mod = (
+        safe_coerce_datetime_naive(res[mod_col])
+        if mod_col
+        else pd.Series(pd.NaT, index=res.index)
+    )
+
+    eff_date = dt_comp.fillna(dt_mod).dt.date
+
+    if isinstance(target_date, str):
+        target_d = pd.to_datetime(target_date).date()
+    elif hasattr(target_date, "date") and callable(target_date.date):
+        target_d = target_date.date()
+    else:
+        target_d = target_date
+
+    return res[eff_date == target_d].copy()

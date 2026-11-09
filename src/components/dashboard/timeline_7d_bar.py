@@ -59,6 +59,30 @@ def render_timeline_7d_bar(
     selected_date_key = f"{key_prefix}_selected"
     current_selected = st.session_state.get(selected_date_key)
 
+    # Scoped banner if historical day is active
+    selected_day = next(
+        (d for d in report.days if d.date_iso == current_selected), None
+    )
+    if selected_day and not selected_day.is_today:
+        col_scoped1, col_scoped2 = st.columns([0.78, 0.22])
+        with col_scoped1:
+            st.info(
+                f"📅 **Scoped to {selected_day.date_label}** ({selected_day.order_count} dispatches). "
+                "All KPI metrics, charts, and product data below reflect this day."
+            )
+        with col_scoped2:
+            today_iso = next(
+                (d.date_iso for d in report.days if d.is_today),
+                report.days[-1].date_iso,
+            )
+            if st.button(
+                "🔄 Reset to Today",
+                key=f"{key_prefix}_reset_today",
+                use_container_width=True,
+            ):
+                st.session_state[selected_date_key] = today_iso
+                st.rerun()
+
     cols = st.columns(len(report.days))
 
     for idx, day in enumerate(report.days):
@@ -100,7 +124,9 @@ def render_timeline_7d_bar(
                 unsafe_allow_html=True,
             )
 
-            btn_label = "Active" if is_active else f"View {day.day_short}"
+            btn_label = (
+                f"Viewing {day.day_short}" if is_active else f"View {day.day_short}"
+            )
             if st.button(
                 btn_label,
                 key=f"{key_prefix}_btn_{day.date_iso}",

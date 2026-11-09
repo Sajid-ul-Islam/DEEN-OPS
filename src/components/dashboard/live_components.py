@@ -403,6 +403,7 @@ def apply_dashboard_view_selection(selected: str) -> None:
     st.session_state["live_custom_range"] = (today, today)
     st.session_state.pop("wc_sync_start_date", None)
     st.session_state.pop("wc_sync_end_date", None)
+    st.session_state.pop("dispatch_timeline_7d_selected", None)
 
 
 def _render_dashboard_view_selector():

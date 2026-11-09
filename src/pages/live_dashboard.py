@@ -702,6 +702,31 @@ def render_live_tab():
             df_live = filter_online_orders(df_live)
 
     df_live = filter_live_dashboard_view(df_live, selected_view)
+
+    # ── Interactive 7-Day Timeline Scoping ──────────────────────────────────
+    # When the user clicks on any day in the 7-Day Rolling Dispatch Performance,
+    # scope the entire dashboard (KPIs, charts, tables, ledger) to that specific day.
+    timeline_selected = st.session_state.get("dispatch_timeline_7d_selected")
+    if (
+        timeline_selected
+        and full_timeline_src is not None
+        and not full_timeline_src.empty
+    ):
+        from src.processing.orders.timeline_7d import filter_orders_to_date
+
+        sel_d = pd.to_datetime(timeline_selected).date()
+        today_d = bd_today()
+        # If historical day is selected, filter to that day's dispatches
+        if sel_d != today_d:
+            df_live = filter_orders_to_date(full_timeline_src, sel_d)
+        elif selected_view in {
+            "Today Shipped",
+            "Today",
+            "Last Day Shipped",
+            "Last Day",
+        }:
+            df_live = filter_orders_to_date(full_timeline_src, sel_d)
+
     if df_live is None:
         df_live = pd.DataFrame()
 
@@ -789,7 +814,7 @@ def render_live_tab():
         _render_order_pipeline_summary(df_live)
 
     # ── Product-Wise Shipped & Completed Orders Export ───────────────────
-    _render_dispatch_export(selected_view)
+    _render_dispatch_export(selected_view, raw_df=df_live)
 
     # ── Interactive Orders Ledger & Parcel Audit ─────────────────────────
     st.divider()
