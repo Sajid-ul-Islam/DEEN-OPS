@@ -4,9 +4,6 @@ This module contains reusable UI components for the Live Dashboard,
 refactored following Hick's Law principles for reduced cognitive load.
 """
 
-from src.components.dashboard.courier_telemetry_card import (
-    render_courier_telemetry_card,
-)
 from src.components.dashboard.dispatch_export_view import (
     render_dispatch_export,
 )
@@ -34,7 +31,6 @@ __all__ = [
     "_render_operation_mode_selector",
     "_render_order_filter_selector",
     "_render_refresh_controls",
-    "render_courier_telemetry_card",
     "render_dashboard_banner",
     "render_dispatch_export",
     "render_executive_briefing_card",

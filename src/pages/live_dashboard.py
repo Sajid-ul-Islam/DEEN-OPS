@@ -11,9 +11,6 @@ Follows Hick's Law principles:
 import pandas as pd
 import streamlit as st
 
-from src.components.dashboard.courier_telemetry_card import (
-    render_courier_telemetry_card,
-)
 from src.components.dashboard.dispatch_export_view import (
     render_dispatch_export,
 )
@@ -731,14 +728,6 @@ def render_live_tab():
     # ── KPI Cards (5 core metric cards + comparison deltas) ────────────────────
     safe_render(
         _refresh_core_metrics, fallback_msg="Operational KPI Metrics unavailable."
-    )
-
-    # ── Courier Logistics Telemetry & Discrepancy Auditing ───────────────────
-    safe_render(
-        lambda: render_courier_telemetry_card(
-            df_live if not df_live.empty else df_standard
-        ),
-        fallback_msg="Courier telemetry unavailable.",
     )
 
     # ── Detail & Performance Charts ─────────────────────────────────────────

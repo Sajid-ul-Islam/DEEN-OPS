@@ -152,10 +152,10 @@ def render_operational_metrics(
         pct_o = ((d_o / co_o) * 100) if co_o > 0 else None
         pct_b = ((db / co_b) * 100) if co_b > 0 else None
 
-        dq_str = f"{prefix}{dq:+,.0f}{suffix}"
-        dr_str = f"{prefix}{'+' if dr >= 0 else '-'}TK {abs(dr):,.0f}{suffix}"
-        do_str = f"{prefix}{d_o:+,.0f}{suffix}"
-        db_str = f"{prefix}{'+' if db >= 0 else '-'}TK {abs(db):,.0f}{suffix}"
+        dq_str = f"{dq:+,.0f}"
+        dr_str = f"{'+' if dr >= 0 else '-'}TK {abs(dr):,.0f}"
+        do_str = f"{d_o:+,.0f}"
+        db_str = f"{'+' if db >= 0 else '-'}TK {abs(db):,.0f}"
 
         prev_q_str = f"{co_q:,.0f}"
         prev_r_str = f"TK {co_gross:,.0f}"
@@ -168,15 +168,6 @@ def render_operational_metrics(
     v_rev = f"TK {m_gross_rev:,.0f}"
     v_ord = f"{m_ord:,.0f}"
     v_bv = f"TK {int(m_gross_bv):,}"
-
-    # Order-value badge + exchange sub-badge are still assembled as raw HTML
-    # fragments because they are placed inside specific cards; the cards
-    # themselves are now MetricCard instances (see below).
-    revenue_badge = _last_day_badge(prev_r_str, label=cmp_badge_label)
-    orders_badge = _last_day_badge(prev_o_str, label=cmp_badge_label)
-
-    # Order-value badge for the items card (comparison-to-previous-day).
-    order_value_badge = _last_day_badge(prev_q_str, label=cmp_badge_label)
 
     html_dq = _format_delta_html(
         dq_str, prev_val_str=prev_q_str, pct_val=pct_q, cmp_label=cmp_badge_label
@@ -553,12 +544,6 @@ def render_operational_metrics(
         l3 = "Orders"
         icon_l3 = "🛒"
 
-    cb_badge = ""
-    # Comparison-to-previous-day badge for the basket card.
-    # (Mirrors revenue_badge, orders_badge pattern from the other cards.)
-    cb_basket_badge = _last_day_badge(prev_b_str, label=cmp_badge_label)
-    cb_orders_badge = ""
-
     tot_cust = m_new_cnt + m_ret_cnt
     pct_new = (m_new_cnt / tot_cust * 100) if tot_cust > 0 else 0
     pct_ret = (m_ret_cnt / tot_cust * 100) if tot_cust > 0 else 0
@@ -596,7 +581,7 @@ def render_operational_metrics(
                     else " vs Prev"
                 )
                 html_dcust = _format_delta_html(
-                    f"{d_new:+d} New{cmp_cust_suffix}",
+                    f"{d_new:+d} New",
                     prev_val_str=f"{co_new_cnt}N / {co_ret_cnt}R",
                     pct_val=pct_new_change,
                     cmp_label=cmp_label,
@@ -628,7 +613,7 @@ def render_operational_metrics(
             icon="📦",
             sparkline_svg=s_qty,
             sparkline_delta_svg=d_qty,
-            badge=order_value_badge + html_dq,
+            badge=html_dq,
         ),
         MetricCard(
             label=l2,
@@ -636,7 +621,7 @@ def render_operational_metrics(
             icon="৳",
             sparkline_svg=s_rev,
             sparkline_delta_svg=d_rev,
-            badge=revenue_badge + cb_badge + html_dr,
+            badge=html_dr,
         ),
         MetricCard(
             label=l3,
@@ -644,7 +629,7 @@ def render_operational_metrics(
             icon=icon_l3,
             sparkline_svg=s_ord,
             sparkline_delta_svg=d_ord,
-            badge=orders_badge + cb_orders_badge + html_do + exchange_sub_badge,
+            badge=html_do + exchange_sub_badge,
         ),
         MetricCard(
             label=extra_metric_label,
@@ -652,7 +637,7 @@ def render_operational_metrics(
             icon=extra_metric_icon,
             sparkline_svg=s_bv,
             sparkline_delta_svg=d_bv,
-            badge=cb_basket_badge + extra_metric_delta,
+            badge=extra_metric_delta,
         ),
         MetricCard(
             label="Customer Mix",
@@ -882,25 +867,25 @@ def _format_delta_html(
     pct_val: float | None = None,
     cmp_label: str = "Prev",
 ) -> str:
-    """Legacy_delta HTML fragment for content that is still assembled as raw HTML
-
-    (e.g. the customer-mix delta on the 5th card). New cards should prefer
-    passing ``delta``/``delta_pct``/``prev_label``/``prev_value`` directly to
-    ``MetricCard`` and letting the canonical renderer produce the fragment.
-    """
+    """Format clean delta HTML with comparison to previous period without redundant badges."""
     if not delta_str:
         return ""
-    is_up = "+" in delta_str
+    is_up = not str(delta_str).startswith("-")
     cls = "delta-up" if is_up else "delta-down"
     arrow = "▲" if is_up else "▼"
     pct_snippet = (
         f" ({pct_val:+.1f}%)" if pct_val is not None and not pd.isna(pct_val) else ""
     )
-    prev_snippet = (
-        f' <span class="delta-prev">({cmp_label}: {prev_val_str})</span>'
-        if prev_val_str
-        else ""
-    )
+    if prev_val_str and cmp_label:
+        prev_snippet = (
+            f' <span class="delta-prev">vs {cmp_label} ({prev_val_str})</span>'
+        )
+    elif prev_val_str:
+        prev_snippet = f' <span class="delta-prev">({prev_val_str})</span>'
+    elif cmp_label:
+        prev_snippet = f' <span class="delta-prev">vs {cmp_label}</span>'
+    else:
+        prev_snippet = ""
     return f'<div class="metric-delta {cls}">{arrow} {delta_str}{pct_snippet}{prev_snippet}</div>'
 
 
