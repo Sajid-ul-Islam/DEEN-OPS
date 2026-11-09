@@ -1,17 +1,16 @@
-import datetime
 import json
 import logging
 import os
 import tempfile
 import traceback
 
-from src.config.constants import DATA_DIR, ERROR_LOG_FILE, FEEDBACK_DIR
+from src.config.constants import DATA_DIR, ERROR_LOG_FILE, FEEDBACK_DIR, bd_now
 
 
 def log_error(error_msg, context="General", details=None):
     """Logs an error to a local JSON file for further analysis."""
     try:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = bd_now().strftime("%Y-%m-%d %H:%M:%S")
         log_entry = {
             "timestamp": timestamp,
             "context": context,
@@ -69,7 +68,7 @@ def get_logs():
 def log_system_event(event_type, details):
     """Logs errors or system events to a JSON file for further analysis."""
     log_file = os.path.join(FEEDBACK_DIR, "system_logs.json")
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = bd_now().strftime("%Y-%m-%d %H:%M:%S")
 
     log_entry = {"timestamp": timestamp, "type": event_type, "details": details}
 

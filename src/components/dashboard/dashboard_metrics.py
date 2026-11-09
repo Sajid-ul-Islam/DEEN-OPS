@@ -9,7 +9,6 @@ previously constructed each card inline.
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
 
 import pandas as pd
 import streamlit as st
@@ -199,12 +198,12 @@ def render_operational_metrics(
 
     if nav_mode == "Backlog" and not m_df.empty:
         try:
-            m_df["dt_temp"] = pd.to_datetime(
-                m_df[wc_raw_mapping["date"]], errors="coerce"
-            ).dt.tz_localize(None)
+            from src.config.constants import bd_now
+
+            m_df["dt_temp"] = safe_coerce_datetime_naive(m_df[wc_raw_mapping["date"]])
             oldest_t = m_df["dt_temp"].min()
-            if oldest_t:
-                diff = datetime.now() - oldest_t
+            if pd.notnull(oldest_t):
+                diff = bd_now().replace(tzinfo=None) - oldest_t
                 hours = int(diff.total_seconds() / 3600)
                 mins = int((diff.total_seconds() % 3600) / 60)
                 color = "#ef4444" if hours >= 12 else "#3b82f6"

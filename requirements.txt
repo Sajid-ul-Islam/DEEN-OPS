@@ -7,15 +7,9 @@ plotly>=5.22.0
 openpyxl>=3.1.2
 xlsxwriter>=3.2.0
 toml>=0.10.2
-duckdb>=1.0.0
 
 # Integrations & Networking
 requests>=2.32.3
-
-# Machine Learning & Forecasting
-scikit-learn>=1.5.0
-xgboost>=2.0.3
-statsmodels>=0.14.2
 
 # Development, Linting & Testing Tools
 pytest>=8.0.0

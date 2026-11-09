@@ -1,7 +1,5 @@
 """Thin orchestrator for dashboard output — delegates to sub-modules."""
 
-from datetime import datetime
-
 import pandas as pd
 import streamlit as st
 
@@ -493,6 +491,7 @@ def _render_ai_briefing_section(
     dm,
     current_data_fingerprint,
     final_report_text,
+    selects_stats=None,
 ):
     """Render the executive briefing expander (deterministic narrative only).
 
@@ -501,6 +500,20 @@ def _render_ai_briefing_section(
     """
     if not is_operational:
         return
+
+    from src.components.dashboard.executive_briefing_card import (
+        render_executive_briefing_card,
+    )
+
+    render_executive_briefing_card(
+        revenue=today_rev,
+        items_count=int(today_qty),
+        orders_count=int(today_orders),
+        aov=today_aov,
+        dispatch_metrics=dm,
+        top_products_df=top,
+        selects_stats=selects_stats,
+    )
 
     with st.expander("📋 View/Copy Executive Briefing", expanded=False):
         from src.components.ui.clipboard import render_copy_button
@@ -952,6 +965,7 @@ def render_dashboard_output(
             dm,
             current_data_fingerprint,
             final_report_text,
+            selects_stats=briefing_selects,
         )
 
     # ── Export Preparation ──
@@ -967,7 +981,7 @@ def render_dashboard_output(
         dm,
         final_report_text,
     )
-    export_date_str = datetime.now().strftime("%Y%m%d")
+    export_date_str = bd_now().strftime("%Y%m%d")
     if not is_operational:
         if (
             active_df is not None

@@ -7,7 +7,6 @@ log rotation, and tool registration.
 from __future__ import annotations
 
 import os
-from datetime import datetime
 from typing import Callable, Optional
 
 import streamlit as st
@@ -40,8 +39,10 @@ def _rotate_error_logs() -> None:
                 logs = json.load(f)
                 if len(logs) > LOGS_TO_KEEP:
                     truncated_logs = logs[-LOGS_TO_KEEP:]
+                    from src.config.constants import bd_now
+
                     rotation_log_entry = {
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "timestamp": bd_now().strftime("%Y-%m-%d %H:%M:%S"),
                         "context": "LOG_ROTATION",
                         "error": f"Log file exceeded {LOG_MAX_SIZE_BYTES / 1024 / 1024:.1f}MB; truncated to last {LOGS_TO_KEEP} entries.",
                     }

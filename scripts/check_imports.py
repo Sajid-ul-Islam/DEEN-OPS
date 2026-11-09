@@ -74,6 +74,7 @@ MODULES = [
     "src.utils.notifications",
     "src.processing.selects_analytics",
     "src.components.dashboard.selects_analysis_view",
+    "src.components.dashboard.dispatch_export_view",
 ]
 
 

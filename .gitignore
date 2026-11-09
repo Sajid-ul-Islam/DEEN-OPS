@@ -52,3 +52,23 @@ resources/customer_registry.db
 *.sqlite
 *.sqlite3
 *.local-backup
+# Testing and linting caches
+.pytest_cache/
+.ruff_cache/
+
+# Generated export reports
+/DEEN_*.xlsx
+/DEEN_*.csv
+/DEEN_*.pdf
+*.xlsx.tmp
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Scratch and marker files
+scratch/
+*.scratch.*
+.git-revert-marker
