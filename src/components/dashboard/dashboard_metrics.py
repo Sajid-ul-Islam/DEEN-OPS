@@ -92,8 +92,62 @@ def render_operational_metrics(
     dq_str, dr_str, do_str, db_str = None, None, None, None
     pct_q, pct_r, pct_o, pct_b = None, None, None, None
     prev_q_str, prev_r_str, prev_o_str, prev_b_str = None, None, None, None
+    cmp_label = None
 
-    if c_df is not None and not c_df.empty:
+    dashboard_view = st.session_state.get("live_dashboard_view")
+
+    # 1. Primary Benchmark: Compare vs average of last 7 days (User Requirement)
+    timeline_report = None
+    full_df = st.session_state.get("wc_full_df")
+    if full_df is not None and not full_df.empty and dashboard_view != "Queue":
+        try:
+            from src.processing.completed_analytics import filter_online_orders
+            from src.processing.orders.timeline_7d import build_7day_dispatch_timeline
+
+            timeline_report = build_7day_dispatch_timeline(
+                filter_online_orders(full_df)
+            )
+        except Exception as e:
+            log_system_event("7D_AVG_BENCHMARK_ERROR", str(e))
+
+    if (
+        timeline_report is not None
+        and timeline_report.avg_7d_orders > 0
+        and dashboard_view != "Queue"
+    ):
+        co_q = timeline_report.avg_7d_items
+        co_gross = timeline_report.avg_7d_revenue
+        co_o = timeline_report.avg_7d_orders
+        co_b = timeline_report.avg_7d_aov
+
+        dq = m_qty - co_q
+        dr = m_gross_rev - co_gross
+        d_o = m_ord - co_o
+        db = m_gross_bv - co_b
+
+        cmp_label = "7D Avg"
+        suffix = " vs 7D Avg"
+
+        pct_q = ((dq / co_q) * 100) if co_q > 0 else None
+        pct_r = ((dr / co_gross) * 100) if co_gross > 0 else None
+        pct_o = ((d_o / co_o) * 100) if co_o > 0 else None
+        pct_b = ((db / co_b) * 100) if co_b > 0 else None
+
+        dq_str = f"{dq:+,.0f}" if abs(dq) >= 1 else f"{dq:+.1f}"
+        dr_str = f"{'+' if dr >= 0 else '-'}TK {abs(dr):,.0f}"
+        do_str = f"{d_o:+,.0f}" if abs(d_o) >= 1 else f"{d_o:+.1f}"
+        db_str = f"{'+' if db >= 0 else '-'}TK {abs(db):,.0f}"
+
+        prev_q_str = (
+            f"{co_q:,.1f}" if abs(co_q - round(co_q)) > 0.05 else f"{co_q:,.0f}"
+        )
+        prev_r_str = f"TK {co_gross:,.0f}"
+        prev_o_str = (
+            f"{co_o:,.1f}" if abs(co_o - round(co_o)) > 0.05 else f"{co_o:,.0f}"
+        )
+        prev_b_str = f"TK {int(co_b):,}"
+
+    elif c_df is not None and not c_df.empty:
         co_q = int(c_df["Quantity"].sum()) if "Quantity" in c_df.columns else 0
         co_item_r = compute_revenue_breakdown(c_df)["item_rev"]
         _, _, _, co_basket = aggregate_data(c_df, dummy_mapping)
@@ -116,7 +170,6 @@ def render_operational_metrics(
         )
         co_b = (co_gross / co_o) if co_o > 0 else 0.0
 
-        dashboard_view = st.session_state.get("live_dashboard_view")
         if dashboard_view in {"Last Day Shipped", "Last Day"}:
             prefix = ""
             suffix = " vs Today"
