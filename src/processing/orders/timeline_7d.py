@@ -29,6 +29,7 @@ class DayTimelineSummary:
     is_today: bool = False
     is_prev_day: bool = False
     order_count: int = 0
+    regular_order_count: int = 0
     item_count: int = 0
     revenue: float = 0.0
     aov: float = 0.0
@@ -41,10 +42,12 @@ class Timeline7dReport:
     days: list[DayTimelineSummary] = field(default_factory=list)
     avg_7d_revenue: float = 0.0
     avg_7d_orders: float = 0.0
+    avg_7d_regular_orders: float = 0.0
     avg_7d_items: float = 0.0
     avg_7d_aov: float = 0.0
     total_7d_revenue: float = 0.0
     total_7d_orders: int = 0
+    total_7d_regular_orders: int = 0
 
 
 def build_7day_dispatch_timeline(
@@ -176,6 +179,7 @@ def build_7day_dispatch_timeline(
                     is_today=is_today,
                     is_prev_day=is_prev,
                     order_count=0,
+                    regular_order_count=0,
                     item_count=0,
                     revenue=0.0,
                     aov=0.0,
@@ -228,6 +232,13 @@ def build_7day_dispatch_timeline(
                     seen_ex_ids.add(oid)
                     ex_count += 1
 
+        reg_orders = max(0, unique_orders - ex_count)
+        aov = (
+            (rev / reg_orders)
+            if reg_orders > 0
+            else ((rev / unique_orders) if unique_orders > 0 else 0.0)
+        )
+
         daily_summaries.append(
             DayTimelineSummary(
                 date_iso=d_iso,
@@ -237,6 +248,7 @@ def build_7day_dispatch_timeline(
                 is_today=is_today,
                 is_prev_day=is_prev,
                 order_count=unique_orders,
+                regular_order_count=reg_orders,
                 item_count=items_cnt,
                 revenue=round(rev, 2),
                 aov=round(aov, 2),
@@ -247,20 +259,28 @@ def build_7day_dispatch_timeline(
     # Compute 7-day rolling statistics
     tot_rev = sum(s.revenue for s in daily_summaries)
     tot_ord = sum(s.order_count for s in daily_summaries)
+    tot_reg_ord = sum(s.regular_order_count for s in daily_summaries)
     tot_items = sum(s.item_count for s in daily_summaries)
     active_days = max(1, len(daily_summaries))
 
     avg_rev = tot_rev / active_days
     avg_ord = tot_ord / active_days
+    avg_reg_ord = tot_reg_ord / active_days
     avg_items = tot_items / active_days
-    avg_aov = (tot_rev / tot_ord) if tot_ord > 0 else 0.0
+    avg_aov = (
+        (tot_rev / tot_reg_ord)
+        if tot_reg_ord > 0
+        else ((tot_rev / tot_ord) if tot_ord > 0 else 0.0)
+    )
 
     return Timeline7dReport(
         days=daily_summaries,
         avg_7d_revenue=round(avg_rev, 2),
         avg_7d_orders=round(avg_ord, 1),
+        avg_7d_regular_orders=round(avg_reg_ord, 1),
         avg_7d_items=round(avg_items, 1),
         avg_7d_aov=round(avg_aov, 2),
         total_7d_revenue=round(tot_rev, 2),
         total_7d_orders=tot_ord,
+        total_7d_regular_orders=tot_reg_ord,
     )

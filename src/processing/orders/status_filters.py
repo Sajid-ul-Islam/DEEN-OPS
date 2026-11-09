@@ -32,34 +32,73 @@ def _get_bd_today():
 def _detect_exchange_mask(df: pd.DataFrame) -> pd.Series:
     """Return a boolean Series marking exchange/return orders.
 
-    An order is an exchange if its Order Status contains "exchange" OR its
-    Fee Notes contains "exchange credit".
+    An order is an exchange if:
+    1. 'is_exchange' column is True / 1
+    2. Order Status contains "exchange"
+    3. Fee Notes contains "exchange credit"
+    4. Created via is "sip_exchange" or contains "exchange"
+    5. Exchange metadata columns (_sip_exchange_of, _sip_exchange_order, _sip_exchange_code)
+       are populated
+    6. Any column containing "sche" or "exchange" is populated with a truthy value
     """
-    status_col = (
-        "Order Status"
-        if "Order Status" in df.columns
-        else "Status"
-        if "Status" in df.columns
-        else None
-    )
-    fee_notes_col = "Fee Notes" if "Fee Notes" in df.columns else None
+    if df is None or df.empty:
+        return pd.Series(False, index=df.index if df is not None else [])
 
-    status_mask = pd.Series(False, index=df.index)
-    if status_col:
-        status_mask = (
-            df[status_col].astype(str).str.lower().str.contains("exchange", na=False)
-        )
+    mask = pd.Series(False, index=df.index)
 
-    fee_mask = pd.Series(False, index=df.index)
-    if fee_notes_col:
-        fee_mask = (
-            df[fee_notes_col]
+    # 1. is_exchange flag
+    if "is_exchange" in df.columns:
+        mask |= df["is_exchange"].astype(str).str.lower().isin(["true", "1", "yes"])
+
+    # 2. Order Status
+    for sc in ["Order Status", "Status"]:
+        if sc in df.columns:
+            mask |= df[sc].astype(str).str.lower().str.contains("exchange", na=False)
+
+    # 3. Fee Notes
+    if "Fee Notes" in df.columns:
+        mask |= (
+            df["Fee Notes"]
             .astype(str)
             .str.lower()
             .str.contains("exchange credit", na=False)
         )
 
-    return status_mask | fee_mask
+    # 4. Created via
+    for cv in ["Created via", "created_via"]:
+        if cv in df.columns:
+            cv_s = df[cv].astype(str).str.lower().str.strip()
+            mask |= cv_s.isin(["sip_exchange", "manual", "no-checkout", "non-checkout"])
+            mask |= cv_s.str.contains("exchange", na=False)
+
+    # 5. Metadata columns: _sip_exchange_of, _sip_exchange_code, _sip_exchange_order
+    for col in ["_sip_exchange_of", "Exchange Of", "_sip_exchange_code"]:
+        if col in df.columns:
+            s = df[col].astype(str).str.lower().str.strip()
+            mask |= ~s.isin(["", "nan", "none", "null", "[]", "0"])
+
+    if "_sip_exchange_order" in df.columns:
+        s = df["_sip_exchange_order"].astype(str).str.lower().str.strip()
+        mask |= ~s.isin(["", "nan", "none", "null", "0", "false"])
+
+    # 6. Any other columns containing 'sche' or 'exchange'
+    for col in df.columns:
+        c_lower = str(col).lower()
+        if ("sche" in c_lower or "exchange" in c_lower) and col not in [
+            "_sip_exchange_of",
+            "_sip_exchange_order",
+            "_sip_exchange_code",
+            "is_exchange",
+            "Order Status",
+            "Status",
+            "Fee Notes",
+            "Created via",
+            "created_via",
+        ]:
+            s = df[col].astype(str).str.lower().str.strip()
+            mask |= ~s.isin(["", "nan", "none", "null", "0", "false", "[]"])
+
+    return mask
 
 
 def filter_shipped_by_slot(

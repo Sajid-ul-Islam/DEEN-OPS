@@ -52,10 +52,15 @@ def _flatten_order(order: dict) -> list[dict]:
     ship = order.get("shipping", {})
     c_name = f"{bill.get('first_name', '')} {bill.get('last_name', '')}".strip()
     pmt = order.get("payment_method_title", "")
-
     ptc_consignment_id = ""
+    sip_exchange_of = ""
+    sip_exchange_code = ""
+    sip_exchange_order = ""
+    is_exchange_meta = False
+
     for meta in order.get("meta_data", []):
-        k = str(meta.get("key", "")).lower()
+        k = str(meta.get("key", "")).strip().lower()
+        v = meta.get("value")
         if k in [
             "ptc_consignment_id",
             "pathao_consignment_id",
@@ -68,14 +73,64 @@ def _flatten_order(order: dict) -> list[dict]:
             "_tracking_number",
             "courier_consignment_id",
         ]:
-            v = str(meta.get("value", "")).strip()
-            if v and v.lower() not in ["none", "nan", "null", "n/a", "0"]:
-                ptc_consignment_id = v
-                break
+            v_str = str(v or "").strip()
+            if v_str and v_str.lower() not in ["none", "nan", "null", "n/a", "0"]:
+                ptc_consignment_id = v_str
+        elif k in [
+            "_sip_exchange_of",
+            "exchange_of",
+            "_exchange_of",
+            "sip_exchange_of",
+        ]:
+            v_str = str(v or "").strip()
+            if v_str and v_str.lower() not in ["none", "nan", "null", "[]"]:
+                sip_exchange_of = v_str
+                is_exchange_meta = True
+        elif k in ["_sip_exchange_code", "exchange_code", "_exchange_code"]:
+            v_str = str(v or "").strip()
+            if v_str and v_str.lower() not in ["none", "nan", "null"]:
+                sip_exchange_code = v_str
+                is_exchange_meta = True
+        elif k in [
+            "_sip_exchange_order",
+            "exchange_order",
+            "_exchange_order",
+            "is_exchange",
+        ]:
+            v_str = str(v or "").strip()
+            if v_str and v_str.lower() not in ["0", "false", "no"]:
+                sip_exchange_order = v_str
+                is_exchange_meta = True
+        elif "sche" in k or "exchange" in k:
+            v_str = str(v or "").strip()
+            if v_str and v_str.lower() not in [
+                "0",
+                "false",
+                "no",
+                "none",
+                "nan",
+                "null",
+            ]:
+                is_exchange_meta = True
+
+    for t in order.get("tags", []):
+        t_name = (t.get("name", "") if isinstance(t, dict) else str(t)).lower()
+        if "sche" in t_name or "exchange" in t_name:
+            is_exchange_meta = True
+
+    created_via = str(order.get("created_via", "")).strip()
+    if (
+        created_via.lower() in ["sip_exchange", "manual", "no-checkout", "non-checkout"]
+        or "exchange" in created_via.lower()
+    ):
+        is_exchange_meta = True
 
     # Use the actual order status directly from WooCommerce
     if not status or not str(status).strip():
         status = "processing"
+
+    if "exchange" in str(status).lower():
+        is_exchange_meta = True
 
     # Extract order level discounts, fee lines, & coupons
     ord_discount_total = float(order.get("discount_total", 0) or 0)
@@ -183,6 +238,10 @@ def _flatten_order(order: dict) -> list[dict]:
                 "Order Total Amount": order.get("total"),
                 "Payment Method Title": pmt,
                 "Pathao Consignment ID": ptc_consignment_id,
+                "_sip_exchange_of": sip_exchange_of,
+                "_sip_exchange_code": sip_exchange_code,
+                "_sip_exchange_order": sip_exchange_order,
+                "is_exchange": is_exchange_meta,
             }
         )
     return flattened

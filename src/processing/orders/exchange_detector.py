@@ -80,6 +80,45 @@ def detect_order_exchange(order_row: dict[str, Any] | pd.Series) -> ExchangeDeta
             display_tag=f"Exchange for #{sip_of}",
         )
 
+    sip_code = str(row.get("_sip_exchange_code", "")).strip()
+    if sip_code and sip_code not in ("nan", "none", "null"):
+        return ExchangeDetails(
+            is_exchange=True,
+            exchange_type="replacement",
+            referenced_order_id=None,
+            display_tag=f"Exchange ({sip_code})",
+        )
+
+    sip_order = str(row.get("_sip_exchange_order", "")).strip()
+    if sip_order and sip_order not in ("nan", "none", "null", "0", "false"):
+        return ExchangeDetails(
+            is_exchange=True,
+            exchange_type="replacement",
+            referenced_order_id=None,
+            display_tag="Exchange Replacement",
+        )
+
+    is_ex = row.get("is_exchange")
+    if is_ex is True or str(is_ex).strip().lower() in ("true", "1", "yes"):
+        return ExchangeDetails(
+            is_exchange=True,
+            exchange_type="replacement",
+            referenced_order_id=None,
+            display_tag="Exchange Replacement",
+        )
+
+    for k, v in row.items():
+        k_str = str(k).lower()
+        if "sche" in k_str or "exchange" in k_str:
+            v_str = str(v).strip().lower()
+            if v_str and v_str not in ("nan", "none", "null", "0", "false", "[]"):
+                return ExchangeDetails(
+                    is_exchange=True,
+                    exchange_type="replacement",
+                    referenced_order_id=None,
+                    display_tag="Exchange Replacement",
+                )
+
     sip_repl = str(row.get("_sip_replacement_orders", "")).strip()
     if sip_repl and sip_repl not in ("nan", "none", "null", "[]"):
         clean_repl = (

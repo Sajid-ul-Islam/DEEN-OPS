@@ -83,10 +83,23 @@ def render_operational_metrics(
     m_net_rev = curr_rev["net"]
     m_loss_pct = curr_rev["loss_pct"]
     m_exchange_cnt = count_exchange_orders(m_df)
+    m_reg_ord = max(0, m_ord - m_exchange_cnt)
 
-    m_gross_bv = (m_gross_rev / m_ord) if m_ord > 0 else 0.0
-    m_net_bv = (m_net_rev / m_ord) if m_ord > 0 else 0.0
-    m_cb_per_basket = (m_cashback_disc / m_ord) if m_ord > 0 else 0.0
+    m_gross_bv = (
+        (m_gross_rev / m_reg_ord)
+        if m_reg_ord > 0
+        else ((m_gross_rev / m_ord) if m_ord > 0 else 0.0)
+    )
+    m_net_bv = (
+        (m_net_rev / m_reg_ord)
+        if m_reg_ord > 0
+        else ((m_net_rev / m_ord) if m_ord > 0 else 0.0)
+    )
+    m_cb_per_basket = (
+        (m_cashback_disc / m_reg_ord)
+        if m_reg_ord > 0
+        else ((m_cashback_disc / m_ord) if m_ord > 0 else 0.0)
+    )
     m_bv = m_gross_bv
 
     dq_str, dr_str, do_str, db_str = None, None, None, None
@@ -118,12 +131,16 @@ def render_operational_metrics(
     ):
         co_q = timeline_report.avg_7d_items
         co_gross = timeline_report.avg_7d_revenue
-        co_o = timeline_report.avg_7d_orders
+        co_o = (
+            timeline_report.avg_7d_regular_orders
+            if getattr(timeline_report, "avg_7d_regular_orders", 0) > 0
+            else timeline_report.avg_7d_orders
+        )
         co_b = timeline_report.avg_7d_aov
 
         dq = m_qty - co_q
         dr = m_gross_rev - co_gross
-        d_o = m_ord - co_o
+        d_o = m_reg_ord - co_o
         db = m_gross_bv - co_b
 
         cmp_label = "7D Avg"
@@ -159,6 +176,9 @@ def render_operational_metrics(
             _co_ord_col = pick_column(c_df, ORDER_ID_COL_CANDIDATES)
             co_o = int(c_df[_co_ord_col].nunique()) if _co_ord_col else len(c_df)
 
+        co_ex_cnt = count_exchange_orders(c_df)
+        co_reg_o = max(0, co_o - co_ex_cnt)
+
         co_cb = (
             float(c_df["Cashback Discount"].sum())
             if "Cashback Discount" in c_df.columns
@@ -169,14 +189,18 @@ def render_operational_metrics(
             if "Gross Amount" in c_df.columns
             else co_item_r
         )
-        co_b = (co_gross / co_o) if co_o > 0 else 0.0
+        co_b = (
+            (co_gross / co_reg_o)
+            if co_reg_o > 0
+            else ((co_gross / co_o) if co_o > 0 else 0.0)
+        )
 
         if dashboard_view in {"Last Day Shipped", "Last Day"}:
             prefix = ""
             suffix = " vs Today"
             dq = m_qty - co_q
             dr = m_gross_rev - co_gross
-            d_o = m_ord - co_o
+            d_o = m_reg_ord - co_reg_o
             db = m_gross_bv - co_b
             cmp_label = "Today"
         elif nav_mode == "Prev":
@@ -184,7 +208,7 @@ def render_operational_metrics(
             suffix = " vs Today"
             dq = m_qty - co_q
             dr = m_gross_rev - co_gross
-            d_o = m_ord - co_o
+            d_o = m_reg_ord - co_reg_o
             db = m_gross_bv - co_b
             cmp_label = "Today"
         else:
@@ -197,13 +221,13 @@ def render_operational_metrics(
             suffix = f" vs {prev_abbr}"
             dq = m_qty - co_q
             dr = m_gross_rev - co_gross
-            d_o = m_ord - co_o
+            d_o = m_reg_ord - co_reg_o
             db = m_gross_bv - co_b
             cmp_label = prev_w_day.strftime("%A")
 
         pct_q = ((dq / co_q) * 100) if co_q > 0 else None
         pct_r = ((dr / co_gross) * 100) if co_gross > 0 else None
-        pct_o = ((d_o / co_o) * 100) if co_o > 0 else None
+        pct_o = ((d_o / co_reg_o) * 100) if co_reg_o > 0 else None
         pct_b = ((db / co_b) * 100) if co_b > 0 else None
 
         dq_str = f"{dq:+,.0f}"
@@ -213,14 +237,14 @@ def render_operational_metrics(
 
         prev_q_str = f"{co_q:,.0f}"
         prev_r_str = f"TK {co_gross:,.0f}"
-        prev_o_str = f"{co_o:,.0f}"
+        prev_o_str = f"{co_reg_o:,.0f}"
         prev_b_str = f"TK {int(co_b):,}"
 
     cmp_badge_label = _resolve_cmp_label(c_df, cmp_label, nav_mode, st)
 
     v_qty = f"{m_qty:,.0f}"
     v_rev = f"TK {m_gross_rev:,.0f}"
-    v_ord = f"{m_ord:,.0f}"
+    v_ord = f"{m_reg_ord:,.0f}"
     v_bv = f"TK {int(m_gross_bv):,}"
 
     html_dq = _format_delta_html(
@@ -642,10 +666,12 @@ def render_operational_metrics(
     exchange_sub_badge = ""
     if m_exchange_cnt > 0:
         exchange_sub_badge = (
-            '<div style="font-size:0.72rem;color:#8b5cf6;font-weight:600;'
-            "background:rgba(139,92,246,0.1);padding:2px 7px;border-radius:4px;"
-            "margin-top:4px;display:inline-block;" + ">"
-            f"🔄 {m_exchange_cnt:,} Exchanges</div>"
+            '<div style="font-size:0.75rem;color:#7c3aed;font-weight:600;'
+            "background:rgba(124,58,237,0.08);padding:3px 8px;border-radius:5px;"
+            'margin-top:5px;display:inline-flex;align-items:center;gap:4px;">'
+            f"<span>🔄 {m_exchange_cnt:,} Exchange{'s' if m_exchange_cnt != 1 else ''}</span>"
+            f'<span style="color:#64748b;font-weight:400;font-size:0.70rem;">({m_ord:,} Total)</span>'
+            "</div>"
         )
 
     # ── Build the 5-card grid from MetricCard instances ──────────────────────────
@@ -748,7 +774,12 @@ def render_operational_metrics(
                 },
                 "orders": {
                     "label": l3,
-                    "value": f"{int(m_ord):,}",
+                    "value": f"{int(m_reg_ord):,}",
+                    "subtext": (
+                        f"🔄 {m_exchange_cnt:,} Exchanges ({int(m_ord):,} Total)"
+                        if m_exchange_cnt > 0
+                        else None
+                    ),
                     "delta": _clean_delta(pct_o, do_str),
                     "sparkline": [float(x) for x in t_ord_vals] if t_ord_vals else None,
                 },
@@ -844,6 +875,7 @@ def render_operational_metrics(
         "cashback_disc": float(m_cashback_disc),
         "net_rev": float(m_net_rev),
         "orders": int(m_ord),
+        "regular_orders": int(m_reg_ord),
         "exchange_orders": int(m_exchange_cnt),
         "qty": int(m_qty),
         "net_aov": float(m_net_bv),

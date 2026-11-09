@@ -396,18 +396,9 @@ def filter_shipped_order_items(
     # mod_dt_parsed may have been bumped to today by the exchange operation.
     status_lower = df[status_col].astype(str).str.lower().str.strip()
     shipped_mask = status_lower.isin([s.lower() for s in SHIPPED_STATUSES])
-    # Build exchange mask using the same logic as _detect_exchange_mask.
-    fee_notes_col = "Fee Notes" if "Fee Notes" in df.columns else None
-    exchange_status_mask = status_lower.str.contains("exchange", na=False)
-    exchange_fee_mask = pd.Series(False, index=df.index)
-    if fee_notes_col:
-        exchange_fee_mask = (
-            df[fee_notes_col]
-            .astype(str)
-            .str.lower()
-            .str.contains("exchange credit", na=False)
-        )
-    exchange_mask = exchange_status_mask | exchange_fee_mask
+    from src.processing.orders.status_filters import _detect_exchange_mask
+
+    exchange_mask = _detect_exchange_mask(df)
     shipped_df = df[shipped_mask & ~exchange_mask].copy()
 
     if shipped_df.empty:

@@ -43,9 +43,17 @@ def render_timeline_7d_bar(
     # Clean, uncluttered operational benchmark
     col_bench1, col_bench2 = st.columns([1, 1])
     with col_bench1:
-        st.caption(f"📦 7-Day Shipped Orders: **{report.total_7d_orders}**")
+        ex_diff = report.total_7d_orders - report.total_7d_regular_orders
+        if ex_diff > 0:
+            st.caption(
+                f"📦 7-Day Shipped Orders: **{report.total_7d_regular_orders}** (+{ex_diff} exchanges)"
+            )
+        else:
+            st.caption(f"📦 7-Day Shipped Orders: **{report.total_7d_orders}**")
     with col_bench2:
-        st.caption(f"📈 Daily Dispatch Avg: **{report.avg_7d_orders:.1f} orders/day**")
+        st.caption(
+            f"📈 Daily Dispatch Avg: **{report.avg_7d_regular_orders:.1f} orders/day**"
+        )
 
     # Render day cards horizontally in 7 columns
     selected_date_key = f"{key_prefix}_selected"
@@ -73,12 +81,20 @@ def render_timeline_7d_bar(
                 if "," in day.date_label
                 else day.date_iso
             )
+            if day.exchange_count > 0:
+                reg_cnt = day.regular_order_count or (
+                    day.order_count - day.exchange_count
+                )
+                orders_line = f'{reg_cnt} <span style="font-size: 11px; font-weight: 600; color: #2563eb;">orders</span> <span style="font-size: 10px; font-weight: 700; color: #7c3aed; background: rgba(124,58,237,0.1); padding: 1px 4px; border-radius: 4px;">+{day.exchange_count} ex</span>'
+            else:
+                orders_line = f'{day.order_count} <span style="font-size: 11px; font-weight: 600; color: #2563eb;">orders</span>'
+
             st.markdown(
                 f"""
                 <div style="border: {border}; background: {bg}; border-radius: 8px; padding: 10px 6px; text-align: center; margin-bottom: 6px;">
                     <div style="font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">{tag}</div>
                     <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin: 2px 0;">{date_display} ({day.day_short})</div>
-                    <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px;">{day.order_count} <span style="font-size: 11px; font-weight: 600; color: #2563eb;">orders</span></div>
+                    <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px;">{orders_line}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,

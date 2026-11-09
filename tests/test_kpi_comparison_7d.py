@@ -51,3 +51,64 @@ def test_render_operational_metrics_smoke():
     ):
         render_operational_metrics(pd.DataFrame(), None, "Today", mapping, mapping)
         render_operational_metrics(None, None, "Today", mapping, mapping)
+
+
+def test_kpi_card_exchange_sub_number():
+    mapping = {
+        "name": "Item Name",
+        "cost": "Item Cost",
+        "qty": "Quantity",
+        "date": "Order Date",
+        "order_id": "Order ID",
+        "phone": "Phone (Billing)",
+        "sku": "SKU",
+    }
+    # 2 regular orders, 1 exchange order
+    df = pd.DataFrame(
+        [
+            {
+                "Order ID": "1001",
+                "Item Name": "Product A",
+                "Item Cost": 1500.0,
+                "Quantity": 1,
+                "Order Date": "2026-11-09",
+                "Order Status": "completed",
+                "Created via": "checkout",
+            },
+            {
+                "Order ID": "1002",
+                "Item Name": "Product B",
+                "Item Cost": 2000.0,
+                "Quantity": 1,
+                "Order Date": "2026-11-09",
+                "Order Status": "completed",
+                "Created via": "checkout",
+            },
+            {
+                "Order ID": "18085",
+                "Item Name": "Product A",
+                "Item Cost": 0.0,
+                "Quantity": 1,
+                "Order Date": "2026-11-09",
+                "Order Status": "completed",
+                "Created via": "sip_exchange",
+                "_sip_exchange_of": "17839",
+            },
+        ]
+    )
+    with (
+        patch("streamlit.session_state", {}),
+        patch(
+            "src.components.dashboard.dashboard_metrics.render_metric_cards"
+        ) as mock_cards,
+    ):
+        render_operational_metrics(df, None, "Today", mapping, mapping)
+        assert mock_cards.called
+        cards = mock_cards.call_args[0][0]
+        # Order card is index 2
+        order_card = cards[2]
+        # Primary value should be regular checkout orders (2), NOT total orders (3)
+        assert order_card.value == "2"
+        # Sub-badge should include the exchange count (1 Exchange)
+        assert "1 Exchange" in order_card.badge
+        assert "3 Total" in order_card.badge
