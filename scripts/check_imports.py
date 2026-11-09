@@ -75,6 +75,7 @@ MODULES = [
     "src.processing.selects_analytics",
     "src.components.dashboard.selects_analysis_view",
     "src.components.dashboard.dispatch_export_view",
+    "src.services.woocommerce.cogs_service",
 ]
 
 

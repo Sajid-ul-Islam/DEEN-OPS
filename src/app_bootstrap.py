@@ -173,10 +173,10 @@ def _render_sidebar_maintenance(is_auth_on: bool, config_issues: list[str]) -> N
     """Render the Maintenance & Settings expander in the sidebar."""
     with st.sidebar.expander(":material/build: Maintenance & Settings", expanded=False):
         # ── Chart theme (compact pills — moved out of the sidebar body) ─────
-        from src.config.ui_config import CHART_THEMES
+        from src.config.ui_config import CHART_THEMES, DEFAULT_CHART_THEME
 
         _theme_names = list(CHART_THEMES.keys())
-        _current_theme = st.session_state.get("chart_theme", "✨ Emerald Cyberpunk")
+        _current_theme = st.session_state.get("chart_theme", DEFAULT_CHART_THEME)
         _chosen_theme = st.pills(
             "🎨 Chart theme",
             options=_theme_names,

@@ -240,10 +240,10 @@ def _render_charts(summ, total_rev=None, granular_df=None):
         if not chart_summ.empty
         else []
     )
-    from src.config.ui_config import CHART_THEMES
+    from src.config.ui_config import CHART_THEMES, DEFAULT_CHART_THEME
 
-    theme_name = st.session_state.get("chart_theme", "✨ Emerald Cyberpunk")
-    theme_cfg = CHART_THEMES.get(theme_name, CHART_THEMES["✨ Emerald Cyberpunk"])
+    theme_name = st.session_state.get("chart_theme", DEFAULT_CHART_THEME)
+    theme_cfg = CHART_THEMES.get(theme_name, CHART_THEMES[DEFAULT_CHART_THEME])
     palette = theme_cfg["colors"]
     color_map = {cat: palette[i % len(palette)] for i, cat in enumerate(sorted_cats)}
 

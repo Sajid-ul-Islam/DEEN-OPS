@@ -65,13 +65,16 @@ def _detect_column_types(df: pd.DataFrame):
         for c in df.columns
         if any(
             kw in str(c).lower()
-            for kw in ["amount", "revenue", "cost", "price", "value"]
+            for kw in ["amount", "revenue", "cost", "price", "value", "cogs", "profit"]
         )
     ]
     percent_cols = [
         c
         for c in df.columns
-        if any(kw in str(c).lower() for kw in ["rate", "percentage", "yield"])
+        if any(
+            kw in str(c).lower()
+            for kw in ["rate", "percentage", "yield", "margin", "share"]
+        )
     ]
     stock_cols = [
         c

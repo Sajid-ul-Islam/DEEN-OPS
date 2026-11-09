@@ -304,12 +304,10 @@ def render_operational_metrics(
             t_ord_vals = _trim_leading_zeros(t_ord_vals)
             t_bv_vals = _trim_leading_zeros(t_bv_vals)
 
-            from src.config.ui_config import CHART_THEMES
+            from src.config.ui_config import CHART_THEMES, DEFAULT_CHART_THEME
 
-            theme_name = st.session_state.get("chart_theme", "✨ Emerald Cyberpunk")
-            theme_cfg = CHART_THEMES.get(
-                theme_name, CHART_THEMES["✨ Emerald Cyberpunk"]
-            )
+            theme_name = st.session_state.get("chart_theme", DEFAULT_CHART_THEME)
+            theme_cfg = CHART_THEMES.get(theme_name, CHART_THEMES[DEFAULT_CHART_THEME])
 
             s_qty, d_qty = _generate_sparkline_svg(
                 t_qty_vals,

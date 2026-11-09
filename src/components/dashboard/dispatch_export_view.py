@@ -20,6 +20,7 @@ from src.processing.data_processing import (
 )
 from src.processing.selects_analytics import classify_product_line
 from src.services.exports.excel_exporter import export_to_styled_excel
+from src.services.woocommerce.cogs_service import enrich_dataframe_with_cogs
 from src.utils.logging import log_system_event
 
 
@@ -191,6 +192,7 @@ def render_dispatch_export(
             cost_col = "Item Cost"
 
         export_df["Line Total"] = (export_df[qty_col] * export_df[cost_col]).round(2)
+        export_df = enrich_dataframe_with_cogs(export_df)
 
         # ── Enrich with Category, Sub-Category & Product Line ─────────────
         if prod_col and prod_col in export_df.columns:
@@ -220,16 +222,35 @@ def render_dispatch_export(
             .agg(
                 _units=(qty_col, "sum"),
                 _amt=("Line Total", "sum"),
+                _cogs=("Total COGS", "sum")
+                if "Total COGS" in export_df.columns
+                else (qty_col, "sum"),
+                _profit=("Gross Profit", "sum")
+                if "Gross Profit" in export_df.columns
+                else ("Line Total", "sum"),
             )
             .reset_index()
             .sort_values("_amt", ascending=False)
-            .rename(columns={"_units": "Units Sold", "_amt": "Sales Amount (৳)"})
+            .rename(
+                columns={
+                    "_units": "Units Sold",
+                    "_amt": "Sales Amount (৳)",
+                    "_cogs": "Total COGS (৳)",
+                    "_profit": "Gross Profit (৳)",
+                }
+            )
         )
         _subcat_summary["Sales Amount (৳)"] = _subcat_summary["Sales Amount (৳)"].round(
             2
         )
+        _subcat_summary["Total COGS (৳)"] = _subcat_summary["Total COGS (৳)"].round(2)
+        _subcat_summary["Gross Profit (৳)"] = _subcat_summary["Gross Profit (৳)"].round(
+            2
+        )
         _sc_total_units = int(_subcat_summary["Units Sold"].sum())
         _sc_total_amt = float(_subcat_summary["Sales Amount (৳)"].sum())
+        _sc_total_cogs = float(_subcat_summary["Total COGS (৳)"].sum())
+        _sc_total_profit = float(_subcat_summary["Gross Profit (৳)"].sum())
         _subcat_summary["Share (%)"] = (
             (_subcat_summary["Sales Amount (৳)"] / _sc_total_amt * 100)
             .round(1)
@@ -294,6 +315,10 @@ def render_dispatch_export(
             qty_col: "Quantity",
             cost_col: "Item Cost",
             "Line Total": "Line Total",
+            "Unit COGS": "Unit COGS",
+            "Total COGS": "Total COGS",
+            "Gross Profit": "Gross Profit",
+            "Profit Margin (%)": "Margin (%)",
             "Category": "Category",
             "Sub-Category": "Sub-Category",
             status_col: "Status",
@@ -365,11 +390,27 @@ def render_dispatch_export(
             int(regular_df["SKU"].nunique()) if "SKU" in regular_df.columns else 0
         )
 
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("📦 Units Shipped", f"{total_items:,}")
+        total_cogs = (
+            float(regular_df["Total COGS"].sum())
+            if "Total COGS" in regular_df.columns
+            else 0.0
+        )
+        total_profit = (
+            float(regular_df["Gross Profit"].sum())
+            if "Gross Profit" in regular_df.columns
+            else (total_rev - total_cogs)
+        )
+        overall_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0.0
+
+        m1, m2, m3, m4, m5, m6 = st.columns(6)
+        m1.metric("📦 Units", f"{total_items:,}")
         m2.metric("📋 Orders", f"{total_orders:,}")
-        m3.metric("৳ Shipped Revenue", f"৳ {total_rev:,.0f}")
-        m4.metric("🏷️ Unique SKUs", f"{unique_skus:,}")
+        m3.metric("৳ Revenue", f"৳ {total_rev:,.0f}")
+        m4.metric("🏷️ Total COGS", f"৳ {total_cogs:,.0f}")
+        m5.metric(
+            "📈 Gross Profit", f"৳ {total_profit:,.0f}", f"{overall_margin:.1f}% Margin"
+        )
+        m6.metric("🏷️ Unique SKUs", f"{unique_skus:,}")
 
         # ── Tabs: Product Lines | Sub-Category Summary | Exchange Orders ──────────────────────
         tab_items, tab_subcat, tab_exchange = st.tabs(
@@ -413,6 +454,18 @@ def render_dispatch_export(
                     ),
                     "Line Total": st.column_config.NumberColumn(
                         "Total (৳)", format="%.2f"
+                    ),
+                    "Unit COGS": st.column_config.NumberColumn(
+                        "Unit COGS (৳)", format="%.2f"
+                    ),
+                    "Total COGS": st.column_config.NumberColumn(
+                        "Total COGS (৳)", format="%.2f"
+                    ),
+                    "Gross Profit": st.column_config.NumberColumn(
+                        "Profit (৳)", format="%.2f"
+                    ),
+                    "Margin (%)": st.column_config.NumberColumn(
+                        "Margin (%)", format="%.1f%%"
                     ),
                 },
             )
@@ -505,6 +558,8 @@ def render_dispatch_export(
                                     "Sub-Category": "",
                                     "Units Sold": _sc_total_units,
                                     "Sales Amount (৳)": round(_sc_total_amt, 2),
+                                    "Total COGS (৳)": round(_sc_total_cogs, 2),
+                                    "Gross Profit (৳)": round(_sc_total_profit, 2),
                                     "Share (%)": "100%",
                                 }
                             ]

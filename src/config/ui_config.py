@@ -57,6 +57,8 @@ CLOUD_APP_URL = "https://deen-business-intel.streamlit.app/"
 
 INVENTORY_LOCATIONS = ["Ecom", "Mirpur", "Wari", "Cumilla", "Sylhet"]
 
+DEFAULT_CHART_THEME = "⚡ Solar Flare"
+
 CHART_THEMES = {
     "✨ Emerald Cyberpunk": {
         "scale": "Viridis",

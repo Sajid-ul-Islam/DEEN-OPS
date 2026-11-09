@@ -166,6 +166,8 @@ def _flatten_order(order: dict) -> list[dict]:
                 "State Name (Billing)": bill.get("state", ""),
                 "Item Name": item.get("name"),
                 "SKU": item.get("sku", ""),
+                "Product ID": item.get("product_id"),
+                "Variation ID": item.get("variation_id"),
                 # Effective Unit Price (Net after line item discounts/cashback)
                 "Item Cost": eff_unit_cost,
                 # Standard Unit Price (Gross before line item discounts/cashback)

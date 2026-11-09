@@ -45,6 +45,7 @@ resources/pathao_status_cache.json
 data/
 resources/metric_snapshots/
 resources/sales_snapshot.csv
+resources/cogs_cache.json
 resources/customer_registry.db
 *.db
 *.db-wal
