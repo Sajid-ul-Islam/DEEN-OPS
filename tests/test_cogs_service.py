@@ -29,6 +29,7 @@ def test_extract_cogs_from_meta():
     assert extract_cogs_from_meta(None) is None
     assert extract_cogs_from_meta([{"key": "unrelated", "value": "123"}]) is None
     assert extract_cogs_from_meta([{"key": "_sip_buying_price", "value": ""}]) is None
+    assert extract_cogs_from_meta([{"key": "_sip_buying_price", "value": "0"}]) == 0.0
 
 
 def test_get_cogs_for_item():
@@ -70,6 +71,15 @@ def test_enrich_dataframe_with_cogs():
                 "Item Cost": 800.0,
                 "Line Total": 800.0,
             },
+            {
+                "Order ID": 1003,
+                "SKU": "NO-COGS-ITEM",
+                "Product ID": 99999,
+                "Variation ID": 0,
+                "Quantity": 1,
+                "Item Cost": 1500.0,
+                "Line Total": 1500.0,
+            },
         ]
     )
 
@@ -79,6 +89,7 @@ def test_enrich_dataframe_with_cogs():
     assert "Total COGS" in enriched.columns
     assert "Gross Profit" in enriched.columns
     assert "Profit Margin (%)" in enriched.columns
+    assert "COGS Status" in enriched.columns
 
     # Row 0: 2 units @ 1180 = 2360 Total COGS. Revenue = 4000. Profit = 1640.
     row0 = enriched.iloc[0]
@@ -86,6 +97,7 @@ def test_enrich_dataframe_with_cogs():
     assert row0["Total COGS"] == 2360.0
     assert row0["Gross Profit"] == 1640.0
     assert pytest.approx(row0["Profit Margin (%)"], abs=0.1) == 41.0
+    assert row0["COGS Status"] == "Configured"
 
     # Row 1: 1 unit @ 450 = 450 Total COGS. Revenue = 800. Profit = 350.
     row1 = enriched.iloc[1]
@@ -93,6 +105,13 @@ def test_enrich_dataframe_with_cogs():
     assert row1["Total COGS"] == 450.0
     assert row1["Gross Profit"] == 350.0
     assert pytest.approx(row1["Profit Margin (%)"], abs=0.1) == 43.8
+    assert row1["COGS Status"] == "Configured"
+
+    # Row 2: Unknown COGS
+    row2 = enriched.iloc[2]
+    assert row2["Unit COGS"] == 0.0
+    assert row2["Total COGS"] == 0.0
+    assert row2["COGS Status"] == "Unset in WooCommerce"
 
 
 def test_enrich_dataframe_empty():

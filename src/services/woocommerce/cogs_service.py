@@ -20,6 +20,7 @@ from src.utils.http import request_with_backoff
 from src.utils.logging import log_system_event
 
 CACHE_FILE = Path("resources") / "cogs_cache.json"
+OVERRIDES_FILE = Path("resources") / "cogs_overrides.json"
 
 # Common meta keys used by DEEN (SIP POS) and standard WooCommerce COGS plugins
 COGS_META_KEYS = (
@@ -47,22 +48,36 @@ def _load_cogs_cache() -> None:
         return
 
     _CACHE_LOADED = True
-    if not CACHE_FILE.exists():
-        return
+    if CACHE_FILE.exists():
+        try:
+            data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    try:
+                        if v is not None:
+                            _MEMORY_COGS_CACHE[str(k).strip()] = float(v)
+                    except (ValueError, TypeError):
+                        continue
+        except Exception as e:
+            log_system_event(
+                "COGS_CACHE_LOAD_ERROR", f"Failed loading cogs_cache.json: {e}"
+            )
 
-    try:
-        data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
-        if isinstance(data, dict):
-            for k, v in data.items():
-                try:
-                    if v is not None:
-                        _MEMORY_COGS_CACHE[str(k).strip()] = float(v)
-                except (ValueError, TypeError):
-                    continue
-    except Exception as e:
-        log_system_event(
-            "COGS_CACHE_LOAD_ERROR", f"Failed loading cogs_cache.json: {e}"
-        )
+    # Load manual overrides if provided by store operations
+    if OVERRIDES_FILE.exists():
+        try:
+            o_data = json.loads(OVERRIDES_FILE.read_text(encoding="utf-8"))
+            if isinstance(o_data, dict):
+                for k, v in o_data.items():
+                    try:
+                        if v is not None and float(v) > 0:
+                            _MEMORY_COGS_CACHE[str(k).strip()] = float(v)
+                    except (ValueError, TypeError):
+                        continue
+        except Exception as e:
+            log_system_event(
+                "COGS_OVERRIDES_LOAD_ERROR", f"Failed loading cogs_overrides.json: {e}"
+            )
 
 
 def _save_cogs_cache() -> None:
@@ -137,12 +152,27 @@ def fetch_cogs_for_product(
             if v_res.status_code == 200:
                 v_data = v_res.json()
                 if isinstance(v_data, list):
+                    var_cogs_dict: dict[str, float] = {}
+                    for var in v_data:
+                        v_id_str = str(var.get("id", "")).strip()
+                        v_cogs = extract_cogs_from_meta(var.get("meta_data"))
+                        if v_cogs is not None and v_cogs > 0:
+                            var_cogs_dict[v_id_str] = v_cogs
+
+                    # Sibling fallback: if parent has no COGS, find first non-zero variation COGS
+                    fallback_cogs = p_cogs
+                    if fallback_cogs is None and var_cogs_dict:
+                        fallback_cogs = next(iter(var_cogs_dict.values()))
+
+                    if fallback_cogs is not None:
+                        found[f"p_{p_id_str}"] = fallback_cogs
+                        if p_sku:
+                            found[p_sku] = fallback_cogs
+
                     for var in v_data:
                         v_id_str = str(var.get("id", "")).strip()
                         v_sku = str(var.get("sku", "")).strip()
-                        v_cogs = extract_cogs_from_meta(var.get("meta_data"))
-                        # Fallback to parent product COGS if variation meta is empty
-                        eff_cogs = v_cogs if v_cogs is not None else p_cogs
+                        eff_cogs = var_cogs_dict.get(v_id_str, fallback_cogs)
                         if eff_cogs is not None:
                             if v_id_str:
                                 found[f"v_{v_id_str}"] = eff_cogs
@@ -364,5 +394,10 @@ def enrich_dataframe_with_cogs(
         .fillna(0.0)
     )
     enriched["Profit Margin (%)"] = margin_series
+
+    # Clearly tag rows where COGS was found vs missing in WooCommerce
+    enriched["COGS Status"] = [
+        "Configured" if val > 0 else "Unset in WooCommerce" for val in unit_cogs_list
+    ]
 
     return enriched

@@ -77,3 +77,37 @@ def test_timeline_date_completed_precedence():
     past_summary = next(d for d in report.days if d.date_iso == "2026-11-06")
     assert past_summary.order_count == 1
     assert past_summary.revenue == 3500.0
+
+
+def test_timeline_status_filtering_excludes_open_orders():
+    ref_d = date(2026, 11, 9)
+    df = pd.DataFrame(
+        [
+            {
+                "Order ID": "1001",
+                "Order Status": "processing",  # Should be excluded
+                "Order Date Modified": ref_d.strftime("%Y-%m-%d 12:00:00"),
+                "Quantity": 1,
+                "Line Total": 1500.0,
+            },
+            {
+                "Order ID": "1002",
+                "Order Status": "cancelled",  # Should be excluded
+                "Order Date Modified": ref_d.strftime("%Y-%m-%d 13:00:00"),
+                "Quantity": 1,
+                "Line Total": 2000.0,
+            },
+            {
+                "Order ID": "1003",
+                "Order Status": "completed",  # Should be included
+                "Order Date Modified": ref_d.strftime("%Y-%m-%d 14:00:00"),
+                "Quantity": 1,
+                "Line Total": 2500.0,
+            },
+        ]
+    )
+    report = build_7day_dispatch_timeline(df, reference_date=ref_d)
+    today_summary = next(d for d in report.days if d.is_today)
+
+    assert today_summary.order_count == 1
+    assert today_summary.revenue == 2500.0

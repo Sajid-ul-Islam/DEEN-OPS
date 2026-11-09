@@ -109,6 +109,16 @@ def build_7day_dispatch_timeline(
         (c for c in ["dt_parsed", "Order Date", "date_created"] if c in df.columns),
         None,
     )
+    status_col = next(
+        (c for c in ["Order Status", "status", "Status"] if c in df.columns),
+        None,
+    )
+    if status_col and not df.empty:
+        from src.config.constants import SHIPPED_STATUSES
+
+        shipped_vals = {s.lower() for s in SHIPPED_STATUSES}
+        status_s = df[status_col].astype(str).str.lower().str.strip()
+        df = df[status_s.isin(shipped_vals)].copy()
 
     if not df.empty:
         dt_comp = (

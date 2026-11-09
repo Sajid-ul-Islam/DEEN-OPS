@@ -305,7 +305,7 @@ def _get_operational_sync_params(cache_buster: str | None = None) -> dict:
 
     anchor_bd = now_bd.replace(
         hour=shift_h, minute=shift_m, second=0, microsecond=0
-    ) - timedelta(days=3)
+    ) - timedelta(days=8)
     anchor_utc = anchor_bd - timedelta(hours=6)
 
     return _apply_cache_buster(
@@ -328,8 +328,8 @@ def _get_today_modified_shipped_params(cache_buster: str | None = None) -> dict:
     WooCommerce supports `modified_after` to filter by date_modified regardless of order date.
     Note: Subtract 6 hours from day_before_prev (BD Time UTC+6) so WooCommerce API receives UTC ISO time.
     """
-    _, prev_cutoff, day_before_prev, _ = _compute_cutoff_times(BD_TZ)
-    mod_start_utc = day_before_prev - timedelta(hours=6)
+    now_bd = bd_now()
+    mod_start_utc = (now_bd - timedelta(days=8)) - timedelta(hours=6)
     return _apply_cache_buster(
         {
             "per_page": 100,
@@ -678,10 +678,18 @@ def _partition_operational_data(df_full):
     return df_live, df_prev, df_backlog, slot_label, slot_boundaries
 
 
-def _build_result_payload(df_to_return, slot_label, modified_at, partitions, slots):
+def _build_result_payload(
+    df_to_return,
+    slot_label,
+    modified_at,
+    partitions,
+    slots,
+    df_full=None,
+):
     """Build the standard results dictionary returned by load_from_woocommerce."""
     return {
         "df_to_return": df_to_return,
+        "df_full": df_full if df_full is not None else df_to_return,
         "sync_desc": (
             f"WooCommerce_{slot_label}_API_{len(df_to_return)}_Orders"
             if not df_to_return.empty
@@ -778,6 +786,7 @@ def load_from_woocommerce(cache_buster: str | None = None):
             now_str,
             partitions,
             slots,
+            df_full=scrub_raw_dataframe(df_full),
         )
 
     except Exception as e:
@@ -1062,8 +1071,13 @@ def load_live_source(force_refresh=False):
         if should_fetch:
             st.session_state.pop("_needs_background_sync", None)
 
-        # 4. Update Full Context for Forecasting
-        st.session_state["wc_full_df"] = df_new
+        # 4. Update Full Context for Forecasting & 7-Day Timeline
+        full_df_candidate = results.get("df_full")
+        st.session_state["wc_full_df"] = (
+            full_df_candidate
+            if full_df_candidate is not None and not full_df_candidate.empty
+            else df_new
+        )
         st.session_state["_wc_last_sync_desc"] = results.get("sync_desc", "")
         st.session_state["_wc_last_modified_at"] = results.get("modified_at", "")
 
