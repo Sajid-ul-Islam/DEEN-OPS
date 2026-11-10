@@ -286,6 +286,20 @@ def render_dispatch_export(
         if "_order_source" in export_df.columns:
             export_df["Order Source"] = export_df["_order_source"]
 
+        # Ensure Stock Out Outlet is populated
+        if "Stock Out Outlet" in export_df.columns:
+            export_df["Stock Out Outlet"] = export_df["Stock Out Outlet"].fillna(
+                "Warehouse"
+            )
+        elif "Item Outlet" in export_df.columns:
+            export_df["Stock Out Outlet"] = export_df["Item Outlet"].fillna("Warehouse")
+        elif "Outlet" in export_df.columns:
+            export_df["Stock Out Outlet"] = export_df["Outlet"].fillna("Warehouse")
+        elif "Location" in export_df.columns:
+            export_df["Stock Out Outlet"] = export_df["Location"].fillna("Warehouse")
+        else:
+            export_df["Stock Out Outlet"] = "Warehouse"
+
         # Detect exchange orders for visual distinction
         fee_notes_col = "Fee Notes" if "Fee Notes" in export_df.columns else None
         status_col_check = status_col if status_col else None
@@ -311,6 +325,7 @@ def render_dispatch_export(
             "Order ID": "Order ID",
             prod_col: "Product Name",
             sku_col: "SKU",
+            "Stock Out Outlet": "Stock Out Outlet",
             "Product Line": "Product Line",
             qty_col: "Quantity",
             cost_col: "Item Cost",
@@ -429,6 +444,7 @@ def render_dispatch_export(
                 for c in [
                     "Order ID",
                     "Product Name",
+                    "Stock Out Outlet",
                     "Product Line",
                     "SKU",
                     "Customer",
@@ -448,6 +464,10 @@ def render_dispatch_export(
                 column_config={
                     "Order ID": st.column_config.NumberColumn("Order ID", format="%d"),
                     "Quantity": st.column_config.NumberColumn("Qty", format="%d"),
+                    "Stock Out Outlet": st.column_config.TextColumn(
+                        "Stock Out From",
+                        help="Outlet or warehouse where stock was deducted",
+                    ),
                     "Product Line": st.column_config.TextColumn("Product Line"),
                     "Item Cost": st.column_config.NumberColumn(
                         "Price (৳)", format="%.2f"
@@ -634,6 +654,10 @@ def render_dispatch_export(
                             "Order ID", format="%d"
                         ),
                         "Quantity": st.column_config.NumberColumn("Qty", format="%d"),
+                        "Stock Out Outlet": st.column_config.TextColumn(
+                            "Stock Out From",
+                            help="Outlet or warehouse where stock was deducted",
+                        ),
                         "Product Line": st.column_config.TextColumn("Product Line"),
                         "Item Cost": st.column_config.NumberColumn(
                             "Price (৳)", format="%.2f"

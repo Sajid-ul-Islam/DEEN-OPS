@@ -26,6 +26,8 @@ OVERRIDES_FILE = Path("resources") / "cogs_overrides.json"
 COGS_META_KEYS = (
     "_sip_buying_price",
     "sip_buying_price",
+    "_buying_price",
+    "buying_price",
     "_alg_wc_cog_cost",
     "_wc_cog_cost",
     "_cogs_cost",
@@ -33,7 +35,10 @@ COGS_META_KEYS = (
     "cogs",
     "_cost_price",
     "cost_price",
+    "_purchase_price",
+    "purchase_price",
     "_cost",
+    "cost",
 )
 
 # In-memory session cache: key is str (sku or id), value is float
@@ -100,7 +105,9 @@ def extract_cogs_from_meta(meta_list: list[dict[str, Any]] | None) -> float | No
         if not isinstance(meta, dict):
             continue
         key = str(meta.get("key", "")).strip().lower()
-        if key in COGS_META_KEYS:
+        if key in COGS_META_KEYS or any(
+            t in key for t in ("buying_price", "cost_price", "cogs", "purchase_price")
+        ):
             val = meta.get("value")
             if val is not None and str(val).strip() != "":
                 try:
@@ -298,6 +305,21 @@ def enrich_dataframe_with_cogs(
         (c for c in ["Line Total", "Total Amount", "Total"] if c in enriched.columns),
         None,
     )
+    existing_cogs_col = next(
+        (
+            c
+            for c in [
+                "Unit COGS",
+                "COGS",
+                "cogs",
+                "buying_price",
+                "Buying Price",
+                "_sip_buying_price",
+            ]
+            if c in enriched.columns
+        ),
+        None,
+    )
 
     # 1. Determine which unique products/SKUs need to be fetched via REST API
     needed_pids = set()
@@ -309,6 +331,20 @@ def enrich_dataframe_with_cogs(
         v = row[vid_col] if vid_col else None
 
         cogs_val = get_cogs_for_item(sku=s, product_id=p, variation_id=v)
+        if cogs_val is None and existing_cogs_col:
+            try:
+                ex_val = float(str(row[existing_cogs_col]).replace(",", "").strip())
+                if ex_val > 0:
+                    cogs_val = ex_val
+                    if v and str(v) not in ("0", "None", ""):
+                        _MEMORY_COGS_CACHE[f"v_{str(v).strip()}"] = ex_val
+                    if s:
+                        _MEMORY_COGS_CACHE[s] = ex_val
+                    if p and str(p) not in ("0", "None", ""):
+                        _MEMORY_COGS_CACHE[f"p_{str(p).strip()}"] = ex_val
+            except (ValueError, TypeError):
+                pass
+
         if cogs_val is None:
             if p and str(p).strip() not in ("0", "None", ""):
                 needed_pids.add(str(p).strip())
@@ -364,6 +400,13 @@ def enrich_dataframe_with_cogs(
         p = row[pid_col] if pid_col else None
         v = row[vid_col] if vid_col else None
         val = get_cogs_for_item(sku=s, product_id=p, variation_id=v)
+        if val is None and existing_cogs_col:
+            try:
+                ex_val = float(str(row[existing_cogs_col]).replace(",", "").strip())
+                if ex_val > 0:
+                    val = ex_val
+            except (ValueError, TypeError):
+                pass
         unit_cogs_list.append(round(val, 2) if val is not None else 0.0)
 
     enriched["Unit COGS"] = unit_cogs_list

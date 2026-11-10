@@ -24,6 +24,13 @@ def test_extract_cogs_from_meta():
     meta_comma = [{"id": 3, "key": "_wc_cog_cost", "value": "1,250.00"}]
     assert extract_cogs_from_meta(meta_comma) == 1250.0
 
+    # Test flexible key matching
+    meta_flex1 = [{"key": "buying_price", "value": "750"}]
+    assert extract_cogs_from_meta(meta_flex1) == 750.0
+
+    meta_flex2 = [{"key": "_purchase_price", "value": "620"}]
+    assert extract_cogs_from_meta(meta_flex2) == 620.0
+
     # Test empty or invalid
     assert extract_cogs_from_meta([]) is None
     assert extract_cogs_from_meta(None) is None
@@ -112,6 +119,28 @@ def test_enrich_dataframe_with_cogs():
     assert row2["Unit COGS"] == 0.0
     assert row2["Total COGS"] == 0.0
     assert row2["COGS Status"] == "Unset in WooCommerce"
+
+
+def test_enrich_dataframe_with_existing_cogs_col():
+    df = pd.DataFrame(
+        [
+            {
+                "Order ID": 2001,
+                "SKU": "EXIST-001",
+                "Product ID": 8888,
+                "Variation ID": 9999,
+                "Quantity": 3,
+                "Line Total": 3000.0,
+                "_sip_buying_price": 500.0,
+            }
+        ]
+    )
+    enriched = enrich_dataframe_with_cogs(df, fetch_missing=False)
+    assert enriched.iloc[0]["Unit COGS"] == 500.0
+    assert enriched.iloc[0]["Total COGS"] == 1500.0
+    assert enriched.iloc[0]["Gross Profit"] == 1500.0
+    assert enriched.iloc[0]["Profit Margin (%)"] == 50.0
+    assert enriched.iloc[0]["COGS Status"] == "Configured"
 
 
 def test_enrich_dataframe_empty():

@@ -57,6 +57,8 @@ def _flatten_order(order: dict) -> list[dict]:
     sip_exchange_code = ""
     sip_exchange_order = ""
     is_exchange_meta = False
+    sip_waterfall_deductions = []
+    pos_outlet_id = None
 
     for meta in order.get("meta_data", []):
         k = str(meta.get("key", "")).strip().lower()
@@ -112,6 +114,18 @@ def _flatten_order(order: dict) -> list[dict]:
                 "null",
             ]:
                 is_exchange_meta = True
+        elif k in ["_sip_waterfall_deductions", "sip_waterfall_deductions"]:
+            if isinstance(v, list):
+                sip_waterfall_deductions = v
+            elif isinstance(v, str):
+                try:
+                    import json
+
+                    sip_waterfall_deductions = json.loads(v)
+                except Exception:
+                    sip_waterfall_deductions = []
+        elif k in ["_sip_outlet_id", "sip_outlet_id"]:
+            pos_outlet_id = v
 
     for t in order.get("tags", []):
         t_name = (t.get("name", "") if isinstance(t, dict) else str(t)).lower()
@@ -198,6 +212,63 @@ def _flatten_order(order: dict) -> list[dict]:
         bill_city = str(bill.get("city", "") or "").strip()
         effective_city = ship_city or bill_city
 
+        # Determine stock out outlet from SIP waterfall deductions or POS outlet
+        item_outlet = "Warehouse"
+        if sip_waterfall_deductions:
+            matched_deduction = None
+            var_id = item.get("variation_id")
+            prod_id = item.get("product_id")
+            if var_id and str(var_id) not in ("0", "None", ""):
+                for d in sip_waterfall_deductions:
+                    if str(d.get("variation_id")) == str(var_id):
+                        matched_deduction = d
+                        break
+            if not matched_deduction and prod_id:
+                for d in sip_waterfall_deductions:
+                    if str(d.get("product_id")) == str(prod_id):
+                        matched_deduction = d
+                        break
+            if not matched_deduction and idx < len(sip_waterfall_deductions):
+                matched_deduction = sip_waterfall_deductions[idx]
+
+            if matched_deduction:
+                slug = matched_deduction.get("outlet_slug") or matched_deduction.get(
+                    "outlet_name"
+                )
+                out_id = matched_deduction.get("outlet_id")
+                if slug:
+                    from src.processing.sip_outlet_processor import (
+                        normalize_outlet_name,
+                    )
+
+                    item_outlet = normalize_outlet_name(slug, canonical=True)
+                elif out_id:
+                    outlet_names = {
+                        1: "Warehouse",
+                        2: "Mirpur",
+                        6: "Sylhet",
+                        7: "Cumilla",
+                        8: "Wari",
+                    }
+                    try:
+                        item_outlet = outlet_names.get(int(out_id), f"Outlet {out_id}")
+                    except (ValueError, TypeError):
+                        item_outlet = "Warehouse"
+        elif pos_outlet_id:
+            outlet_names = {
+                1: "Warehouse",
+                2: "Mirpur",
+                6: "Sylhet",
+                7: "Cumilla",
+                8: "Wari",
+            }
+            try:
+                item_outlet = outlet_names.get(
+                    int(pos_outlet_id), f"Outlet {pos_outlet_id}"
+                )
+            except (ValueError, TypeError):
+                item_outlet = "Warehouse"
+
         flattened.append(
             {
                 "Order ID": oid,
@@ -242,6 +313,9 @@ def _flatten_order(order: dict) -> list[dict]:
                 "_sip_exchange_code": sip_exchange_code,
                 "_sip_exchange_order": sip_exchange_order,
                 "is_exchange": is_exchange_meta,
+                "Stock Out Outlet": item_outlet,
+                "Item Outlet": item_outlet,
+                "Outlet": item_outlet,
             }
         )
     return flattened
