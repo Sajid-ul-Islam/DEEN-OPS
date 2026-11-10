@@ -175,10 +175,19 @@ def get_llm_provider_keys() -> dict[str, list[str]]:
 
 
 def is_auth_configured() -> bool:
-    """Return True when the OIDC auth block is present and complete."""
+    """Return True when any supported auth provider (WordPress or Google OIDC) is configured."""
+    # WordPress auth is available whenever WooCommerce store_url is configured
+    wc_cfg = get_woocommerce_config(required=False)
+    if wc_cfg.get("store_url"):
+        return True
+
     auth = get_secret_section("auth")
     if not auth:
         return False
+
+    # Check configured admin credentials in [auth]
+    if auth.get("admin_username") or auth.get("username") or auth.get("users"):
+        return True
 
     google = _as_dict(auth.get("google"))
     return all(auth.get(key) for key in ("redirect_uri", "cookie_secret")) and all(

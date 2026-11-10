@@ -58,20 +58,10 @@ def _rotate_error_logs() -> None:
 
 
 def _render_auth_gate() -> None:
-    """Show the Google login screen when auth is enabled but user is not logged in."""
-    from src.components.ui.styles import inject_base_styles
+    """Show the WordPress / WooCommerce login screen when auth is required."""
+    from src.components.auth.login_view import render_login_gate
 
-    inject_base_styles()
-    st.markdown("<div style='margin-top:100px;'></div>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("assets/deen_logo.jpg", width=120)
-        st.title("\U0001f6e1\ufe0f DEEN OPS Terminal")
-        st.markdown("### Secure Operational Access")
-        st.info("Identity verification required for Business Intelligence access.")
-        if st.button("Log in with Google", use_container_width=True, type="primary"):
-            st.login()
-    st.stop()
+    render_login_gate()
 
 
 # ── Navigation helpers ──────────────────────────────────────────────────────
@@ -161,7 +151,24 @@ def _render_sidebar_branding() -> None:
 
 def _render_sidebar_user_context(is_auth_on: bool) -> None:
     """Show the logged-in user expander when auth is enabled."""
-    if is_auth_on and st.user.is_logged_in:
+    auth_user = st.session_state.get("auth_user")
+    if auth_user:
+        name = auth_user.get("display_name") or auth_user.get("username", "Admin")
+        role = "Administrator" if auth_user.get("is_admin") else "Staff"
+        with st.sidebar.expander(f"👤 {name} ({role})", expanded=False):
+            if auth_user.get("email"):
+                st.caption(f"📧 {auth_user.get('email')}")
+            st.caption(f"🔑 Auth: {auth_user.get('auth_method', 'WordPress')}")
+            if st.button(
+                "Log out",
+                use_container_width=True,
+                type="secondary",
+                key="wp_logout_btn",
+            ):
+                st.session_state.pop("auth_user", None)
+                st.rerun()
+        st.divider()
+    elif is_auth_on and hasattr(st, "user") and getattr(st.user, "is_logged_in", False):
         with st.sidebar.expander(f"\U0001f464 {st.user.name}", expanded=False):
             st.caption(f"\U0001f4e7 {st.user.email}")
             if st.button("Logout", use_container_width=True, type="secondary"):
@@ -481,15 +488,22 @@ def run_app() -> None:
     is_auth_on = auth_is_configured()
     config_issues = validate_runtime_configuration()
 
+    user_data = st.session_state.get("auth_user")
+    from src.services.auth.wordpress_auth import is_user_authenticated
+
+    user_is_logged_in = is_user_authenticated(user_data) or (
+        hasattr(st, "user") and getattr(st.user, "is_logged_in", False)
+    )
+
     if not is_auth_on and not is_unauthenticated_access_allowed():
         st.error("Authentication is not configured. Access is disabled by default.")
         st.info(
-            "Configure the [auth] secrets block. For local development only, set "
-            "DEEN_OPS_ALLOW_UNAUTHENTICATED=true."
+            "Configure the [auth] secrets block or WooCommerce credentials. "
+            "For local development only, set DEEN_OPS_ALLOW_UNAUTHENTICATED=true."
         )
         st.stop()
 
-    if is_auth_on and not st.user.is_logged_in:
+    if not is_unauthenticated_access_allowed() and not user_is_logged_in:
         _render_auth_gate()
 
     # ── Lazy imports (kept inside function for cloud resilience) ────────────

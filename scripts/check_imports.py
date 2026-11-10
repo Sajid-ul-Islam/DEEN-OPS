@@ -76,6 +76,10 @@ MODULES = [
     "src.components.dashboard.selects_analysis_view",
     "src.components.dashboard.dispatch_export_view",
     "src.services.woocommerce.cogs_service",
+    "src.services.auth.wordpress_auth",
+    "src.services.auth",
+    "src.components.auth.login_view",
+    "src.components.auth",
 ]
 
 
