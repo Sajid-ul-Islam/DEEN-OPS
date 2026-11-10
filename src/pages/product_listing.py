@@ -132,11 +132,29 @@ def _apply_pastel_colors(
 def render_product_listing_tab() -> None:
     """Render the Product Listing & Outlet Dispatch workspace."""
     render_premium_header(
-        title="Product Listing & Outlet Dispatch",
-        subtitle="Consolidated picking lists, multi-outlet routing, and Pathao bulk dispatch.",
+        title="Product Catalog & Outlet Inventory",
+        subtitle="Multi-outlet stock matrix, branch replenishment, picking lists, and Pathao bulk dispatch.",
         icon="📋",
     )
 
+    tab_stock, tab_dispatch = st.tabs(
+        [
+            "🏬 Warehouse & Outlet Stock Matrix",
+            "🚚 Order Dispatch & Picking Lists",
+        ]
+    )
+
+    with tab_stock:
+        from src.components.dashboard.outlet_stock_view import render_outlet_stock_view
+
+        render_outlet_stock_view()
+
+    with tab_dispatch:
+        _render_dispatch_workflow()
+
+
+def _render_dispatch_workflow() -> None:
+    """Render the Order Dispatch & Picking Lists workflow."""
     # 1. Data Source Selection
     source_opt = st.radio(
         "Select Data Source:",

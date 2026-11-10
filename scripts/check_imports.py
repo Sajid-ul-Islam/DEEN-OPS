@@ -80,6 +80,9 @@ MODULES = [
     "src.services.auth",
     "src.components.auth.login_view",
     "src.components.auth",
+    "src.processing.stock_analytics",
+    "src.services.woocommerce.stock_service",
+    "src.components.dashboard.outlet_stock_view",
 ]
 
 
