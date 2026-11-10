@@ -166,6 +166,7 @@ def _render_sidebar_user_context(is_auth_on: bool) -> None:
                 key="wp_logout_btn",
             ):
                 st.session_state.pop("auth_user", None)
+                st.session_state.pop("_bypass_auth", None)
                 st.rerun()
         st.divider()
     elif is_auth_on and hasattr(st, "user") and getattr(st.user, "is_logged_in", False):
@@ -503,7 +504,7 @@ def run_app() -> None:
         )
         st.stop()
 
-    if not is_unauthenticated_access_allowed() and not user_is_logged_in:
+    if not user_is_logged_in and not st.session_state.get("_bypass_auth"):
         _render_auth_gate()
 
     # ── Lazy imports (kept inside function for cloud resilience) ────────────

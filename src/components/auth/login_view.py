@@ -177,4 +177,16 @@ def render_login_gate() -> None:
             ):
                 st.login()
 
+        from src.config.settings import is_unauthenticated_access_allowed
+
+        if is_unauthenticated_access_allowed():
+            st.divider()
+            if st.button(
+                "🔓 Continue as Guest (Development Bypass)",
+                use_container_width=True,
+                type="secondary",
+            ):
+                st.session_state["_bypass_auth"] = True
+                st.rerun()
+
     st.stop()
