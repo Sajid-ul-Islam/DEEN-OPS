@@ -71,6 +71,42 @@ def render_orders_ledger_view(
         if old_c in df.columns and new_c not in df.columns:
             df[new_c] = df[old_c]
 
+    # Ensure Quantity is numeric
+    if "Quantity" in df.columns:
+        df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce").fillna(1)
+
+    # Ensure Item Cost is numeric
+    if "Item Cost" in df.columns:
+        df["Item Cost"] = pd.to_numeric(df["Item Cost"], errors="coerce").fillna(0.0)
+
+    # Ensure Line Total is reliably present and numeric across all source frames
+    if "Line Total" not in df.columns:
+        if "Item Cost" in df.columns and "Quantity" in df.columns:
+            df["Line Total"] = pd.to_numeric(df["Item Cost"], errors="coerce").fillna(
+                0.0
+            ) * pd.to_numeric(df["Quantity"], errors="coerce").fillna(1.0)
+        else:
+            for alt_total in [
+                "Total Amount",
+                "Gross Amount",
+                "Subtotal Cost",
+                "Order Total Amount",
+            ]:
+                if alt_total in df.columns:
+                    df["Line Total"] = pd.to_numeric(
+                        df[alt_total], errors="coerce"
+                    ).fillna(0.0)
+                    break
+            else:
+                if "Item Cost" in df.columns:
+                    df["Line Total"] = pd.to_numeric(
+                        df["Item Cost"], errors="coerce"
+                    ).fillna(0.0)
+                else:
+                    df["Line Total"] = 0.0
+    else:
+        df["Line Total"] = pd.to_numeric(df["Line Total"], errors="coerce").fillna(0.0)
+
     # Normalize and format Date column for consistent BDT display
     date_src_col = next(
         (
@@ -270,15 +306,6 @@ def _render_order_wise_table(
         agg_funcs["Quantity"] = "sum"
     if "Line Total" in df.columns:
         agg_funcs["Line Total"] = "sum"
-    elif "Item Cost" in df.columns:
-        agg_funcs["Line Total"] = lambda x: (
-            (
-                pd.to_numeric(x, errors="coerce")
-                * pd.to_numeric(df.loc[x.index, "Quantity"], errors="coerce")
-            ).sum()
-            if "Quantity" in df.columns
-            else pd.to_numeric(x, errors="coerce").sum()
-        )
 
     first_cols = [
         "Customer",
@@ -294,11 +321,22 @@ def _render_order_wise_table(
         if fc in df.columns:
             agg_funcs[fc] = "first"
 
-    order_headers = (
-        df.groupby(oid_col, as_index=False)
-        .agg(agg_funcs)
-        .sort_values(by=oid_col, ascending=False)
-    )
+    # Strictly guard agg_funcs so only columns actually present in df are aggregated
+    agg_funcs = {col: func for col, func in agg_funcs.items() if col in df.columns}
+
+    order_headers = df.groupby(oid_col, as_index=False).agg(agg_funcs)
+    try:
+        order_headers = order_headers.sort_values(
+            by=oid_col,
+            ascending=False,
+            key=lambda col: pd.to_numeric(
+                col.astype(str).str.extract(r"(\d+)", expand=False), errors="coerce"
+            ).fillna(0),
+        )
+    except Exception:
+        order_headers = order_headers.sort_values(
+            by=oid_col, ascending=False, key=lambda col: col.astype(str)
+        )
 
     # Enrich with Risk Rating & Exchange detection
     risk_ratings: list[str] = []
@@ -357,7 +395,7 @@ def _render_order_wise_table(
         use_container_width=True,
         hide_index=True,
         column_config={
-            oid_col: st.column_config.NumberColumn("Order ID", format="%d"),
+            oid_col: st.column_config.TextColumn("Order ID"),
             "Order Date": st.column_config.TextColumn(
                 "Order Date", help="Order timestamp in Bangladesh Time (BDT, UTC+6)"
             ),
@@ -466,7 +504,7 @@ def _render_item_wise_table(df: pd.DataFrame, key_prefix: str) -> None:
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Order ID": st.column_config.NumberColumn("Order ID", format="%d"),
+            "Order ID": st.column_config.TextColumn("Order ID"),
             "Quantity": st.column_config.NumberColumn("Qty", format="%d"),
             "Item Cost": st.column_config.NumberColumn("Price (৳)", format="%.2f"),
             "Line Total": st.column_config.NumberColumn("Total (৳)", format="%.2f"),
